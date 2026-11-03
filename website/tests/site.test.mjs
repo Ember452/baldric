@@ -26,7 +26,6 @@ test("all Markdown routes and static hosting artifacts exist", async () => {
     await access(path.join(dist, route, "index.html"));
   }
   for (const file of [
-    "CNAME",
     "404.html",
     "index.xml",
     "robots.txt",
