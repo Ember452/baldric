@@ -60,9 +60,7 @@ async def test_refresh_persists_catalog_and_effective_catalog_uses_newer_cache(
     assert cached_models_dev_catalog_document(paths) is None
     monkeypatch.setattr(store, "bundled_models_dev_catalog_document", lambda: {"generated_at": 0})
     assert cached_models_dev_catalog_document(paths) is not None
-    huggingface = next(
-        provider for provider in effective_catalog(paths) if provider.name == "huggingface"
-    )
+    huggingface = next(provider for provider in effective_catalog(paths) if provider.name == "huggingface")
     assert "example/new-tool-model" in huggingface.models
 
 

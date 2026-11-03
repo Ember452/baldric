@@ -121,10 +121,7 @@ async def test_single_backend_is_preselected_but_requires_explicit_confirmation(
         assert picker.selected == "backend"
         label = picker.query_one("#local-backend-list").children[0].query_one(Label)
         assert "Recommended" in label.render().plain
-        assert (
-            "Enter selects"
-            in picker.query_one("#local-backend-picker-footer", Static).render().plain
-        )
+        assert "Enter selects" in picker.query_one("#local-backend-picker-footer", Static).render().plain
         await pilot.press("enter")
         await pilot.pause()
 
@@ -181,9 +178,7 @@ async def test_backend_open_auto_refreshes_and_renders_clickable_models() -> Non
         assert "available to load" in label
         assert model_list.has_focus
         assert "focused" in screen.query_one("#local-model-section-title", Static).render().plain
-        assert (
-            "focused" not in screen.query_one("#local-action-section-title", Static).render().plain
-        )
+        assert "focused" not in screen.query_one("#local-action-section-title", Static).render().plain
 
         await pilot.press("tab")
         assert action_menu.has_focus
@@ -246,9 +241,7 @@ async def test_download_progress_renders_fraction_and_remaining_detail() -> None
         assert screen.query_one("#local-backend-progress", Static).styles.display == "block"
         assert progress_bar.styles.display == "block"
         assert progress_bar.progress == 0.25
-        assert (
-            progress_bar.size.width == screen.query_one("#local-backend-screen").content_size.width
-        )
+        assert progress_bar.size.width == screen.query_one("#local-backend-screen").content_size.width
         bar = progress_bar.query_one("#bar")
         assert bar.size.width == progress_bar.content_size.width
         console = Console(width=bar.size.width, record=True, file=StringIO())
@@ -322,9 +315,7 @@ async def test_confirmation_preselects_cancel_without_recommending_it() -> None:
 
         choices = app.screen.query_one("#local-choice-list", ListView)
         assert choices.index == 1
-        assert all(
-            "recommended" not in item.query_one(Label).render().plain for item in choices.children
-        )
+        assert all("recommended" not in item.query_one(Label).render().plain for item in choices.children)
 
 
 async def test_search_results_preselect_recommended_download_variant() -> None:
@@ -508,11 +499,7 @@ async def test_detached_download_completion_immediately_shows_model_available() 
         await pilot.pause()
         assert (
             "downloading"
-            in reopened.query_one("#local-model-list", ListView)
-            .children[0]
-            .query_one(Label)
-            .render()
-            .plain
+            in reopened.query_one("#local-model-list", ListView).children[0].query_one(Label).render().plain
         )
 
         release.set()
@@ -521,11 +508,7 @@ async def test_detached_download_completion_immediately_shows_model_available() 
             await asyncio.sleep(0.05)
             await pilot.pause()
             current_label = (
-                reopened.query_one("#local-model-list", ListView)
-                .children[0]
-                .query_one(Label)
-                .render()
-                .plain
+                reopened.query_one("#local-model-list", ListView).children[0].query_one(Label).render().plain
             )
             if "available to load" in current_label:
                 break
@@ -533,19 +516,11 @@ async def test_detached_download_completion_immediately_shows_model_available() 
         reopened._render_observed_download_progress(
             LocalProgress("Downloading owner/repo:Q4_K_M…", fraction=0.75)
         )
-        label = (
-            reopened.query_one("#local-model-list", ListView)
-            .children[0]
-            .query_one(Label)
-            .render()
-            .plain
-        )
+        label = reopened.query_one("#local-model-list", ListView).children[0].query_one(Label).render().plain
         assert "available to load" in label
         assert "downloading" not in label
         assert reopened.query_one("#local-backend-progress", Static).render().plain == ""
-        assert (
-            reopened.query_one("#local-backend-progress-bar", ProgressBar).styles.display == "none"
-        )
+        assert reopened.query_one("#local-backend-progress-bar", ProgressBar).styles.display == "none"
 
     await registry.aclose()
 

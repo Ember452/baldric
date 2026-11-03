@@ -3,7 +3,6 @@ from collections.abc import Mapping
 
 import pytest
 
-from pi_event_helpers import assistant_done, assistant_start, text_delta, tool_call_end
 from baldric_agent import (
     AgentHarness,
     AgentHarnessConfig,
@@ -18,6 +17,7 @@ from baldric_agent import (
 )
 from baldric_agent.types import JSONValue
 from baldric_ai import FakeProvider
+from pi_event_helpers import assistant_done, assistant_start, text_delta, tool_call_end
 
 
 def _texts(harness: AgentHarness) -> list[tuple[str, str]]:
@@ -92,17 +92,11 @@ async def test_harness_rejects_overlap_and_drains_followups() -> None:
             [assistant_start(), assistant_done(second)],
         ]
     )
-    harness = AgentHarness(
-        AgentHarnessConfig(provider=provider, model="fake", system="You are Baldric.")
-    )
+    harness = AgentHarness(AgentHarnessConfig(provider=provider, model="fake", system="You are Baldric."))
 
     queued = False
     async for event in harness.prompt("Hi"):
-        if (
-            isinstance(event, MessageStartEvent)
-            and event.message.role == "assistant"
-            and not queued
-        ):
+        if isinstance(event, MessageStartEvent) and event.message.role == "assistant" and not queued:
             with pytest.raises(RuntimeError, match="already running"):
                 harness.prompt("overlap")
             harness.follow_up("Later")
@@ -230,9 +224,7 @@ def _blocking_tool(tool_started: "asyncio.Event", release: "asyncio.Event") -> A
 def _blocking_run_harness(tool_started: "asyncio.Event", release: "asyncio.Event") -> AgentHarness:
     call = ToolCall(id="call-1", name="hang", arguments={})
     assistant = AssistantMessage(content=[call])
-    provider = FakeProvider(
-        [[assistant_start(), tool_call_end(call), assistant_done(assistant, "toolUse")]]
-    )
+    provider = FakeProvider([[assistant_start(), tool_call_end(call), assistant_done(assistant, "toolUse")]])
     return AgentHarness(
         AgentHarnessConfig(
             provider=provider,

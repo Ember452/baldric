@@ -263,9 +263,9 @@ def _handoff_windows_update(
         "executable": command[0],
         "arguments": _windows_command_line(command[1:]),
     }
-    encoded_payload = base64.b64encode(
-        json.dumps(update_payload, ensure_ascii=False).encode("utf-8")
-    ).decode("ascii")
+    encoded_payload = base64.b64encode(json.dumps(update_payload, ensure_ascii=False).encode("utf-8")).decode(
+        "ascii"
+    )
     powershell_command = (
         powershell,
         "-NoLogo",

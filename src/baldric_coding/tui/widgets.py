@@ -287,9 +287,7 @@ def _sidebar_resource_title(label: str, detail: str, *, theme: TuiTheme) -> str:
 def _skill_section_title(session: SessionSummarySource, *, theme: TuiTheme) -> str:
     """Summarize skill count and estimated system-prompt footprint."""
     skill_prompt = (
-        format_skills_for_prompt(session.skills)
-        if any(tool.name == "read" for tool in session.tools)
-        else ""
+        format_skills_for_prompt(session.skills) if any(tool.name == "read" for tool in session.tools) else ""
     )
     estimated_tokens = estimate_text_tokens(skill_prompt)
     return _sidebar_resource_title(
@@ -601,9 +599,7 @@ class SystemPromptSourcesWidget(Vertical):
         super().__init__()
 
     def compose(self) -> Any:
-        yield Static(
-            Text("/system", style=f"bold {self._theme.accent}"), classes="system-prompt-title"
-        )
+        yield Static(Text("/system", style=f"bold {self._theme.accent}"), classes="system-prompt-title")
         for index, source in enumerate(self.sources, start=1):
             yield SystemPromptSectionWidget(source, index=index, theme=self._theme)
 
@@ -994,9 +990,7 @@ class TranscriptView(VerticalScroll):
         self._window_start = 0
         self._window_end = 0
         self._window_shift_pending = False
-        self._item_widgets: dict[
-            int, TranscriptMessageWidget | StreamingTranscriptMessageWidget
-        ] = {}
+        self._item_widgets: dict[int, TranscriptMessageWidget | StreamingTranscriptMessageWidget] = {}
         self._top_boundary: TranscriptWindowBoundary | None = None
         self._bottom_boundary: TranscriptWindowBoundary | None = None
 
@@ -1129,9 +1123,7 @@ class TranscriptView(VerticalScroll):
     ) -> None:
         """Render display state while keeping the mounted transcript DOM bounded."""
         same_state = self._render_state is state
-        retained_projection = same_state and any(
-            id(item) in self._item_widgets for item in state.items
-        )
+        retained_projection = same_state and any(id(item) in self._item_widgets for item in state.items)
         should_follow = self._should_follow_output
         if not retained_projection:
             self._follow_output = True
@@ -1161,9 +1153,7 @@ class TranscriptView(VerticalScroll):
             if isinstance(child, TranscriptMessageWidget | StreamingTranscriptMessageWidget)
         ]
         thinking_children = [child for child in message_children if child.item.role == "thinking"]
-        non_thinking_children = [
-            child for child in message_children if child.item.role != "thinking"
-        ]
+        non_thinking_children = [child for child in message_children if child.item.role != "thinking"]
         if thinking_children:
             self.remove_children(thinking_children)
         for item_id, widget in tuple(self._item_widgets.items()):
@@ -1253,9 +1243,7 @@ class TranscriptView(VerticalScroll):
             for child in self.children
             if isinstance(
                 child,
-                TranscriptMessageWidget
-                | StreamingTranscriptMessageWidget
-                | TranscriptWindowBoundary,
+                TranscriptMessageWidget | StreamingTranscriptMessageWidget | TranscriptWindowBoundary,
             )
         ]
         if removable:
@@ -1362,10 +1350,7 @@ class TranscriptView(VerticalScroll):
         if (
             state is not None
             and item_index is not None
-            and (
-                item_index < self._window_start
-                or (item_index > self._window_end and not should_follow)
-            )
+            and (item_index < self._window_start or (item_index > self._window_end and not should_follow))
         ):
             return widget
         if state is not None and item_index is not None:
@@ -1669,9 +1654,7 @@ class TranscriptView(VerticalScroll):
             if isinstance(child, TranscriptMessageWidget | StreamingTranscriptMessageWidget)
         ]
         return tuple(
-            TranscriptLine(line)
-            for message in messages
-            for line in message.selection_text.splitlines()
+            TranscriptLine(line) for message in messages for line in message.selection_text.splitlines()
         )
 
 
@@ -1688,10 +1671,7 @@ def _identity_index(items: Sequence[ChatItem], target: ChatItem) -> int | None:
 def _last_transcript_child_is_hidden_thinking_placeholder(children: Sequence[Widget]) -> bool:
     for child in reversed(children):
         if isinstance(child, TranscriptMessageWidget | StreamingTranscriptMessageWidget):
-            return (
-                child.item.role == "thinking"
-                and child.selection_text == _HIDDEN_THINKING_PLACEHOLDER
-            )
+            return child.item.role == "thinking" and child.selection_text == _HIDDEN_THINKING_PLACEHOLDER
     return False
 
 
@@ -1869,9 +1849,7 @@ def _transcript_item_markdown(
     invocation: str | None = None,
 ) -> str:
     """Return Markdown for a transcript item using native Textual Markdown blocks."""
-    visible_text = _visible_chat_text(
-        item, show_tool_results=show_tool_results, invocation=invocation
-    )
+    visible_text = _visible_chat_text(item, show_tool_results=show_tool_results, invocation=invocation)
     if item.system_prompt:
         return _system_prompt_markdown(visible_text)
     if item.role in {"assistant", "thinking", "status", "branch_summary", "compaction_summary"}:
@@ -1999,9 +1977,7 @@ def _system_prompt_indented_code_ranges(text: str) -> tuple[tuple[int, int], ...
 
 def _system_prompt_uri_autolink_ranges(text: str) -> tuple[tuple[int, int], ...]:
     """Find CommonMark URI autolinks, including schemes without ``//``."""
-    return tuple(
-        (match.start(), match.end()) for match in _SYSTEM_PROMPT_URI_AUTOLINK_PATTERN.finditer(text)
-    )
+    return tuple((match.start(), match.end()) for match in _SYSTEM_PROMPT_URI_AUTOLINK_PATTERN.finditer(text))
 
 
 def _system_prompt_inline_code_ranges(
@@ -2199,9 +2175,7 @@ def _build_sidebar_content(
             empty="No system prompt files",
             theme=theme,
         )
-        system_prompt_sections = (
-            _sidebar_section("system prompt", system_prompt_files, theme=theme),
-        )
+        system_prompt_sections = (_sidebar_section("system prompt", system_prompt_files, theme=theme),)
     tools = _comma_list([tool.name for tool in session.tools], empty="No tools", theme=theme)
     return _SidebarContent(
         summary_sections=(
@@ -2370,10 +2344,7 @@ def _tool_batch_row_invocation(row: ChatItem, *, expanded: bool) -> str:
             blocks = []
             for member in row.grouped_tool_calls:
                 block = member.text
-                if (
-                    row.tool_name in RESULTFUL_FILE_GROUP_NAMES
-                    and member.tool_result_text is not None
-                ):
+                if row.tool_name in RESULTFUL_FILE_GROUP_NAMES and member.tool_result_text is not None:
                     block = f"{block}\n\n{member.tool_result_text}"
                 blocks.append(block)
             separator = "\n\n" if row.tool_name in RESULTFUL_FILE_GROUP_NAMES else "\n"
@@ -2515,9 +2486,7 @@ def _styled_tool_invocation(
     return rendered
 
 
-def _split_tool_invocation_sections(
-    text: str, *, description_only: bool = False
-) -> tuple[str, str, str]:
+def _split_tool_invocation_sections(text: str, *, description_only: bool = False) -> tuple[str, str, str]:
     """Split an invocation into neutral prefix, status description, and gray details."""
     if description_only and text.startswith("→ "):
         return "→ ", text[2:], ""
@@ -2829,11 +2798,7 @@ def _plain_text(text: str, *, body_style: str) -> Text:
 def _context_usage(session: SessionSummarySource) -> str:
     threshold = session.auto_compact_token_threshold
     limit = session.context_window_tokens if threshold is None or threshold <= 0 else threshold
-    used = (
-        _compact_token_count(session.context_token_estimate)
-        if session.has_provider_context_usage
-        else "?"
-    )
+    used = _compact_token_count(session.context_token_estimate) if session.has_provider_context_usage else "?"
     return f"{used}/{_compact_token_count(limit)}"
 
 
@@ -3206,9 +3171,7 @@ def _grouped_sidebar_file_widgets[SidebarResource: (Skill, PromptTemplate)](
                     path=_absolute_sidebar_path(path, cwd=cwd),
                     kind=kind,
                     bullet=(
-                        "◦"
-                        if isinstance(resource, Skill) and resource.disable_model_invocation
-                        else "•"
+                        "◦" if isinstance(resource, Skill) and resource.disable_model_invocation else "•"
                     ),
                 )
             )

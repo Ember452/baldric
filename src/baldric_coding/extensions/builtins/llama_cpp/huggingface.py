@@ -40,9 +40,7 @@ def validate_repository_reference(value: str) -> str:
     """Return one exact owner/repository[:quantization] download reference."""
     normalized = value.strip()
     if not _EXACT_REPOSITORY.fullmatch(normalized):
-        raise HuggingFaceSearchError(
-            "Enter an exact Hugging Face owner/repository[:quantization] reference."
-        )
+        raise HuggingFaceSearchError("Enter an exact Hugging Face owner/repository[:quantization] reference.")
     return normalized
 
 
@@ -144,9 +142,7 @@ async def repository_details(
             size = _file_size(sibling)
             prior = totals.get(quantization)
             totals[quantization] = (
-                None
-                if size is None or (quantization in totals and prior is None)
-                else (prior or 0) + size
+                None if size is None or (quantization in totals and prior is None) else (prior or 0) + size
             )
     variants = tuple(
         GgufVariant(quantization, size)
@@ -184,9 +180,7 @@ def _raise_http(response: httpx.Response, operation: str) -> None:
     if response.status_code == 429:
         raise HuggingFaceSearchError("Hugging Face rate limited the search. Wait and retry.")
     if response.status_code >= 400:
-        raise HuggingFaceSearchError(
-            f"Hugging Face returned HTTP {response.status_code} while {operation}."
-        )
+        raise HuggingFaceSearchError(f"Hugging Face returned HTTP {response.status_code} while {operation}.")
 
 
 def _standard_token_paths(environment: Mapping[str, str]) -> tuple[Path, ...]:

@@ -127,9 +127,7 @@ class ToolDefinition:
     prompt_snippet: str
     prompt_guidelines: tuple[str, ...]
     input_schema: Mapping[str, JSONValue]
-    executor: Callable[
-        [Mapping[str, JSONValue], ToolCancellationToken | None], Awaitable[AgentToolResult]
-    ]
+    executor: Callable[[Mapping[str, JSONValue], ToolCancellationToken | None], Awaitable[AgentToolResult]]
 
     def to_agent_tool(self) -> AgentTool:
         """Convert the coding definition to the Pi-compatible core tool."""
@@ -142,9 +140,7 @@ class ToolDefinition:
         ) -> AgentToolResult:
             del tool_call_id, on_update
             if set(arguments) == {"_raw_arguments"}:
-                raise ToolInputError(
-                    _cut_off_arguments_error(self.name, str(arguments["_raw_arguments"]))
-                )
+                raise ToolInputError(_cut_off_arguments_error(self.name, str(arguments["_raw_arguments"])))
             return await self.executor(arguments, signal)
 
         return AgentTool(
@@ -301,8 +297,7 @@ def create_read_tool_definition(
                     content=[
                         TextContent(
                             text=(
-                                f"Read image file [{source_mime_type}]\n"
-                                f"[Image omitted: {processed.message}.]"
+                                f"Read image file [{source_mime_type}]\n[Image omitted: {processed.message}.]"
                             )
                         )
                     ],
@@ -330,9 +325,7 @@ def create_read_tool_definition(
         all_lines = text.split("\n")
         start_line = 0 if offset is None or offset == 0 else offset - 1
         if start_line >= len(all_lines):
-            raise ToolInputError(
-                f"Offset {offset} is beyond end of file ({len(all_lines)} lines total)"
-            )
+            raise ToolInputError(f"Offset {offset} is beyond end of file ({len(all_lines)} lines total)")
 
         user_limited_lines: int | None = None
         if limit is not None:
@@ -417,9 +410,7 @@ def _omitted_image_result(
     reason: str,
 ) -> AgentToolResult:
     return AgentToolResult(
-        content=[
-            TextContent(text=f"Read image file [{source_mime_type}]\n[Image omitted: {reason}.]")
-        ],
+        content=[TextContent(text=f"Read image file [{source_mime_type}]\n[Image omitted: {reason}.]")],
         details={
             "path": str(path),
             "source_mime_type": source_mime_type,
@@ -538,9 +529,7 @@ def create_edit_tool_definition(*, cwd: str | Path | None = None) -> ToolDefinit
             bom, content = _strip_bom(raw_content)
             original_ending = detect_line_ending(content)
             normalized = normalize_to_lf(content)
-            base_content, new_content = apply_edits_to_normalized_content(
-                normalized, edits, str(path)
-            )
+            base_content, new_content = apply_edits_to_normalized_content(normalized, edits, str(path))
             final_content = bom + restore_line_endings(new_content, original_ending)
             path.write_text(final_content, encoding="utf-8")
 
@@ -699,9 +688,7 @@ def create_bash_tool_definition(
         exit_code = process.returncode
         status: str | None = None
         if timed_out:
-            status = (
-                f"Command timed out after {timeout:g} seconds" if timeout else "Command timed out"
-            )
+            status = f"Command timed out after {timeout:g} seconds" if timeout else "Command timed out"
         elif cancelled:
             status = "Command cancelled"
         elif exit_code not in (0, None):
@@ -848,15 +835,11 @@ def truncate_head(
     total_lines = len(lines)
     total_bytes = len(content.encode())
     if total_lines <= max_lines and total_bytes <= max_bytes:
-        return _truncation_result(
-            content, False, None, total_lines, total_bytes, total_lines, total_bytes
-        )
+        return _truncation_result(content, False, None, total_lines, total_bytes, total_lines, total_bytes)
 
     first_line_bytes = len(lines[0].encode()) if lines else 0
     if first_line_bytes > max_bytes:
-        return _truncation_result(
-            "", True, "bytes", total_lines, total_bytes, 0, 0, first_line=True
-        )
+        return _truncation_result("", True, "bytes", total_lines, total_bytes, 0, 0, first_line=True)
 
     output_lines: list[str] = []
     output_bytes = 0
@@ -891,9 +874,7 @@ def truncate_tail(
     total_lines = len(lines)
     total_bytes = len(content.encode())
     if total_lines <= max_lines and total_bytes <= max_bytes:
-        return _truncation_result(
-            content, False, None, total_lines, total_bytes, total_lines, total_bytes
-        )
+        return _truncation_result(content, False, None, total_lines, total_bytes, total_lines, total_bytes)
 
     output_lines: list[str] = []
     output_bytes = 0
@@ -1054,8 +1035,7 @@ def _str_arg(arguments: Mapping[str, JSONValue], name: str) -> str:
     if name not in arguments:
         sent = ", ".join(f"`{key}`" for key in arguments) or "no arguments"
         raise ToolInputError(
-            f"`{name}` is missing (the call sent {sent}); nothing was run. "
-            f"Send the call again with `{name}`."
+            f"`{name}` is missing (the call sent {sent}); nothing was run. Send the call again with `{name}`."
         )
     value = arguments[name]
     if not isinstance(value, str):
@@ -1114,9 +1094,7 @@ def _prepare_edit_arguments(arguments: Mapping[str, JSONValue]) -> Mapping[str, 
 def _edits_arg(arguments: Mapping[str, JSONValue]) -> list[dict[str, str]]:
     value = arguments.get("edits")
     if not isinstance(value, list) or not value:
-        raise ToolInputError(
-            "Edit tool input is invalid. edits must contain at least one replacement."
-        )
+        raise ToolInputError("Edit tool input is invalid. edits must contain at least one replacement.")
 
     edits: list[dict[str, str]] = []
     for index, item in enumerate(value):
@@ -1125,9 +1103,7 @@ def _edits_arg(arguments: Mapping[str, JSONValue]) -> list[dict[str, str]]:
         old_text = item.get("oldText")
         new_text = item.get("newText")
         if not isinstance(old_text, str) or not isinstance(new_text, str):
-            raise ToolInputError(
-                f"edits[{index}].oldText and edits[{index}].newText must be strings"
-            )
+            raise ToolInputError(f"edits[{index}].oldText and edits[{index}].newText must be strings")
         edits.append({"oldText": old_text, "newText": new_text})
     return edits
 

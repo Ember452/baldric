@@ -133,9 +133,7 @@ class JsonlSessionStorage:
         self._parsed = _ParsedTranscript(stamp=stamp, entries=tuple(entries))
         return _isolated_entries(entries)
 
-    def _extend_parsed(
-        self, previous_stamp: tuple[int, int, int] | None, lines: Sequence[str]
-    ) -> None:
+    def _extend_parsed(self, previous_stamp: tuple[int, int, int] | None, lines: Sequence[str]) -> None:
         """Record lines this storage just appended, if the cache saw the file before."""
         parsed = self._parsed
         previous: tuple[SessionEntry, ...]

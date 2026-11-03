@@ -39,9 +39,7 @@ class MessageStartEvent(WireModel):
 class MessageUpdateEvent(WireModel):
     type: Literal["message_update"] = "message_update"
     message: AgentMessage
-    assistant_message_event: AssistantMessageEvent = Field(
-        serialization_alias="assistantMessageEvent"
-    )
+    assistant_message_event: AssistantMessageEvent = Field(serialization_alias="assistantMessageEvent")
 
 
 class MessageEndEvent(WireModel):

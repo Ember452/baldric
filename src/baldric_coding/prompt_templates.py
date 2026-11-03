@@ -8,9 +8,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from baldric_coding.resources import (
+    BaldricResourcePaths,
     ResourceDiagnostic,
     ResourceError,
-    BaldricResourcePaths,
     derive_description,
     parse_markdown_resource,
 )
@@ -56,9 +56,7 @@ def load_prompt_templates_with_diagnostics(
     templates_by_name: dict[str, PromptTemplate] = {}
     diagnostics: list[ResourceDiagnostic] = []
     for prompts_dir in resource_paths.prompts_dirs:
-        templates, directory_diagnostics = _load_prompt_templates_from_dir_with_diagnostics(
-            prompts_dir
-        )
+        templates, directory_diagnostics = _load_prompt_templates_from_dir_with_diagnostics(prompts_dir)
         diagnostics.extend(directory_diagnostics)
         for template in templates:
             previous = templates_by_name.get(template.name)
@@ -197,8 +195,7 @@ def expand_prompt_template_command(
 
 def _template_references_arguments(content: str) -> bool:
     return bool(_PROMPT_ARGUMENT_RE.search(content)) or any(
-        match.group(1) in _ARGUMENT_TEMPLATE_VARIABLES
-        for match in _TEMPLATE_VARIABLE_RE.finditer(content)
+        match.group(1) in _ARGUMENT_TEMPLATE_VARIABLES for match in _TEMPLATE_VARIABLE_RE.finditer(content)
     )
 
 

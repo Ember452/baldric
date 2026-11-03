@@ -141,9 +141,7 @@ class DynamicProviderRegistry:
         self._owned_refresh_operations: set[_RefreshOperation] = set()
         self._refresh_revisions: dict[ProviderLayerToken, int] = {}
         self._discovery_tasks: set[asyncio.Task[ProviderModelSnapshot]] = set()
-        self._discovery_cancellation_deadlines: dict[
-            asyncio.Task[ProviderModelSnapshot], float
-        ] = {}
+        self._discovery_cancellation_deadlines: dict[asyncio.Task[ProviderModelSnapshot], float] = {}
         self._diagnostics: dict[ProviderLayerToken, ProviderRefreshDiagnostic] = {}
         self._retired = False
 
@@ -265,9 +263,7 @@ class DynamicProviderRegistry:
         ids = list(self._durable)
         ids.extend(provider_id for provider_id in self._layers if provider_id not in self._durable)
         return tuple(
-            effective
-            for provider_id in ids
-            if (effective := self.effective(provider_id)) is not None
+            effective for provider_id in ids if (effective := self.effective(provider_id)) is not None
         )
 
     def layers(self, provider_id: str) -> tuple[DynamicProviderLayer, ...]:

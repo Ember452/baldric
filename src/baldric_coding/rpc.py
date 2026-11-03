@@ -125,13 +125,9 @@ class RpcSession(Protocol):
 
     async def branch_to_entry(self, entry_id: str) -> object: ...
 
-    async def export(
-        self, destination: Path | None = None, *, format: str | None = None
-    ) -> Path: ...
+    async def export(self, destination: Path | None = None, *, format: str | None = None) -> Path: ...
 
-    async def run_terminal_command(
-        self, command: str, *, add_to_context: bool
-    ) -> TerminalCommandResult: ...
+    async def run_terminal_command(self, command: str, *, add_to_context: bool) -> TerminalCommandResult: ...
 
     async def set_session_name(self, name: str) -> str: ...
 
@@ -206,9 +202,7 @@ class RpcServer:
                         raise ValueError("streamingBehavior must be 'steer' or 'followUp'")
                     behavior = "follow_up" if explicit == "followUp" else "steer"
                 if self._active_prompt_tasks and behavior is None:
-                    raise ValueError(
-                        "Agent is already streaming; set streamingBehavior to steer or followUp"
-                    )
+                    raise ValueError("Agent is already streaming; set streamingBehavior to steer or followUp")
                 stream = self._session.prompt(message, streaming_behavior=behavior)
                 try:
                     first_event = await anext(stream)
@@ -244,9 +238,7 @@ class RpcServer:
                 )
                 return
             if command_type == "get_messages":
-                await self._response(
-                    request_id, command_type, {"messages": list(self._session.messages)}
-                )
+                await self._response(request_id, command_type, {"messages": list(self._session.messages)})
                 return
             if command_type == "get_available_models":
                 await self._response(
@@ -399,9 +391,7 @@ class RpcServer:
                 since = _optional_string(command, "since")
                 if since is not None:
                     try:
-                        index = next(
-                            i for i, entry in enumerate(cursor_entries) if entry.id == since
-                        )
+                        index = next(i for i, entry in enumerate(cursor_entries) if entry.id == since)
                     except StopIteration as exc:
                         raise ValueError(f"Entry not found: {since}") from exc
                     cursor_entries = cursor_entries[index + 1 :]
@@ -412,8 +402,7 @@ class RpcServer:
                         "entries": [
                             projected
                             for entry in cursor_entries
-                            if (projected := _entry_wire(entry, self._session.provider_name))
-                            is not None
+                            if (projected := _entry_wire(entry, self._session.provider_name)) is not None
                         ],
                         "leafId": _leaf_id(self._session.state),
                     },
@@ -619,9 +608,7 @@ def _model_wire(session: RpcSession, *, choice: ModelChoice | None = None) -> di
         "input": list(metadata.input) if metadata is not None and metadata.input else ["text"],
         "contextWindow": context_window or session.context_window_tokens,
         "maxTokens": (
-            metadata.max_tokens
-            if metadata is not None and metadata.max_tokens is not None
-            else 16_384
+            metadata.max_tokens if metadata is not None and metadata.max_tokens is not None else 16_384
         ),
         "cost": {
             "input": cost.get("input", 0.0),
@@ -659,10 +646,7 @@ def _session_stats_wire(session: RpcSession) -> dict[str, JSONValue]:
             "cacheRead": stats.cached_input_tokens,
             "cacheWrite": stats.cache_write_tokens,
             "total": (
-                uncached_input
-                + stats.output_tokens
-                + stats.cached_input_tokens
-                + stats.cache_write_tokens
+                uncached_input + stats.output_tokens + stats.cached_input_tokens + stats.cache_write_tokens
             ),
         },
         "cost": stats.estimated_cost if stats.estimated_cost is not None else 0.0,

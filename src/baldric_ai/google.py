@@ -83,9 +83,7 @@ class GoogleGenerativeAIProvider:
         raw = self._stream_provider_events(
             model=model, system=system, messages=messages, tools=tools, signal=signal
         )
-        return canonicalize_provider_stream(
-            raw, api="google-generative-ai", provider="google", model=model
-        )
+        return canonicalize_provider_stream(raw, api="google-generative-ai", provider="google", model=model)
 
     def _stream_provider_events(
         self,
@@ -123,9 +121,7 @@ class GoogleGenerativeAIProvider:
             while True:
                 parser = _GoogleStreamParser()
                 try:
-                    async with client.stream(
-                        "POST", url, json=payload, headers=headers
-                    ) as response:
+                    async with client.stream("POST", url, json=payload, headers=headers) as response:
                         if response.status_code >= 400:
                             body = await response.aread()
                             body_text = body.decode(errors="replace")
@@ -277,9 +273,7 @@ class _GoogleStreamParser:
                     id=_string_or_default(function_call.get("id"), default_id),
                     name=_string_or_default(function_call.get("name"), ""),
                     arguments=_object_or_empty(function_call.get("args")),
-                    thought_signature=thought_signature
-                    if isinstance(thought_signature, str)
-                    else None,
+                    thought_signature=thought_signature if isinstance(thought_signature, str) else None,
                 )
                 self._tool_calls.append(tool_call)
                 events.append(ProviderToolCallEvent(tool_call=tool_call))
@@ -333,9 +327,7 @@ def _build_google_payload(
     return payload
 
 
-def _google_thinking_config(
-    model: str, reasoning_effort: str | None
-) -> dict[str, JSONValue] | None:
+def _google_thinking_config(model: str, reasoning_effort: str | None) -> dict[str, JSONValue] | None:
     if reasoning_effort is None:
         return None
     if reasoning_effort == "none":
@@ -448,9 +440,7 @@ def _messages_to_google(
         image_parts: list[JSONValue] = [_google_image(image) for image in images]
         if image_parts and _supports_multimodal_function_response(model):
             response["parts"] = image_parts
-        converted: list[dict[str, JSONValue]] = [
-            {"role": "user", "parts": [{"functionResponse": response}]}
-        ]
+        converted: list[dict[str, JSONValue]] = [{"role": "user", "parts": [{"functionResponse": response}]}]
         if image_parts and not _supports_multimodal_function_response(model):
             separate_image_parts: list[JSONValue] = [
                 {"text": "Tool result image:"},
@@ -458,9 +448,7 @@ def _messages_to_google(
             ]
             converted.append({"role": "user", "parts": separate_image_parts})
         return converted
-    return _messages_to_google(
-        message_to_user(message), model=model, supports_images=supports_images
-    )
+    return _messages_to_google(message_to_user(message), model=model, supports_images=supports_images)
 
 
 def _google_image(image: ImageContent) -> dict[str, JSONValue]:

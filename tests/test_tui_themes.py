@@ -8,9 +8,9 @@ import pytest
 from baldric_coding.resources import BaldricResourcePaths
 from baldric_coding.tui.config import TuiSettings
 from baldric_coding.tui.themes import (
-    BUILTIN_TUI_THEME_NAMES,
     BALDRIC_DARK_THEME,
     BALDRIC_LIGHT_THEME,
+    BUILTIN_TUI_THEME_NAMES,
     THEME_COLOR_FIELDS,
     TRANSCRIPT_ROLES,
     TuiThemeError,

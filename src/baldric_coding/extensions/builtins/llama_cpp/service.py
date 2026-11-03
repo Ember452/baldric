@@ -245,9 +245,7 @@ class LlamaCppService:
             models = self._last_discovery.models
         else:
             models = ()
-        default = (
-            None if self._stale_selected_model is not None else _selected_model(active, models)
-        )
+        default = None if self._stale_selected_model is not None else _selected_model(active, models)
         return DynamicProvider(
             id=LLAMA_CPP_PROVIDER_ID,
             display_name=LLAMA_CPP_DISPLAY_NAME,
@@ -319,9 +317,7 @@ class LlamaCppService:
                     router_models=router_models,
                 )
             self._router_models = ()
-            response = await self._get(
-                client, self.endpoint.inference_base + "/models", headers, signal
-            )
+            response = await self._get(client, self.endpoint.inference_base + "/models", headers, signal)
             payload = _json_object(response, "/v1/models")
             models = _parse_models(payload)
             if len(models) == 1 and models[0].input_modalities is None:
@@ -370,9 +366,7 @@ class LlamaCppService:
         try:
             endpoint = normalize_llama_cpp_endpoint(values.get("endpoint", ""))
         except LlamaCppEndpointError as exc:
-            return LocalConfigureResult(
-                diagnostics=(LocalDiagnostic(str(exc), "error", "configuration"),)
-            )
+            return LocalConfigureResult(diagnostics=(LocalDiagnostic(str(exc), "error", "configuration"),))
         key = values.get("api_key", "").strip() or None
         old_active = self._active_state
         try:
@@ -389,9 +383,7 @@ class LlamaCppService:
                 ),
             )
 
-        credential_ref = (
-            f"{LLAMA_CPP_CREDENTIAL_PREFIX}{secrets.token_urlsafe(18)}" if key else None
-        )
+        credential_ref = f"{LLAMA_CPP_CREDENTIAL_PREFIX}{secrets.token_urlsafe(18)}" if key else None
         if credential_ref is not None:
             assert key is not None
             try:
@@ -554,27 +546,19 @@ class LlamaCppService:
                 ),
             )
         diagnostics = [
-            LocalDiagnostic(
-                f"Found llama.cpp at {discovery.endpoint.inference_base}", "info", "server"
-            ),
+            LocalDiagnostic(f"Found llama.cpp at {discovery.endpoint.inference_base}", "info", "server"),
             LocalDiagnostic(f"Discovered model: {selected}", "info", "models"),
         ]
         stream_ok, stream_message = await self._probe_stream(auth, selected, context.signal)
-        diagnostics.append(
-            LocalDiagnostic(stream_message, "info" if stream_ok else "error", "streaming")
-        )
+        diagnostics.append(LocalDiagnostic(stream_message, "info" if stream_ok else "error", "streaming"))
         if stream_ok:
             tools_ok, tools_message = await self._probe_tools(auth, selected, context.signal)
-            diagnostics.append(
-                LocalDiagnostic(tools_message, "info" if tools_ok else "warning", "tools")
-            )
+            diagnostics.append(LocalDiagnostic(tools_message, "info" if tools_ok else "warning", "tools"))
         return LocalOperationResult(
             backend_status=self._status_from_discovery(discovery), diagnostics=tuple(diagnostics)
         )
 
-    async def load_model(
-        self, model_id: str, context: LocalOperationContext
-    ) -> LocalOperationResult:
+    async def load_model(self, model_id: str, context: LocalOperationContext) -> LocalOperationResult:
         """Explicitly load one router model and reconcile before claiming success."""
         prepared = await self._prepare_router_operation(context)
         if isinstance(prepared, LocalOperationResult):
@@ -589,9 +573,7 @@ class LlamaCppService:
             if target.state in {"loaded", "sleeping"}:
                 return await self._publish_router_models(models, message="Model is already loaded.")
             existing = tuple(
-                model.id
-                for model in models
-                if model.id != model_id and model.state in {"loaded", "sleeping"}
+                model.id for model in models if model.id != model_id and model.state in {"loaded", "sleeping"}
             )
             if context.confirmation is None:
                 choices = (
@@ -610,15 +592,12 @@ class LlamaCppService:
                 return LocalOperationResult(
                     backend_status=self._status_from_router(models),
                     confirmation=LocalConfirmationRequest(
-                        f"Load {model_id!r}? Loading can consume substantial memory and time."
-                        + detail,
+                        f"Load {model_id!r}? Loading can consume substantial memory and time." + detail,
                         choices,
                     ),
                 )
             if context.confirmation == "cancel":
-                return LocalOperationResult(
-                    cancelled=True, backend_status=self._status_from_router(models)
-                )
+                return LocalOperationResult(cancelled=True, backend_status=self._status_from_router(models))
             allowed = {"keep", "unload"} if existing else {"load"}
             if context.confirmation not in allowed:
                 return self._router_failure("Loading requires explicit confirmation.")
@@ -661,9 +640,7 @@ class LlamaCppService:
             if owned:
                 await client.aclose()
 
-    async def unload_model(
-        self, model_id: str, context: LocalOperationContext
-    ) -> LocalOperationResult:
+    async def unload_model(self, model_id: str, context: LocalOperationContext) -> LocalOperationResult:
         """Unload only after a model-specific explicit confirmation."""
         prepared = await self._prepare_router_operation(context)
         if isinstance(prepared, LocalOperationResult):
@@ -683,9 +660,7 @@ class LlamaCppService:
                     ),
                 )
             if context.confirmation == "cancel":
-                return LocalOperationResult(
-                    cancelled=True, backend_status=self._status_from_router(models)
-                )
+                return LocalOperationResult(cancelled=True, backend_status=self._status_from_router(models))
             if context.confirmation != "unload":
                 return self._router_failure("Unloading requires explicit confirmation.")
             await mutate_router_model(
@@ -707,16 +682,12 @@ class LlamaCppService:
             if owned:
                 await client.aclose()
 
-    async def download_model(
-        self, model_id: str, context: LocalOperationContext
-    ) -> LocalOperationResult:
+    async def download_model(self, model_id: str, context: LocalOperationContext) -> LocalOperationResult:
         """Request one exact server-side repository download after confirmation."""
         try:
             model_id = validate_repository_reference(model_id)
         except HuggingFaceSearchError as exc:
-            return LocalOperationResult(
-                diagnostics=(LocalDiagnostic(str(exc), "error", "download"),)
-            )
+            return LocalOperationResult(diagnostics=(LocalDiagnostic(str(exc), "error", "download"),))
         prepared = await self._prepare_router_operation(context)
         if isinstance(prepared, LocalOperationResult):
             return prepared
@@ -795,9 +766,7 @@ class LlamaCppService:
             if owned:
                 await client.aclose()
 
-    async def search_models(
-        self, query: str, context: LocalOperationContext
-    ) -> LocalOperationResult:
+    async def search_models(self, query: str, context: LocalOperationContext) -> LocalOperationResult:
         """Search Hugging Face with a search-only token and return safe GGUF details."""
         del context
         owned = self.client is None
@@ -813,9 +782,7 @@ class LlamaCppService:
         for repository in repositories:
             for variant in repository.variants:
                 if variant.size_bytes is not None:
-                    self._download_sizes[f"{repository.id}:{variant.quantization}"] = (
-                        variant.size_bytes
-                    )
+                    self._download_sizes[f"{repository.id}:{variant.quantization}"] = variant.size_bytes
         results = tuple(
             LocalSearchResult(
                 repository.id,
@@ -842,9 +809,7 @@ class LlamaCppService:
         )
         return LocalOperationResult(
             message=(
-                f"Found {len(results)} GGUF repositories."
-                if results
-                else "No GGUF repositories found."
+                f"Found {len(results)} GGUF repositories." if results else "No GGUF repositories found."
             ),
             search_results=results,
         )
@@ -935,13 +900,9 @@ class LlamaCppService:
         self, client: httpx.AsyncClient, headers: Mapping[str, str]
     ) -> LocalOperationResult:
         try:
-            models = await asyncio.shield(
-                list_router_models(client, self.endpoint.server_root, headers)
-            )
+            models = await asyncio.shield(list_router_models(client, self.endpoint.server_root, headers))
             await self._publish_router_models(models)
-            return LocalOperationResult(
-                backend_status=self._status_from_router(models), cancelled=True
-            )
+            return LocalOperationResult(backend_status=self._status_from_router(models), cancelled=True)
         except Exception:
             return LocalOperationResult(
                 backend_status=self._cached_status(stale=True),
@@ -1132,10 +1093,7 @@ class LlamaCppService:
         return discovery
 
     def _save_discovery(self, discovery: LlamaCppDiscovery) -> None:
-        if (
-            self._active_state is None
-            or self._active_state.endpoint != discovery.endpoint.server_root
-        ):
+        if self._active_state is None or self._active_state.endpoint != discovery.endpoint.server_root:
             # Environment endpoints are intentionally not copied to safe state.
             return
         previous_selected = self._active_state.selected_model
@@ -1182,14 +1140,10 @@ class LlamaCppService:
         stale_model = self._stale_selected_model
         diagnostics: list[LocalDiagnostic] = []
         if discovery.router_capability.diagnostic:
-            diagnostics.append(
-                LocalDiagnostic(discovery.router_capability.diagnostic, "warning", "router")
-            )
+            diagnostics.append(LocalDiagnostic(discovery.router_capability.diagnostic, "warning", "router"))
         if not discovery.models:
             diagnostics.append(
-                LocalDiagnostic(
-                    "Server is ready but exposes no selectable models.", "warning", "models"
-                )
+                LocalDiagnostic("Server is ready but exposes no selectable models.", "warning", "models")
             )
         if stale_model is not None:
             diagnostics.append(
@@ -1201,14 +1155,10 @@ class LlamaCppService:
                 )
             )
         return self._status(
-            "stale"
-            if stale_model is not None
-            else ("ready" if discovery.models else "unavailable"),
+            "stale" if stale_model is not None else ("ready" if discovery.models else "unavailable"),
             models=discovery.models,
             selected=(
-                None
-                if stale_model is not None
-                else _selected_model(self._active_state, discovery.models)
+                None if stale_model is not None else _selected_model(self._active_state, discovery.models)
             ),
             diagnostics=tuple(diagnostics),
             stale=stale_model is not None,
@@ -1235,8 +1185,7 @@ class LlamaCppService:
         if models and not selectable:
             diagnostics.append(
                 LocalDiagnostic(
-                    "The router is ready, but no model is loaded. Select an unloaded model to "
-                    "load it.",
+                    "The router is ready, but no model is loaded. Select an unloaded model to load it.",
                     "info",
                     "models",
                 )
@@ -1260,8 +1209,7 @@ class LlamaCppService:
                 self._active_state, self.environment, self.credential_store
             ),
             models=tuple(
-                LocalModel(model.id, model.display_name or model.id, model.state)
-                for model in models
+                LocalModel(model.id, model.display_name or model.id, model.state) for model in models
             ),
             selected_model=selected,
             actions=tuple(actions),
@@ -1292,9 +1240,7 @@ class LlamaCppService:
                 ),
             )
         return self._status(
-            "stale"
-            if (stale or self._stale_selected_model is not None) and models
-            else "unavailable",
+            "stale" if (stale or self._stale_selected_model is not None) and models else "unavailable",
             models=models,
             selected=(None if self._stale_selected_model is not None else selected),
             diagnostics=diagnostics,

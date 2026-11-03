@@ -200,9 +200,7 @@ def _discover_system_prompt_file(
             if path.exists():
                 existing.append((scope, path))
         except OSError as exc:
-            raise ResourceError(
-                f"Could not inspect {label} system prompt file {path}: {exc}"
-            ) from exc
+            raise ResourceError(f"Could not inspect {label} system prompt file {path}: {exc}") from exc
 
     if explicit:
         for _scope, path in existing:
@@ -269,17 +267,13 @@ def _discover_append_system_prompt_files(
             seen_paths.add(resolved_path)
             exists = path.exists()
         except OSError as exc:
-            raise ResourceError(
-                f"Could not inspect append system prompt file {path}: {exc}"
-            ) from exc
+            raise ResourceError(f"Could not inspect append system prompt file {path}: {exc}") from exc
         if not exists:
             continue
         try:
             content = path.read_text(encoding="utf-8")
         except (OSError, UnicodeError) as exc:
-            raise ResourceError(
-                f"Could not read append system prompt file {path} as UTF-8: {exc}"
-            ) from exc
+            raise ResourceError(f"Could not read append system prompt file {path} as UTF-8: {exc}") from exc
         contents.append(content)
         selected_paths.append(path)
         diagnostics.append(

@@ -4,8 +4,6 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from conftest import isolate_home
-from pi_event_helpers import assistant_done, assistant_error, assistant_start, text_delta
 from baldric_agent import AssistantMessage, UserMessage
 from baldric_agent.session import JsonlSessionStorage, MessageEntry, ModelChangeEntry
 from baldric_ai import (
@@ -36,6 +34,8 @@ from baldric_coding.update_check import (
     UpdateNotice,
 )
 from baldric_coding.updater import UpdateResult
+from conftest import isolate_home
+from pi_event_helpers import assistant_done, assistant_error, assistant_start, text_delta
 
 _ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
@@ -127,9 +127,7 @@ def test_help_lists_system_prompt_options() -> None:
     assert "baldricinstallSOURCE[--force]" in output
 
 
-def test_install_command_installs_extension(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_install_command_installs_extension(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     calls: list[tuple[str, bool]] = []
     destination = tmp_path / ".baldric" / "extensions" / "demo"
 
@@ -220,9 +218,7 @@ def test_unknown_user_prompt_path_is_forwarded_as_literal(
     assert calls == [(expected_base, expected_append)]
 
 
-def test_prompt_input_reports_invalid_utf8_file(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_prompt_input_reports_invalid_utf8_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     prompt_path = tmp_path / "invalid.md"
     prompt_path.write_bytes(b"\xff")
     monkeypatch.chdir(tmp_path)
@@ -286,9 +282,7 @@ def test_prompt_input_reports_existing_unreadable_path(tmp_path: Path) -> None:
     assert "Could not read" in output
 
 
-def test_prompt_input_reports_path_inspection_error(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_prompt_input_reports_path_inspection_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     prompt_path = tmp_path / "base.md"
     prompt_path.write_text("Custom base", encoding="utf-8")
     original_exists = Path.exists
@@ -506,9 +500,7 @@ def test_utility_command_does_not_check_for_updates(monkeypatch: pytest.MonkeyPa
     assert "No sessions found." in result.stdout
 
 
-def test_cli_without_prompt_invokes_tui_runner(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_cli_without_prompt_invokes_tui_runner(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     calls: list[tuple[str | None, Path, str | None, bool, str | None, int | None, str | None]] = []
 
     async def fake_run_openai_tui(
@@ -599,9 +591,7 @@ async def test_run_openai_tui_defers_due_update_check_to_the_app(
     assert check() == UpdateNotice(current_version="0.1.0", latest_version="0.2.0").message
 
 
-def test_cli_prints_resume_hint_after_tui_exit(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_cli_prints_resume_hint_after_tui_exit(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     async def fake_run_openai_tui(*args: object, **kwargs: object) -> str:
         del args, kwargs
         return "session-123"
@@ -632,9 +622,7 @@ def test_cli_suppresses_resume_hint_without_persisted_session(
     assert result.stdout == ""
 
 
-def test_cli_positional_prompt_invokes_tui_runner(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_cli_positional_prompt_invokes_tui_runner(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     calls: list[tuple[str | None, Path, str | None, bool, str | None, int | None, str | None]] = []
 
     async def fake_run_openai_tui(
@@ -1199,9 +1187,7 @@ def test_print_mode_passes_session_id_for_resume(monkeypatch: pytest.MonkeyPatch
 
 
 def test_print_mode_rejects_session_and_new_session() -> None:
-    result = CliRunner().invoke(
-        app, ["--print", "--session", "session-123", "--new-session", "follow up"]
-    )
+    result = CliRunner().invoke(app, ["--print", "--session", "session-123", "--new-session", "follow up"])
 
     assert result.exit_code == 2
     assert "--session and --new-session cannot be used together" in _strip_ansi(result.output)
@@ -1400,9 +1386,7 @@ def test_cli_exits_nonzero_when_print_mode_fails(monkeypatch: pytest.MonkeyPatch
     assert result.exit_code == 1
 
 
-def test_default_tui_invokes_tui_runner_with_flags(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_default_tui_invokes_tui_runner_with_flags(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     calls: list[tuple[str | None, Path, str | None, bool, str | None, int | None, str | None]] = []
 
     async def fake_run_openai_tui(
@@ -1665,9 +1649,7 @@ def test_panel_text_strips_ansi_and_borders() -> None:
     assert "\x1b" not in out
 
 
-def test_tui_surfaces_bad_model_as_clean_error(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_tui_surfaces_bad_model_as_clean_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Regression: ``baldric --model <bad>`` must exit with a clean error, not a traceback.
 
     The TUI startup path
@@ -1722,9 +1704,7 @@ def test_print_mode_surfaces_bad_model_as_clean_error(
     assert "Available models: qwen" in out
 
 
-def test_sessions_command_lists_indexed_sessions(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_sessions_command_lists_indexed_sessions(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     record = CodingSessionRecord(
         id="session-1",
         path=tmp_path / "session.jsonl",

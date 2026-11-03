@@ -19,8 +19,7 @@ def test_command_completion_for_slash_lists_every_registered_command() -> None:
     )
 
     assert [item.display for item in state.items] == [
-        f"/{command.name}" if command.name != "skill" else "/skill:"
-        for command in registry.list_commands()
+        f"/{command.name}" if command.name != "skill" else "/skill:" for command in registry.list_commands()
     ]
 
 

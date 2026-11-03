@@ -146,9 +146,7 @@ async def run_agent_loop(
                 session_id=session_id,
             ):
                 yield event
-                if isinstance(event, MessageEndEvent) and isinstance(
-                    event.message, AssistantMessage
-                ):
+                if isinstance(event, MessageEndEvent) and isinstance(event.message, AssistantMessage):
                     assistant = event.message
 
             if assistant is None:  # defensive: _assistant_events always terminates
@@ -176,9 +174,7 @@ async def run_agent_loop(
                     after_tool_call,
                 ):
                     yield event
-                    if isinstance(event, MessageEndEvent) and isinstance(
-                        event.message, ToolResultMessage
-                    ):
+                    if isinstance(event, MessageEndEvent) and isinstance(event.message, ToolResultMessage):
                         tool_results.append(event.message)
                         messages.append(event.message)
                         new_messages.append(event.message)

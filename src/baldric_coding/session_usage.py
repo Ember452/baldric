@@ -365,9 +365,7 @@ def _line_chart(
         y = top + plot_height - (value / maximum) * plot_height
         return x, y
 
-    ts_attr = (
-        f' data-timestamps="{html.escape("|".join(timestamps), quote=True)}"' if timestamps else ""
-    )
+    ts_attr = f' data-timestamps="{html.escape("|".join(timestamps), quote=True)}"' if timestamps else ""
     parts = [
         f'<svg class="usage-chart" viewBox="0 0 {width} {height}" role="img" '
         f'aria-label="{html.escape(title, quote=True)}" data-left="{left}" '
@@ -386,8 +384,7 @@ def _line_chart(
         if count <= 20 or index % max(1, count // 12) == 0 or index == count - 1:
             x, _ = point(index, 0)
             parts.append(
-                f'<text class="tick" x="{x:.1f}" y="{height - 22}" '
-                f'text-anchor="middle">{index + 1}</text>'
+                f'<text class="tick" x="{x:.1f}" y="{height - 22}" text-anchor="middle">{index + 1}</text>'
             )
     parts.append(
         f'<line class="hover-line" x1="{left}" y1="{top}" x2="{left}" '
@@ -397,9 +394,7 @@ def _line_chart(
     for event_index, event in enumerate(events):
         x, _ = point(max(0, min(count - 1, event.request_number - 1)), 0)
         marker_y = top + 7 + (event_index % 3) * 9
-        description = (
-            f"{event.label} {event.position} request {event.request_number} at {event.timestamp}"
-        )
+        description = f"{event.label} {event.position} request {event.request_number} at {event.timestamp}"
         parts.append(
             f'<g class="usage-event usage-event-{html.escape(event.kind, quote=True)}" '
             f'data-request="{event.request_number}" '
@@ -414,9 +409,7 @@ def _line_chart(
         )
     for series_index, (name, values) in enumerate(series):
         dark, light = _series_color_pair(name)
-        points = " ".join(
-            f"{x:.1f},{y:.1f}" for x, y in (point(i, value) for i, value in enumerate(values))
-        )
+        points = " ".join(f"{x:.1f},{y:.1f}" for x, y in (point(i, value) for i, value in enumerate(values)))
         labels = "|".join(f"{value:.1%}" if percent else f"{int(value):,}" for value in values)
         parts.append(
             f'<g class="series" data-series-id="{series_index}" '
@@ -459,10 +452,7 @@ def render_usage_dashboard(usage: SessionUsage) -> str:
     """Render the usage dashboard markup for the export's Usage tab."""
     requests = usage.requests
     if not requests:
-        return (
-            '<p class="empty">No assistant responses with token usage were found '
-            "in this session.</p>"
-        )
+        return '<p class="empty">No assistant responses with token usage were found in this session.</p>'
 
     timestamps = [item.timestamp for item in requests]
     cached = [float(item.cached) for item in requests]
@@ -537,8 +527,7 @@ def render_usage_dashboard(usage: SessionUsage) -> str:
     )
     tool_rows = (
         "".join(
-            f'<div class="usage-tool"><span>{html.escape(name)}</span>'
-            f"<strong>{count}</strong></div>"
+            f'<div class="usage-tool"><span>{html.escape(name)}</span><strong>{count}</strong></div>'
             for name, count in usage.tool_calls
         )
         or '<p class="empty">No tool calls.</p>'

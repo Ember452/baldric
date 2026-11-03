@@ -91,9 +91,7 @@ def test_load_prompt_templates_with_diagnostics_reports_overrides(tmp_path: Path
 
 
 @pytest.mark.parametrize("reserved_name", ["prompts", "skills", "tools"])
-def test_reserved_picker_template_is_ignored_with_diagnostic(
-    tmp_path: Path, reserved_name: str
-) -> None:
+def test_reserved_picker_template_is_ignored_with_diagnostic(tmp_path: Path, reserved_name: str) -> None:
     prompts_dir = tmp_path / "prompts"
     prompts_dir.mkdir()
     reserved_path = prompts_dir / f"{reserved_name.upper()}.md"
@@ -159,9 +157,7 @@ def test_expand_prompt_template_command_supports_pi_argument_defaults_and_slices
         content="count=${1:-7} rest=${@:2} limited=${@:2:1} all=${@:-none}",
     )
 
-    assert expand_prompt_template_command("/example", [template]) == (
-        "count=7 rest= limited= all=none"
-    )
+    assert expand_prompt_template_command("/example", [template]) == ("count=7 rest= limited= all=none")
     assert expand_prompt_template_command("/example one two three", [template]) == (
         "count=one rest=two three limited=two all=one two three"
     )
@@ -174,9 +170,7 @@ def test_expand_prompt_template_command_blanks_missing_custom_variables() -> Non
         content="Base branch: {{ base_branch }}\nReview PR {{ arguments }}.",
     )
 
-    assert expand_prompt_template_command("/review 168", [template]) == (
-        "Base branch: \nReview PR 168."
-    )
+    assert expand_prompt_template_command("/review 168", [template]) == ("Base branch: \nReview PR 168.")
 
 
 def test_expand_prompt_template_command_appends_arguments_without_argument_placeholder() -> None:

@@ -8,9 +8,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from baldric_coding.resources import (
+    BaldricResourcePaths,
     ResourceDiagnostic,
     ResourceError,
-    BaldricResourcePaths,
     derive_description,
     parse_markdown_resource,
 )
@@ -243,9 +243,7 @@ def _load_skill(name: str, path: Path) -> Skill:
     raw = path.read_text(encoding="utf-8")
     metadata, content = parse_markdown_resource(raw)
     description = metadata.get("description") or derive_description(content)
-    disable_model_invocation = (
-        metadata.get("disable-model-invocation", "").strip().lower() == "true"
-    )
+    disable_model_invocation = metadata.get("disable-model-invocation", "").strip().lower() == "true"
     return Skill(
         name=name,
         path=path,

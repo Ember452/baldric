@@ -59,9 +59,7 @@ def main() -> None:
     document = models_dev_catalog_document(
         source,
         builtin_source_catalog(),
-        provider_model_filters={
-            "nvidia": nvidia_model_filter(source, _load_source(args.nvidia_source))
-        },
+        provider_model_filters={"nvidia": nvidia_model_filter(source, _load_source(args.nvidia_source))},
         generated_at=args.generated_at or int(time.time() * 1000),
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)

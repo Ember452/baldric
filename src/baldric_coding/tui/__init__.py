@@ -6,10 +6,10 @@ from baldric_coding.tui.adapter import TuiEventAdapter
 from baldric_coding.tui.app import BaldricTuiApp, run_tui_app
 from baldric_coding.tui.autocomplete import CompletionOption
 from baldric_coding.tui.config import (
-    BUILTIN_TUI_THEME_NAMES,
-    HIGH_CONTRAST_THEME,
     BALDRIC_DARK_THEME,
     BALDRIC_LIGHT_THEME,
+    BUILTIN_TUI_THEME_NAMES,
+    HIGH_CONTRAST_THEME,
     TuiConfigError,
     TuiKeybindings,
     TuiRoleStyle,

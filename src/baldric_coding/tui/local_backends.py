@@ -566,9 +566,7 @@ class LocalBackendScreen(ModalScreen[None]):
             self._show_message("An operation is already in progress.", "warning")
             return
         self._active_action = action
-        self._worker = asyncio.create_task(
-            self._run_operation(action, values, model_id, confirmation)
-        )
+        self._worker = asyncio.create_task(self._run_operation(action, values, model_id, confirmation))
 
     def _confirm_cancel_download(self) -> None:
         request = LocalConfirmationRequest(
@@ -639,9 +637,7 @@ class LocalBackendScreen(ModalScreen[None]):
                 )
             elif action in {"load_model", "unload_model", "download_model"}:
                 assert model_id is not None
-                manage_action = cast(
-                    Literal["load_model", "unload_model", "download_model"], action
-                )
+                manage_action = cast(Literal["load_model", "unload_model", "download_model"], action)
                 result = await self.registry.manage_model(
                     self.backend_id,
                     manage_action,
@@ -698,11 +694,7 @@ class LocalBackendScreen(ModalScreen[None]):
                 callback=self._download_search_result,
             )
         for diagnostic in result.diagnostics:
-            message = (
-                f"{diagnostic.stage}: {diagnostic.message}"
-                if diagnostic.stage
-                else diagnostic.message
-            )
+            message = f"{diagnostic.stage}: {diagnostic.message}" if diagnostic.stage else diagnostic.message
             self._show_message(message, diagnostic.severity)
         if result.credential_orphaned:
             self._set_progress("Credential cleanup needs attention.")
@@ -720,9 +712,7 @@ class LocalBackendScreen(ModalScreen[None]):
     ) -> None:
         self.app.push_screen(
             LocalChoiceConfirmScreen(request, theme=self.theme),
-            callback=lambda choice: self._resume_confirmed_operation(
-                choice, action, values, model_id
-            ),
+            callback=lambda choice: self._resume_confirmed_operation(choice, action, values, model_id),
         )
 
     def _resume_confirmed_operation(
@@ -737,9 +727,7 @@ class LocalBackendScreen(ModalScreen[None]):
 
     def _use_selected(self) -> None:
         model = self._selected_model()
-        model_id = (
-            model.id if model is not None else self.status.selected_model if self.status else None
-        )
+        model_id = model.id if model is not None else self.status.selected_model if self.status else None
         if model_id is None:
             self._show_message(
                 "Refresh this backend and select an available model first.",
@@ -799,9 +787,7 @@ class LocalBackendScreen(ModalScreen[None]):
             lines.append("Results may be stale.")
         for diagnostic in status.diagnostics:
             lines.append(
-                f"{diagnostic.stage}: {diagnostic.message}"
-                if diagnostic.stage
-                else diagnostic.message
+                f"{diagnostic.stage}: {diagnostic.message}" if diagnostic.stage else diagnostic.message
             )
         self.query_one("#local-backend-status", Static).update("\n".join(lines))
         await self._render_sections(status)
@@ -843,9 +829,7 @@ class LocalBackendScreen(ModalScreen[None]):
             ("doctor", "Run Doctor"),
             ("reset", "Reset integration settings…"),
         )
-        self._action_items = tuple(
-            (action, label) for action, label in action_labels if action in actions
-        )
+        self._action_items = tuple((action, label) for action, label in action_labels if action in actions)
         if self._active_action == "download_model" or self.registry.operation_running(
             self.backend_id, "download_model"
         ):
@@ -854,17 +838,11 @@ class LocalBackendScreen(ModalScreen[None]):
                 *self._action_items,
             )
         await action_menu.clear()
-        await action_menu.extend(
-            ListItem(Label(label, markup=False)) for _, label in self._action_items
-        )
+        await action_menu.extend(ListItem(Label(label, markup=False)) for _, label in self._action_items)
         action_menu.styles.display = "block" if self._action_items else "none"
         if self._action_items:
             action_menu.index = next(
-                (
-                    index
-                    for index, (token, _) in enumerate(self._action_items)
-                    if token == prior_action
-                ),
+                (index for index, (token, _) in enumerate(self._action_items) if token == prior_action),
                 0,
             )
         else:
@@ -1096,11 +1074,7 @@ class LocalChoiceConfirmScreen(ModalScreen[str | None]):
         choices.index = next(
             (index for index, choice in enumerate(self.request.choices) if choice.recommended),
             next(
-                (
-                    index
-                    for index, choice in enumerate(self.request.choices)
-                    if choice.value == "cancel"
-                ),
+                (index for index, choice in enumerate(self.request.choices) if choice.value == "cancel"),
                 0,
             ),
         )
@@ -1151,9 +1125,7 @@ class LocalSearchResultsScreen(ModalScreen[str | None]):
         super().__init__()
         self.results = results
         self.theme = theme
-        self.options = tuple(
-            option for result in results for option in _search_result_options(result)
-        )
+        self.options = tuple(option for result in results for option in _search_result_options(result))
 
     def compose(self) -> ComposeResult:
         with Vertical(id="local-search-results-screen"):

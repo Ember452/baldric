@@ -170,9 +170,7 @@ def test_selected_append_system_prompt_file_must_be_readable_utf8(tmp_path: Path
 
 
 def test_parse_frontmatter_description() -> None:
-    metadata, body = parse_markdown_resource(
-        "---\ndescription: Write tests\n---\n# Testing\nUse pytest."
-    )
+    metadata, body = parse_markdown_resource("---\ndescription: Write tests\n---\n# Testing\nUse pytest.")
 
     assert metadata == {"description": "Write tests"}
     assert body == "# Testing\nUse pytest."

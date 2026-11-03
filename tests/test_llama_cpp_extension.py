@@ -10,7 +10,6 @@ from pathlib import Path
 import httpx
 import pytest
 
-from conftest import isolate_home
 from baldric_agent.harness import SimpleCancellationToken
 from baldric_ai.env import DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS
 from baldric_coding.credentials import FileCredentialStore
@@ -43,6 +42,7 @@ from baldric_coding.local_backends import LocalOperationContext, LocalProgress
 from baldric_coding.paths import BaldricPaths
 from baldric_coding.provider_runtime import create_dynamic_model_provider
 from baldric_coding.resources import BaldricResourcePaths
+from conftest import isolate_home
 
 pytestmark = pytest.mark.anyio
 
@@ -290,9 +290,7 @@ async def test_auth_headers_cover_stored_environment_fallback_and_no_auth(tmp_pa
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("status_code", [401, 403])
-async def test_discovery_reports_authentication_http_failures(
-    tmp_path: Path, status_code: int
-) -> None:
+async def test_discovery_reports_authentication_http_failures(tmp_path: Path, status_code: int) -> None:
     client, _ = _client(lambda request: httpx.Response(status_code, text="denied"))
     service, state_store, _ = _service(tmp_path, client=client)
     state_store.save(_state())
@@ -347,9 +345,7 @@ async def test_discovery_timeout_and_health_loading_are_actionable(tmp_path: Pat
         {"data": [{"name": "missing"}]},
     ],
 )
-async def test_malformed_empty_and_multiple_model_responses(
-    tmp_path: Path, payload: object
-) -> None:
+async def test_malformed_empty_and_multiple_model_responses(tmp_path: Path, payload: object) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/health":
             return httpx.Response(200, json={"status": "ok"})
@@ -678,9 +674,7 @@ def test_state_schema_validation_and_legacy_recovery(tmp_path: Path) -> None:
         store.active()
 
 
-def test_state_replace_is_atomic_on_write_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_state_replace_is_atomic_on_write_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import baldric_coding.extensions.builtins.llama_cpp.state as state_module
 
     store = LlamaCppStateStore(tmp_path / "state.json")
@@ -779,9 +773,7 @@ async def test_generation_credential_commit_orphan_reset_and_partial_failures(
     first = await service.configure({"endpoint": SERVER, "api_key": "first"}, _context("configure"))
     assert first.committed is True
     old_ref = state_store.active().credential_ref  # type: ignore[union-attr]
-    second = await service.configure(
-        {"endpoint": SERVER, "api_key": "second"}, _context("configure")
-    )
+    second = await service.configure({"endpoint": SERVER, "api_key": "second"}, _context("configure"))
     assert second.committed is True
     assert credentials.get(old_ref) is None  # type: ignore[arg-type]
 
@@ -791,15 +783,12 @@ async def test_generation_credential_commit_orphan_reset_and_partial_failures(
         "save",
         lambda *args, **kwargs: (_ for _ in ()).throw(LlamaCppStateError("save failed")),
     )
-    failed = await service.configure(
-        {"endpoint": SERVER, "api_key": "third"}, _context("configure")
-    )
+    failed = await service.configure({"endpoint": SERVER, "api_key": "third"}, _context("configure"))
     assert failed.committed is False
     assert failed.credential_orphaned is False
     assert state_store.active().credential_ref == state_store.get(SERVER).credential_ref  # type: ignore[union-attr]
     assert not any(
-        credentials.get(name) == "third"
-        for name in credentials.names(prefix=LLAMA_CPP_CREDENTIAL_PREFIX)
+        credentials.get(name) == "third" for name in credentials.names(prefix=LLAMA_CPP_CREDENTIAL_PREFIX)
     )
     monkeypatch.setattr(state_store, "save", original_save)
 
@@ -816,14 +805,11 @@ async def test_generation_credential_commit_orphan_reset_and_partial_failures(
         "save",
         lambda *args, **kwargs: (_ for _ in ()).throw(LlamaCppStateError("save failed")),
     )
-    orphaned = await service.configure(
-        {"endpoint": SERVER, "api_key": "fourth"}, _context("configure")
-    )
+    orphaned = await service.configure({"endpoint": SERVER, "api_key": "fourth"}, _context("configure"))
     assert orphaned.committed is False
     assert orphaned.credential_orphaned is True
     assert any(
-        credentials.get(name) == "fourth"
-        for name in credentials.names(prefix=LLAMA_CPP_CREDENTIAL_PREFIX)
+        credentials.get(name) == "fourth" for name in credentials.names(prefix=LLAMA_CPP_CREDENTIAL_PREFIX)
     )
     await client.aclose()
 
@@ -834,9 +820,7 @@ async def test_credential_cleanup_failure_is_reported_and_reset_is_recoverable(
 ) -> None:
     client, _ = _client(_healthy_handler())
     service, state_store, credentials = _service(tmp_path, client=client)
-    configured = await service.configure(
-        {"endpoint": SERVER, "api_key": "secret"}, _context("configure")
-    )
+    configured = await service.configure({"endpoint": SERVER, "api_key": "secret"}, _context("configure"))
     assert configured.committed
     ref = state_store.active().credential_ref  # type: ignore[union-attr]
     original_delete = credentials.delete
@@ -847,9 +831,7 @@ async def test_credential_cleanup_failure_is_reported_and_reset_is_recoverable(
         original_delete(name)
 
     credentials.delete = fail_old  # type: ignore[method-assign]
-    changed = await service.configure(
-        {"endpoint": SERVER, "api_key": "new-secret"}, _context("configure")
-    )
+    changed = await service.configure({"endpoint": SERVER, "api_key": "new-secret"}, _context("configure"))
     assert changed.committed is True
     assert changed.credential_orphaned is True
     assert any(item.stage == "credentials" for item in changed.diagnostics)
@@ -889,8 +871,7 @@ async def test_print_mode_explicit_dynamic_startup_uses_cached_state(
         return httpx.Response(
             200,
             text=(
-                'data: {"choices":[{"delta":{"content":"hello"},"finish_reason":"stop"}]}\n'
-                "\ndata: [DONE]\n\n"
+                'data: {"choices":[{"delta":{"content":"hello"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'
             ),
             headers={"content-type": "text/event-stream"},
         )
@@ -908,9 +889,7 @@ async def test_print_mode_explicit_dynamic_startup_uses_cached_state(
         cwd=project,
         provider=None,
         output=PrintOutputMode.text,
-        resource_paths=BaldricResourcePaths(
-            root=paths.home, agents_root=paths.agents_home, paths=paths
-        ),
+        resource_paths=BaldricResourcePaths(root=paths.home, agents_root=paths.agents_home, paths=paths),
         provider_name="llama.cpp",
         requested_provider="llama.cpp",
         requested_model="qwen-local",
@@ -1154,9 +1133,7 @@ async def test_router_load_unload_download_confirm_reconcile_and_publish(tmp_pat
     assert "owner/repository" in invalid_download.diagnostics[0].message
     assert not any(action == "download" for action, _ in mutations)
 
-    download_confirmation = await service.download_model(
-        "owner/repo:Q4_K_M", _context("download_model")
-    )
+    download_confirmation = await service.download_model("owner/repo:Q4_K_M", _context("download_model"))
     assert download_confirmation.confirmation is not None
     assert "Download size is unavailable" in download_confirmation.confirmation.message
     assert not any(choice.recommended for choice in download_confirmation.confirmation.choices)
@@ -1183,9 +1160,7 @@ async def test_fast_router_download_finishes_without_observing_intermediate_stat
         if request.url.path == "/props":
             return httpx.Response(200, json={"role": "router", "build_info": "b10000-test"})
         if request.url.path == "/models" and request.method == "GET":
-            models = (
-                [{"id": "owner/repo:Q4_K_M", "status": {"value": "unloaded"}}] if downloaded else []
-            )
+            models = [{"id": "owner/repo:Q4_K_M", "status": {"value": "unloaded"}}] if downloaded else []
             return httpx.Response(200, json={"data": models})
         if request.url.path == "/models" and request.method == "POST":
             downloaded = True
@@ -1228,9 +1203,7 @@ async def test_router_sse_reports_aggregate_download_progress() -> None:
         )
     )
     client = httpx.AsyncClient(
-        transport=httpx.MockTransport(
-            lambda request: httpx.Response(200, text=payload, request=request)
-        )
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, text=payload, request=request))
     )
     progress: list[tuple[int, int]] = []
 
@@ -1386,9 +1359,7 @@ async def test_router_connection_loss_reconciles_without_replaying_mutation(tmp_
             list_calls += 1
             if list_calls > 2:
                 raise httpx.ConnectError("lost", request=request)
-            return httpx.Response(
-                200, json={"data": [{"id": "target", "status": {"value": "unloaded"}}]}
-            )
+            return httpx.Response(200, json={"data": [{"id": "target", "status": {"value": "unloaded"}}]})
         if request.url.path == "/models/load":
             posts += 1
             return httpx.Response(200, json={"success": True})
@@ -1427,9 +1398,7 @@ async def test_router_cancellation_requests_documented_cancel_and_reconciles(
         if request.url.path == "/props":
             return httpx.Response(200, json={"role": "router", "build_info": "b10000-test"})
         if request.url.path == "/models" and request.method == "GET":
-            return httpx.Response(
-                200, json={"data": [{"id": "target", "status": {"value": state}}]}
-            )
+            return httpx.Response(200, json={"data": [{"id": "target", "status": {"value": state}}]})
         if request.url.path == "/models/load":
             mutations.append("load")
             state = "loading"
@@ -1451,9 +1420,7 @@ async def test_router_cancellation_requests_documented_cancel_and_reconciles(
         environment={},
     )
     await service.refresh(_context())
-    operation = asyncio.create_task(
-        service.load_model("target", _context("load_model", confirmation="load"))
-    )
+    operation = asyncio.create_task(service.load_model("target", _context("load_model", confirmation="load")))
     await load_started.wait()
     operation.cancel()
 
@@ -1510,16 +1477,12 @@ async def test_hugging_face_search_details_token_and_gating_are_search_only(tmp_
     ]
     assert repository.options[0].recommended is True
     service._router_capability = RouterCapability("compatible", 10_000)
-    confirmation = await service.download_model(
-        "owner/repo-GGUF:Q4_K_M", _context("download_model")
-    )
+    confirmation = await service.download_model("owner/repo-GGUF:Q4_K_M", _context("download_model"))
     assert confirmation.confirmation is not None
     assert "3.7 GiB" in confirmation.confirmation.message
     assert "continues if this modal is closed" in confirmation.confirmation.message
     assert "server process" in (repository.diagnostic or "")
-    assert all(
-        request.headers.get("authorization") == "Bearer search-secret" for request in requests
-    )
+    assert all(request.headers.get("authorization") == "Bearer search-secret" for request in requests)
     assert "search-secret" not in repr(result)
     assert not state_store_text(tmp_path)
     await client.aclose()

@@ -37,8 +37,7 @@ def test_create_openai_codex_authorization_flow_includes_pkce_and_codex_params()
 
 def test_parse_authorization_input_accepts_redirect_url_query_and_raw_code() -> None:
     assert (
-        parse_authorization_input("http://localhost:1455/auth/callback?code=abc&state=state-1").code
-        == "abc"
+        parse_authorization_input("http://localhost:1455/auth/callback?code=abc&state=state-1").code == "abc"
     )
     assert parse_authorization_input("code=abc&state=state-1").state == "state-1"
     assert parse_authorization_input("abc#state-1").state == "state-1"

@@ -249,9 +249,7 @@ async def test_malformed_store_fails_closed_but_run_override_still_works(tmp_pat
     store.path.write_text("bad", encoding="utf-8")
 
     summary, declined = await ProjectTrustCoordinator(store).resolve(project)
-    _summary, default_always = await ProjectTrustCoordinator(store).resolve(
-        project, default="always"
-    )
+    _summary, default_always = await ProjectTrustCoordinator(store).resolve(project, default="always")
     _summary, approved = await ProjectTrustCoordinator(store).resolve(project, override="approve")
 
     assert declined.trusted is False
@@ -616,9 +614,7 @@ async def test_standalone_trust_modal_uses_baldric_dark_palette(tmp_path: Path) 
         assert dialog.styles.background == Color.parse(BALDRIC_DARK_THEME.chrome_background)
         assert dialog.styles.color == Color.parse(BALDRIC_DARK_THEME.chrome_text)
         assert choice_list.styles.background == Color.parse(BALDRIC_DARK_THEME.transcript_background)
-        assert highlighted_label.styles.background == Color.parse(
-            BALDRIC_DARK_THEME.highlight_background
-        )
+        assert highlighted_label.styles.background == Color.parse(BALDRIC_DARK_THEME.highlight_background)
         assert highlighted_label.styles.color == Color.parse(BALDRIC_DARK_THEME.highlight_text)
 
 
@@ -644,9 +640,7 @@ async def test_extension_order_errors_and_remember_failure_are_fail_closed(
         return ExtensionTrustResult("decline")
 
     store = ProjectTrustStore(_paths(tmp_path))
-    monkeypatch.setattr(
-        store, "set", lambda *_args: (_ for _ in ()).throw(ProjectTrustError("write failed"))
-    )
+    monkeypatch.setattr(store, "set", lambda *_args: (_ for _ in ()).throw(ProjectTrustError("write failed")))
     _summary, resolution = await ProjectTrustCoordinator(store).resolve(
         project, extension_deciders=(broken, approve, never_reached)
     )

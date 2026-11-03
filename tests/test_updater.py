@@ -73,9 +73,7 @@ def test_update_baldric_hands_windows_uv_tool_update_to_waiting_process(tmp_path
         latest_version_fetcher=lambda: "0.2.4",
         platform_name="win32",
         detached_launcher=launcher,
-        executable_finder=lambda name: (
-            "C:/Windows/powershell.exe" if name == "powershell.exe" else None
-        ),
+        executable_finder=lambda name: "C:/Windows/powershell.exe" if name == "powershell.exe" else None,
         parent_pid=4242,
         handoff_directory=handoff_dir,
     )
@@ -103,9 +101,7 @@ def test_update_baldric_hands_windows_uv_tool_update_to_waiting_process(tmp_path
     script = (handoff_dir / "update.ps1").read_text(encoding="utf-8")
     assert "Wait-Process -InputObject $ParentProcess -ErrorAction Stop" in script
     assert "NoProcessFoundForGivenId" in script
-    assert script.index("Wait-Process -InputObject $ParentProcess") < script.index(
-        "$UpdateProcess.Start()"
-    )
+    assert script.index("Wait-Process -InputObject $ParentProcess") < script.index("$UpdateProcess.Start()")
     assert "System.Diagnostics.ProcessStartInfo" in script
     assert "$StartInfo.UseShellExecute = $false" in script
 
@@ -128,9 +124,7 @@ def test_quote_windows_argument_uses_microsoft_runtime_rules(argument: str, expe
 
 
 def test_windows_command_line_preserves_argument_boundaries() -> None:
-    assert updater._windows_command_line(("", "a b", 'c"', "tail\\")) == (
-        '"" "a b" "c\\"" "tail\\\\"'
-    )
+    assert updater._windows_command_line(("", "a b", 'c"', "tail\\")) == ('"" "a b" "c\\"" "tail\\\\"')
 
 
 def test_windows_handoff_reports_staging_write_failure_and_removes_owned_directory(
@@ -184,9 +178,7 @@ def test_windows_handoff_reports_launch_failure_and_preserves_caller_directory(
     )
 
     assert result.succeeded is False
-    assert result.failures == (
-        "Could not start the detached Windows updater: process creation denied",
-    )
+    assert result.failures == ("Could not start the detached Windows updater: process creation denied",)
     assert update_dir.is_dir()
     assert list(update_dir.iterdir()) == []
 

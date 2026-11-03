@@ -11,7 +11,7 @@ from inspect import iscoroutinefunction
 from pathlib import Path
 from typing import Literal
 
-from baldric_coding.resources import ResourceDiagnostic, BaldricResourcePaths
+from baldric_coding.resources import BaldricResourcePaths, ResourceDiagnostic
 
 EXTENSION_ENTRY_ATTRIBUTE = "setup"
 _MODULE_NAME_PREFIX = "baldric_extension"
@@ -246,9 +246,7 @@ def _discover_in_dir(
                 )
 
 
-def _manifest_entries(
-    directory: Path, diagnostics: list[ResourceDiagnostic]
-) -> list[DiscoveredExtension]:
+def _manifest_entries(directory: Path, diagnostics: list[ResourceDiagnostic]) -> list[DiscoveredExtension]:
     """Resolve entry files declared in `<dir>/pyproject.toml` under `[tool.baldric]`.
 
     Pi's loader resolves a directory's `package.json` `pi.extensions` field
@@ -304,9 +302,7 @@ def _manifest_entries(
         # point at structured layouts (e.g. src/<pkg>/extension.py), where
         # sibling modules must stay reachable through relative imports.
         name = entry_file.parent.name if entry_file.stem == "extension" else entry_file.stem
-        entries.append(
-            DiscoveredExtension(name=name, path=entry_file, package_dir=entry_file.parent)
-        )
+        entries.append(DiscoveredExtension(name=name, path=entry_file, package_dir=entry_file.parent))
     return entries
 
 
@@ -344,8 +340,7 @@ def _load_extension(
         return None, [
             _error_diagnostic(
                 entry,
-                "extension does not define a callable "
-                f"`{EXTENSION_ENTRY_ATTRIBUTE}(baldric)` entry point",
+                f"extension does not define a callable `{EXTENSION_ENTRY_ATTRIBUTE}(baldric)` entry point",
             )
         ]
     if iscoroutinefunction(setup):
@@ -353,8 +348,7 @@ def _load_extension(
         return None, [
             _error_diagnostic(
                 entry,
-                f"`{EXTENSION_ENTRY_ATTRIBUTE}` must be a sync function"
-                " (async setup is not supported)",
+                f"`{EXTENSION_ENTRY_ATTRIBUTE}` must be a sync function (async setup is not supported)",
             )
         ]
 

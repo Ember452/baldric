@@ -238,9 +238,7 @@ class AgentHarness:
 
     def _append_interrupted_tool_results(self) -> None:
         returned_ids = {
-            message.tool_call_id
-            for message in self._messages
-            if isinstance(message, ToolResultMessage)
+            message.tool_call_id for message in self._messages if isinstance(message, ToolResultMessage)
         }
         for message in tuple(self._messages):
             if not isinstance(message, AssistantMessage):

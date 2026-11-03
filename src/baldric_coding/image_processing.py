@@ -111,8 +111,7 @@ def process_image(
 
     if width * height > max_source_pixels:
         return ImageProcessingFailure(
-            f"image has {width * height:,} pixels, exceeding the {max_source_pixels:,}-pixel "
-            "processing limit"
+            f"image has {width * height:,} pixels, exceeding the {max_source_pixels:,}-pixel processing limit"
         )
 
     requires_conversion = mime_type == "image/bmp"
@@ -156,9 +155,7 @@ def process_image(
         if len(encoded) <= max_bytes:
             final_width, final_height = image.size
             if (final_width, final_height) != (width, height):
-                notes.append(
-                    f"Image resized from {width}x{height} to {final_width}x{final_height}."
-                )
+                notes.append(f"Image resized from {width}x{height} to {final_width}x{final_height}.")
             return ProcessedImage(
                 data=encoded,
                 mime_type=output_mime,

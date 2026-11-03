@@ -34,9 +34,7 @@ _PROVIDER_APIS = frozenset(
 _THINKING_LEVELS = frozenset({"off", "minimal", "low", "medium", "high", "xhigh", "max"})
 
 type ModelCost = Mapping[str, float]
-type ImmutableJSONValue = (
-    JSONPrimitive | tuple[ImmutableJSONValue, ...] | Mapping[str, ImmutableJSONValue]
-)
+type ImmutableJSONValue = JSONPrimitive | tuple[ImmutableJSONValue, ...] | Mapping[str, ImmutableJSONValue]
 type ModelCompat = Mapping[str, JSONValue | ImmutableJSONValue]
 
 
@@ -80,9 +78,7 @@ class ResolvedProviderAuth:
     omit_authorization_header: bool = True
 
     def __post_init__(self) -> None:
-        if self.api_key is not None and (
-            not isinstance(self.api_key, str) or not self.api_key.strip()
-        ):
+        if self.api_key is not None and (not isinstance(self.api_key, str) or not self.api_key.strip()):
             raise ProviderAuthError("Resolved provider API key must be a non-empty string or None")
         if not isinstance(self.omit_authorization_header, bool):
             raise ProviderAuthError("Authorization omission flag must be a boolean")
@@ -91,9 +87,7 @@ class ResolvedProviderAuth:
         headers = _string_mapping(self.headers, "Auth headers")
         has_authorization = _has_header(headers, "authorization")
         if self.api_key is None and not self.omit_authorization_header and not has_authorization:
-            raise ProviderAuthError(
-                "Resolved provider auth must supply an API key or Authorization header"
-            )
+            raise ProviderAuthError("Resolved provider auth must supply an API key or Authorization header")
         object.__setattr__(self, "headers", headers)
 
 
@@ -356,24 +350,17 @@ class DynamicProvider:
         if self.transport is not None and not isinstance(self.transport, OpenAICompatibleTransport):
             raise DynamicProviderError("Dynamic provider transport is unsupported")
         if self.transport is not None and any(
-            model.api not in {None, "openai-completions", "openai-responses"}
-            for model in self.models
+            model.api not in {None, "openai-completions", "openai-responses"} for model in self.models
         ):
-            raise DynamicProviderError(
-                "OpenAI-compatible provider models must use an OpenAI-compatible api"
-            )
+            raise DynamicProviderError("OpenAI-compatible provider models must use an OpenAI-compatible api")
         if self.runtime_factory is not None and not callable(self.runtime_factory):
             raise DynamicProviderError("Dynamic provider runtime factory must be callable")
-        if self.runtime_factory is not None and not callable(
-            getattr(self.runtime_auth, "resolve", None)
-        ):
+        if self.runtime_factory is not None and not callable(getattr(self.runtime_auth, "resolve", None)):
             raise DynamicProviderError("Runtime factory auth must define resolve(context)")
         if self.refresh_models is not None and not callable(self.refresh_models):
             raise DynamicProviderError("Dynamic provider refresh callback must be callable")
         if not isinstance(self.stable_scoped_references, bool):
-            raise DynamicProviderError(
-                "Dynamic provider stable scoped references flag must be boolean"
-            )
+            raise DynamicProviderError("Dynamic provider stable scoped references flag must be boolean")
 
     @property
     def auth(self) -> ProviderAuth:
@@ -415,9 +402,7 @@ def _validate_model_snapshot(
     models: tuple[ProviderModel, ...],
     default_model: str | None,
 ) -> None:
-    if not isinstance(models, tuple) or any(
-        not isinstance(model, ProviderModel) for model in models
-    ):
+    if not isinstance(models, tuple) or any(not isinstance(model, ProviderModel) for model in models):
         raise DynamicProviderError("Provider models must be a tuple of ProviderModel values")
     ids = [model.id for model in models]
     if len(ids) != len(set(ids)):
@@ -465,9 +450,7 @@ def _has_header(headers: Mapping[str, str], name: str) -> bool:
 
 def _reject_authorization_header(headers: Mapping[str, str], label: str) -> None:
     if _has_header(headers, "authorization"):
-        raise DynamicProviderError(
-            f"{label} must resolve Authorization through the provider auth strategy"
-        )
+        raise DynamicProviderError(f"{label} must resolve Authorization through the provider auth strategy")
 
 
 def _cost_mapping(value: Mapping[str, float]) -> Mapping[str, float]:

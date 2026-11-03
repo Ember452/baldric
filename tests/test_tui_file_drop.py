@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from textual import events
 
-from baldric_coding.tui.app import PromptInput, BaldricTuiApp
+from baldric_coding.tui.app import BaldricTuiApp, PromptInput
 from baldric_coding.tui.file_drop import normalize_dropped_paths
 
 

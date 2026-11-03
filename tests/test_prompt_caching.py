@@ -43,10 +43,7 @@ def _assistant_with_calls(count: int, *, offset: int = 0) -> AssistantMessage:
     return AssistantMessage(
         content=[
             TextContent(text="working"),
-            *[
-                ToolCall(id=f"call-{offset + index}", name="read", arguments={})
-                for index in range(count)
-            ],
+            *[ToolCall(id=f"call-{offset + index}", name="read", arguments={}) for index in range(count)],
         ],
         stop_reason="toolUse",
     )
@@ -83,9 +80,7 @@ def _payload(
 def _count_breakpoints(payload: dict[str, Any]) -> int:
     def walk(value: object) -> int:
         if isinstance(value, dict):
-            return sum(
-                (1 if key == "cache_control" else 0) + walk(item) for key, item in value.items()
-            )
+            return sum((1 if key == "cache_control" else 0) + walk(item) for key, item in value.items())
         if isinstance(value, list):
             return sum(walk(item) for item in value)
         return 0

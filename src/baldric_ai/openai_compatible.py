@@ -261,11 +261,7 @@ class OpenAICompatibleProvider:
                 api_key = auth.api_key
                 headers.update(auth.headers or {})
                 if auth.base_url is not None:
-                    endpoint = (
-                        "/responses"
-                        if url.rstrip("/").endswith("/responses")
-                        else "/chat/completions"
-                    )
+                    endpoint = "/responses" if url.rstrip("/").endswith("/responses") else "/chat/completions"
                     request_url = f"{auth.base_url.rstrip('/')}{endpoint}"
             if not self._config.omit_authorization_header:
                 has_authorization = any(key.casefold() == "authorization" for key in headers)
@@ -277,9 +273,7 @@ class OpenAICompatibleProvider:
             while True:
                 parser = parser_factory()
                 try:
-                    async with client.stream(
-                        "POST", request_url, json=payload, headers=headers
-                    ) as response:
+                    async with client.stream("POST", request_url, json=payload, headers=headers) as response:
                         response_provider = _response_header_value(
                             response,
                             self._config.response_provider_header,
@@ -386,9 +380,7 @@ class OpenAICompatibleProvider:
 
     def _prompt_cache_key(self, affinity_id: str | None) -> str | None:
         supports = self._config.compat.get("supportsPromptCacheKey")
-        if supports is not True and not (
-            supports is None and is_direct_openai_url(self._config.base_url)
-        ):
+        if supports is not True and not (supports is None and is_direct_openai_url(self._config.base_url)):
             return None
         return affinity_id
 
@@ -544,12 +536,8 @@ class _ChatStreamParser:
         return events, False
 
     def finalize(self) -> list[ProviderEvent]:
-        tool_calls = [
-            builder.build(index) for index, builder in sorted(self._tool_call_builders.items())
-        ]
-        events: list[ProviderEvent] = [
-            ProviderToolCallEvent(tool_call=tool_call) for tool_call in tool_calls
-        ]
+        tool_calls = [builder.build(index) for index, builder in sorted(self._tool_call_builders.items())]
+        events: list[ProviderEvent] = [ProviderToolCallEvent(tool_call=tool_call) for tool_call in tool_calls]
         content = assistant_content("".join(self._content_parts), tool_calls)
         if self._thinking_parts:
             content.insert(
@@ -663,20 +651,15 @@ class _ResponsesStreamParser:
 
         elif chunk_type == "error":
             self.fatal = True
-            return [
-                ProviderErrorEvent(message=_responses_error_message(chunk), data={"event": chunk})
-            ], True
+            return [ProviderErrorEvent(message=_responses_error_message(chunk), data={"event": chunk})], True
 
         return [], False
 
     def finalize(self) -> list[ProviderEvent]:
         tool_calls = [
-            builder.build(index)
-            for index, builder in enumerate(_ordered_builders(self._tool_call_builders))
+            builder.build(index) for index, builder in enumerate(_ordered_builders(self._tool_call_builders))
         ]
-        events: list[ProviderEvent] = [
-            ProviderToolCallEvent(tool_call=tool_call) for tool_call in tool_calls
-        ]
+        events: list[ProviderEvent] = [ProviderToolCallEvent(tool_call=tool_call) for tool_call in tool_calls]
         finish_reason = _normalize_finish_reason(self._status, has_tool_calls=bool(tool_calls))
         content = assistant_content("".join(self._content_parts), tool_calls)
         if self._thinking_parts:
@@ -685,9 +668,7 @@ class _ResponsesStreamParser:
                 ThinkingContent(
                     thinking="".join(self._thinking_parts),
                     thinking_signature=(
-                        dumps(next(iter(self._reasoning_items.values())))
-                        if self._reasoning_items
-                        else None
+                        dumps(next(iter(self._reasoning_items.values()))) if self._reasoning_items else None
                     ),
                 ),
             )
@@ -778,9 +759,7 @@ class _ResponsesToolCallBuilder:
 
     def build(self, index: int) -> ToolCall:
         arguments_text = (
-            self.arguments_final
-            if self.arguments_final is not None
-            else "".join(self.arguments_parts)
+            self.arguments_final if self.arguments_final is not None else "".join(self.arguments_parts)
         )
         arguments = _loads_object(arguments_text) if arguments_text else {}
         if arguments is None:
@@ -812,9 +791,7 @@ def _build_chat_payload(
     supports_store = bool(resolved_compat.get("supportsStore", True))
     supports_usage = bool(resolved_compat.get("supportsUsageInStreaming", True))
     supports_reasoning_effort = bool(resolved_compat.get("supportsReasoningEffort", True))
-    max_tokens_field = _string_compat(
-        resolved_compat.get("maxTokensField"), default="max_completion_tokens"
-    )
+    max_tokens_field = _string_compat(resolved_compat.get("maxTokensField"), default="max_completion_tokens")
     payload: dict[str, JSONValue] = {
         "model": model,
         "stream": True,
@@ -830,9 +807,7 @@ def _build_chat_payload(
     if supports_store:
         payload["store"] = False
     if max_tokens is not None:
-        payload["max_tokens" if max_tokens_field == "max_tokens" else "max_completion_tokens"] = (
-            max_tokens
-        )
+        payload["max_tokens" if max_tokens_field == "max_tokens" else "max_completion_tokens"] = max_tokens
     openrouter_provider = resolved_compat.get("openrouterProvider")
     if isinstance(openrouter_provider, dict):
         payload["provider"] = openrouter_provider
@@ -1087,9 +1062,7 @@ def _finalize_responses_item(
 def _ordered_builders(
     builders: dict[str, _ResponsesToolCallBuilder],
 ) -> list[_ResponsesToolCallBuilder]:
-    return [
-        builder for _, builder in sorted(builders.items(), key=lambda pair: pair[1].output_index)
-    ]
+    return [builder for _, builder in sorted(builders.items(), key=lambda pair: pair[1].output_index)]
 
 
 def _responses_finish_reason(chunk: Mapping[str, Any]) -> str | None:
@@ -1218,9 +1191,7 @@ def _message_to_openai(message: AgentMessage) -> dict[str, JSONValue]:
             if signature in {"reasoning_content", "reasoning", "thinking"}:
                 item[signature] = "".join(block.thinking for block in thinking)
         if message.tool_calls:
-            item["tool_calls"] = [
-                _tool_call_to_openai(tool_call) for tool_call in message.tool_calls
-            ]
+            item["tool_calls"] = [_tool_call_to_openai(tool_call) for tool_call in message.tool_calls]
         return item
 
     if isinstance(message, ToolResultMessage):
@@ -1341,23 +1312,15 @@ def _usage_from_responses_event(chunk: Mapping[str, Any]) -> Usage | None:
     if not isinstance(raw, Mapping):
         return None
     input_details = raw.get("input_tokens_details")
-    cache_read = (
-        _int_or_zero(input_details.get("cached_tokens"))
-        if isinstance(input_details, Mapping)
-        else 0
-    )
+    cache_read = _int_or_zero(input_details.get("cached_tokens")) if isinstance(input_details, Mapping) else 0
     cache_write = (
-        _int_or_zero(input_details.get("cache_write_tokens"))
-        if isinstance(input_details, Mapping)
-        else 0
+        _int_or_zero(input_details.get("cache_write_tokens")) if isinstance(input_details, Mapping) else 0
     )
     output_details = raw.get("output_tokens_details")
     # Leave reasoning None (not 0) when the provider reports no breakdown,
     # honoring the "None = not reported" contract on Usage.
     reasoning = (
-        _int_or_zero(output_details.get("reasoning_tokens"))
-        if isinstance(output_details, Mapping)
-        else None
+        _int_or_zero(output_details.get("reasoning_tokens")) if isinstance(output_details, Mapping) else None
     )
     return Usage(
         input=max(0, _int_or_zero(raw.get("input_tokens")) - cache_read - cache_write),

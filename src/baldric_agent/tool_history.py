@@ -50,9 +50,7 @@ def repair_tool_history(messages: tuple[AgentMessage, ...]) -> ToolHistoryRepair
         if not isinstance(message, AssistantMessage):
             continue
         for call_offset, call in enumerate(message.tool_calls, start=1):
-            call_occurrences.append(
-                ((message_index, call_offset), call, message_index + call_offset)
-            )
+            call_occurrences.append(((message_index, call_offset), call, message_index + call_offset))
 
     results_by_id: dict[str, list[tuple[int, ToolResultMessage]]] = defaultdict(list)
     for message_index, message in enumerate(messages):
@@ -89,11 +87,7 @@ def repair_tool_history(messages: tuple[AgentMessage, ...]) -> ToolHistoryRepair
             after_call = [candidate for candidate in candidates if candidate[0] > occurrence[0]]
             candidate_pool = after_call or candidates
             selected = next(
-                (
-                    candidate
-                    for candidate in candidate_pool
-                    if not _is_interruption_result(candidate[1])
-                ),
+                (candidate for candidate in candidate_pool if not _is_interruption_result(candidate[1])),
                 candidate_pool[0],
             )
             selected_results[occurrence] = selected
@@ -120,8 +114,7 @@ def repair_tool_history(messages: tuple[AgentMessage, ...]) -> ToolHistoryRepair
             (
                 candidate
                 for candidate in results_by_id.get(call.id, [])
-                if candidate[0] not in used_result_positions
-                and not _is_interruption_result(candidate[1])
+                if candidate[0] not in used_result_positions and not _is_interruption_result(candidate[1])
             ),
             None,
         )

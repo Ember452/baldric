@@ -190,8 +190,7 @@ async def test_read_tool_converts_bmp_to_png(tmp_path: Path) -> None:
 @pytest.mark.anyio
 async def test_read_tool_reports_decode_failure_without_attachment(tmp_path: Path) -> None:
     malformed = (
-        b"\x89PNG\r\n\x1a\n"
-        b"\x00\x00\x00\x0dIHDR" + b"\x00" * 17 + b"\x00\x00\x00\x00IDAT" + b"\x00" * 4
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR" + b"\x00" * 17 + b"\x00\x00\x00\x00IDAT" + b"\x00" * 4
     )
     (tmp_path / "broken.png").write_bytes(malformed)
     tool = create_read_tool(cwd=tmp_path)
@@ -473,9 +472,7 @@ async def test_bash_tool_cancellation_kills_shell_children(tmp_path: Path) -> No
     tool = create_bash_tool(cwd=tmp_path)
     token = FakeCancellationToken()
 
-    task = asyncio.create_task(
-        tool.execute("test-call", {"command": "sleep 1 & wait"}, signal=token)
-    )
+    task = asyncio.create_task(tool.execute("test-call", {"command": "sleep 1 & wait"}, signal=token))
     await asyncio.sleep(0.05)
     token.cancel()
     start = monotonic()

@@ -52,9 +52,7 @@ class SessionState:
         resolved_leaf_id = (
             _last_non_leaf_id(entries) if leaf_id is _UNSET_LEAF_ID else cast(str | None, leaf_id)
         )
-        replay_entries = (
-            path_to_entry(entries, resolved_leaf_id) if resolved_leaf_id is not None else []
-        )
+        replay_entries = path_to_entry(entries, resolved_leaf_id) if resolved_leaf_id is not None else []
 
         message_rows: list[tuple[str, AgentMessage]] = []
         model: str | None = None
@@ -105,9 +103,7 @@ class SessionState:
                         path_before=replay_entries[:entry_index],
                     )
                 case "branch_summary":
-                    message_rows.append(
-                        (entry.id, UserMessage(content=_format_branch_summary(entry)))
-                    )
+                    message_rows.append((entry.id, UserMessage(content=_format_branch_summary(entry))))
 
         return cls(
             messages=tuple(message for _entry_id, message in message_rows),
@@ -178,11 +174,7 @@ def _apply_compaction(
     # message-producing entries. Reorder retained context by that path as well:
     # a previous compaction can itself occur after the kept boundary.
     first_kept_index = next(
-        (
-            index
-            for index, path_entry in enumerate(path_before)
-            if path_entry.id == entry.first_kept_entry_id
-        ),
+        (index for index, path_entry in enumerate(path_before) if path_entry.id == entry.first_kept_entry_id),
         None,
     )
     if first_kept_index is None:

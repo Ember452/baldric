@@ -18,9 +18,7 @@ class FinalTextRenderer:
             self._failed = False
             self._error_messages.clear()
             return
-        if not isinstance(event, MessageEndEvent) or not isinstance(
-            event.message, AssistantMessage
-        ):
+        if not isinstance(event, MessageEndEvent) or not isinstance(event.message, AssistantMessage):
             return
         self._last_assistant_text = event.message.text
         if event.message.stop_reason in {"error", "aborted"}:

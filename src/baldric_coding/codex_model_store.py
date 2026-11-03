@@ -151,12 +151,9 @@ def _model_from_json(value: object) -> RuntimeModel | None:
     thinking_levels = tuple(
         cast(RuntimeThinkingLevel, level)
         for level in thinking_value
-        if isinstance(level, str)
-        and level in {"off", "minimal", "low", "medium", "high", "xhigh", "max"}
+        if isinstance(level, str) and level in {"off", "minimal", "low", "medium", "high", "xhigh", "max"}
     )
-    if len(thinking_levels) != len(thinking_value) or len(set(thinking_levels)) != len(
-        thinking_levels
-    ):
+    if len(thinking_levels) != len(thinking_value) or len(set(thinking_levels)) != len(thinking_levels):
         return None
     if default_value is not None and default_value not in thinking_levels:
         return None

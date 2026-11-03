@@ -198,9 +198,7 @@ class AssistantMessage(WireModel):
 
     @property
     def thinking_text(self) -> str:
-        return "".join(
-            block.thinking for block in self.content if isinstance(block, ThinkingContent)
-        )
+        return "".join(block.thinking for block in self.content if isinstance(block, ThinkingContent))
 
     @property
     def tool_calls(self) -> tuple[ToolCall, ...]:

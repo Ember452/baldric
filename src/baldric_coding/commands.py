@@ -634,9 +634,7 @@ def _name_command(context: CommandContext) -> CommandResult:
 
     if not context.args:
         record = manager.get_session(session_id)
-        title = (
-            record.title if record is not None else context.session.session_title
-        ) or "Untitled session"
+        title = (record.title if record is not None else context.session.session_title) or "Untitled session"
         return CommandResult(
             handled=True,
             message=f"Current session name: {title}\nUsage: /name <new name>",
@@ -807,9 +805,7 @@ def _login_command(context: CommandContext) -> CommandResult:
             )
             return CommandResult(
                 handled=True,
-                message=(
-                    f"Unknown login provider: {provider_name}\nAvailable providers: {providers}"
-                ),
+                message=(f"Unknown login provider: {provider_name}\nAvailable providers: {providers}"),
             )
         return CommandResult(
             handled=True,
@@ -828,9 +824,7 @@ def _logout_command(context: CommandContext) -> CommandResult:
             providers = ", ".join(entry.name for entry in BUILTIN_PROVIDER_CATALOG)
             return CommandResult(
                 handled=True,
-                message=(
-                    f"Unknown logout provider: {provider_name}\nAvailable providers: {providers}"
-                ),
+                message=(f"Unknown logout provider: {provider_name}\nAvailable providers: {providers}"),
             )
         return CommandResult(handled=True, logout_provider=entry.name)
 
@@ -842,9 +836,7 @@ def _format_session_record(record: CodingSessionRecord) -> str:
     return f"- {record.id}: {title} ({record.model}) {record.cwd}"
 
 
-def _format_diagnostics(
-    diagnostics: Sequence[ResourceDiagnostic], *, kind: str | None = None
-) -> list[str]:
+def _format_diagnostics(diagnostics: Sequence[ResourceDiagnostic], *, kind: str | None = None) -> list[str]:
     filtered = [diagnostic for diagnostic in diagnostics if kind is None or diagnostic.kind == kind]
     if not filtered:
         return ["Resource diagnostics: none"]
@@ -862,8 +854,7 @@ def format_reload_summary(summary: CodingReloadSummary) -> str:
         f"- Extensions: {_format_reload_category(summary.extensions)}",
         "Context:",
         f"- Project context files: {_format_reload_category(summary.context_files)}",
-        "- Next-turn system prompt: "
-        + ("rebuilt" if summary.system_prompt_rebuilt else "unchanged"),
+        "- Next-turn system prompt: " + ("rebuilt" if summary.system_prompt_rebuilt else "unchanged"),
         "Diagnostics:",
         f"- Resource diagnostics: {_format_reload_category(summary.diagnostics)}",
         "Provider config:",

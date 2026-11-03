@@ -224,18 +224,14 @@ def estimate_context_usage(
     if usage_info is not None:
         usage_index, provider_tokens = usage_info
         trailing_messages = messages[usage_index + 1 :]
-        trailing_message_tokens = sum(
-            estimate_message_tokens(message) for message in trailing_messages
-        )
+        trailing_message_tokens = sum(estimate_message_tokens(message) for message in trailing_messages)
         added_tool_names = {
             name
             for message in trailing_messages
             if isinstance(message, ToolResultMessage) and message.added_tool_names
             for name in message.added_tool_names
         }
-        added_tool_tokens = sum(
-            estimate_tool_tokens(tool) for tool in tools if tool.name in added_tool_names
-        )
+        added_tool_tokens = sum(estimate_tool_tokens(tool) for tool in tools if tool.name in added_tool_names)
         trailing_tokens = trailing_message_tokens + added_tool_tokens
         return ContextUsageEstimate(
             total_tokens=provider_tokens + trailing_tokens,
@@ -282,9 +278,7 @@ def build_compaction_summary_prompt(
     previous_summary, new_messages = _split_previous_compaction_summary(messages)
     conversation = serialize_messages_for_compaction(new_messages)
     prompt = f"<conversation>\n{conversation}\n</conversation>\n\n"
-    base_prompt = (
-        UPDATE_SUMMARIZATION_PROMPT if previous_summary is not None else SUMMARIZATION_PROMPT
-    )
+    base_prompt = UPDATE_SUMMARIZATION_PROMPT if previous_summary is not None else SUMMARIZATION_PROMPT
 
     if previous_summary is not None:
         prompt += f"<previous-summary>\n{previous_summary}\n</previous-summary>\n\n"

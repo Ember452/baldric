@@ -8,8 +8,6 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from conftest import isolate_home
-from pi_event_helpers import assistant_done, assistant_error, assistant_start
 from baldric_agent import (
     AgentMessage,
     AgentTool,
@@ -50,6 +48,8 @@ from baldric_ai import (
 )
 from baldric_ai.events import AssistantMessageEvent
 from baldric_coding import (
+    BaldricPaths,
+    BaldricResourcePaths,
     CodingSession,
     CodingSessionConfig,
     FileCredentialStore,
@@ -63,8 +63,6 @@ from baldric_coding import (
     ScopedModelConfig,
     SessionManager,
     SessionTreeBranchResult,
-    BaldricPaths,
-    BaldricResourcePaths,
     load_provider_settings,
     save_provider_settings,
 )
@@ -86,6 +84,8 @@ from baldric_coding.session import (
     is_retryable_huggingface_route_error,
     parse_terminal_command,
 )
+from conftest import isolate_home
+from pi_event_helpers import assistant_done, assistant_error, assistant_start
 
 
 async def _collect_session_events(session_stream: object) -> list[object]:
@@ -117,9 +117,7 @@ def _assert_messages(actual: object, expected: object) -> None:
     assert [dump(message) for message in actual] == [dump(message) for message in expected]  # type: ignore[union-attr]
 
 
-def _config(
-    tmp_path: Path, provider: ModelProvider, storage: JsonlSessionStorage
-) -> CodingSessionConfig:
+def _config(tmp_path: Path, provider: ModelProvider, storage: JsonlSessionStorage) -> CodingSessionConfig:
     return CodingSessionConfig(
         provider=provider,
         model="fake",
@@ -485,8 +483,7 @@ async def test_prompt_logs_safe_provider_stream_error_details(tmp_path: Path) ->
                         "error": {
                             "type": "service_unavailable_error",
                             "code": "server_is_overloaded",
-                            "message": "Our servers are currently overloaded. "
-                            "Please try again later.",
+                            "message": "Our servers are currently overloaded. Please try again later.",
                             "param": None,
                         },
                         "sequence_number": 2,
@@ -645,8 +642,7 @@ async def test_queued_custom_messages_persist_as_first_class_entries(
     assert custom_entries[0].custom_type == "extension:queued"
     assert custom_entries[0].details == {"job": 1}
     assert not any(
-        isinstance(entry, MessageEntry) and entry.message.role == "custom"
-        for entry in storage.entries
+        isinstance(entry, MessageEntry) and entry.message.role == "custom" for entry in storage.entries
     )
 
 
@@ -688,9 +684,7 @@ async def test_custom_message_persistence_retry_is_idempotent(tmp_path: Path) ->
 @pytest.mark.anyio
 async def test_next_prompt_flushes_a_repair_that_failed_twice(tmp_path: Path) -> None:
     storage = _FaultInjectingStorage("message_twice")
-    provider = FakeProvider(
-        [[assistant_start(), assistant_done(AssistantMessage(content="Recovered."))]]
-    )
+    provider = FakeProvider([[assistant_start(), assistant_done(AssistantMessage(content="Recovered."))]])
     session = await CodingSession.load(
         CodingSessionConfig(
             provider=provider,
@@ -705,9 +699,7 @@ async def test_next_prompt_flushes_a_repair_that_failed_twice(tmp_path: Path) ->
         await _collect_session_events(session.prompt("go"))
     await _collect_session_events(session.prompt("continue"))
 
-    persisted_texts = [
-        entry.message.text for entry in storage.entries if isinstance(entry, MessageEntry)
-    ]
+    persisted_texts = [entry.message.text for entry in storage.entries if isinstance(entry, MessageEntry)]
     assert persisted_texts == ["go", "continue", "Recovered."]
     _model, _system, sent, _tools = provider.calls[-1]
     assert [message.text for message in sent] == ["go", "continue"]
@@ -718,9 +710,7 @@ async def test_clean_persist_reads_storage_once_per_message(tmp_path: Path) -> N
     storage = _CountingStorage()
     session = await CodingSession.load(
         CodingSessionConfig(
-            provider=FakeProvider(
-                [[assistant_start(), assistant_done(AssistantMessage(content="Hi."))]]
-            ),
+            provider=FakeProvider([[assistant_start(), assistant_done(AssistantMessage(content="Hi."))]]),
             model="fake",
             system="You are Baldric.",
             storage=storage,
@@ -756,8 +746,7 @@ async def test_reconcile_persistence_failure_is_logged(tmp_path: Path) -> None:
 
     assert session.last_diagnostic_log_path is not None
     diagnostics = [
-        json.loads(line)
-        for line in session.last_diagnostic_log_path.read_text(encoding="utf-8").splitlines()
+        json.loads(line) for line in session.last_diagnostic_log_path.read_text(encoding="utf-8").splitlines()
     ]
     assert diagnostics[-1]["phase"] == "session_persistence_reconcile"
     assert diagnostics[-1]["exception"]["message"] == "simulated message_always failure"
@@ -896,9 +885,7 @@ async def test_completed_prompt_dispatches_and_yields_same_agent_settled_event(
 
     stream_events = await _collect_session_events(session.prompt("go"))
 
-    extension_settled = [
-        event for event in extension_events if isinstance(event, AgentSettledEvent)
-    ]
+    extension_settled = [event for event in extension_events if isinstance(event, AgentSettledEvent)]
     stream_settled = [event for event in stream_events if isinstance(event, AgentSettledEvent)]
     assert len(extension_settled) == 1
     assert len(stream_settled) == 1
@@ -1270,9 +1257,7 @@ async def test_prompt_persists_user_and_assistant_entries_without_leaves(tmp_pat
     )
     assert leaf_entries == []
     assert entries[-1] == message_entries[-1]
-    _assert_messages(
-        session.messages, (UserMessage(content="Hello"), AssistantMessage(content="Hi"))
-    )
+    _assert_messages(session.messages, (UserMessage(content="Hello"), AssistantMessage(content="Hi")))
 
 
 @pytest.mark.anyio
@@ -1396,9 +1381,7 @@ async def test_prompt_queues_steering_while_session_is_running(tmp_path: Path) -
     await task
 
     assert queue_events == [QueueUpdateEvent(steering=("Queued steering",))]
-    before_release_messages = [
-        entry.message for entry in entries_before_release if entry.type == "message"
-    ]
+    before_release_messages = [entry.message for entry in entries_before_release if entry.type == "message"]
     _assert_messages(before_release_messages, [UserMessage(content="Hello")])
     assert entries_before_release[-1].type == "message"
     _assert_messages(
@@ -2262,9 +2245,7 @@ async def test_session_branches_to_previous_entry_without_destroying_history(
 
     entries = await storage.read_all()
     assert result == SessionTreeBranchResult(message="Branched session at left.")
-    _assert_messages(
-        session.messages, (UserMessage(content="Root"), AssistantMessage(content="Left"))
-    )
+    _assert_messages(session.messages, (UserMessage(content="Root"), AssistantMessage(content="Left")))
     assert [entry.id for entry in entries if entry.type == "message"] == ["root", "left", "right"]
     # Plain /tree navigation is in-memory only; the historical pointer is unchanged.
     assert isinstance(entries[-1], LeafEntry)
@@ -2366,9 +2347,7 @@ async def test_session_branches_to_before_selected_user_message_with_prefill(
         message="Branched session before followup.",
         input_prefill="Try this again",
     )
-    _assert_messages(
-        session.messages, (UserMessage(content="Root"), AssistantMessage(content="Answer"))
-    )
+    _assert_messages(session.messages, (UserMessage(content="Root"), AssistantMessage(content="Answer")))
     assert [entry.id for entry in entries if entry.type == "message"] == [
         "root",
         "assistant",
@@ -2807,9 +2786,7 @@ async def test_session_auto_names_first_unnamed_managed_session(tmp_path: Path) 
     assert provider.calls[0][0] == "fake"
     assert provider.calls[0][3] == []
     assert "Please fix the broken CLI output." in provider.calls[0][2][0].content
-    _assert_messages(
-        provider.calls[1][2], [UserMessage(content="Please fix the broken CLI output.")]
-    )
+    _assert_messages(provider.calls[1][2], [UserMessage(content="Please fix the broken CLI output.")])
 
 
 @pytest.mark.anyio
@@ -3192,9 +3169,7 @@ async def test_manual_name_wins_while_auto_name_is_in_flight(
         await original_emit(event)
 
     monkeypatch.setattr(session.extension_runtime, "emit_event", record_metadata_event)
-    prompt_task = asyncio.create_task(
-        _collect_session_events(session.prompt("Generate a session name"))
-    )
+    prompt_task = asyncio.create_task(_collect_session_events(session.prompt("Generate a session name")))
     await provider.started.wait()
 
     assert await session.set_session_name("Manual name") == "Manual name"
@@ -3376,9 +3351,7 @@ async def test_system_command_shows_prompt_without_persisting_or_adding_context(
 
     assert result.handled is True
     assert result.message == (
-        "#### 01 · System prompt override\n\n"
-        "**Source:** `CodingSessionConfig.system`\n\n"
-        "You are Baldric."
+        "#### 01 · System prompt override\n\n**Source:** `CodingSessionConfig.system`\n\nYou are Baldric."
     )
     assert session.messages == before_messages
     assert await storage.read_all() == before_entries
@@ -3445,8 +3418,7 @@ async def test_reserved_prompts_template_cannot_shadow_picker_command(tmp_path: 
     assert result.prompts_picker_requested is True
     assert session.prompt_templates == ()
     assert any(
-        diagnostic.path == reserved_path
-        and "reserved by the built-in /prompts command" in diagnostic.message
+        diagnostic.path == reserved_path and "reserved by the built-in /prompts command" in diagnostic.message
         for diagnostic in session.resource_diagnostics
     )
 
@@ -3475,8 +3447,7 @@ async def test_reserved_tools_template_cannot_shadow_picker_command(tmp_path: Pa
     assert result.tools_picker_requested is True
     assert session.prompt_templates == ()
     assert any(
-        diagnostic.path == reserved_path
-        and "reserved by the built-in /tools command" in diagnostic.message
+        diagnostic.path == reserved_path and "reserved by the built-in /tools command" in diagnostic.message
         for diagnostic in session.resource_diagnostics
     )
 
@@ -3497,9 +3468,7 @@ async def test_session_skill_index_lets_agent_read_relevant_skill_file(tmp_path:
             [
                 assistant_start(model="fake"),
                 assistant_done(
-                    message=AssistantMessage(
-                        content=assistant_content("Reading skill.", [tool_call])
-                    ),
+                    message=AssistantMessage(content=assistant_content("Reading skill.", [tool_call])),
                     finish_reason="tool_calls",
                 ),
             ],
@@ -3558,9 +3527,7 @@ async def test_session_loads_with_resource_diagnostics_instead_of_failing(
 
     assert "good" in {skill.name for skill in session.skills}
     assert len(session.resource_diagnostics) == 1
-    assert (
-        "bare .md files are no longer treated as skills" in session.resource_diagnostics[0].message
-    )
+    assert "bare .md files are no longer treated as skills" in session.resource_diagnostics[0].message
     assert "Resource diagnostics: 1" in (session.handle_command("/session").message or "")
 
 
@@ -3605,9 +3572,7 @@ async def test_session_loads_baldric_native_system_prompt_files(tmp_path: Path) 
         str(project_baldric / "APPEND_SYSTEM.md"),
         str(tmp_path / "AGENTS.md"),
     ]
-    prompt_diagnostics = [
-        item for item in session.resource_diagnostics if item.kind == "system-prompt"
-    ]
+    prompt_diagnostics = [item for item in session.resource_diagnostics if item.kind == "system-prompt"]
     assert [item.severity for item in prompt_diagnostics] == [
         "info",
         "warning",
@@ -3648,9 +3613,7 @@ async def test_explicit_base_overrides_file_while_explicit_append_composes(
         baldric_home / "APPEND_SYSTEM.md",
         project_baldric / "APPEND_SYSTEM.md",
     )
-    prompt_diagnostics = [
-        item for item in session.resource_diagnostics if item.kind == "system-prompt"
-    ]
+    prompt_diagnostics = [item for item in session.resource_diagnostics if item.kind == "system-prompt"]
     assert "explicit startup value" in prompt_diagnostics[0].message
     assert "selected user" in prompt_diagnostics[1].message
 
@@ -3701,9 +3664,7 @@ async def test_session_reload_tracks_system_prompt_file_precedence(tmp_path: Pat
 
     user_prompt.unlink()
     await session.reload()
-    assert session.system_prompt.startswith(
-        "You are an expert coding assistant operating inside Baldric"
-    )
+    assert session.system_prompt.startswith("You are an expert coding assistant operating inside Baldric")
     assert "Reloaded append" in session.system_prompt
 
     append_prompt.unlink()
@@ -3871,9 +3832,7 @@ async def test_session_reload_skips_provider_settings_refresh(
             model="fake",
             storage=JsonlSessionStorage(tmp_path / "session.jsonl"),
             cwd=tmp_path,
-            provider_settings=ProviderSettings(
-                providers=(OpenAICompatibleProviderConfig(name="openai"),)
-            ),
+            provider_settings=ProviderSettings(providers=(OpenAICompatibleProviderConfig(name="openai"),)),
         )
     )
 
@@ -3934,9 +3893,7 @@ async def test_session_provider_settings_reload_uses_session_paths(
             system="You are Baldric.",
             storage=JsonlSessionStorage(tmp_path / "provider-reload-session.jsonl"),
             cwd=tmp_path,
-            provider_settings=ProviderSettings(
-                providers=(OpenAICompatibleProviderConfig(name="openai"),)
-            ),
+            provider_settings=ProviderSettings(providers=(OpenAICompatibleProviderConfig(name="openai"),)),
             resource_paths=BaldricResourcePaths(root=baldric_paths.home, paths=baldric_paths),
         )
     )
@@ -3981,9 +3938,7 @@ async def test_session_compact_persists_summary_and_rebuilds_context(
     _events = await _collect_session_events(session.prompt("Explain sessions."))
 
     message_count_before = len(session.messages)
-    message_entries_before = [
-        entry.id for entry in await storage.read_all() if entry.type == "message"
-    ]
+    message_entries_before = [entry.id for entry in await storage.read_all() if entry.type == "message"]
 
     result = await session.compact("Focus on session persistence.")
     entries_after_compact = await storage.read_all()
@@ -4375,9 +4330,7 @@ async def test_session_publishes_authenticated_codex_model_inventory(
         [],
         catalog=RuntimeModelCatalog((RuntimeModel(id="nova", name="Nova"),)),
     )
-    monkeypatch.setattr(
-        coding_session_module, "create_model_provider", lambda *args, **kwargs: refreshed
-    )
+    monkeypatch.setattr(coding_session_module, "create_model_provider", lambda *args, **kwargs: refreshed)
     await session._refresh_codex_model_catalog()
 
     assert session.available_models == ("nova",)
@@ -4400,9 +4353,7 @@ async def test_codex_live_only_model_is_discovered_before_startup_validation(
     initial_provider = ModelCatalogFakeProvider([], catalog=RuntimeModelCatalog(()))
 
     def create(*args: object, **kwargs: object) -> ModelCatalogFakeProvider:
-        provider = ModelCatalogFakeProvider(
-            [], catalog=RuntimeModelCatalog((RuntimeModel(id="live-model"),))
-        )
+        provider = ModelCatalogFakeProvider([], catalog=RuntimeModelCatalog((RuntimeModel(id="live-model"),)))
         providers.append(provider)
         return provider
 
@@ -4411,9 +4362,7 @@ async def test_codex_live_only_model_is_discovered_before_startup_validation(
     if resume:
         info = SessionInfoEntry(cwd=str(tmp_path))
         await storage.append(info)
-        await storage.append(
-            ModelChangeEntry(parent_id=info.id, provider="openai-codex", model="live-model")
-        )
+        await storage.append(ModelChangeEntry(parent_id=info.id, provider="openai-codex", model="live-model"))
     session = await CodingSession.load(
         CodingSessionConfig(
             provider=initial_provider if preconstructed else None,
@@ -4461,9 +4410,7 @@ async def test_codex_unknown_startup_model_is_not_silently_substituted(
                 requested_provider="openai-codex",
                 requested_model="live-model",
                 provider_name="openai-codex",
-                provider_settings=ProviderSettings(
-                    default_provider="openai-codex", providers=(static,)
-                ),
+                provider_settings=ProviderSettings(default_provider="openai-codex", providers=(static,)),
                 system="Test",
                 cwd=tmp_path,
                 storage=JsonlSessionStorage(tmp_path / "session.jsonl"),
@@ -4480,9 +4427,7 @@ async def test_codex_missing_active_model_survives_settings_refresh(
 ) -> None:
     static = OpenAICodexProviderConfig(models=("static-model",), default_model="static-model")
     settings = ProviderSettings(default_provider="openai-codex", providers=(static,))
-    provider = ModelCatalogFakeProvider(
-        [], catalog=RuntimeModelCatalog((RuntimeModel(id="live-model"),))
-    )
+    provider = ModelCatalogFakeProvider([], catalog=RuntimeModelCatalog((RuntimeModel(id="live-model"),)))
     monkeypatch.setattr(coding_session_module, "create_model_provider", lambda *a, **k: provider)
     monkeypatch.setattr(coding_session_module, "load_provider_settings", lambda *a: settings)
     session = await CodingSession.load(
@@ -4687,9 +4632,7 @@ async def test_session_discovers_codex_inventory_while_another_provider_is_activ
         [],
         catalog=RuntimeModelCatalog((RuntimeModel(id="astra", name="Astra"),)),
     )
-    monkeypatch.setattr(
-        coding_session_module, "create_model_provider", lambda *args, **kwargs: discovered
-    )
+    monkeypatch.setattr(coding_session_module, "create_model_provider", lambda *args, **kwargs: discovered)
     settings = ProviderSettings(
         default_provider="local",
         providers=(
@@ -4896,9 +4839,7 @@ async def test_huggingface_session_pins_successful_automatic_route(
     assert session.set_inference_provider("fireworks-ai") == "fireworks-ai"
     assert session.inference_provider_mode == "fixed"
     assert manager.get_session(record.id).inference_provider_mode == "fixed"  # type: ignore[union-attr]
-    assert session.set_inference_provider(None) == (
-        "automatic (will pin after the next successful response)"
-    )
+    assert session.set_inference_provider(None) == ("automatic (will pin after the next successful response)")
     assert session.inference_provider_mode == "automatic"
     assert manager.get_session(record.id).inference_provider_mode == "automatic"  # type: ignore[union-attr]
 
@@ -5378,9 +5319,7 @@ async def test_startup_model_override_rebuilds_model_dependent_runtime_provider(
 
 
 @pytest.mark.anyio
-async def test_session_switches_configured_provider(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+async def test_session_switches_configured_provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     created_providers: list[SwitchableFakeProvider] = []
 
     def create_provider(
@@ -6505,9 +6444,7 @@ async def test_session_set_model_preserves_newer_provider_file_changes(
     saved = coding_session_module.load_provider_settings(baldric_paths)
     assert saved.get_provider("openai").default_model == "gpt-5-mini"
     assert saved.get_provider("openrouter").headers == {"X-Title": "Baldric"}
-    assert saved.scoped_models == (
-        ScopedModelConfig(provider="openrouter", model="openai/gpt-5.5"),
-    )
+    assert saved.scoped_models == (ScopedModelConfig(provider="openrouter", model="openai/gpt-5.5"),)
 
 
 @pytest.mark.anyio
@@ -7000,9 +6937,7 @@ def test_custom_prompt_template_retains_precedence_over_other_commands(tmp_path:
         state=object(),  # type: ignore[arg-type]
         harness=object(),  # type: ignore[arg-type]
         last_parent_id=None,
-        prompt_templates=(
-            PromptTemplate(name="new", path=tmp_path / "new.md", content="Custom workflow"),
-        ),
+        prompt_templates=(PromptTemplate(name="new", path=tmp_path / "new.md", content="Custom workflow"),),
     )
 
     result = session.handle_command("/new")
@@ -7193,6 +7128,4 @@ async def test_dynamic_provider_rejects_unsupported_thinking_override(
             r"Available modes: off, high"
         ),
     ):
-        await CodingSession.load(
-            _dynamic_thinking_override_config(tmp_path, thinking_level_override="max")
-        )
+        await CodingSession.load(_dynamic_thinking_override_config(tmp_path, thinking_level_override="max"))

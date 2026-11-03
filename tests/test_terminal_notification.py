@@ -46,18 +46,14 @@ def test_desktop_notification_sequence_uses_terminal_protocol() -> None:
         == "\x1b]99;;Baldric turn finished\x1b\\"
     )
     assert (
-        desktop_notification_sequence(
-            "Baldric turn finished", environ={"TERM_PROGRAM": "Apple_Terminal"}
-        )
+        desktop_notification_sequence("Baldric turn finished", environ={"TERM_PROGRAM": "Apple_Terminal"})
         is None
     )
 
 
 def test_terminal_notification_supported_requires_interactive_terminal() -> None:
     assert terminal_notification_supported(environ={"TERM": "xterm-256color"}, stream=TtyStringIO())
-    assert not terminal_notification_supported(
-        environ={"TERM": "xterm-256color"}, stream=PipeStringIO()
-    )
+    assert not terminal_notification_supported(environ={"TERM": "xterm-256color"}, stream=PipeStringIO())
     assert not terminal_notification_supported(environ={"TERM": "dumb"}, stream=TtyStringIO())
     assert not terminal_notification_supported(
         environ={"TERM": "xterm-256color", "CI": "1"}, stream=TtyStringIO()
@@ -68,9 +64,7 @@ def test_terminal_notification_controller_writes_configured_sequence() -> None:
     bell_writes: list[str] = []
     desktop_writes: list[str] = []
 
-    TerminalNotificationController(
-        "bell", enabled=True, writer=bell_writes.append
-    ).notify_turn_finished()
+    TerminalNotificationController("bell", enabled=True, writer=bell_writes.append).notify_turn_finished()
     TerminalNotificationController(
         "desktop",
         enabled=True,
@@ -86,9 +80,7 @@ def test_terminal_notification_controller_noops_when_off_disabled_or_unknown() -
     writes: list[str] = []
 
     TerminalNotificationController("off", enabled=True, writer=writes.append).notify_turn_finished()
-    TerminalNotificationController(
-        "bell", enabled=False, writer=writes.append
-    ).notify_turn_finished()
+    TerminalNotificationController("bell", enabled=False, writer=writes.append).notify_turn_finished()
     TerminalNotificationController(
         "desktop",
         enabled=True,

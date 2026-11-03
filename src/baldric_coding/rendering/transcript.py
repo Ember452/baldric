@@ -87,9 +87,7 @@ class TranscriptRenderer:
             if event.message.stop_reason == "error":
                 self._failed = True
                 self._newline()
-                self._console.print(
-                    Text(f"Error: {event.message.error_message or 'Error'}", style="red")
-                )
+                self._console.print(Text(f"Error: {event.message.error_message or 'Error'}", style="red"))
             self._newline(final=True)
             return
         if isinstance(event, AgentEndEvent):

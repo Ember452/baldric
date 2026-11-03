@@ -165,9 +165,7 @@ class SessionManager:
         records = self._read_project_records(cwd) if cwd is not None else self._read_all_records()
         return sorted(records, key=lambda record: record.updated_at, reverse=True)
 
-    def get_session(
-        self, session_id: str, *, cwd: Path | None = None
-    ) -> CodingSessionRecord | None:
+    def get_session(self, session_id: str, *, cwd: Path | None = None) -> CodingSessionRecord | None:
         """Return a session record by id, if present.
 
         ``cwd`` is a lookup hint: that project's index is searched first, and
@@ -210,24 +208,18 @@ class SessionManager:
     def archive_project(self, cwd: Path) -> bool:
         """Move a project's sessions out of resume indexes without touching files."""
         resolved_cwd = cwd.resolve()
-        records = [
-            record for record in self._read_all_records() if record.cwd.resolve() == resolved_cwd
-        ]
+        records = [record for record in self._read_all_records() if record.cwd.resolve() == resolved_cwd]
         if not records:
             return False
         self._add_to_archive(records)
         project_path = self.project_index_path(resolved_cwd)
         project_records = [
-            record
-            for record in self._read_index(project_path)
-            if record.cwd.resolve() != resolved_cwd
+            record for record in self._read_index(project_path) if record.cwd.resolve() != resolved_cwd
         ]
         self._write_index(project_path, project_records)
         if self.index_path.exists():
             legacy_records = [
-                record
-                for record in self._read_index(self.index_path)
-                if record.cwd.resolve() != resolved_cwd
+                record for record in self._read_index(self.index_path) if record.cwd.resolve() != resolved_cwd
             ]
             self._write_index(self.index_path, legacy_records)
         return True
@@ -245,11 +237,7 @@ class SessionManager:
     def unarchive_project(self, cwd: Path) -> bool:
         """Restore all archived sessions for a project to the active index."""
         resolved_cwd = cwd.resolve()
-        matches = [
-            record
-            for record in self.list_archived_sessions()
-            if record.cwd.resolve() == resolved_cwd
-        ]
+        matches = [record for record in self.list_archived_sessions() if record.cwd.resolve() == resolved_cwd]
         if not matches:
             return False
         for record in matches:
@@ -357,8 +345,7 @@ class SessionManager:
             provider_name=provider_name,
             inference_provider=inference_provider,
             inference_provider_mode=(
-                inference_provider_mode
-                or ("fixed" if inference_provider is not None else "automatic")
+                inference_provider_mode or ("fixed" if inference_provider is not None else "automatic")
             ),
             title=title,
             created_at=now,
@@ -457,9 +444,7 @@ class SessionManager:
     def _read_project_records(self, cwd: Path) -> list[CodingSessionRecord]:
         resolved_cwd = cwd.resolve()
         records = self._read_index(self.project_index_path(resolved_cwd))
-        records.extend(
-            record for record in self._read_index(self.index_path) if record.cwd == resolved_cwd
-        )
+        records.extend(record for record in self._read_index(self.index_path) if record.cwd == resolved_cwd)
         return _deduplicate_records(records)
 
     def _read_all_records(self) -> list[CodingSessionRecord]:

@@ -182,12 +182,8 @@ def test_agent_events_have_stable_pi_type_names() -> None:
         MessageStartEvent(message=partial),
         MessageUpdateEvent(message=partial, assistant_message_event=nested),
         MessageEndEvent(message=message),
-        ToolExecutionStartEvent(
-            tool_call_id="call-1", tool_name="read", args={"path": "README.md"}
-        ),
-        ToolExecutionEndEvent(
-            tool_call_id="call-1", tool_name="read", result=result, is_error=False
-        ),
+        ToolExecutionStartEvent(tool_call_id="call-1", tool_name="read", args={"path": "README.md"}),
+        ToolExecutionEndEvent(tool_call_id="call-1", tool_name="read", result=result, is_error=False),
     ]
 
     assert [event.type for event in events] == [

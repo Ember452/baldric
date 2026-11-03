@@ -135,8 +135,7 @@ def test_encode_failure_returns_safe_failure(monkeypatch: pytest.MonkeyPatch) ->
 
 def test_decode_failure_returns_safe_failure() -> None:
     malformed = (
-        b"\x89PNG\r\n\x1a\n"
-        b"\x00\x00\x00\x0dIHDR" + b"\x00" * 17 + b"\x00\x00\x00\x00IDAT" + b"\x00" * 4
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR" + b"\x00" * 17 + b"\x00\x00\x00\x00IDAT" + b"\x00" * 4
     )
     assert detect_supported_image_mime_type(malformed) == "image/png"
 

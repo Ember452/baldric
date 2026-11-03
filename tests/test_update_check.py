@@ -160,9 +160,7 @@ def test_cached_update_notice_never_fetches(tmp_path) -> None:
         '{"checked_at":"2026-01-01T00:00:00+00:00","latest_version":"0.2.0"}\n',
         encoding="utf-8",
     )
-    notice, check_due = cached_update_notice(
-        "0.1.0", cache_path=cache_path, now=lambda: now, env={}
-    )
+    notice, check_due = cached_update_notice("0.1.0", cache_path=cache_path, now=lambda: now, env={})
 
     assert notice is not None
     assert notice.latest_version == "0.2.0"
@@ -274,16 +272,12 @@ def test_startup_release_notes_notice_reports_upgrade_once(tmp_path) -> None:
     assert second_notice is None
 
 
-def test_startup_release_notes_notice_survives_missing_release_notes_file(
-    tmp_path, monkeypatch
-) -> None:
+def test_startup_release_notes_notice_survives_missing_release_notes_file(tmp_path, monkeypatch) -> None:
     # Regression test for issue #313: a wheel missing releases.json crashed
     # startup with FileNotFoundError instead of skipping the notice.
     import baldric_coding.update_check as update_check_module
 
-    monkeypatch.setattr(
-        update_check_module, "RELEASE_NOTES_PATH", tmp_path / "missing" / "releases.json"
-    )
+    monkeypatch.setattr(update_check_module, "RELEASE_NOTES_PATH", tmp_path / "missing" / "releases.json")
     state_path = tmp_path / "release-notes-state.json"
     state_path.write_text('{"last_seen_version":"0.1.1"}\n', encoding="utf-8")
 
@@ -293,9 +287,7 @@ def test_startup_release_notes_notice_survives_missing_release_notes_file(
     assert notice.entries == ()
 
 
-def test_startup_release_notes_notice_survives_malformed_release_notes_file(
-    tmp_path, monkeypatch
-) -> None:
+def test_startup_release_notes_notice_survives_malformed_release_notes_file(tmp_path, monkeypatch) -> None:
     import baldric_coding.update_check as update_check_module
 
     broken_path = tmp_path / "releases.json"
@@ -352,9 +344,7 @@ def test_release_notes_between_ignores_future_versions() -> None:
 
 
 def test_fetch_latest_pypi_version_falls_back_to_info_version() -> None:
-    latest = fetch_latest_pypi_version(
-        fetcher=lambda _url, _timeout: {"info": {"version": "0.4.0"}}
-    )
+    latest = fetch_latest_pypi_version(fetcher=lambda _url, _timeout: {"info": {"version": "0.4.0"}})
 
     assert latest == "0.4.0"
 

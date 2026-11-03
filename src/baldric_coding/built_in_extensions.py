@@ -66,9 +66,7 @@ class BuiltInExtension:
             if not callable(self.setup_with_context):
                 raise ValueError("Built-in contextual setup must be callable")
             context_setup_call = type(self.setup_with_context).__call__
-            if iscoroutinefunction(self.setup_with_context) or iscoroutinefunction(
-                context_setup_call
-            ):
+            if iscoroutinefunction(self.setup_with_context) or iscoroutinefunction(context_setup_call):
                 raise ValueError("Built-in contextual setup must be a sync function")
 
     @property

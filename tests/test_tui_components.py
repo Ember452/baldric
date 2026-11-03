@@ -15,11 +15,11 @@ import pytest
 from textual.containers import Container
 from textual.widgets import Static
 
-from conftest import isolate_home
 from baldric_coding.extensions import ExtensionRuntime
-from baldric_coding.tui.app import PromptInput, BaldricTuiApp
+from baldric_coding.tui.app import BaldricTuiApp, PromptInput
 from baldric_coding.tui.config import TuiSettings
 from baldric_coding.tui.widgets import TranscriptView
+from conftest import isolate_home
 from test_tui_app import (  # noqa: E402 - sibling test module (see docstring)
     FakeSession,
     _component_bridge,
@@ -103,15 +103,11 @@ async def test_component_slot_replace_same_id_same_tick_no_duplicate() -> None:
         await pilot.pause()
         bridge = _component_bridge(app)
 
-        bridge.set_slot_widget(
-            "k", lambda theme: Static("one", id="dup-slot"), placement="below_prompt"
-        )
+        bridge.set_slot_widget("k", lambda theme: Static("one", id="dup-slot"), placement="below_prompt")
         await pilot.pause()
         # Same tick: unmount then re-register the SAME id (the reload analog).
         bridge.set_slot_widget("k", None, placement="below_prompt")
-        bridge.set_slot_widget(
-            "k", lambda theme: Static("two", id="dup-slot"), placement="below_prompt"
-        )
+        bridge.set_slot_widget("k", lambda theme: Static("two", id="dup-slot"), placement="below_prompt")
         await pilot.pause()
         await pilot.pause()
 
@@ -240,9 +236,7 @@ async def test_component_main_view_open_close_restores_transcript() -> None:
         # Opening a main view hides #transcript and shows only #main-slot.
         handle = bridge.open_main_view(lambda h, theme: Static("main", id="ext-main-view"))
         await pilot.pause()
-        displayed = [
-            pane_id for pane_id in ("#transcript", "#main-slot") if app.query_one(pane_id).display
-        ]
+        displayed = [pane_id for pane_id in ("#transcript", "#main-slot") if app.query_one(pane_id).display]
         assert displayed == ["#main-slot"]
 
         # Closing restores #transcript, hides the slot, and refocuses the prompt.
@@ -268,8 +262,7 @@ async def test_sidebar_sections_mount_update_and_remove_by_owned_key() -> None:
         slot = app.query_one("#sidebar-extension-sections", Container)
         assert len(slot.children) == 2
         assert [
-            section.query_one(".extension-sidebar-title", Static).render().plain
-            for section in slot.children
+            section.query_one(".extension-sidebar-title", Static).render().plain for section in slot.children
         ] == [
             "Alpha",
             "Beta",
@@ -285,8 +278,7 @@ async def test_sidebar_sections_mount_update_and_remove_by_owned_key() -> None:
 
         assert slot.children[0] is alpha_section
         assert [
-            section.query_one(".extension-sidebar-title", Static).render().plain
-            for section in slot.children
+            section.query_one(".extension-sidebar-title", Static).render().plain for section in slot.children
         ] == [
             "Alpha updated",
             "Beta",
@@ -298,9 +290,7 @@ async def test_sidebar_sections_mount_update_and_remove_by_owned_key() -> None:
         await pilot.pause()
         await pilot.pause()
         assert len(slot.children) == 1
-        assert (
-            slot.children[0].query_one(".extension-sidebar-title", Static).render().plain == "Beta"
-        )
+        assert slot.children[0].query_one(".extension-sidebar-title", Static).render().plain == "Beta"
 
 
 @pytest.mark.anyio
@@ -355,8 +345,7 @@ async def test_sidebar_remove_then_readd_moves_section_to_end() -> None:
 
         slot = app.query_one("#sidebar-extension-sections", Container)
         assert [
-            section.query_one(".extension-sidebar-title", Static).render().plain
-            for section in slot.children
+            section.query_one(".extension-sidebar-title", Static).render().plain for section in slot.children
         ] == [
             "B",
             "A",
@@ -442,8 +431,7 @@ async def test_sidebar_factory_rebuilds_with_live_theme(
 
         assert themes == ["baldric-dark", "baldric-light"]
         assert (
-            app.query_one("#sidebar-extension-sections .theme-body", Static).render().plain
-            == "baldric-light"
+            app.query_one("#sidebar-extension-sections .theme-body", Static).render().plain == "baldric-light"
         )
 
 
@@ -493,8 +481,7 @@ async def test_sidebar_render_failure_is_quarantined_and_diagnosed() -> None:
         assert app.is_running
         assert ("broken-extension", "bad") not in app._extension_sidebar_widgets
         assert any(
-            diagnostic.name == "broken-extension"
-            and "sidebar:broken-extension:bad" in diagnostic.message
+            diagnostic.name == "broken-extension" and "sidebar:broken-extension:bad" in diagnostic.message
             for diagnostic in runtime.diagnostics
         )
 

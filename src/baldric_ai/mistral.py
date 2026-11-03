@@ -83,9 +83,7 @@ class MistralConversationsProvider:
         raw = self._stream_provider_events(
             model=model, system=system, messages=messages, tools=tools, signal=signal
         )
-        return canonicalize_provider_stream(
-            raw, api="mistral-conversations", provider="mistral", model=model
-        )
+        return canonicalize_provider_stream(raw, api="mistral-conversations", provider="mistral", model=model)
 
     def _stream_provider_events(
         self,
@@ -131,9 +129,7 @@ class MistralConversationsProvider:
             while True:
                 parser = _MistralStreamParser()
                 try:
-                    async with client.stream(
-                        "POST", url, json=payload, headers=headers
-                    ) as response:
+                    async with client.stream("POST", url, json=payload, headers=headers) as response:
                         if response.status_code >= 400:
                             body = await response.aread()
                             body_text = body.decode(errors="replace")
@@ -237,9 +233,7 @@ class _MistralStreamParser:
         choice = _first_choice(chunk)
         if choice is None:
             return [], False
-        self._finish_reason = (
-            choice.get("finish_reason") or choice.get("finishReason") or self._finish_reason
-        )
+        self._finish_reason = choice.get("finish_reason") or choice.get("finishReason") or self._finish_reason
         delta = choice.get("delta")
         if not isinstance(delta, Mapping):
             return [], False
@@ -260,12 +254,8 @@ class _MistralStreamParser:
         return events, False
 
     def finalize(self) -> list[ProviderEvent]:
-        tool_calls = [
-            builder.build(index) for index, builder in sorted(self._tool_call_builders.items())
-        ]
-        events: list[ProviderEvent] = [
-            ProviderToolCallEvent(tool_call=tool_call) for tool_call in tool_calls
-        ]
+        tool_calls = [builder.build(index) for index, builder in sorted(self._tool_call_builders.items())]
+        events: list[ProviderEvent] = [ProviderToolCallEvent(tool_call=tool_call) for tool_call in tool_calls]
         content = assistant_content("".join(self._content_parts), tool_calls)
         if self._thinking_parts:
             content.insert(0, ThinkingContent(thinking="".join(self._thinking_parts)))
@@ -418,9 +408,7 @@ def _message_to_mistral(message: AgentMessage) -> dict[str, JSONValue]:
         if message.thinking_text:
             item["reasoning_content"] = message.thinking_text
         if message.tool_calls:
-            item["tool_calls"] = [
-                _tool_call_to_mistral(tool_call) for tool_call in message.tool_calls
-            ]
+            item["tool_calls"] = [_tool_call_to_mistral(tool_call) for tool_call in message.tool_calls]
         return item
     if isinstance(message, ToolResultMessage):
         return {

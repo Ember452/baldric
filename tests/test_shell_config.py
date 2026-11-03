@@ -1,8 +1,8 @@
 from pathlib import Path
 
 from baldric_coding import (
-    ShellSettings,
     BaldricPaths,
+    ShellSettings,
     load_shell_settings,
     shell_settings_from_json,
     shell_settings_path,
@@ -27,9 +27,7 @@ def test_load_shell_settings_accepts_pi_style_shell_command_prefix(tmp_path: Pat
     settings = load_shell_settings(paths)
 
     assert settings.shell_command_prefix == 'shopt -s expand_aliases\nalias gs="git status"'
-    assert settings.to_json() == {
-        "shellCommandPrefix": 'shopt -s expand_aliases\nalias gs="git status"'
-    }
+    assert settings.to_json() == {"shellCommandPrefix": 'shopt -s expand_aliases\nalias gs="git status"'}
 
 
 def test_shell_settings_accepts_baldric_style_shell_command_prefix() -> None:

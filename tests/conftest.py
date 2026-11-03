@@ -89,15 +89,11 @@ _WIN32_SKIPS = {
 }
 
 
-def pytest_collection_modifyitems(
-    config: pytest.Config, items: list[pytest.Item]
-) -> None:
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     if sys.platform != "win32":
         return
     for item in items:
         for prefix in _WIN32_SKIPS:
             if item.nodeid.startswith(prefix):
-                item.add_marker(
-                    pytest.mark.skip(reason="POSIX/timing semantics, runs on Linux CI")
-                )
+                item.add_marker(pytest.mark.skip(reason="POSIX/timing semantics, runs on Linux CI"))
                 break

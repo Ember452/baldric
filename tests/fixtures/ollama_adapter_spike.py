@@ -77,11 +77,7 @@ class OllamaAdapterSpike:
                 id=item["id"],
                 display_name=item.get("id"),
                 api="openai-completions",
-                compat={
-                    key: item[key]
-                    for key in ("object", "owned_by")
-                    if isinstance(item.get(key), str)
-                },
+                compat={key: item[key] for key in ("object", "owned_by") if isinstance(item.get(key), str)},
             )
             for item in data
             if isinstance(item, Mapping) and isinstance(item.get("id"), str)
@@ -96,9 +92,7 @@ class OllamaAdapterSpike:
         del values, context
         return LocalConfigureResult(committed=True)
 
-    async def status(
-        self, context: LocalOperationContext
-    ) -> LocalBackendStatus | LocalOperationResult:
+    async def status(self, context: LocalOperationContext) -> LocalBackendStatus | LocalOperationResult:
         del context
         tags_response, running_response = await self._get_model_state()
         installed = _models_from_tags(tags_response)
@@ -116,9 +110,7 @@ class OllamaAdapterSpike:
             actions=("configure", "refresh", "use") if models else ("configure", "refresh"),
         )
 
-    async def refresh(
-        self, context: LocalOperationContext
-    ) -> LocalBackendStatus | LocalOperationResult:
+    async def refresh(self, context: LocalOperationContext) -> LocalBackendStatus | LocalOperationResult:
         return await self.status(context)
 
     async def _get_model_state(self) -> tuple[Mapping[str, object], Mapping[str, object]]:
@@ -138,9 +130,7 @@ def _models_from_tags(payload: Mapping[str, object]) -> tuple[str, ...]:
     if not isinstance(models, list):
         raise ValueError("Ollama /api/tags response has no models list")
     result = tuple(
-        item.get("name")
-        for item in models
-        if isinstance(item, Mapping) and isinstance(item.get("name"), str)
+        item.get("name") for item in models if isinstance(item, Mapping) and isinstance(item.get("name"), str)
     )
     return tuple(model for model in result if model)
 
@@ -150,9 +140,7 @@ def _running_ids(payload: Mapping[str, object]) -> frozenset[str]:
     if not isinstance(models, list):
         raise ValueError("Ollama /api/ps response has no models list")
     return frozenset(
-        item.get("name")
-        for item in models
-        if isinstance(item, Mapping) and isinstance(item.get("name"), str)
+        item.get("name") for item in models if isinstance(item, Mapping) and isinstance(item.get("name"), str)
     )
 
 

@@ -273,9 +273,7 @@ def test_session_command_includes_session_details(tmp_path: Path) -> None:
     assert "Resource diagnostics: 0" in result.message
     assert "Session: session-1" in result.message
     assert "Session name:" not in result.message
-    assert (
-        create_default_command_registry().execute(FakeSession(tmp_path), "/status").handled is False
-    )
+    assert create_default_command_registry().execute(FakeSession(tmp_path), "/status").handled is False
 
 
 def test_session_command_distinguishes_automatic_and_fixed_huggingface_routes(
@@ -610,9 +608,7 @@ def test_registry_rejects_duplicate_commands_and_aliases() -> None:
         name="test",
         usage="/test",
         description="Test",
-        handler=lambda context: create_default_command_registry().execute(
-            context.session, "/session"
-        ),
+        handler=lambda context: create_default_command_registry().execute(context.session, "/session"),
     )
     registry.register(command)
 

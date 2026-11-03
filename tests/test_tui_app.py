@@ -35,7 +35,6 @@ from textual.widgets import (
 )
 from textual.widgets import Markdown as TextualMarkdown
 
-from conftest import isolate_home
 from baldric_agent import (
     AgentEndEvent,
     AgentEvent,
@@ -114,6 +113,7 @@ from baldric_coding.tui.app import (
     COMPLETION_MAX_VISIBLE_LINES,
     PASTE_DISPLAY_THRESHOLD,
     RESERVED_EXTENSION_INTERCEPTOR_KEYS,
+    BaldricTuiApp,
     CommandOutputScreen,
     CustomProviderLoginResult,
     CustomProviderLoginScreen,
@@ -131,7 +131,6 @@ from baldric_coding.tui.app import (
     SessionPickerScreen,
     SidebarFileEditor,
     SkillPickerScreen,
-    BaldricTuiApp,
     ThemePickerScreen,
     ToolsReferenceScreen,
     TreePickerScreen,
@@ -151,9 +150,9 @@ from baldric_coding.tui.app import (
 )
 from baldric_coding.tui.autocomplete import CompletionItem, CompletionKind, CompletionState
 from baldric_coding.tui.config import (
-    HIGH_CONTRAST_THEME,
     BALDRIC_DARK_THEME,
     BALDRIC_LIGHT_THEME,
+    HIGH_CONTRAST_THEME,
     TuiKeybindings,
     TuiSettings,
     TuiTheme,
@@ -166,6 +165,7 @@ from baldric_coding.tui.terminal_title import TerminalTitleController
 from baldric_coding.tui.widgets import (
     TRANSCRIPT_WINDOW_ITEMS,
     TRANSCRIPT_WINDOW_OVERSCAN_ITEMS,
+    BaldricMarkdownBlock,
     CompactSessionInfo,
     LeftAlignedMarkdownHeading,
     SessionSidebar,
@@ -173,7 +173,6 @@ from baldric_coding.tui.widgets import (
     StreamingTranscriptMessageWidget,
     SystemPromptSectionWidget,
     SystemPromptSourcesWidget,
-    BaldricMarkdownBlock,
     ThemedMarkdownWidget,
     TranscriptMarkdownStream,
     TranscriptMessageWidget,
@@ -193,6 +192,7 @@ from baldric_coding.tui.widgets import (
     render_session_sidebar,
     transcript_item_selection_text,
 )
+from conftest import isolate_home
 
 ANSI_PATTERN = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
@@ -277,9 +277,7 @@ class FakeSession:
             ),
         )
         self.prompt_templates = ()
-        self.context_files = (
-            ProjectContextFile(path=str(self.cwd / "AGENTS.md"), content="Follow rules."),
-        )
+        self.context_files = (ProjectContextFile(path=str(self.cwd / "AGENTS.md"), content="Follow rules."),)
         self.system_prompt_files: tuple[Path, ...] = ()
         self.context_token_estimate = 12034
         self.has_provider_context_usage = True
@@ -737,9 +735,7 @@ def test_session_sidebar_groups_skills_by_origin(
         ("./.baldric/skills", "project-baldric"),
         ("./.agents/skills", "project-agents"),
     )
-    assert all(
-        re.search(rf"{re.escape(origin)}\s+• {name}", output) for origin, name in expected_groups
-    )
+    assert all(re.search(rf"{re.escape(origin)}\s+• {name}", output) for origin, name in expected_groups)
     assert [output.index(origin) for origin, _name in expected_groups] == sorted(
         output.index(origin) for origin, _name in expected_groups
     )
@@ -806,9 +802,7 @@ def test_session_sidebar_groups_and_shows_all_prompts(
         ("./.baldric/prompts", "extra-1"),
         ("./.agents/prompts", "project-agents"),
     )
-    assert all(
-        re.search(rf"{re.escape(origin)}\s+• {name}", output) for origin, name in expected_groups
-    )
+    assert all(re.search(rf"{re.escape(origin)}\s+• {name}", output) for origin, name in expected_groups)
     assert "• project-baldric" in output
     for index in range(1, 5):
         assert f"• extra-{index}" in output
@@ -1056,9 +1050,7 @@ def test_compact_session_info_omits_unavailable_thinking_controls() -> None:
 
     console.print(render_compact_session_info(session))
 
-    provider_line = next(
-        line for line in console.export_text().splitlines() if "openai:fake-model" in line
-    )
+    provider_line = next(line for line in console.export_text().splitlines() if "openai:fake-model" in line)
     assert "unavailable" not in provider_line
     assert "fake-model (" not in provider_line
 
@@ -1428,15 +1420,7 @@ def test_tool_chat_items_hide_and_show_result_text() -> None:
 
 
 EDIT_TOOL_RESULT_WITH_PATCH = (
-    "✓ edit\n"
-    "Successfully replaced 1 block.\n"
-    "\n"
-    "Patch:\n"
-    "--- a/README.md\n"
-    "+++ b/README.md\n"
-    "@@\n"
-    "-old\n"
-    "+new"
+    "✓ edit\nSuccessfully replaced 1 block.\n\nPatch:\n--- a/README.md\n+++ b/README.md\n@@\n-old\n+new"
 )
 
 
@@ -1599,9 +1583,7 @@ def test_tui_state_compacts_branch_summary_messages() -> None:
 def test_tui_state_compacts_compaction_summary_messages() -> None:
     state = tui_app.TuiState()
 
-    state.load_messages(
-        [UserMessage(content="Previous conversation summary:\nCompacted prior work.")]
-    )
+    state.load_messages([UserMessage(content="Previous conversation summary:\nCompacted prior work.")])
 
     assert [(item.role, item.text, item.tool_result_text) for item in state.items] == [
         (
@@ -1732,9 +1714,7 @@ def test_assistant_markdown_titles_use_highlight_color_and_left_alignment() -> N
 
 def test_dark_theme_markdown_links_use_theme_link_color() -> None:
     console = Console(record=True, width=80, color_system="truecolor")
-    console.print(
-        render_chat_item(ChatItem(role="assistant", text="Read [docs](https://example.com)."))
-    )
+    console.print(render_chat_item(ChatItem(role="assistant", text="Read [docs](https://example.com).")))
 
     output = console.export_text(styles=True)
 
@@ -1753,9 +1733,7 @@ def test_dark_theme_markdown_bullets_use_theme_bullet_color() -> None:
 def test_markdown_tables_use_highlight_color_for_headers() -> None:
     console = Console(record=True, width=80, color_system="truecolor")
     console.print(
-        render_chat_item(
-            ChatItem(role="assistant", text="| Name | Value |\n| --- | --- |\n| A | B |")
-        )
+        render_chat_item(ChatItem(role="assistant", text="| Name | Value |\n| --- | --- |\n| A | B |"))
     )
 
     output = console.export_text(styles=True)
@@ -1813,11 +1791,7 @@ async def test_collapsed_thinking_block_keeps_one_blank_line() -> None:
     """The hidden placeholder takes one row plus the usual one-row gap."""
     app = BaldricTuiApp(
         FakeSession(
-            [
-                AssistantMessage(
-                    content=[ThinkingContent(thinking="secret plan"), TextContent(text="answer")]
-                )
-            ]
+            [AssistantMessage(content=[ThinkingContent(thinking="secret plan"), TextContent(text="answer")])]
         )
     )
 
@@ -1902,9 +1876,7 @@ async def test_sequential_bash_calls_share_one_transcript_row() -> None:
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        rows = [
-            widget for widget in app.query(TranscriptMessageWidget) if widget.item.role == "tool"
-        ]
+        rows = [widget for widget in app.query(TranscriptMessageWidget) if widget.item.role == "tool"]
 
     assert len(rows) == 1
     assert len(rows[0].item.tool_batch_items or []) == 2
@@ -1986,9 +1958,7 @@ async def test_failed_tool_call_ends_the_tool_run() -> None:
                 AssistantMessage(
                     content=[ToolCall(id="b1", name="bash", arguments={"command": "pytest -q"})]
                 ),
-                ToolResultMessage(
-                    tool_call_id="b1", tool_name="bash", content="boom", is_error=True
-                ),
+                ToolResultMessage(tool_call_id="b1", tool_name="bash", content="boom", is_error=True),
                 AssistantMessage(
                     content=[ToolCall(id="b2", name="bash", arguments={"command": "git status"})]
                 ),
@@ -2000,9 +1970,7 @@ async def test_failed_tool_call_ends_the_tool_run() -> None:
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        rows = [
-            widget for widget in app.query(TranscriptMessageWidget) if widget.item.role == "tool"
-        ]
+        rows = [widget for widget in app.query(TranscriptMessageWidget) if widget.item.role == "tool"]
 
     assert len(rows) == 2
     assert [len(widget.item.tool_batch_items or []) for widget in rows] == [0, 0]
@@ -2043,9 +2011,7 @@ async def test_sequential_edits_share_one_file_row() -> None:
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        rows = [
-            widget for widget in app.query(TranscriptMessageWidget) if widget.item.role == "tool"
-        ]
+        rows = [widget for widget in app.query(TranscriptMessageWidget) if widget.item.role == "tool"]
 
     assert len(rows) == 1
     assert rows[0].item.grouped_tool_calls is not None
@@ -2087,9 +2053,7 @@ async def test_sequential_reads_share_one_file_row() -> None:
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        rows = [
-            widget for widget in app.query(TranscriptMessageWidget) if widget.item.role == "tool"
-        ]
+        rows = [widget for widget in app.query(TranscriptMessageWidget) if widget.item.role == "tool"]
 
     assert len(rows) == 1
     assert rows[0].item.grouped_tool_calls is not None
@@ -2106,9 +2070,7 @@ async def test_tool_run_continues_while_streaming() -> None:
             MessageStartEvent(message=partial),
             MessageUpdateEvent(
                 message=partial,
-                assistant_message_event=TextDeltaEvent(
-                    content_index=0, delta="\n\n", partial=partial
-                ),
+                assistant_message_event=TextDeltaEvent(content_index=0, delta="\n\n", partial=partial),
             ),
             MessageEndEvent(
                 message=AssistantMessage(
@@ -2118,9 +2080,7 @@ async def test_tool_run_continues_while_streaming() -> None:
                     ]
                 )
             ),
-            ToolExecutionStartEvent(
-                tool_call_id=call_id, tool_name="bash", args={"command": command}
-            ),
+            ToolExecutionStartEvent(tool_call_id=call_id, tool_name="bash", args={"command": command}),
             ToolExecutionEndEvent(
                 tool_call_id=call_id,
                 tool_name="bash",
@@ -2145,9 +2105,7 @@ async def test_tool_run_continues_while_streaming() -> None:
         await app._run_prompt("stream")
         await pilot.pause()
 
-        rows = [
-            widget for widget in app.query(TranscriptMessageWidget) if widget.item.role == "tool"
-        ]
+        rows = [widget for widget in app.query(TranscriptMessageWidget) if widget.item.role == "tool"]
 
     assert len(rows) == 1
     assert len(rows[0].item.tool_batch_items or []) == 2
@@ -2180,21 +2138,15 @@ async def test_tool_run_stops_at_the_row_limit(
             for key, value in arguments.items()
         }
         messages.append(
-            AssistantMessage(
-                content=[ToolCall(id=f"c{index}", name=tool_name, arguments=call_arguments)]
-            )
+            AssistantMessage(content=[ToolCall(id=f"c{index}", name=tool_name, arguments=call_arguments)])
         )
-        messages.append(
-            ToolResultMessage(tool_call_id=f"c{index}", tool_name=tool_name, content="ok")
-        )
+        messages.append(ToolResultMessage(tool_call_id=f"c{index}", tool_name=tool_name, content="ok"))
     app = BaldricTuiApp(FakeSession(messages=tuple(messages)))
 
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        rows = [
-            widget for widget in app.query(TranscriptMessageWidget) if widget.item.role == "tool"
-        ]
+        rows = [widget for widget in app.query(TranscriptMessageWidget) if widget.item.role == "tool"]
 
     def row_count(item: ChatItem) -> int:
         if item.grouped_tool_calls is not None:
@@ -2221,9 +2173,7 @@ async def test_failed_edit_ends_the_tool_run() -> None:
                         )
                     ]
                 ),
-                ToolResultMessage(
-                    tool_call_id="w1", tool_name="edit", content="boom", is_error=True
-                ),
+                ToolResultMessage(tool_call_id="w1", tool_name="edit", content="boom", is_error=True),
                 AssistantMessage(
                     content=[
                         ToolCall(
@@ -2241,9 +2191,7 @@ async def test_failed_edit_ends_the_tool_run() -> None:
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        rows = [
-            widget for widget in app.query(TranscriptMessageWidget) if widget.item.role == "tool"
-        ]
+        rows = [widget for widget in app.query(TranscriptMessageWidget) if widget.item.role == "tool"]
 
     assert len(rows) == 2
     assert all(widget.item.grouped_tool_calls is None for widget in rows)
@@ -2312,9 +2260,7 @@ async def test_streamed_blank_thinking_before_text_leaves_no_provisional_row(
                 ),
                 MessageUpdateEvent(
                     message=partial,
-                    assistant_message_event=TextDeltaEvent(
-                        content_index=1, delta="answer", partial=partial
-                    ),
+                    assistant_message_event=TextDeltaEvent(content_index=1, delta="answer", partial=partial),
                 ),
                 MessageEndEvent(
                     message=AssistantMessage(
@@ -2340,9 +2286,7 @@ async def test_streamed_blank_thinking_before_text_leaves_no_provisional_row(
             if isinstance(widget, TranscriptMessageWidget | StreamingTranscriptMessageWidget)
         ]
         assert [(item.role, item.text) for item in app.state.items] == [("assistant", "answer")]
-        assert [(widget.item.role, widget.selection_text) for widget in rows] == [
-            ("assistant", "answer")
-        ]
+        assert [(widget.item.role, widget.selection_text) for widget in rows] == [("assistant", "answer")]
         assert rows[0].item is app.state.items[0]
         assert transcript._active_message_widgets == []
         assert transcript._window_end == len(app.state.items)
@@ -2372,9 +2316,7 @@ async def test_whitespace_only_streamed_text_leaves_no_blank_block() -> None:
             MessageStartEvent(message=partial),
             MessageUpdateEvent(
                 message=partial,
-                assistant_message_event=TextDeltaEvent(
-                    content_index=0, delta="\n\n", partial=partial
-                ),
+                assistant_message_event=TextDeltaEvent(content_index=0, delta="\n\n", partial=partial),
             ),
             MessageEndEvent(
                 message=AssistantMessage(
@@ -2412,9 +2354,7 @@ async def test_whitespace_only_streamed_text_leaves_no_blank_block() -> None:
 
 
 def test_system_prompt_markdown_highlights_markup_tags_as_inline_code() -> None:
-    prompt = (
-        '<project_instructions path="/workspace/AGENTS.md">\nUse `rg`.\n</project_instructions>'
-    )
+    prompt = '<project_instructions path="/workspace/AGENTS.md">\nUse `rg`.\n</project_instructions>'
 
     rendered = _system_prompt_markdown(prompt)
 
@@ -2444,9 +2384,7 @@ def test_system_prompt_markdown_uses_longer_delimiter_for_backticks_in_tags() ->
 def test_system_prompt_markdown_preserves_markdown_autolinks() -> None:
     prompt = "<https://example.com> <user@example.com> <project>"
 
-    assert _system_prompt_markdown(prompt) == (
-        "<https://example.com> <user@example.com> `<project>`"
-    )
+    assert _system_prompt_markdown(prompt) == ("<https://example.com> <user@example.com> `<project>`")
 
 
 def test_system_prompt_markdown_skips_tags_in_indented_code_blocks() -> None:
@@ -2458,9 +2396,7 @@ def test_system_prompt_markdown_skips_tags_in_indented_code_blocks() -> None:
 def test_system_prompt_markdown_preserves_uri_autolinks_without_double_slashes() -> None:
     prompt = "<http:foo> <tel:123456> <urn:isbn:9780141036144> <project>"
 
-    assert _system_prompt_markdown(prompt) == (
-        "<http:foo> <tel:123456> <urn:isbn:9780141036144> `<project>`"
-    )
+    assert _system_prompt_markdown(prompt) == ("<http:foo> <tel:123456> <urn:isbn:9780141036144> `<project>`")
 
 
 def test_textual_markdown_uses_theme_highlight_and_aqua_inline_code() -> None:
@@ -2849,20 +2785,14 @@ async def test_streaming_transcript_applies_role_foreground() -> None:
 
         # Streamed thinking is dimmed immediately, matching the finalized block
         # instead of shifting color on the next redraw.
-        await transcript.append_thinking_delta(
-            "reasoning", theme=BALDRIC_DARK_THEME, show_thinking=True
-        )
+        await transcript.append_thinking_delta("reasoning", theme=BALDRIC_DARK_THEME, show_thinking=True)
         await pilot.pause()
-        thinking = next(
-            w for w in app.query(StreamingTranscriptMessageWidget) if w.item.role == "thinking"
-        )
+        thinking = next(w for w in app.query(StreamingTranscriptMessageWidget) if w.item.role == "thinking")
         assert thinking.styles.color == Color.parse(thinking_fg)
 
         await transcript.append_assistant_delta("answer", theme=BALDRIC_DARK_THEME)
         await pilot.pause()
-        assistant = next(
-            w for w in app.query(StreamingTranscriptMessageWidget) if w.item.role == "assistant"
-        )
+        assistant = next(w for w in app.query(StreamingTranscriptMessageWidget) if w.item.role == "assistant")
         assert assistant.styles.color == Color.parse(assistant_fg)
 
 
@@ -2877,9 +2807,7 @@ async def test_tool_execution_updates_render_in_place() -> None:
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         await stream(
-            ToolExecutionStartEvent(
-                tool_call_id="call-1", tool_name="agent", args={"prompt": "explore"}
-            )
+            ToolExecutionStartEvent(tool_call_id="call-1", tool_name="agent", args={"prompt": "explore"})
         )
         await stream(
             ToolExecutionUpdateEvent(
@@ -2945,12 +2873,8 @@ async def test_batched_reads_share_one_live_transcript_row() -> None:
                 )
             )
         )
-        await stream(
-            ToolExecutionStartEvent(tool_call_id="call-1", tool_name="read", args={"path": "a.py"})
-        )
-        await stream(
-            ToolExecutionStartEvent(tool_call_id="call-2", tool_name="read", args={"path": "b.py"})
-        )
+        await stream(ToolExecutionStartEvent(tool_call_id="call-1", tool_name="read", args={"path": "a.py"}))
+        await stream(ToolExecutionStartEvent(tool_call_id="call-2", tool_name="read", args={"path": "b.py"}))
         await pilot.pause()
 
         tool_widgets = [w for w in app.query(TranscriptMessageWidget) if w.item.role == "tool"]
@@ -2966,9 +2890,7 @@ async def test_batched_reads_share_one_live_transcript_row() -> None:
             )
         )
         await pilot.pause()
-        assert tool_widgets[0].selection_text == (
-            "→ Reading 2 files · 1/2 complete\n  - a.py\n  - b.py"
-        )
+        assert tool_widgets[0].selection_text == ("→ Reading 2 files · 1/2 complete\n  - a.py\n  - b.py")
 
         await stream(
             ToolExecutionEndEvent(
@@ -2984,9 +2906,7 @@ async def test_batched_reads_share_one_live_transcript_row() -> None:
         await pilot.press("ctrl+o")
         await pilot.pause()
         # Expanding a read run shows the previewed result of each member.
-        assert tool_widgets[0].selection_text == (
-            "→ read a.py\n\n✓ read\none\n\n→ read b.py\n\n✓ read\ntwo"
-        )
+        assert tool_widgets[0].selection_text == ("→ read a.py\n\n✓ read\none\n\n→ read b.py\n\n✓ read\ntwo")
 
 
 @pytest.mark.anyio
@@ -3128,9 +3048,7 @@ async def test_rows_after_streamed_assistant_reply_do_not_redraw_history() -> No
         assert redraws == 0
         assert history_widget.parent is transcript
         assert transcript._window_end == len(app.state.items)
-        assert any(
-            "next prompt" in widget.selection_text for widget in app.query(TranscriptMessageWidget)
-        )
+        assert any("next prompt" in widget.selection_text for widget in app.query(TranscriptMessageWidget))
 
 
 @pytest.mark.anyio
@@ -3221,9 +3139,7 @@ async def test_tool_only_message_keeps_a_paged_back_window(
             MessageStartEvent(message=partial),
             MessageUpdateEvent(
                 message=partial,
-                assistant_message_event=TextDeltaEvent(
-                    content_index=0, delta="\n\n", partial=partial
-                ),
+                assistant_message_event=TextDeltaEvent(content_index=0, delta="\n\n", partial=partial),
             ),
             MessageEndEvent(
                 message=AssistantMessage(
@@ -3264,9 +3180,7 @@ async def test_tool_only_message_discard_keeps_window_end_within_items() -> None
             MessageStartEvent(message=partial),
             MessageUpdateEvent(
                 message=partial,
-                assistant_message_event=ThinkingDeltaEvent(
-                    content_index=0, delta="\n\n", partial=partial
-                ),
+                assistant_message_event=ThinkingDeltaEvent(content_index=0, delta="\n\n", partial=partial),
             ),
             MessageEndEvent(
                 message=AssistantMessage(
@@ -3290,9 +3204,7 @@ async def test_tool_only_message_discard_keeps_window_end_within_items() -> None
 async def test_long_transcript_incremental_appends_keep_mounted_window_bounded() -> None:
     initial_count = TRANSCRIPT_WINDOW_ITEMS + TRANSCRIPT_WINDOW_OVERSCAN_ITEMS
     app = BaldricTuiApp(
-        FakeSession(
-            messages=[UserMessage(content=f"message {index}") for index in range(initial_count)]
-        )
+        FakeSession(messages=[UserMessage(content=f"message {index}") for index in range(initial_count)])
     )
 
     async with app.run_test(size=(80, 24)) as pilot:
@@ -3329,9 +3241,7 @@ async def test_transcript_resize_preserves_mounted_message_widgets() -> None:
 async def test_streaming_transcript_deltas_do_not_force_scroll_end_during_scrollback() -> None:
     app = BaldricTuiApp(
         FakeSession(
-            messages=[
-                UserMessage(content=f"message {index}\n" + "line\n" * 4) for index in range(12)
-            ]
+            messages=[UserMessage(content=f"message {index}\n" + "line\n" * 4) for index in range(12)]
         )
     )
 
@@ -3367,9 +3277,7 @@ async def test_streaming_transcript_deltas_do_not_force_scroll_end_during_scroll
 async def test_streaming_transcript_deltas_follow_when_at_bottom() -> None:
     app = BaldricTuiApp(
         FakeSession(
-            messages=[
-                UserMessage(content=f"message {index}\n" + "line\n" * 4) for index in range(12)
-            ]
+            messages=[UserMessage(content=f"message {index}\n" + "line\n" * 4) for index in range(12)]
         )
     )
 
@@ -3393,9 +3301,7 @@ async def test_streaming_transcript_deltas_follow_when_at_bottom() -> None:
 async def test_streaming_transcript_deltas_preserve_user_scrollback() -> None:
     app = BaldricTuiApp(
         FakeSession(
-            messages=[
-                UserMessage(content=f"message {index}\n" + "line\n" * 4) for index in range(12)
-            ]
+            messages=[UserMessage(content=f"message {index}\n" + "line\n" * 4) for index in range(12)]
         )
     )
 
@@ -3426,9 +3332,7 @@ async def test_streaming_transcript_deltas_preserve_user_scrollback() -> None:
 async def test_streaming_transcript_deltas_do_not_apply_stale_follow_scroll() -> None:
     app = BaldricTuiApp(
         FakeSession(
-            messages=[
-                UserMessage(content=f"message {index}\n" + "line\n" * 4) for index in range(12)
-            ]
+            messages=[UserMessage(content=f"message {index}\n" + "line\n" * 4) for index in range(12)]
         )
     )
 
@@ -3458,9 +3362,7 @@ async def test_streaming_transcript_deltas_do_not_apply_stale_follow_scroll() ->
 async def test_streaming_transcript_fractional_scrollback_after_refollow_stops_following() -> None:
     app = BaldricTuiApp(
         FakeSession(
-            messages=[
-                UserMessage(content=f"message {index}\n" + "line\n" * 4) for index in range(12)
-            ]
+            messages=[UserMessage(content=f"message {index}\n" + "line\n" * 4) for index in range(12)]
         )
     )
 
@@ -3685,15 +3587,11 @@ async def test_tui_streaming_deltas_update_active_message_without_full_refresh()
             MessageStartEvent(message=partial),
             MessageUpdateEvent(
                 message=partial,
-                assistant_message_event=TextDeltaEvent(
-                    content_index=0, delta="alpha ", partial=partial
-                ),
+                assistant_message_event=TextDeltaEvent(content_index=0, delta="alpha ", partial=partial),
             ),
             MessageUpdateEvent(
                 message=partial,
-                assistant_message_event=TextDeltaEvent(
-                    content_index=0, delta="beta", partial=partial
-                ),
+                assistant_message_event=TextDeltaEvent(content_index=0, delta="beta", partial=partial),
             ),
             MessageEndEvent(message=AssistantMessage(content="alpha beta")),
             AgentEndEvent(),
@@ -4156,9 +4054,7 @@ async def test_detached_transcript_message_ignores_stale_selection_hit(
         # Model a compositor hit left over from before the widget was removed.
         from textual.geometry import Offset
 
-        monkeypatch.setattr(
-            app.screen, "get_widget_and_offset_at", lambda x, y: (widget, Offset(0, 0))
-        )
+        monkeypatch.setattr(app.screen, "get_widget_and_offset_at", lambda x, y: (widget, Offset(0, 0)))
         app.screen._forward_event(events.MouseDown(None, 1, 1, 0, 0, 1, False, False, False))
         assert app.screen._select_state is None
         await pilot.pause()
@@ -4236,9 +4132,7 @@ def test_activity_indicator_spinner_breathes_between_accent_and_background() -> 
 
     peak = _render_activity_indicator(theme, frame=0, running=True)
     dimmest = _render_activity_indicator(theme, frame=half_cycle, running=True)
-    looped = _render_activity_indicator(
-        theme, frame=tui_app.ACTIVITY_COLOR_FADE_STEPS, running=True
-    )
+    looped = _render_activity_indicator(theme, frame=tui_app.ACTIVITY_COLOR_FADE_STEPS, running=True)
 
     assert peak.style == f"bold {theme.accent}"
     assert dimmest.style != peak.style
@@ -4475,9 +4369,7 @@ async def test_tui_sidebar_context_file_opens_in_main_editor_and_saves(tmp_path:
     context_path.write_text("Original context.\n", encoding="utf-8")
     session = FakeSession()
     session.cwd = tmp_path
-    session.context_files = (
-        ProjectContextFile(path=str(context_path), content="Original context."),
-    )
+    session.context_files = (ProjectContextFile(path=str(context_path), content="Original context."),)
     app = BaldricTuiApp(session)
 
     async with app.run_test(size=(120, 40)) as pilot:
@@ -4512,9 +4404,7 @@ async def test_tui_sidebar_prompt_file_opens_in_main_editor(tmp_path: Path) -> N
     prompt_path.write_text("Review this.\n", encoding="utf-8")
     session = FakeSession()
     session.cwd = tmp_path
-    session.prompt_templates = (
-        PromptTemplate("review", prompt_path, "Review this.", "Review changes"),
-    )
+    session.prompt_templates = (PromptTemplate("review", prompt_path, "Review this.", "Review changes"),)
     app = BaldricTuiApp(session)
 
     async with app.run_test(size=(120, 40)) as pilot:
@@ -4607,10 +4497,7 @@ async def test_tui_sidebar_editor_keeps_contents_open_after_save_failure(tmp_pat
         await pilot.pause()
 
         assert editor.is_mounted
-        assert (
-            "Could not save"
-            in editor.query_one("#sidebar-file-editor-status", Static).render().plain
-        )
+        assert "Could not save" in editor.query_one("#sidebar-file-editor-status", Static).render().plain
         assert not context_path.exists()
 
 
@@ -5178,9 +5065,7 @@ async def test_tui_transcript_code_block_scrollbar_matches_overflow(
 @pytest.mark.anyio
 async def test_tui_transcript_code_fence_ignores_invalid_highlighter_spans() -> None:
     app = BaldricTuiApp(
-        FakeSession(
-            messages=[AssistantMessage(content="```ini\nkeybind = alt+arrow_left=text:\\\n```")]
-        )
+        FakeSession(messages=[AssistantMessage(content="```ini\nkeybind = alt+arrow_left=text:\\\n```")])
     )
 
     async with app.run_test(size=(120, 30)) as pilot:
@@ -5357,22 +5242,16 @@ async def test_list_view_scrollbars_use_theme_colors(theme: TuiTheme) -> None:
     app = BaldricTuiApp(FakeSession(), tui_settings=TuiSettings(theme=theme.name))
 
     async with app.run_test() as pilot:
-        await app.push_screen(
-            SessionPickerScreen([], local_cwd=Path("/workspace/project"), theme=theme)
-        )
+        await app.push_screen(SessionPickerScreen([], local_cwd=Path("/workspace/project"), theme=theme))
         await pilot.pause()
 
         list_view = app.screen.query_one("#session-picker-list", OptionList)
 
         assert list_view.styles.scrollbar_background == Color.parse(theme.transcript_background)
         assert list_view.styles.scrollbar_color == Color.parse(theme.border)
-        assert list_view.styles.scrollbar_background_hover == Color.parse(
-            theme.transcript_background
-        )
+        assert list_view.styles.scrollbar_background_hover == Color.parse(theme.transcript_background)
         assert list_view.styles.scrollbar_color_hover == Color.parse(theme.highlight_background)
-        assert list_view.styles.scrollbar_background_active == Color.parse(
-            theme.transcript_background
-        )
+        assert list_view.styles.scrollbar_background_active == Color.parse(theme.transcript_background)
         assert list_view.styles.scrollbar_color_active == Color.parse(theme.accent)
         assert list_view.styles.scrollbar_size_vertical == 2
 
@@ -5412,9 +5291,7 @@ def test_baldric_dark_theme_uses_aqua_as_its_shared_accent() -> None:
 )
 def test_autocomplete_and_picker_share_theme_highlight(theme: TuiTheme) -> None:
     completion_text, completion_background = _split_rich_style_colors(theme.completion_selected)
-    description_text, description_background = _split_rich_style_colors(
-        theme.completion_selected_description
-    )
+    description_text, description_background = _split_rich_style_colors(theme.completion_selected_description)
     variables = _theme_css_variables(theme)
 
     assert completion_text == theme.highlight_text
@@ -5467,15 +5344,7 @@ def test_tui_app_loads_restored_messages_into_display_state() -> None:
         (
             "tool",
             "→ edit README.md",
-            "✓ edit\n"
-            "Successfully replaced 1 block.\n"
-            "\n"
-            "Patch:\n"
-            "--- README.md\n"
-            "+++ README.md\n"
-            "@@\n"
-            "-old\n"
-            "+new",
+            "✓ edit\nSuccessfully replaced 1 block.\n\nPatch:\n--- README.md\n+++ README.md\n@@\n-old\n+new",
         ),
     ]
 
@@ -5827,9 +5696,7 @@ async def test_tui_app_clears_activity_status_on_error() -> None:
         app.adapter.apply(AgentStartEvent())
         app._refresh()
         app.adapter.apply(
-            MessageEndEvent(
-                message=AssistantMessage(stop_reason="error", error_message="provider failed")
-            )
+            MessageEndEvent(message=AssistantMessage(stop_reason="error", error_message="provider failed"))
         )
         app._refresh()
 
@@ -5874,9 +5741,7 @@ async def test_tui_app_skills_picker_filters_and_inserts_without_submitting() ->
 
         picker = app.screen
         assert isinstance(picker, SkillPickerScreen)
-        assert [
-            [label.render().plain for label in item.query(Label)] for item in picker.query(ListItem)
-        ] == [
+        assert [[label.render().plain for label in item.query(Label)] for item in picker.query(ListItem)] == [
             ["alpha", "Review Python code"],
             ["zebra", "Work with stripes"],
         ]
@@ -5895,11 +5760,7 @@ async def test_tui_app_skills_picker_filters_and_inserts_without_submitting() ->
         search.value = "missing"
         await pilot.pause()
         assert not picker.query(ListItem)
-        assert (
-            picker.query_one("#skill-picker-help", Static)
-            .render()
-            .plain.startswith("No matching skills")
-        )
+        assert picker.query_one("#skill-picker-help", Static).render().plain.startswith("No matching skills")
 
         search.value = ""
         await pilot.press("p", "y", "t", "h", "o", "n", "space", "c", "o", "d", "e")
@@ -5978,11 +5839,7 @@ async def test_tui_app_skills_picker_cancel_clears_prompt_and_shows_empty_states
 
         picker = app.screen
         assert isinstance(picker, SkillPickerScreen)
-        assert (
-            picker.query_one("#skill-picker-help", Static)
-            .render()
-            .plain.startswith("No skills loaded")
-        )
+        assert picker.query_one("#skill-picker-help", Static).render().plain.startswith("No skills loaded")
         await pilot.press("escape")
         await pilot.pause()
 
@@ -6603,9 +6460,7 @@ async def test_tui_app_blocks_session_commands_while_compacting(blocked_command:
             self.compact_summaries.append(summary)
             started.set()
             await finish.wait()
-            self.messages = (
-                UserMessage(content="Previous conversation summary:\nGenerated summary"),
-            )
+            self.messages = (UserMessage(content="Previous conversation summary:\nGenerated summary"),)
             self.context_token_estimate = 42
             return "Compacted 2 context entries."
 
@@ -6632,9 +6487,7 @@ async def test_tui_app_blocks_session_commands_while_compacting(blocked_command:
         assert session.new_session_count == 0
         assert session.resumed_session_ids == []
         assert prompt.value == blocked_command
-        assert notifications == [
-            "Compaction is still running. You can keep editing, but wait to submit."
-        ]
+        assert notifications == ["Compaction is still running. You can keep editing, but wait to submit."]
 
         finish.set()
         await pilot.pause()
@@ -6705,9 +6558,7 @@ async def test_tui_app_escape_cancels_active_compaction() -> None:
             self.compact_summaries.append(summary)
             started.set()
             await finish.wait()
-            self.messages = (
-                UserMessage(content="Previous conversation summary:\nGenerated summary"),
-            )
+            self.messages = (UserMessage(content="Previous conversation summary:\nGenerated summary"),)
             self.context_token_estimate = 42
             return "Compacted 2 context entries."
 
@@ -7095,9 +6946,7 @@ async def test_tui_app_resume_picker_loads_other_projects_in_background() -> Non
             if screen.current_project_loaded:
                 break
         assert [record.id for record in screen.visible_records] == ["local"]
-        assert "Loading other projects" in str(
-            screen.query_one("#session-picker-help", Static).render()
-        )
+        assert "Loading other projects" in str(screen.query_one("#session-picker-help", Static).render())
         assert await asyncio.to_thread(global_started.wait, 1)
 
         release_global.set()
@@ -7676,9 +7525,7 @@ async def test_structured_assistant_finalization_preserves_existing_widget_ident
                 ),
             ),
             MessageEndEvent(
-                message=AssistantMessage(
-                    content=[ThinkingContent(thinking="plan"), TextContent(text="done")]
-                )
+                message=AssistantMessage(content=[ThinkingContent(thinking="plan"), TextContent(text="done")])
             ),
             AgentEndEvent(),
         ],
@@ -7715,9 +7562,7 @@ async def test_structured_assistant_ignores_empty_final_content_blocks() -> None
                 ),
             ),
             MessageEndEvent(
-                message=AssistantMessage(
-                    content=[ThinkingContent(thinking=""), TextContent(text="done")]
-                )
+                message=AssistantMessage(content=[ThinkingContent(thinking=""), TextContent(text="done")])
             ),
             AgentEndEvent(),
         ],
@@ -7806,9 +7651,7 @@ async def test_tui_app_prompts_picker_edits_template_and_reloads(tmp_path: Path)
 
         picker = app.screen
         assert isinstance(picker, PromptTemplatePickerScreen)
-        assert "Ctrl+E edits" in str(
-            picker.query_one("#prompt-template-picker-help", Static).content
-        )
+        assert "Ctrl+E edits" in str(picker.query_one("#prompt-template-picker-help", Static).content)
         await pilot.press("ctrl+e")
         await pilot.pause()
 
@@ -8169,9 +8012,7 @@ async def test_tui_app_completes_resume_session_argument() -> None:
         app._refresh_completions()
 
         assert app._completion_state.selected is not None
-        assert app._completion_state.selected.description == (
-            "Session - fake-model - /workspace/project"
-        )
+        assert app._completion_state.selected.description == ("Session - fake-model - /workspace/project")
 
         await pilot.press("tab")
 
@@ -8520,9 +8361,7 @@ async def test_tui_app_session_picker_search_with_no_matches_shows_help_text() -
         session_list = app.screen.query_one("#session-picker-list", OptionList)
         assert session_list.option_count == 0
         help_text = app.screen.query_one("#session-picker-help", Static)
-        assert str(help_text.render()) == (
-            "No matching sessions - Left selects a project - Escape closes"
-        )
+        assert str(help_text.render()) == ("No matching sessions - Left selects a project - Escape closes")
 
 
 @pytest.mark.anyio
@@ -8547,9 +8386,7 @@ async def test_tui_app_blocks_tree_picker_while_agent_is_running() -> None:
         assert session.tree_branch_requests == []
         assert prompt.value == "/tree"
         assert not isinstance(app.screen, TreePickerScreen)
-        assert notifications == [
-            "Baldric is still working. Press Escape to interrupt before using /tree."
-        ]
+        assert notifications == ["Baldric is still working. Press Escape to interrupt before using /tree."]
 
 
 @pytest.mark.anyio
@@ -8576,9 +8413,7 @@ async def test_tui_app_blocks_tree_branch_selection_while_agent_is_running() -> 
         await pilot.pause()
 
         assert session.tree_branch_requests == []
-        assert notifications == [
-            "Baldric is still working. Press Escape to interrupt before using /tree."
-        ]
+        assert notifications == ["Baldric is still working. Press Escape to interrupt before using /tree."]
 
 
 @pytest.mark.anyio
@@ -8737,9 +8572,7 @@ async def test_tui_app_tree_picker_toggles_tool_calls() -> None:
             "* assistant: Right",
         ]
         assert tree_list.index == 2
-        assert "tool calls hidden" in str(
-            app.screen.query_one("#tree-picker-help", Static).render()
-        )
+        assert "tool calls hidden" in str(app.screen.query_one("#tree-picker-help", Static).render())
 
         await pilot.press("ctrl+t")
         await pilot.pause()
@@ -9085,9 +8918,7 @@ async def test_tui_app_deduplicates_active_notifications() -> None:
 
         active_notifications = tuple(app._notifications)
 
-    assert [
-        (notification.message, notification.severity) for notification in active_notifications
-    ] == [
+    assert [(notification.message, notification.severity) for notification in active_notifications] == [
         ("Thinking controls are not available.", "warning"),
         ("Thinking controls are not available.", "error"),
     ]
@@ -9318,12 +9149,10 @@ async def test_tui_app_system_appends_markdown_command_output_to_transcript() ->
             BALDRIC_DARK_THEME.accent,
             BALDRIC_DARK_THEME.role_styles["branch_summary"].border,
         ]
-        assert sections[0].styles.background == Color.parse(
-            BALDRIC_DARK_THEME.transcript_background
-        ).blend(Color.parse(BALDRIC_DARK_THEME.accent), 0.08)
-        assert sections[1].styles.background == Color.parse(
-            BALDRIC_DARK_THEME.transcript_background
-        ).blend(
+        assert sections[0].styles.background == Color.parse(BALDRIC_DARK_THEME.transcript_background).blend(
+            Color.parse(BALDRIC_DARK_THEME.accent), 0.08
+        )
+        assert sections[1].styles.background == Color.parse(BALDRIC_DARK_THEME.transcript_background).blend(
             Color.parse(BALDRIC_DARK_THEME.role_styles["branch_summary"].border),
             0.08,
         )
@@ -9576,10 +9405,7 @@ async def test_tui_app_quits_from_focused_prompt_with_default_keybinding() -> No
             binding for binding in prompt._bindings.get_bindings_for_key("ctrl+d") if binding.show
         ]
 
-        assert any(
-            binding.action == "quit" and binding.description == "Quit"
-            for binding in visible_bindings
-        )
+        assert any(binding.action == "quit" and binding.description == "Quit" for binding in visible_bindings)
 
         await pilot.press("ctrl+d")
         await pilot.pause()
@@ -9883,8 +9709,7 @@ async def test_tui_logout_removes_stored_api_key(
     assert FileCredentialStore(credential_path).get("openai") is None
     assert session.provider_reload_count == 1
     assert notifications == [
-        "Removed stored API key for OpenAI. "
-        "Environment variables and providers.json config are unchanged."
+        "Removed stored API key for OpenAI. Environment variables and providers.json config are unchanged."
     ]
 
 
@@ -10235,9 +10060,7 @@ async def test_tui_model_opens_interactive_picker() -> None:
         tabs = app.screen.query_one("#model-picker-tabs", Static)
         assert str(tabs.render()) == "Tabs: ● All models  ○ Scoped models"
         model_list = app.screen.query_one("#model-picker-list", OptionList)
-        labels = [
-            str(model_list.get_option_at_index(i).prompt) for i in range(model_list.option_count)
-        ]
+        labels = [str(model_list.get_option_at_index(i).prompt) for i in range(model_list.option_count)]
         assert labels == [
             "* openai:fake-model",
             "  openai:other-model",
@@ -10249,9 +10072,7 @@ async def test_tui_model_opens_interactive_picker() -> None:
         search.value = "local"
         await pilot.pause()
 
-        labels = [
-            str(model_list.get_option_at_index(i).prompt) for i in range(model_list.option_count)
-        ]
+        labels = [str(model_list.get_option_at_index(i).prompt) for i in range(model_list.option_count)]
         assert labels == ["  local:local-model"]
 
         await pilot.press("tab")
@@ -10373,9 +10194,7 @@ async def test_tui_model_selection_runs_after_picker_closes() -> None:
 @pytest.mark.anyio
 async def test_tui_model_picker_virtualizes_large_cached_catalog() -> None:
     session = FakeSession()
-    session.available_model_choices = tuple(
-        ModelChoice("openai", f"model-{index}") for index in range(1200)
-    )
+    session.available_model_choices = tuple(ModelChoice("openai", f"model-{index}") for index in range(1200))
     app = BaldricTuiApp(session)
     async with app.run_test() as pilot:
         prompt = app.query_one("#prompt")
@@ -10447,15 +10266,11 @@ async def test_tui_scoped_models_picker_toggles_scoped_models_without_switching_
         await pilot.press("enter")
         await pilot.pause()
 
-        assert session.scoped_model_choices == (
-            ModelChoice(provider_name="openai", model="fake-model"),
-        )
+        assert session.scoped_model_choices == (ModelChoice(provider_name="openai", model="fake-model"),)
         assert session.provider_name == "openai"
         assert session.model == "fake-model"
         model_list = app.screen.query_one("#model-picker-list", OptionList)
-        labels = [
-            str(model_list.get_option_at_index(i).prompt) for i in range(model_list.option_count)
-        ]
+        labels = [str(model_list.get_option_at_index(i).prompt) for i in range(model_list.option_count)]
         assert labels[0] == "* openai:fake-model [scoped]"
 
         await pilot.press("enter")
@@ -10489,9 +10304,7 @@ async def test_tui_scoped_models_picker_tab_shows_only_scoped_models_for_unselec
         tabs = app.screen.query_one("#model-picker-tabs", Static)
         assert str(tabs.render()) == "Tabs: ○ All models  ● Scoped models"
         model_list = app.screen.query_one("#model-picker-list", OptionList)
-        labels = [
-            str(model_list.get_option_at_index(i).prompt) for i in range(model_list.option_count)
-        ]
+        labels = [str(model_list.get_option_at_index(i).prompt) for i in range(model_list.option_count)]
         assert labels == [
             "* openai:fake-model [scoped]",
             "  openai:other-model [scoped]",
@@ -10500,14 +10313,10 @@ async def test_tui_scoped_models_picker_tab_shows_only_scoped_models_for_unselec
         await pilot.press("enter")
         await pilot.pause()
 
-        assert session.scoped_model_choices == (
-            ModelChoice(provider_name="openai", model="other-model"),
-        )
+        assert session.scoped_model_choices == (ModelChoice(provider_name="openai", model="other-model"),)
         assert session.provider_name == "openai"
         assert session.model == "fake-model"
-        labels = [
-            str(model_list.get_option_at_index(i).prompt) for i in range(model_list.option_count)
-        ]
+        labels = [str(model_list.get_option_at_index(i).prompt) for i in range(model_list.option_count)]
         assert labels == ["  openai:other-model [scoped]"]
 
         await pilot.press("tab")
@@ -10622,9 +10431,7 @@ async def test_tui_app_renders_terminal_command_while_running(add_to_context: bo
     session.run_terminal_command = fake_run_terminal_command  # type: ignore[method-assign]
 
     async with app.run_test() as pilot:
-        task = asyncio.create_task(
-            app._run_terminal_command("sleep 1", add_to_context=add_to_context)
-        )
+        task = asyncio.create_task(app._run_terminal_command("sleep 1", add_to_context=add_to_context))
         await started.wait()
         await pilot.pause()
 
@@ -10795,9 +10602,7 @@ async def test_tool_result_toggle_expands_full_bash_command() -> None:
         await pilot.pause()
 
         widget = next(w for w in app.query(TranscriptMessageWidget) if w.item.role == "tool")
-        assert widget.selection_text == (
-            f"→ Running inline script\n$ {command}\n\n✓ bash\nfinished"
-        )
+        assert widget.selection_text == (f"→ Running inline script\n$ {command}\n\n✓ bash\nfinished")
 
 
 @pytest.mark.anyio
@@ -11344,9 +11149,7 @@ async def test_tui_app_cycles_scoped_model_backward_from_keybinding() -> None:
 
 @pytest.mark.anyio
 async def test_tui_app_cycles_scoped_model_without_redrawing_transcript() -> None:
-    session = FakeSession(
-        messages=[UserMessage(content=f"Earlier prompt {index}") for index in range(120)]
-    )
+    session = FakeSession(messages=[UserMessage(content=f"Earlier prompt {index}") for index in range(120)])
     session.scoped_model_choices = (
         ModelChoice(provider_name="openai", model="fake-model"),
         ModelChoice(provider_name="openai", model="other-model"),
@@ -11415,9 +11218,7 @@ async def test_tui_prompt_worker_shows_diagnostic_log_path_for_error_event(tmp_p
                 events=[
                     AgentStartEvent(),
                     MessageEndEvent(
-                        message=AssistantMessage(
-                            stop_reason="error", error_message="provider failed"
-                        )
+                        message=AssistantMessage(stop_reason="error", error_message="provider failed")
                     ),
                     AgentEndEvent(),
                 ]
@@ -11470,9 +11271,7 @@ async def test_tui_prompt_worker_shows_recovery_status_instead_of_overflow_error
 
     assert app.state.error is None
     assert not any(item.role == "error" for item in app.state.items)
-    assert any(
-        item.role == "status" and "compacting and retrying" in item.text for item in app.state.items
-    )
+    assert any(item.role == "status" and "compacting and retrying" in item.text for item in app.state.items)
     assert app.state.items[-1].text == "Recovered answer"
     assert app.state.running is False
 
@@ -11525,9 +11324,7 @@ async def test_tui_prompt_worker_mounts_provider_error_in_live_transcript() -> N
         await app._run_prompt("continue")
         await pilot.pause()
 
-        errors = [
-            widget for widget in app.query(TranscriptMessageWidget) if widget.item.role == "error"
-        ]
+        errors = [widget for widget in app.query(TranscriptMessageWidget) if widget.item.role == "error"]
         assert [widget.item.text for widget in errors] == [
             "Error: provider failed\nRun ended before completion. Send a message to retry."
         ]
@@ -12517,9 +12314,7 @@ async def test_run_tui_app_opens_when_provider_login_is_missing(
 
 
 @pytest.mark.anyio
-async def test_run_tui_app_resumes_explicit_session(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+async def test_run_tui_app_resumes_explicit_session(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     isolate_home(monkeypatch, tmp_path)
     calls: list[str] = []
     record = CodingSessionRecord(
@@ -12745,27 +12540,21 @@ class _FakeSessionManager:
         self.archived_project_cwds.append(Path(cwd))
         before = len(self._records)
         moved = [record for record in self._records if Path(record.cwd).resolve() == resolved]
-        self._records = [
-            record for record in self._records if Path(record.cwd).resolve() != resolved
-        ]
+        self._records = [record for record in self._records if Path(record.cwd).resolve() != resolved]
         self._archived_records.extend(moved)
         return len(self._records) != before
 
     def unarchive_session(self, session_id: str) -> bool:
         self.restored_session_ids.append(session_id)
         moved = [record for record in self._archived_records if record.id == session_id]
-        self._archived_records = [
-            record for record in self._archived_records if record.id != session_id
-        ]
+        self._archived_records = [record for record in self._archived_records if record.id != session_id]
         self._records.extend(moved)
         return bool(moved)
 
     def unarchive_project(self, cwd: Path) -> bool:
         resolved = Path(cwd).resolve()
         self.restored_project_cwds.append(Path(cwd))
-        moved = [
-            record for record in self._archived_records if Path(record.cwd).resolve() == resolved
-        ]
+        moved = [record for record in self._archived_records if Path(record.cwd).resolve() == resolved]
         self._archived_records = [
             record for record in self._archived_records if Path(record.cwd).resolve() != resolved
         ]
@@ -12828,13 +12617,9 @@ async def test_component_slot_widget_replace_reregisters() -> None:
         await pilot.pause()
         bridge = _component_bridge(app)
 
-        bridge.set_slot_widget(
-            "k", lambda theme: Static("one", id="ext-one"), placement="below_prompt"
-        )
+        bridge.set_slot_widget("k", lambda theme: Static("one", id="ext-one"), placement="below_prompt")
         await pilot.pause()
-        bridge.set_slot_widget(
-            "k", lambda theme: Static("two", id="ext-two"), placement="below_prompt"
-        )
+        bridge.set_slot_widget("k", lambda theme: Static("two", id="ext-two"), placement="below_prompt")
         await pilot.pause()
 
         slot = app.query_one("#below-prompt-slot", Container)
@@ -12952,9 +12737,7 @@ async def test_component_main_view_open_and_close_restores_transcript() -> None:
         await pilot.pause()
         bridge = _component_bridge(app)
 
-        handle = bridge.open_main_view(
-            lambda handle, theme: Static("main-view", id="ext-main-view")
-        )
+        handle = bridge.open_main_view(lambda handle, theme: Static("main-view", id="ext-main-view"))
         await pilot.pause()
 
         assert handle.is_open
@@ -13006,9 +12789,7 @@ async def test_component_main_view_close_result_resolves_wait() -> None:
         await pilot.pause()
         bridge = _component_bridge(app)
 
-        handle = bridge.open_main_view(
-            lambda handle, theme: Static("main-view", id="ext-main-view")
-        )
+        handle = bridge.open_main_view(lambda handle, theme: Static("main-view", id="ext-main-view"))
         await pilot.pause()
 
         sentinel = object()
@@ -13028,9 +12809,7 @@ async def test_component_main_view_close_without_result_resolves_none() -> None:
         await pilot.pause()
         bridge = _component_bridge(app)
 
-        handle = bridge.open_main_view(
-            lambda handle, theme: Static("main-view", id="ext-main-view")
-        )
+        handle = bridge.open_main_view(lambda handle, theme: Static("main-view", id="ext-main-view"))
         await pilot.pause()
 
         handle.close()
@@ -13156,9 +12935,7 @@ async def test_component_key_interceptor_failure_degrades_to_typing() -> None:
         assert app.is_running
         # Failures are keyed per-interceptor now (so a second faulty handler
         # still gets diagnosed) and notify like the other failure classes.
-        assert any(
-            key.startswith("key_interceptor:") for key in app._extension_component_failures_reported
-        )
+        assert any(key.startswith("key_interceptor:") for key in app._extension_component_failures_reported)
 
 
 @pytest.mark.anyio

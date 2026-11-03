@@ -212,9 +212,7 @@ class LocalArtifactOption:
         _identifier(self.id, "Artifact option id")
         _non_empty(self.label, "Artifact option label")
         if self.size_bytes is not None and (
-            not isinstance(self.size_bytes, int)
-            or isinstance(self.size_bytes, bool)
-            or self.size_bytes < 0
+            not isinstance(self.size_bytes, int) or isinstance(self.size_bytes, bool) or self.size_bytes < 0
         ):
             raise LocalBackendError("Artifact option size must be a non-negative integer")
         if not isinstance(self.recommended, bool):
@@ -407,13 +405,10 @@ class LocalOperationResult:
         if not isinstance(self.field_errors, Mapping):
             raise LocalBackendError("Configuration field errors must be a mapping")
         if any(
-            not isinstance(key, str) or not isinstance(value, str)
-            for key, value in self.field_errors.items()
+            not isinstance(key, str) or not isinstance(value, str) for key, value in self.field_errors.items()
         ):
             raise LocalBackendError("Configuration field errors must contain strings")
-        if self.confirmation is not None and not isinstance(
-            self.confirmation, LocalConfirmationRequest
-        ):
+        if self.confirmation is not None and not isinstance(self.confirmation, LocalConfirmationRequest):
             raise LocalBackendError("Operation confirmation must be a structured request")
         if self.confirmation is not None and self.committed:
             raise LocalBackendError("A committed operation cannot request confirmation")
@@ -464,15 +459,11 @@ class ProgressCallback(Protocol):
 
 ConfigureLocalBackend = Callable[
     [LocalConfigValues, LocalOperationContext],
-    LocalConfigureResult
-    | LocalOperationResult
-    | Awaitable[LocalConfigureResult | LocalOperationResult],
+    LocalConfigureResult | LocalOperationResult | Awaitable[LocalConfigureResult | LocalOperationResult],
 ]
 ReadLocalBackendStatus = Callable[
     [LocalOperationContext],
-    LocalBackendStatus
-    | LocalOperationResult
-    | Awaitable[LocalBackendStatus | LocalOperationResult],
+    LocalBackendStatus | LocalOperationResult | Awaitable[LocalBackendStatus | LocalOperationResult],
 ]
 RefreshLocalBackend = ReadLocalBackendStatus
 DoctorLocalBackend = ReadLocalBackendStatus
@@ -510,9 +501,7 @@ class LocalBackend:
         _non_empty(self.display_name, "Local backend display name")
         if not callable(self.configure) or not callable(self.status) or not callable(self.refresh):
             raise LocalBackendError("Local backend configure, status, and refresh must be callable")
-        if not callable(self.configure_spec) and not isinstance(
-            self.configure_spec, LocalConfigureSpec
-        ):
+        if not callable(self.configure_spec) and not isinstance(self.configure_spec, LocalConfigureSpec):
             raise LocalBackendError("Local backend configure_spec is unsupported")
         if not isinstance(self.recommended, bool):
             raise LocalBackendError("Local backend recommended flag must be boolean")
@@ -558,9 +547,7 @@ class LocalBackendRegistry:
         self._providers = provider_registry
         self._generation_id = generation_id or provider_registry.generation_id
         if self._generation_id != provider_registry.generation_id:
-            raise LocalBackendError(
-                "Local backend registry and provider registry must share a generation"
-            )
+            raise LocalBackendError("Local backend registry and provider registry must share a generation")
         self._recommended_backend_id = recommended_backend_id
         self._layers: dict[str, list[tuple[LocalBackendLayerToken, LocalBackend, int]]] = {}
         self._sequence = 0
@@ -721,9 +708,7 @@ class LocalBackendRegistry:
         config_values, errors = _validate_values(spec, values)
         if errors:
             return LocalOperationResult(field_errors=errors)
-        secret_values = tuple(
-            config_values[key] for key in config_values.secret_keys if config_values[key]
-        )
+        secret_values = tuple(config_values[key] for key in config_values.secret_keys if config_values[key])
         return await self._run(
             view,
             "configure",
@@ -814,8 +799,7 @@ class LocalBackendRegistry:
             return LocalOperationResult(
                 diagnostics=(
                     LocalDiagnostic(
-                        "This action is unavailable while this backend is shadowed by "
-                        "another source.",
+                        "This action is unavailable while this backend is shadowed by another source.",
                         "warning",
                     ),
                 )
@@ -845,16 +829,13 @@ class LocalBackendRegistry:
             return LocalOperationResult(
                 diagnostics=(
                     LocalDiagnostic(
-                        "This action is unavailable while this backend is shadowed by "
-                        "another source.",
+                        "This action is unavailable while this backend is shadowed by another source.",
                         "warning",
                     ),
                 )
             )
         if not query.strip():
-            return LocalOperationResult(
-                diagnostics=(LocalDiagnostic("Enter a search query.", "warning"),)
-            )
+            return LocalOperationResult(diagnostics=(LocalDiagnostic("Enter a search query.", "warning"),))
         return await self._run(
             view,
             "search_models",
@@ -1117,12 +1098,9 @@ async def _invoke(callback: Callable[..., object], *args: object) -> object:
         positional = [
             parameter
             for parameter in signature.parameters.values()
-            if parameter.kind
-            in {inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD}
+            if parameter.kind in {inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD}
         ]
-        required = [
-            parameter for parameter in positional if parameter.default is inspect.Parameter.empty
-        ]
+        required = [parameter for parameter in positional if parameter.default is inspect.Parameter.empty]
         if len(required) == 0:
             value = callback()
         elif len(positional) < len(args):
@@ -1218,8 +1196,7 @@ def _safe_operation_result(
         stale=result.stale,
         committed=result.committed and not result.field_errors,
         field_errors={
-            key: _redact(message, secrets) or "[redacted]"
-            for key, message in result.field_errors.items()
+            key: _redact(message, secrets) or "[redacted]" for key, message in result.field_errors.items()
         },
         credential_orphaned=result.credential_orphaned,
         confirmation=confirmation,

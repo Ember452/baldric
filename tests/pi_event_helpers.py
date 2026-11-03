@@ -39,11 +39,7 @@ def assistant_done(
     message: AssistantMessage | dict[str, object],
     finish_reason: str | None = None,
 ) -> AssistantDoneEvent:
-    final = (
-        message
-        if isinstance(message, AssistantMessage)
-        else AssistantMessage.model_validate(message)
-    )
+    final = message if isinstance(message, AssistantMessage) else AssistantMessage.model_validate(message)
     if final.tool_calls or finish_reason in {"tool_calls", "tool_use", "toolUse"}:
         reason = "toolUse"
     elif finish_reason in {"length", "max_tokens", "MAX_TOKENS", "incomplete"}:

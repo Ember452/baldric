@@ -169,9 +169,7 @@ def test_legacy_assistant_message_migrates_to_ordered_blocks() -> None:
             "message": {
                 "role": "assistant",
                 "content": "Reading.",
-                "tool_calls": [
-                    {"id": "call-1", "name": "read", "arguments": {"path": "README.md"}}
-                ],
+                "tool_calls": [{"id": "call-1", "name": "read", "arguments": {"path": "README.md"}}],
             },
         }
     )
@@ -253,9 +251,7 @@ def test_legacy_tool_message_migrates_and_preserves_data() -> None:
 
 @pytest.mark.parametrize("role", ["user", "custom"])
 @pytest.mark.parametrize("custom_type_key", ["custom_type", "customType"])
-def test_legacy_custom_message_shapes_migrate_and_replay_identically(
-    role: str, custom_type_key: str
-) -> None:
+def test_legacy_custom_message_shapes_migrate_and_replay_identically(role: str, custom_type_key: str) -> None:
     legacy_message = {
         "role": role,
         "content": "<task-notification/>",
@@ -339,9 +335,7 @@ async def test_jsonl_storage_appends_and_reads_entries(tmp_path: Path) -> None:
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("separator", ["\u2028", "\u2029", "\u0085"])
-async def test_jsonl_storage_round_trips_unicode_line_separators(
-    tmp_path: Path, separator: str
-) -> None:
+async def test_jsonl_storage_round_trips_unicode_line_separators(tmp_path: Path, separator: str) -> None:
     storage = JsonlSessionStorage(tmp_path / "session.jsonl")
     entry = MessageEntry(id="one", message=UserMessage(content=f"before{separator}after"))
 
@@ -501,9 +495,7 @@ def test_session_state_resolves_relabel_clear_and_relabel_in_file_order() -> Non
     target = MessageEntry(id="target", message=UserMessage(content="Bookmark me"))
     entries = [
         target,
-        LabelEntry(
-            id="first", parent_id="target", target_id="target", label=" first ", timestamp=2
-        ),
+        LabelEntry(id="first", parent_id="target", target_id="target", label=" first ", timestamp=2),
         LabelEntry(id="clear", parent_id="first", target_id="target", label="", timestamp=3),
         LabelEntry(id="latest", parent_id="clear", target_id="target", label="latest", timestamp=4),
     ]

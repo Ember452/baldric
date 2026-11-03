@@ -243,9 +243,7 @@ def test_copilot_model_metadata_compat_can_enable_cache_breakpoints(tmp_path) ->
         config,
         model_metadata={
             **config.model_metadata,
-            "claude-haiku-4.5": replace(
-                metadata, compat={**metadata.compat, "supportsCacheControl": True}
-            ),
+            "claude-haiku-4.5": replace(metadata, compat={**metadata.compat, "supportsCacheControl": True}),
         },
     )
 

@@ -37,9 +37,7 @@ def test_session_manager_creates_and_lists_sessions(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("separator", ["\u2028", "\u2029", "\u0085"])
-def test_session_manager_round_trips_unicode_line_separator_in_title(
-    tmp_path: Path, separator: str
-) -> None:
+def test_session_manager_round_trips_unicode_line_separator_in_title(tmp_path: Path, separator: str) -> None:
     manager = SessionManager(BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents"))
     cwd = tmp_path / "project"
     cwd.mkdir()
@@ -271,9 +269,7 @@ def test_session_manager_gets_or_creates_default_session(tmp_path: Path) -> None
     cwd = tmp_path / "project"
     cwd.mkdir()
 
-    first = manager.get_or_create_default_session(
-        cwd=cwd, model="fake", provider_name="fake-provider"
-    )
+    first = manager.get_or_create_default_session(cwd=cwd, model="fake", provider_name="fake-provider")
     second = manager.get_or_create_default_session(cwd=cwd, model="other")
 
     assert first == second

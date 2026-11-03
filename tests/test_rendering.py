@@ -52,13 +52,9 @@ def test_transcript_renderer_streams_text_and_tool_events(
 
     renderer.render(MessageStartEvent(message=partial))
     renderer.render(
-        _assistant_update(
-            ThinkingDeltaEvent(content_index=0, delta="hidden reasoning", partial=partial)
-        )
+        _assistant_update(ThinkingDeltaEvent(content_index=0, delta="hidden reasoning", partial=partial))
     )
-    renderer.render(
-        _assistant_update(TextDeltaEvent(content_index=0, delta="Hel", partial=partial))
-    )
+    renderer.render(_assistant_update(TextDeltaEvent(content_index=0, delta="Hel", partial=partial)))
     renderer.render(_assistant_update(TextDeltaEvent(content_index=0, delta="lo", partial=partial)))
     renderer.render(
         AutoRetryStartEvent(
@@ -68,9 +64,7 @@ def test_transcript_renderer_streams_text_and_tool_events(
             error_message="Retrying provider request 2/3 after HTTP 503.",
         )
     )
-    renderer.render(
-        ToolExecutionStartEvent(tool_call_id="call-1", tool_name="read", args={"path": "a.py"})
-    )
+    renderer.render(ToolExecutionStartEvent(tool_call_id="call-1", tool_name="read", args={"path": "a.py"}))
     renderer.render(
         ToolExecutionUpdateEvent(
             tool_call_id="call-1",
@@ -180,9 +174,7 @@ def test_final_text_renderer_prints_only_final_message(
     renderer = FinalTextRenderer()
     partial = AssistantMessage(content="ignored")
 
-    renderer.render(
-        _assistant_update(TextDeltaEvent(content_index=0, delta="ignored", partial=partial))
-    )
+    renderer.render(_assistant_update(TextDeltaEvent(content_index=0, delta="ignored", partial=partial)))
     assert renderer.finish() is True
     assert capsys.readouterr().out == ""
 

@@ -5,14 +5,6 @@ from itertools import chain, repeat
 import pytest
 
 import baldric_agent.loop as loop_module
-from pi_event_helpers import (
-    assistant_done,
-    assistant_error,
-    assistant_start,
-    text_delta,
-    thinking_delta,
-    tool_call_end,
-)
 from baldric_agent import (
     AgentEvent,
     AgentMessage,
@@ -33,6 +25,14 @@ from baldric_agent.loop import run_agent_loop
 from baldric_agent.provider_events import ThinkingDeltaEvent
 from baldric_agent.types import JSONValue
 from baldric_ai import CancellationToken, FakeProvider
+from pi_event_helpers import (
+    assistant_done,
+    assistant_error,
+    assistant_start,
+    text_delta,
+    thinking_delta,
+    tool_call_end,
+)
 
 
 async def _collect(stream: AsyncIterator[AgentEvent]) -> list[AgentEvent]:
@@ -227,9 +227,7 @@ async def test_agent_loop_executes_tool_and_emits_tool_result_message_lifecycle(
     assert result.text == "contents of README.md"
     assert result.details == {"path": "README.md"}
     result_lifecycle = [
-        event.type
-        for event in events
-        if isinstance(event, (MessageEndEvent,)) and event.message is result
+        event.type for event in events if isinstance(event, (MessageEndEvent,)) and event.message is result
     ]
     assert result_lifecycle == ["message_end"]
     assert [event.type for event in events].count("message_start") == 3
@@ -376,9 +374,7 @@ async def test_agent_loop_records_unknown_tool_as_canonical_error_result() -> No
     call = ToolCall(id="call-1", name="missing", arguments={})
     assistant = AssistantMessage(content=[call], model="fake")
     messages: list[AgentMessage] = [UserMessage(content="Use it")]
-    provider = FakeProvider(
-        [[assistant_start(), tool_call_end(call), assistant_done(assistant, "toolUse")]]
-    )
+    provider = FakeProvider([[assistant_start(), tool_call_end(call), assistant_done(assistant, "toolUse")]])
 
     events = await _collect(
         run_agent_loop(
@@ -556,9 +552,7 @@ async def test_agent_loop_injects_steering_and_follow_up_messages() -> None:
 async def test_agent_loop_stops_with_assistant_error_after_max_turns() -> None:
     call = ToolCall(id="call-1", name="missing", arguments={})
     assistant = AssistantMessage(content=[call], model="fake")
-    provider = FakeProvider(
-        [[assistant_start(), tool_call_end(call), assistant_done(assistant, "toolUse")]]
-    )
+    provider = FakeProvider([[assistant_start(), tool_call_end(call), assistant_done(assistant, "toolUse")]])
     messages: list[AgentMessage] = [UserMessage(content="loop")]
 
     await _collect(

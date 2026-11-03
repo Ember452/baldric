@@ -163,9 +163,7 @@ def canonicalize_project_path(path: Path, *, base: Path | None = None) -> Canoni
             # paths on a case-sensitive volume.
             resolved = _darwin_filesystem_path(resolved)
     except (OSError, UnicodeError) as exc:
-        raise ProjectTrustError(
-            f"Could not canonicalize project cwd casing {resolved}: {exc}"
-        ) from exc
+        raise ProjectTrustError(f"Could not canonicalize project cwd casing {resolved}: {exc}") from exc
     return CanonicalProjectPath(resolved)
 
 
@@ -200,9 +198,7 @@ class ProtectedResourceDetector:
         self._file(found, "system-prompts", root / ".baldric" / "APPEND_SYSTEM.md")
         self._context(found, root)
         self._extensions(found, root / ".baldric" / "extensions")
-        counts = {
-            category: len(found[category]) for category in _RESOURCE_CATEGORIES if found[category]
-        }
+        counts = {category: len(found[category]) for category in _RESOURCE_CATEGORIES if found[category]}
         samples = tuple(path for category in _RESOURCE_CATEGORIES for path in found[category])[
             : self.max_sample_paths
         ]
@@ -240,9 +236,7 @@ class ProtectedResourceDetector:
             found[category].append(directory)
             return
         found[category].extend(
-            path
-            for path in entries
-            if self._is_candidate(path) and (predicate is None or predicate(path))
+            path for path in entries if self._is_candidate(path) and (predicate is None or predicate(path))
         )
 
     def _context(self, found: dict[str, list[Path]], cwd: Path) -> None:
@@ -341,9 +335,7 @@ class ProjectTrustStore:
         except ProjectTrustError:
             raise
         except OSError as exc:
-            raise ProjectTrustError(
-                f"Could not lock project trust store {self.path}: {exc}"
-            ) from exc
+            raise ProjectTrustError(f"Could not lock project trust store {self.path}: {exc}") from exc
 
     def _read_unlocked(self) -> dict[Path, TrustDecision]:
         # A pending journal means an update did not reach its commit point.
@@ -361,9 +353,7 @@ class ProjectTrustStore:
         try:
             payload = json.loads(self.path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-            raise ProjectTrustError(
-                f"Could not read project trust store {self.path}: {exc}"
-            ) from exc
+            raise ProjectTrustError(f"Could not read project trust store {self.path}: {exc}") from exc
         if not isinstance(payload, dict) or set(payload) != {"version", "decisions"}:
             raise ProjectTrustError(f"Malformed project trust store {self.path}: unknown schema")
         if payload["version"] != 1 or not isinstance(payload["decisions"], list):
@@ -484,9 +474,7 @@ class ProjectTrustStore:
 class ProjectTrustCoordinator:
     """Resolve and cache trust outcomes per canonical cwd for one invocation."""
 
-    def __init__(
-        self, store: ProjectTrustStore, detector: ProtectedResourceDetector | None = None
-    ) -> None:
+    def __init__(self, store: ProjectTrustStore, detector: ProtectedResourceDetector | None = None) -> None:
         self.store = store
         self.detector = detector or ProtectedResourceDetector()
         self._cache: dict[Path, ProjectTrustResolution] = {}
@@ -590,9 +578,7 @@ class ProjectTrustCoordinator:
             )
             return summary, finish(result)
         if not interactive or prompt is None:
-            result = ProjectTrustResolution(
-                trusted=False, source="default", diagnostics=tuple(diagnostics)
-            )
+            result = ProjectTrustResolution(trusted=False, source="default", diagnostics=tuple(diagnostics))
             return summary, finish(result)
 
         choice = await prompt(ProjectTrustRequest(canonical, summary, inherited))
@@ -646,13 +632,10 @@ class ProjectTrustCoordinator:
         self._cache[cwd.value] = result
 
 
-def format_trust_diagnostic(
-    summary: ProtectedResourceSummary, resolution: ProjectTrustResolution
-) -> str:
+def format_trust_diagnostic(summary: ProtectedResourceSummary, resolution: ProjectTrustResolution) -> str:
     """Return one bounded, content-free decision diagnostic."""
     categories = (
-        ", ".join(f"{category}={summary.counts[category]}" for category in summary.categories)
-        or "none"
+        ", ".join(f"{category}={summary.counts[category]}" for category in summary.categories) or "none"
     )
     scope = f" via {resolution.saved_path.value}" if resolution.saved_path is not None else ""
     outcome = "trusted" if resolution.trusted else "untrusted"

@@ -86,9 +86,7 @@ class TerminalTitleController:
     ) -> None:
         self._stream = cast(TextIO, sys.__stdout__) if stream is None else stream
         self.enabled = (
-            terminal_title_supported(environ=environ, stream=self._stream)
-            if enabled is None
-            else enabled
+            terminal_title_supported(environ=environ, stream=self._stream) if enabled is None else enabled
         )
         self._writer = writer or self._default_write
         self._last_title: str | None = None

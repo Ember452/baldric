@@ -205,9 +205,7 @@ def save_user_catalog_entries(
         raw = {"schema_version": CATALOG_SCHEMA_VERSION, "providers": []}
 
     providers = list(_raw_providers(raw))
-    provider_indexes = {
-        _raw_provider_name(provider): index for index, provider in enumerate(providers)
-    }
+    provider_indexes = {_raw_provider_name(provider): index for index, provider in enumerate(providers)}
     for entry in entries:
         raw_provider = _raw_provider_from_entry(entry)
         if entry.name in provider_indexes:
@@ -313,9 +311,7 @@ def _merge_raw_catalogs(base: dict[str, Any], overlay: dict[str, Any]) -> dict[s
 
 def _merge_generated_catalog(base: dict[str, Any], generated: dict[str, Any]) -> dict[str, Any]:
     """Replace model inventories while retaining application-owned provider config."""
-    generated_by_name = {
-        _raw_provider_name(provider): provider for provider in _raw_providers(generated)
-    }
+    generated_by_name = {_raw_provider_name(provider): provider for provider in _raw_providers(generated)}
     providers: list[dict[str, Any]] = []
     for provider in _raw_providers(base):
         name = _raw_provider_name(provider)
@@ -333,9 +329,7 @@ def _merge_generated_catalog(base: dict[str, Any], generated: dict[str, Any]) ->
         for field in ("context_windows", "model_metadata"):
             values = merged.get(field)
             if isinstance(values, dict):
-                merged[field] = {
-                    model: value for model, value in values.items() if model in allowed
-                }
+                merged[field] = {model: value for model, value in values.items() if model in allowed}
         thinking_models = merged.get("thinking_models")
         if isinstance(thinking_models, list):
             merged["thinking_models"] = [model for model in thinking_models if model in allowed]
@@ -394,9 +388,7 @@ def _apply_model_tombstones(
         for field in ("context_windows", "model_metadata"):
             values = filtered.get(field)
             if isinstance(values, dict):
-                filtered[field] = {
-                    model: value for model, value in values.items() if model not in removed
-                }
+                filtered[field] = {model: value for model, value in values.items() if model not in removed}
         if filtered.get("default_model") in removed:
             name = _raw_provider_name(provider)
             base_default = base_by_name.get(name, {}).get("default_model")
@@ -470,8 +462,7 @@ def _entry_from_provider(provider: _CatalogProvider, *, source: str) -> Provider
         if model not in provider.models:
             raise CatalogError(f"{prefix}.model_metadata: {model!r} is not in models")
     if provider.thinking_default is not None and (
-        provider.thinking_levels is None
-        or provider.thinking_default not in provider.thinking_levels
+        provider.thinking_levels is None or provider.thinking_default not in provider.thinking_levels
     ):
         raise CatalogError(
             f"{prefix}.thinking_default: {provider.thinking_default!r} is not in thinking_levels"
@@ -484,8 +475,7 @@ def _entry_from_provider(provider: _CatalogProvider, *, source: str) -> Provider
         )
 
     model_metadata = {
-        model: _model_metadata_from_provider(metadata)
-        for model, metadata in provider.model_metadata.items()
+        model: _model_metadata_from_provider(metadata) for model, metadata in provider.model_metadata.items()
     }
     context_windows = dict(provider.context_windows or {})
     for model, metadata in model_metadata.items():
@@ -530,8 +520,7 @@ def _validate_cost_tiers(
         limit = tier.max_input_tokens
         if limit is None or limit <= previous_limit:
             raise CatalogError(
-                f"{field_name}.cost_tiers.{index}.max_input_tokens: "
-                "limits must be strictly increasing"
+                f"{field_name}.cost_tiers.{index}.max_input_tokens: limits must be strictly increasing"
             )
         previous_limit = limit
 
@@ -675,11 +664,7 @@ def _raw_model_metadata_from_entry(metadata: ModelCatalogMetadata) -> dict[str, 
     if metadata.cost_tiers:
         raw["cost_tiers"] = [
             {
-                **(
-                    {"max_input_tokens": tier.max_input_tokens}
-                    if tier.max_input_tokens is not None
-                    else {}
-                ),
+                **({"max_input_tokens": tier.max_input_tokens} if tier.max_input_tokens is not None else {}),
                 **tier.cost,
             }
             for tier in metadata.cost_tiers
@@ -766,9 +751,7 @@ def _toml_value(value: object) -> str:
     if isinstance(value, dict):
         return (
             "{ "
-            + ", ".join(
-                f"{_toml_key(str(key))} = {_toml_value(item)}" for key, item in value.items()
-            )
+            + ", ".join(f"{_toml_key(str(key))} = {_toml_value(item)}" for key, item in value.items())
             + " }"
         )
     raise TypeError(f"Unsupported TOML value: {value!r}")

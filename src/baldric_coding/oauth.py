@@ -364,9 +364,7 @@ async def _post_openai_codex_token(
             await active_client.aclose()
 
     if response.status_code >= 400:
-        raise OAuthError(
-            f"OpenAI Codex token {action} failed ({response.status_code}): {response.text}"
-        )
+        raise OAuthError(f"OpenAI Codex token {action} failed ({response.status_code}): {response.text}")
 
     raw = response.json()
     if not isinstance(raw, dict):
@@ -396,15 +394,12 @@ def _token_expiry(raw: dict[str, Any], access_token: str, *, action: str) -> int
         return int(time.time() * 1000) + int(expires_in * 1000)
     if expires_in is not None:
         raise OAuthError(
-            f"OpenAI Codex token {action} response has invalid expires_in: "
-            f"{dumps(raw, sort_keys=True)}"
+            f"OpenAI Codex token {action} response has invalid expires_in: {dumps(raw, sort_keys=True)}"
         )
     expires = _access_token_expiry(access_token)
     if expires is not None:
         return expires
-    raise OAuthError(
-        f"OpenAI Codex token {action} response missing expiry: {dumps(raw, sort_keys=True)}"
-    )
+    raise OAuthError(f"OpenAI Codex token {action} response missing expiry: {dumps(raw, sort_keys=True)}")
 
 
 async def _wait_for_authorization_code(
@@ -518,10 +513,5 @@ def _base64url_decode(value: str) -> bytes:
 
 
 def _oauth_html(message: str) -> str:
-    escaped = (
-        message.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-    )
+    escaped = message.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
     return f'<!doctype html><meta charset="utf-8"><title>Baldric OAuth</title><p>{escaped}</p>'

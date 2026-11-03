@@ -166,18 +166,13 @@ def _format_assistant_summary_source(message: AssistantMessage) -> str:
     if content != "(empty)":
         parts.append(f"[Assistant]: {content}")
     if message.tool_calls:
-        calls = [
-            f"{call.name}({_format_tool_call_arguments(call.arguments)})"
-            for call in message.tool_calls
-        ]
+        calls = [f"{call.name}({_format_tool_call_arguments(call.arguments)})" for call in message.tool_calls]
         parts.append(f"[Assistant tool calls]: {'; '.join(calls)}")
     return "\n".join(parts) if parts else "[Assistant]: (empty)"
 
 
 def _format_tool_call_arguments(arguments: Mapping[str, object]) -> str:
-    return ", ".join(
-        f"{key}={json.dumps(value, sort_keys=True)}" for key, value in sorted(arguments.items())
-    )
+    return ", ".join(f"{key}={json.dumps(value, sort_keys=True)}" for key, value in sorted(arguments.items()))
 
 
 def _trim_summary_source_text(

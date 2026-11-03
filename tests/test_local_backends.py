@@ -180,9 +180,7 @@ async def test_configuration_validation_is_transactional_and_secret_safe() -> No
     assert committed == []
     assert "secret" not in repr(invalid)
 
-    valid = await registry.configure(
-        "backend", {"url": "http://example", "key": "secret", "mode": "one"}
-    )
+    valid = await registry.configure("backend", {"url": "http://example", "key": "secret", "mode": "one"})
     assert valid.committed is True
     assert len(committed) == 1
 

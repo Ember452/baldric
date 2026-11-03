@@ -193,8 +193,7 @@ class TuiState:
             if not expanded:
                 return None
             return "\n".join(
-                self.resolve_tool_invocation(row, expanded=True) or row.text
-                for row in item.tool_batch_items
+                self.resolve_tool_invocation(row, expanded=True) or row.text for row in item.tool_batch_items
             )
         if item.grouped_tool_calls is not None:
             if not expanded:
@@ -205,10 +204,7 @@ class TuiState:
                 if self.tool_call_renderer is not None:
                     rendered_line = self.tool_call_renderer(member.tool_name, member.tool_arguments)
                 block = rendered_line if rendered_line is not None else member.text
-                if (
-                    item.tool_name in RESULTFUL_FILE_GROUP_NAMES
-                    and member.tool_result_text is not None
-                ):
+                if item.tool_name in RESULTFUL_FILE_GROUP_NAMES and member.tool_result_text is not None:
                     block = f"{block}\n\n{member.tool_result_text}"
                 blocks.append(block)
             separator = "\n\n" if item.tool_name in RESULTFUL_FILE_GROUP_NAMES else "\n"
@@ -317,9 +313,7 @@ class TuiState:
             return False
         if self._has_custom_call_rendering(tool_call.name, tool_call.arguments):
             return False
-        previous_row = (
-            previous.tool_batch_items[-1] if previous.tool_batch_items is not None else previous
-        )
+        previous_row = previous.tool_batch_items[-1] if previous.tool_batch_items is not None else previous
         if previous_row.tool_name not in BATCHABLE_TOOL_NAMES:
             return False
         return not self._has_custom_call_rendering(
@@ -465,9 +459,7 @@ class TuiState:
         item.text = "\n".join(row.text for row in rows)
         pending = [row for row in rows if row.started_at is not None]
         failures = [
-            row
-            for row in rows
-            if row.tool_result_text is not None and row.tool_result_text.startswith("✗")
+            row for row in rows if row.tool_result_text is not None and row.tool_result_text.startswith("✗")
         ]
         if failures:
             item.tool_result_text = "✗ tool batch"
@@ -791,18 +783,14 @@ def _is_tool_only_message(message: AssistantMessage) -> bool:
     for block in message.content:
         if isinstance(block, ToolCall):
             continue
-        if isinstance(block, TextContent | ThinkingContent) and not assistant_block_is_visible(
-            block
-        ):
+        if isinstance(block, TextContent | ThinkingContent) and not assistant_block_is_visible(block):
             continue
         return False
     return True
 
 
 def _parse_branch_summary_message(content: str) -> str | None:
-    prefix = (
-        "The following is a summary of a branch that this conversation came back from:\n<summary>\n"
-    )
+    prefix = "The following is a summary of a branch that this conversation came back from:\n<summary>\n"
     suffix = "\n</summary>"
     if content.startswith(prefix) and content.endswith(suffix):
         return content.removeprefix(prefix).removesuffix(suffix)
@@ -828,9 +816,7 @@ def format_elapsed(seconds: float) -> str:
     return f"{hours}h {minutes}m"
 
 
-def format_tool_call_block(
-    tool_call: ToolCall, *, compact: bool = True, cwd: Path | None = None
-) -> str:
+def format_tool_call_block(tool_call: ToolCall, *, compact: bool = True, cwd: Path | None = None) -> str:
     """Format a tool call, optionally compacting long bash invocations."""
     invocation = format_tool_call_invocation(tool_call, expanded=not compact, cwd=cwd)
     if tool_call.name == "bash":
@@ -864,9 +850,7 @@ def format_tool_call_invocation(
     return _fallback_tool_call_invocation(tool_call)
 
 
-def _format_bash_tool_call_invocation(
-    arguments: dict[str, JSONValue], *, compact: bool
-) -> str | None:
+def _format_bash_tool_call_invocation(arguments: dict[str, JSONValue], *, compact: bool) -> str | None:
     command = _string_argument(arguments, "command")
     if command is None:
         return None

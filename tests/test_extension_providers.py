@@ -711,9 +711,7 @@ async def test_incompatible_network_policies_never_coalesce(network_first: bool)
 
     registry = DynamicProviderRegistry(generation_id="generation-1")
     registry.register("source", provider(refresh_models=refresh))
-    first = asyncio.create_task(
-        registry.refresh("local", allow_network=network_first, timeout_seconds=1.0)
-    )
+    first = asyncio.create_task(registry.refresh("local", allow_network=network_first, timeout_seconds=1.0))
     await entered[network_first].wait()
     second = asyncio.create_task(
         registry.refresh("local", allow_network=not network_first, timeout_seconds=1.0)
@@ -1346,8 +1344,7 @@ async def test_reloading_same_exact_extension_source_keeps_first_registration(
     assert runtime.provider_registry.effective("local").definition is first_definition  # type: ignore[union-attr]
     assert len(runtime.provider_registry.layers("local")) == 1
     assert any(
-        "duplicate extension source ignored" in diagnostic.message
-        for diagnostic in runtime.diagnostics
+        "duplicate extension source ignored" in diagnostic.message for diagnostic in runtime.diagnostics
     )
 
 

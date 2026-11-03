@@ -216,9 +216,7 @@ async def canonicalize_provider_stream(
             error.response_provider = event.response_provider or partial.response_provider
             error.stop_reason = "error"
             error.error_message = event.message
-            error.diagnostics = [
-                AssistantMessageDiagnostic(type="provider_error", details=event.data)
-            ]
+            error.diagnostics = [AssistantMessageDiagnostic(type="provider_error", details=event.data)]
             yield AssistantErrorEvent(reason="error", error=error)
             terminal = True
 

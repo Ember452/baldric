@@ -45,10 +45,7 @@ class CodexClientVersionResolver:
             return _latest_known_version(_cached_version(cache))
 
         current_time = self._now()
-        if (
-            cache is not None
-            and current_time - cache["checked_at"] < CODEX_VERSION_REFRESH_INTERVAL_SECONDS
-        ):
+        if cache is not None and current_time - cache["checked_at"] < CODEX_VERSION_REFRESH_INTERVAL_SECONDS:
             return _latest_known_version(cache["version"])
 
         owned_client = self._client is None

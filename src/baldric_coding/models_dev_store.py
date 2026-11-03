@@ -157,10 +157,7 @@ def _read_cache(paths: BaldricPaths | None) -> dict[str, Any] | None:
     path = models_store_path(paths)
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
-        if (
-            not isinstance(value, dict)
-            or value.get("schema_version") != MODELS_STORE_SCHEMA_VERSION
-        ):
+        if not isinstance(value, dict) or value.get("schema_version") != MODELS_STORE_SCHEMA_VERSION:
             return None
         checked_at = value.get("checked_at")
         catalog = value.get("catalog")

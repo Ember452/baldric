@@ -663,10 +663,7 @@ async def test_google_provider_sends_system_instruction_at_top_level() -> None:
         requests.append(request)
         return httpx.Response(
             200,
-            text=(
-                'data: {"candidates":[{"content":{"parts":[{"text":"ok"}]},'
-                '"finishReason":"STOP"}]}\n\n'
-            ),
+            text=('data: {"candidates":[{"content":{"parts":[{"text":"ok"}]},"finishReason":"STOP"}]}\n\n'),
             headers={"content-type": "text/event-stream"},
         )
 
@@ -763,10 +760,7 @@ async def test_google_provider_strips_unsupported_schema_keywords_from_tools() -
         requests.append(request)
         return httpx.Response(
             200,
-            text=(
-                'data: {"candidates":[{"content":{"parts":[{"text":"ok"}]},'
-                '"finishReason":"STOP"}]}\n\n'
-            ),
+            text=('data: {"candidates":[{"content":{"parts":[{"text":"ok"}]},"finishReason":"STOP"}]}\n\n'),
             headers={"content-type": "text/event-stream"},
         )
 
@@ -820,8 +814,7 @@ async def test_google_provider_errors_when_stream_ends_during_thinking() -> None
         return httpx.Response(
             200,
             text=(
-                'data: {"candidates":[{"content":{"parts":['
-                '{"text":"partial thought","thought":true}]}}]}\n\n'
+                'data: {"candidates":[{"content":{"parts":[{"text":"partial thought","thought":true}]}}]}\n\n'
             ),
             headers={"content-type": "text/event-stream"},
         )
@@ -953,10 +946,7 @@ async def test_google_provider_accepts_explicit_stop_finish_reason() -> None:
     def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             200,
-            text=(
-                'data: {"candidates":[{"content":{"parts":[{"text":"ok"}]},'
-                '"finishReason":"STOP"}]}\n\n'
-            ),
+            text=('data: {"candidates":[{"content":{"parts":[{"text":"ok"}]},"finishReason":"STOP"}]}\n\n'),
             headers={"content-type": "text/event-stream"},
         )
 
@@ -1112,8 +1102,7 @@ async def test_openai_compatible_provider_replays_persisted_reasoning() -> None:
         return httpx.Response(
             200,
             text=(
-                'data: {"choices":[{"delta":{"content":"next"},"finish_reason":"stop"}]}\n\n'
-                "data: [DONE]\n\n"
+                'data: {"choices":[{"delta":{"content":"next"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'
             ),
             headers={"content-type": "text/event-stream"},
         )
@@ -1219,8 +1208,7 @@ async def test_openai_compatible_provider_reports_resolved_response_provider() -
         return httpx.Response(
             200,
             text=(
-                'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\n'
-                "data: [DONE]\n\n"
+                'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'
             ),
             headers={
                 "content-type": "text/event-stream",
@@ -1268,8 +1256,7 @@ async def test_openai_compatible_provider_retries_transient_status() -> None:
         return httpx.Response(
             200,
             text=(
-                'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\n'
-                "data: [DONE]\n\n"
+                'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'
             ),
             headers={"content-type": "text/event-stream"},
         )
@@ -1376,8 +1363,7 @@ async def test_openai_compatible_provider_does_not_retry_non_transient_status() 
     assert len(requests) == 1
     assert isinstance(events[-1], AssistantErrorEvent)
     assert events[-1].error.error_message == (
-        "test-openai request failed with status 400 for model test-model: "
-        "The selected model is unavailable."
+        "test-openai request failed with status 400 for model test-model: The selected model is unavailable."
     )
     assert events[-1].error.diagnostics[0].details == {
         "status_code": 400,
@@ -1518,9 +1504,7 @@ async def test_openai_codex_provider_discovers_and_caches_live_model_catalog() -
         auto_compact_token_limit=330_000,
     )
     assert len(requests) == 1
-    assert str(requests[0].url) == (
-        "https://chatgpt.test/backend-api/codex/models?client_version=0.2.0"
-    )
+    assert str(requests[0].url) == ("https://chatgpt.test/backend-api/codex/models?client_version=0.2.0")
     assert requests[0].headers["authorization"] == "Bearer access-token"
     assert requests[0].headers["chatgpt-account-id"] == "account-1"
     assert requests[0].headers["accept"] == "application/json"
@@ -1561,9 +1545,7 @@ async def test_openai_codex_provider_uses_resolved_latest_client_version() -> No
 
     assert [model.id for model in catalog.models] == ["new-model"]
     assert version_calls == 1
-    assert str(requests[0].url) == (
-        "https://chatgpt.test/backend-api/codex/models?client_version=0.153.4"
-    )
+    assert str(requests[0].url) == ("https://chatgpt.test/backend-api/codex/models?client_version=0.153.4")
 
 
 @pytest.mark.anyio
@@ -1599,8 +1581,7 @@ async def test_openai_codex_provider_includes_http_error_detail_in_message() -> 
 
     assert isinstance(events[-1], AssistantErrorEvent)
     assert events[-1].error.error_message == (
-        "openai-codex request failed with status 400 for model gpt-5.5: "
-        "The requested model does not exist."
+        "openai-codex request failed with status 400 for model gpt-5.5: The requested model does not exist."
     )
     assert events[-1].error.diagnostics[0].details == {
         "status_code": 400,
@@ -1693,9 +1674,7 @@ async def test_openai_codex_provider_surfaces_nested_stream_error_message() -> N
         )
 
     assert isinstance(events[-1], AssistantErrorEvent)
-    assert events[-1].error.error_message == (
-        "Our servers are currently overloaded. Please try again later."
-    )
+    assert events[-1].error.error_message == ("Our servers are currently overloaded. Please try again later.")
     assert events[-1].error.diagnostics[0].details == {
         "event": {
             "type": "error",
@@ -1848,9 +1827,7 @@ async def test_openai_codex_provider_surfaces_stream_error_after_retry_exhaustio
 
     assert len(requests) == 2
     assert isinstance(events[-1], AssistantErrorEvent)
-    assert events[-1].error.error_message == (
-        "Our servers are currently overloaded. Please try again later."
-    )
+    assert events[-1].error.error_message == ("Our servers are currently overloaded. Please try again later.")
 
 
 @pytest.mark.anyio
@@ -2677,8 +2654,7 @@ async def test_anthropic_provider_retries_transient_stream_error() -> None:
             return httpx.Response(
                 200,
                 text=(
-                    'data: {"type":"error","error":{"type":"overloaded_error",'
-                    '"message":"Overloaded"}}\n\n'
+                    'data: {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}\n\n'
                 ),
                 headers={"content-type": "text/event-stream"},
             )
@@ -2734,10 +2710,7 @@ async def test_anthropic_provider_surfaces_stream_error_after_retry_exhaustion()
         requests.append(request)
         return httpx.Response(
             200,
-            text=(
-                'data: {"type":"error","error":{"type":"overloaded_error",'
-                '"message":"Overloaded"}}\n\n'
-            ),
+            text=('data: {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}\n\n'),
             headers={"content-type": "text/event-stream"},
         )
 
@@ -2869,10 +2842,7 @@ async def test_anthropic_provider_cancellation_stops_stream_error_retry_backoff(
         requests.append(request)
         return httpx.Response(
             200,
-            text=(
-                'data: {"type":"error","error":{"type":"overloaded_error",'
-                '"message":"Overloaded"}}\n\n'
-            ),
+            text=('data: {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}\n\n'),
             headers={"content-type": "text/event-stream"},
         )
 
@@ -3654,8 +3624,7 @@ async def test_openai_compatible_provider_can_disable_usage_in_streaming() -> No
         return httpx.Response(
             200,
             text=(
-                'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\n'
-                "data: [DONE]\n\n"
+                'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'
             ),
             headers={"content-type": "text/event-stream"},
         )

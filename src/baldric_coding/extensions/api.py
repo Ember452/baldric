@@ -1177,9 +1177,7 @@ class ExtensionAPI:
         must not return a Textual widget (that keeps extensions TUI-free).
         """
         self._generation.assert_active()
-        self._runtime.register_message_renderer(
-            self._source_id, self._extension_name, custom_type, renderer
-        )
+        self._runtime.register_message_renderer(self._source_id, self._extension_name, custom_type, renderer)
 
     def send_custom_message(
         self,

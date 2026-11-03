@@ -104,7 +104,7 @@ from baldric_coding.rendering import (
     TranscriptRenderer,
     create_event_renderer,
 )
-from baldric_coding.resources import ResourceDiagnostic, ResourceError, BaldricResourcePaths
+from baldric_coding.resources import BaldricResourcePaths, ResourceDiagnostic, ResourceError
 from baldric_coding.session import (
     CodingSession,
     CodingSessionConfig,

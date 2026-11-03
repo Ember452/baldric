@@ -88,8 +88,7 @@ def test_file_credential_store_round_trips_extensible_oauth_metadata(tmp_path) -
 def test_file_credential_store_loads_legacy_codex_oauth_shape(tmp_path) -> None:
     path = tmp_path / "credentials.json"
     path.write_text(
-        '{"openai-codex":{"type":"oauth","access":"a","refresh":"r",'
-        '"expires":123,"account_id":"account"}}',
+        '{"openai-codex":{"type":"oauth","access":"a","refresh":"r","expires":123,"account_id":"account"}}',
         encoding="utf-8",
     )
 

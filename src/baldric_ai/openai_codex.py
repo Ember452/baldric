@@ -699,9 +699,7 @@ async def _codex_provider_events(
             0,
             ThinkingContent(
                 thinking="".join(thinking_parts),
-                thinking_signature=(
-                    dumps(next(iter(reasoning_items.values()))) if reasoning_items else None
-                ),
+                thinking_signature=(dumps(next(iter(reasoning_items.values()))) if reasoning_items else None),
             ),
         )
     yield ProviderResponseEndEvent(
@@ -887,23 +885,15 @@ def _usage_from_response(event: Mapping[str, Any]) -> Usage | None:
     if not isinstance(raw, Mapping):
         return None
     input_details = raw.get("input_tokens_details")
-    cache_read = (
-        _int_or_zero(input_details.get("cached_tokens"))
-        if isinstance(input_details, Mapping)
-        else 0
-    )
+    cache_read = _int_or_zero(input_details.get("cached_tokens")) if isinstance(input_details, Mapping) else 0
     cache_write = (
-        _int_or_zero(input_details.get("cache_write_tokens"))
-        if isinstance(input_details, Mapping)
-        else 0
+        _int_or_zero(input_details.get("cache_write_tokens")) if isinstance(input_details, Mapping) else 0
     )
     output_details = raw.get("output_tokens_details")
     # Leave reasoning None (not 0) when the provider reports no breakdown,
     # honoring the "None = not reported" contract on Usage.
     reasoning = (
-        _int_or_zero(output_details.get("reasoning_tokens"))
-        if isinstance(output_details, Mapping)
-        else None
+        _int_or_zero(output_details.get("reasoning_tokens")) if isinstance(output_details, Mapping) else None
     )
     return Usage(
         input=max(0, _int_or_zero(raw.get("input_tokens")) - cache_read - cache_write),

@@ -165,9 +165,7 @@ def test_install_git_source_clones_and_checks_out_ref(tmp_path: Path) -> None:
         if command[1] == "clone":
             destination = Path(command[-1])
             destination.mkdir()
-            (destination / "extension.py").write_text(
-                "def setup(baldric):\n    pass\n", encoding="utf-8"
-            )
+            (destination / "extension.py").write_text("def setup(baldric):\n    pass\n", encoding="utf-8")
         return subprocess.CompletedProcess(command, 0, "", "")
 
     destination = install_extension(

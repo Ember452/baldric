@@ -99,9 +99,7 @@ def test_extra_sections_follow_user_append_in_registration_order(tmp_path: Path)
             custom_prompt="Custom base.",
             append_system_prompt="User append.",
             extra_sections=(
-                PromptSection(
-                    title="Extension procedure", body="First step.\n\n```bash\nuv run pytest\n```"
-                ),
+                PromptSection(title="Extension procedure", body="First step.\n\n```bash\nuv run pytest\n```"),
                 PromptSection(title=None, body="Untitled extension context."),
             ),
             context_files=(ProjectContextFile(path="/repo/AGENTS.md", content="Project rules."),),
@@ -227,9 +225,7 @@ def test_skills_are_included_only_when_read_tool_is_available(tmp_path: Path) ->
         BuildSystemPromptOptions(cwd=tmp_path, tools=[no_read_tool], skills=[skill])
     )
     with_read = build_system_prompt(
-        BuildSystemPromptOptions(
-            cwd=tmp_path, tools=create_coding_tools(cwd=tmp_path), skills=[skill]
-        )
+        BuildSystemPromptOptions(cwd=tmp_path, tools=create_coding_tools(cwd=tmp_path), skills=[skill])
     )
 
     assert "<available_skills>" not in without_read

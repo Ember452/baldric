@@ -183,9 +183,7 @@ def setup_command(
     )
     updated = upsert_openai_compatible_provider(settings, provider, set_default=set_default)
     path = save_provider_settings(updated)
-    typer.echo(
-        f"Saved provider '{provider.name}' to {user_catalog_path()} and preferences to {path}"
-    )
+    typer.echo(f"Saved provider '{provider.name}' to {user_catalog_path()} and preferences to {path}")
     if provider.api_key_env not in environ:
         typer.echo(f"Set {provider.api_key_env} before running Baldric with this provider.", err=True)
 
@@ -399,9 +397,7 @@ def main(
 
     if approve and no_approve:
         raise typer.BadParameter("--approve and --no-approve cannot be used together")
-    trust_override: TrustOverride | None = (
-        "approve" if approve else "decline" if no_approve else None
-    )
+    trust_override: TrustOverride | None = "approve" if approve else "decline" if no_approve else None
 
     if resume is not None:
         raise typer.BadParameter(
@@ -488,21 +484,11 @@ def main(
             raise typer.BadParameter("--export cannot be combined with --print/--mode.")
         _run_export_cli(positional_args)
 
-    if (
-        not rpc_requested
-        and not print_requested
-        and command == "providers"
-        and len(positional_args) == 1
-    ):
+    if not rpc_requested and not print_requested and command == "providers" and len(positional_args) == 1:
         providers_command()
         raise typer.Exit()
 
-    if (
-        not rpc_requested
-        and not print_requested
-        and command == "setup"
-        and len(positional_args) == 1
-    ):
+    if not rpc_requested and not print_requested and command == "setup" and len(positional_args) == 1:
         setup_command(
             provider_name=provider or DEFAULT_PROVIDER_NAME,
             base_url=setup_base_url,
@@ -517,17 +503,13 @@ def main(
 
     extension_paths = tuple(extension or ())
     custom_system_prompt = (
-        _resolve_prompt_input(system_prompt, option="--system-prompt")
-        if system_prompt is not None
-        else None
+        _resolve_prompt_input(system_prompt, option="--system-prompt") if system_prompt is not None else None
     )
     resolved_append_system_prompt = _resolve_append_system_prompts(append_system_prompt or ())
 
     if rpc_requested:
         if initial_prompt is not None:
-            raise typer.BadParameter(
-                "RPC mode reads commands from stdin and does not accept a prompt"
-            )
+            raise typer.BadParameter("RPC mode reads commands from stdin and does not accept a prompt")
         try:
             anyio.run(
                 partial(
@@ -709,9 +691,7 @@ def update_models_command() -> None:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from error
     status = "refreshed" if result.refreshed else "unchanged"
-    typer.echo(
-        f"Model catalogs {status}: {result.model_count} models cached at {result.cache_path}"
-    )
+    typer.echo(f"Model catalogs {status}: {result.model_count} models cached at {result.cache_path}")
 
 
 def update_command() -> None:
@@ -816,9 +796,7 @@ def _resolve_append_system_prompts(values: tuple[str, ...] | list[str]) -> str |
     """Resolve repeated append inputs in order and separate them by one blank line."""
     if not values:
         return None
-    return "\n\n".join(
-        _resolve_prompt_input(value, option="--append-system-prompt") for value in values
-    )
+    return "\n\n".join(_resolve_prompt_input(value, option="--append-system-prompt") for value in values)
 
 
 def _merge_stdin_prompt(prompt: str) -> str:
@@ -869,9 +847,7 @@ def _parse_export_cli_args(args: list[str]) -> tuple[str, Path | None, str | Non
         elif output_path is None:
             output_path = Path(arg).expanduser()
         else:
-            raise RuntimeError(
-                "Usage: baldric export <session-id-or-jsonl> [--format html|jsonl] [output]"
-            )
+            raise RuntimeError("Usage: baldric export <session-id-or-jsonl> [--format html|jsonl] [output]")
         index += 1
     return session_ref, output_path, export_format
 
@@ -1124,9 +1100,7 @@ async def run_openai_print_mode(
     initial_provider: ClosableModelProvider | None = None
     runtime_config: ProviderConfig | None = None
     runtime_inference = record.inference_provider
-    runtime_inference_mode: Literal["automatic", "fixed"] = (
-        record.inference_provider_mode or "automatic"
-    )
+    runtime_inference_mode: Literal["automatic", "fixed"] = record.inference_provider_mode or "automatic"
     if static_selection is not None:
         runtime_inference = (
             record.inference_provider

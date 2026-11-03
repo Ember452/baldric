@@ -26,9 +26,7 @@ InputModalities = tuple[Literal["text", "image"], ...]
 _KNOWN_INPUT_MODALITIES = frozenset({"text", "image", "audio", "video"})
 _SENT_INPUT_MODALITIES = ("text", "image")
 
-RouterState = Literal[
-    "loaded", "sleeping", "unloaded", "loading", "downloading", "failed", "unknown"
-]
+RouterState = Literal["loaded", "sleeping", "unloaded", "loading", "downloading", "failed", "unknown"]
 
 
 class LlamaCppRouterError(RuntimeError):
@@ -139,9 +137,7 @@ async def list_router_models(
             RouterModel(
                 id=model_id,
                 state=state,
-                display_name=(
-                    display if isinstance(display, str) and display.strip() else model_id
-                ),
+                display_name=(display if isinstance(display, str) and display.strip() else model_id),
                 input_modalities=modalities,
                 failed=failed,
                 downloaded_bytes=downloaded_bytes,
@@ -205,10 +201,7 @@ def _download_progress(status: object) -> tuple[int | None, int | None]:
 
 def _is_non_negative_number(value: object) -> TypeGuard[int | float]:
     return (
-        isinstance(value, int | float)
-        and not isinstance(value, bool)
-        and math.isfinite(value)
-        and value >= 0
+        isinstance(value, int | float) and not isinstance(value, bool) and math.isfinite(value) and value >= 0
     )
 
 
@@ -301,9 +294,7 @@ def _raise_http(response: httpx.Response, operation: str) -> None:
     if response.status_code >= 400:
         detail = _server_error_detail(response)
         suffix = f": {detail}" if detail else "."
-        raise LlamaCppRouterError(
-            f"llama.cpp returned HTTP {response.status_code} while {operation}{suffix}"
-        )
+        raise LlamaCppRouterError(f"llama.cpp returned HTTP {response.status_code} while {operation}{suffix}")
 
 
 def _server_error_detail(response: httpx.Response) -> str | None:

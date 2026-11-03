@@ -82,7 +82,7 @@ from baldric_coding.project_trust import (
     ProjectTrustResolution,
 )
 from baldric_coding.provider_config import ProviderConfig
-from baldric_coding.resources import ResourceDiagnostic, BaldricResourcePaths
+from baldric_coding.resources import BaldricResourcePaths, ResourceDiagnostic
 from baldric_coding.system_prompt import PromptSection
 
 # Host callback that delivers a message through the frontend's serialized run
@@ -239,10 +239,7 @@ class ExtensionRuntime:
             else (
                 cast(CredentialStore, credentials)
                 if credentials is not None
-                and all(
-                    callable(getattr(credentials, name, None))
-                    for name in ("set", "delete", "names")
-                )
+                and all(callable(getattr(credentials, name, None)) for name in ("set", "delete", "names"))
                 else FileCredentialStore(credentials_path(built_in_paths))
             )
         )
@@ -496,9 +493,7 @@ class ExtensionRuntime:
             if registration.source_id != source_id
         }
         self._commands = {
-            name: command
-            for name, command in self._commands.items()
-            if command.source_id != source_id
+            name: command for name, command in self._commands.items() if command.source_id != source_id
         }
         self._prompt_guidelines = [
             (owner, extension, guideline)
@@ -711,9 +706,7 @@ class ExtensionRuntime:
         except Exception as exc:  # noqa: BLE001 - a renderer must never crash the frontend
             if failure_key not in self._renderer_failures_reported:
                 self._renderer_failures_reported.add(failure_key)
-                self._record_runtime_failure(
-                    registered.extension, f"render_result:{tool_name}", exc
-                )
+                self._record_runtime_failure(registered.extension, f"render_result:{tool_name}", exc)
             return None
         if markup is not None and not isinstance(markup, str):
             if failure_key not in self._renderer_failures_reported:
@@ -722,9 +715,7 @@ class ExtensionRuntime:
             return None
         return markup
 
-    def register_prompt_guideline(
-        self, source_id: str, extension_name: str, guideline: str
-    ) -> None:
+    def register_prompt_guideline(self, source_id: str, extension_name: str, guideline: str) -> None:
         """Register a standalone system-prompt guideline line."""
         normalized = guideline.strip()
         if not normalized:
@@ -759,9 +750,7 @@ class ExtensionRuntime:
         normalized_title = title.strip() if title is not None else None
         if normalized_title == "":
             normalized_title = None
-        if normalized_title is not None and any(
-            separator in normalized_title for separator in ("\r", "\n")
-        ):
+        if normalized_title is not None and any(separator in normalized_title for separator in ("\r", "\n")):
             self._load_diagnostics.append(
                 ResourceDiagnostic(
                     kind="extension",
@@ -780,11 +769,7 @@ class ExtensionRuntime:
 
     def subscribe(self, source_id: str, event: str, handler: ExtensionHandler) -> None:
         """Subscribe an extension handler to a named event."""
-        known = (
-            event in AGENT_EVENT_TYPES
-            or event in LIFECYCLE_EVENT_TYPES
-            or event == AGENT_EVENT_WILDCARD
-        )
+        known = event in AGENT_EVENT_TYPES or event in LIFECYCLE_EVENT_TYPES or event == AGENT_EVENT_WILDCARD
         if not known:
             self._load_diagnostics.append(
                 ResourceDiagnostic(
@@ -921,9 +906,7 @@ class ExtensionRuntime:
             )
             for diagnostic in self._provider_registry.diagnostics
         )
-        return (
-            tuple(self._load_diagnostics) + tuple(self._runtime_diagnostics) + provider_diagnostics
-        )
+        return tuple(self._load_diagnostics) + tuple(self._runtime_diagnostics) + provider_diagnostics
 
     @property
     def extension_tools(self) -> tuple[AgentTool, ...]:
@@ -1039,9 +1022,7 @@ class ExtensionRuntime:
             if call_outcome.block:
                 reason = call_outcome.reason or "blocked by an extension"
                 return AgentToolResult(content=[TextContent(text=f"Tool call blocked: {reason}")])
-            effective_arguments = (
-                call_outcome.arguments if call_outcome.arguments is not None else arguments
-            )
+            effective_arguments = call_outcome.arguments if call_outcome.arguments is not None else arguments
             result = await tool.execute(
                 tool_call_id,
                 effective_arguments,
@@ -1147,9 +1128,7 @@ class ExtensionRuntime:
                 )
         return registry
 
-    def _command_handler(
-        self, command: ExtensionCommand
-    ) -> Callable[[CommandContext], CommandResult]:
+    def _command_handler(self, command: ExtensionCommand) -> Callable[[CommandContext], CommandResult]:
         def handler(context: CommandContext) -> CommandResult:
             extension_context = ExtensionCommandContext(
                 name=command.name,
@@ -1337,8 +1316,7 @@ class ExtensionRuntime:
                 kind="extension",
                 name=extension,
                 message=(
-                    f"handler for `{event}` returned unsupported"
-                    f" result type {type(result).__name__}; ignored"
+                    f"handler for `{event}` returned unsupported result type {type(result).__name__}; ignored"
                 ),
             )
         )

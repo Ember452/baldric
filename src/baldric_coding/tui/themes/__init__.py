@@ -488,9 +488,7 @@ def load_custom_tui_themes(
             try:
                 theme = parse_tui_theme_json(data)
             except TuiThemeError as error:
-                diagnostics.append(
-                    ResourceDiagnostic(kind="invalid-theme", message=str(error), path=path)
-                )
+                diagnostics.append(ResourceDiagnostic(kind="invalid-theme", message=str(error), path=path))
                 continue
             if theme.name in _BUILTIN_THEMES:
                 diagnostics.append(

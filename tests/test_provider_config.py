@@ -187,10 +187,7 @@ def test_builtin_openai_declares_model_scoped_thinking_capabilities() -> None:
         "high",
         "max",
     )
-    assert (
-        provider_thinking_unavailable_reason(openrouter, model="anthropic/claude-sonnet-4.6")
-        is None
-    )
+    assert provider_thinking_unavailable_reason(openrouter, model="anthropic/claude-sonnet-4.6") is None
     assert provider_thinking_levels(huggingface, model="MiniMaxAI/MiniMax-M2.7") == (
         "off",
         "minimal",
@@ -408,9 +405,7 @@ def test_save_provider_settings_writes_backup_when_replacing(tmp_path: Path) -> 
     assert backup.exists()
     assert load_provider_settings(paths).get_provider("openai").default_model == "gpt-5-mini"
     assert (
-        provider_settings_from_json(json.loads(backup.read_text()))
-        .get_provider("openai")
-        .default_model
+        provider_settings_from_json(json.loads(backup.read_text())).get_provider("openai").default_model
         == "gpt-5"
     )
 
@@ -693,9 +688,7 @@ def test_provider_settings_parses_scoped_models() -> None:
 
 
 def test_upsert_openai_compatible_provider_replaces_and_sets_default() -> None:
-    settings = ProviderSettings(
-        scoped_models=(ScopedModelConfig(provider="openai", model="gpt-5.5"),)
-    )
+    settings = ProviderSettings(scoped_models=(ScopedModelConfig(provider="openai", model="gpt-5.5"),))
     provider = OpenAICompatibleProviderConfig(
         name="local",
         base_url="http://localhost:11434/v1",
@@ -1326,15 +1319,9 @@ def test_anthropic_config_from_provider_maps_opus_5_adaptive_thinking(
     provider = ProviderSettings().get_provider("anthropic")
     assert isinstance(provider, AnthropicProviderConfig)
 
-    off_config = anthropic_config_from_provider(
-        provider, model="claude-opus-5", thinking_level="off"
-    )
-    medium_config = anthropic_config_from_provider(
-        provider, model="claude-opus-5", thinking_level="medium"
-    )
-    xhigh_config = anthropic_config_from_provider(
-        provider, model="claude-opus-5", thinking_level="xhigh"
-    )
+    off_config = anthropic_config_from_provider(provider, model="claude-opus-5", thinking_level="off")
+    medium_config = anthropic_config_from_provider(provider, model="claude-opus-5", thinking_level="medium")
+    xhigh_config = anthropic_config_from_provider(provider, model="claude-opus-5", thinking_level="xhigh")
 
     assert off_config.thinking_mode == "disabled"
     assert off_config.thinking_effort is None
@@ -1494,9 +1481,7 @@ def test_set_provider_thinking_level_updates_preference() -> None:
     )
 
     assert updated.get_provider("local").thinking_defaults == {"reasoner": "high"}
-    assert updated.to_json()["provider_preferences"]["local"]["thinking_defaults"] == {
-        "reasoner": "high"
-    }
+    assert updated.to_json()["provider_preferences"]["local"]["thinking_defaults"] == {"reasoner": "high"}
 
 
 def test_provider_settings_from_json_loads_openai_codex_provider() -> None:

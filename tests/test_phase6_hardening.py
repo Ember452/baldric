@@ -242,9 +242,7 @@ async def test_missing_model_reference_survives_refresh_and_restart(tmp_path: Pa
         transport=httpx.MockTransport(
             lambda request: httpx.Response(
                 200,
-                json={"status": "ok"}
-                if request.url.path == "/health"
-                else {"data": [{"id": "other-model"}]},
+                json={"status": "ok"} if request.url.path == "/health" else {"data": [{"id": "other-model"}]},
             )
         )
     )

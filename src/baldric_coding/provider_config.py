@@ -167,15 +167,11 @@ class OpenAICompatibleProviderConfig:
             "context_windows": dict(self.context_windows),
             "headers": dict(self.headers),
             "compat": dict(self.compat),
-            "model_metadata": {
-                model: metadata.to_json() for model, metadata in self.model_metadata.items()
-            },
+            "model_metadata": {model: metadata.to_json() for model, metadata in self.model_metadata.items()},
             "timeout_seconds": self.timeout_seconds,
             "max_retries": self.max_retries,
             "max_retry_delay_seconds": self.max_retry_delay_seconds,
-            "thinking_levels": (
-                list(self.thinking_levels) if self.thinking_levels is not None else None
-            ),
+            "thinking_levels": (list(self.thinking_levels) if self.thinking_levels is not None else None),
             "thinking_models": list(self.thinking_models),
             "thinking_default": self.thinking_default,
             "thinking_parameter": self.thinking_parameter,
@@ -239,15 +235,11 @@ class AnthropicProviderConfig:
             "context_windows": dict(self.context_windows),
             "headers": dict(self.headers),
             "compat": dict(self.compat),
-            "model_metadata": {
-                model: metadata.to_json() for model, metadata in self.model_metadata.items()
-            },
+            "model_metadata": {model: metadata.to_json() for model, metadata in self.model_metadata.items()},
             "timeout_seconds": self.timeout_seconds,
             "max_retries": self.max_retries,
             "max_retry_delay_seconds": self.max_retry_delay_seconds,
-            "thinking_levels": (
-                list(self.thinking_levels) if self.thinking_levels is not None else None
-            ),
+            "thinking_levels": (list(self.thinking_levels) if self.thinking_levels is not None else None),
             "thinking_models": list(self.thinking_models),
             "thinking_default": self.thinking_default,
             "thinking_parameter": self.thinking_parameter,
@@ -312,15 +304,11 @@ class OpenAICodexProviderConfig:
             "default_model": self.default_model,
             "context_windows": dict(self.context_windows),
             "headers": dict(self.headers),
-            "model_metadata": {
-                model: metadata.to_json() for model, metadata in self.model_metadata.items()
-            },
+            "model_metadata": {model: metadata.to_json() for model, metadata in self.model_metadata.items()},
             "timeout_seconds": self.timeout_seconds,
             "max_retries": self.max_retries,
             "max_retry_delay_seconds": self.max_retry_delay_seconds,
-            "thinking_levels": (
-                list(self.thinking_levels) if self.thinking_levels is not None else None
-            ),
+            "thinking_levels": (list(self.thinking_levels) if self.thinking_levels is not None else None),
             "thinking_models": list(self.thinking_models),
             "thinking_default": self.thinking_default,
             "thinking_parameter": self.thinking_parameter,
@@ -328,9 +316,7 @@ class OpenAICodexProviderConfig:
         }
 
 
-type ProviderConfig = (
-    OpenAICompatibleProviderConfig | AnthropicProviderConfig | OpenAICodexProviderConfig
-)
+type ProviderConfig = OpenAICompatibleProviderConfig | AnthropicProviderConfig | OpenAICodexProviderConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -350,9 +336,7 @@ class ProviderSettings:
     """Baldric provider settings loaded from Baldric home."""
 
     default_provider: str = DEFAULT_PROVIDER_NAME
-    providers: tuple[ProviderConfig, ...] = field(
-        default_factory=lambda: builtin_provider_configs()
-    )
+    providers: tuple[ProviderConfig, ...] = field(default_factory=lambda: builtin_provider_configs())
     scoped_models: tuple[ScopedModelConfig, ...] = ()
 
     def get_provider(self, name: str | None = None) -> ProviderConfig:
@@ -385,9 +369,7 @@ class ProviderSelection:
 
 def builtin_provider_configs() -> tuple[ProviderConfig, ...]:
     """Return Baldric's built-in provider configs."""
-    return tuple(
-        provider_config_from_catalog_entry(entry.name) for entry in BUILTIN_PROVIDER_CATALOG
-    )
+    return tuple(provider_config_from_catalog_entry(entry.name) for entry in BUILTIN_PROVIDER_CATALOG)
 
 
 def provider_config_from_catalog_entry(name: str) -> ProviderConfig:
@@ -653,9 +635,7 @@ def set_default_provider_model(
     provider = settings.get_provider(provider_name)
     validate_provider_model(provider, model)
     updated_provider = replace(provider, default_model=model)
-    providers = tuple(
-        updated_provider if item.name == provider_name else item for item in settings.providers
-    )
+    providers = tuple(updated_provider if item.name == provider_name else item for item in settings.providers)
     return ProviderSettings(
         default_provider=provider_name,
         providers=providers,
@@ -685,9 +665,7 @@ def set_provider_thinking_level(
         provider,
         thinking_defaults={**provider.thinking_defaults, model: normalized},
     )
-    providers = tuple(
-        updated_provider if item.name == provider_name else item for item in settings.providers
-    )
+    providers = tuple(updated_provider if item.name == provider_name else item for item in settings.providers)
     return ProviderSettings(
         default_provider=settings.default_provider,
         providers=providers,
@@ -839,9 +817,7 @@ def _write_provider_settings(
     _atomic_write_text(path, dumps(settings.to_json(), indent=2, sort_keys=True) + "\n")
 
 
-_EFFECTIVE_PROVIDER_CONFIGS: (
-    tuple[tuple[ProviderCatalogEntry, ...], tuple[ProviderConfig, ...]] | None
-) = None
+_EFFECTIVE_PROVIDER_CONFIGS: tuple[tuple[ProviderCatalogEntry, ...], tuple[ProviderConfig, ...]] | None = None
 
 
 def _effective_provider_configs(paths: BaldricPaths | None = None) -> tuple[ProviderConfig, ...]:
@@ -884,9 +860,7 @@ def _merge_provider_config(existing: ProviderConfig, incoming: ProviderConfig) -
     if type(existing) is not type(incoming):
         return incoming
 
-    if isinstance(existing, OpenAICodexProviderConfig) and isinstance(
-        incoming, OpenAICodexProviderConfig
-    ):
+    if isinstance(existing, OpenAICodexProviderConfig) and isinstance(incoming, OpenAICodexProviderConfig):
         return replace(
             incoming,
             default_model=(
@@ -904,14 +878,10 @@ def _merge_provider_config(existing: ProviderConfig, incoming: ProviderConfig) -
                 existing.model_metadata,
             ),
             thinking_levels=(
-                existing.thinking_levels
-                if existing.thinking_levels is not None
-                else incoming.thinking_levels
+                existing.thinking_levels if existing.thinking_levels is not None else incoming.thinking_levels
             ),
             thinking_models=(
-                existing.thinking_models
-                if existing.thinking_levels is not None
-                else incoming.thinking_models
+                existing.thinking_models if existing.thinking_levels is not None else incoming.thinking_models
             ),
             thinking_default=(
                 existing.thinking_default
@@ -931,9 +901,7 @@ def _merge_provider_config(existing: ProviderConfig, incoming: ProviderConfig) -
     ):
         return _merge_openai_compatible_provider(existing, incoming)
 
-    if isinstance(existing, AnthropicProviderConfig) and isinstance(
-        incoming, AnthropicProviderConfig
-    ):
+    if isinstance(existing, AnthropicProviderConfig) and isinstance(incoming, AnthropicProviderConfig):
         return _merge_anthropic_provider(existing, incoming)
 
     return incoming
@@ -961,19 +929,13 @@ def _merge_openai_compatible_provider(
         max_retry_delay_seconds=existing.max_retry_delay_seconds,
         context_windows={**incoming.context_windows, **existing.context_windows},
         thinking_levels=(
-            existing.thinking_levels
-            if existing.thinking_levels is not None
-            else incoming.thinking_levels
+            existing.thinking_levels if existing.thinking_levels is not None else incoming.thinking_levels
         ),
         thinking_models=(
-            existing.thinking_models
-            if existing.thinking_levels is not None
-            else incoming.thinking_models
+            existing.thinking_models if existing.thinking_levels is not None else incoming.thinking_models
         ),
         thinking_default=(
-            existing.thinking_default
-            if existing.thinking_levels is not None
-            else incoming.thinking_default
+            existing.thinking_default if existing.thinking_levels is not None else incoming.thinking_default
         ),
         thinking_parameter=(
             existing.thinking_parameter
@@ -1007,19 +969,13 @@ def _merge_anthropic_provider(
         max_retry_delay_seconds=existing.max_retry_delay_seconds,
         context_windows={**incoming.context_windows, **existing.context_windows},
         thinking_levels=(
-            existing.thinking_levels
-            if existing.thinking_levels is not None
-            else incoming.thinking_levels
+            existing.thinking_levels if existing.thinking_levels is not None else incoming.thinking_levels
         ),
         thinking_models=(
-            existing.thinking_models
-            if existing.thinking_levels is not None
-            else incoming.thinking_models
+            existing.thinking_models if existing.thinking_levels is not None else incoming.thinking_models
         ),
         thinking_default=(
-            existing.thinking_default
-            if existing.thinking_levels is not None
-            else incoming.thinking_default
+            existing.thinking_default if existing.thinking_levels is not None else incoming.thinking_default
         ),
         thinking_parameter=(
             existing.thinking_parameter
@@ -1220,9 +1176,7 @@ def provider_settings_from_json(
     """
     schema_version = data.get("schema_version")
     if schema_version not in (None, PROVIDER_SETTINGS_SCHEMA_VERSION):
-        raise ProviderConfigError(
-            f"Unsupported provider settings schema_version: {schema_version!r}"
-        )
+        raise ProviderConfigError(f"Unsupported provider settings schema_version: {schema_version!r}")
     default_provider = _string(data.get("default_provider"), "default_provider")
     scoped_models = _scoped_models_from_json(data.get("scoped_models"))
     if "provider_preferences" in data:
@@ -1238,9 +1192,7 @@ def provider_settings_from_json(
 
     providers_data = data.get("providers")
     if not isinstance(providers_data, list) or not providers_data:
-        raise ProviderConfigError(
-            "Provider settings must include provider_preferences or legacy providers"
-        )
+        raise ProviderConfigError("Provider settings must include provider_preferences or legacy providers")
     providers = tuple(_provider_from_json(item) for item in providers_data)
     names = [provider.name for provider in providers]
     if len(set(names)) != len(names):
@@ -1462,8 +1414,7 @@ def validate_provider_model(provider: ProviderConfig, model: str) -> None:
         return
     available = ", ".join(sorted(provider.models)) or "none"
     raise ProviderConfigError(
-        f"Model is not configured for provider {provider.name}: {model}. "
-        f"Available models: {available}"
+        f"Model is not configured for provider {provider.name}: {model}. Available models: {available}"
     )
 
 
@@ -1524,9 +1475,7 @@ def _levels_from_thinking_map(
     thinking_level_map: dict[ThinkingLevel, str | None],
 ) -> tuple[ThinkingLevel, ...]:
     return tuple(
-        level
-        for level in THINKING_LEVELS
-        if _thinking_level_map_supports(thinking_level_map, level)
+        level for level in THINKING_LEVELS if _thinking_level_map_supports(thinking_level_map, level)
     )
 
 
@@ -1593,9 +1542,7 @@ def _detected_compat(provider: ProviderConfig, model: str) -> dict[str, Any]:
     is_deepseek = provider.name == "deepseek" or "deepseek.com" in base_url
     is_cerebras = provider.name == "cerebras" or "cerebras.ai" in base_url
     is_openrouter = provider.name == "openrouter" or "openrouter.ai" in base_url
-    is_openai_api = (
-        urlsplit(base_url).hostname == urlsplit(DEFAULT_OPENAI_COMPATIBLE_BASE_URL).hostname
-    )
+    is_openai_api = urlsplit(base_url).hostname == urlsplit(DEFAULT_OPENAI_COMPATIBLE_BASE_URL).hostname
     is_openai_responses = _provider_api(provider, model) == "openai-responses"
     is_nonstandard = is_cerebras or is_grok or is_together or is_deepseek or is_zai or is_moonshot
     use_max_tokens = is_moonshot or is_together
@@ -1738,9 +1685,7 @@ def openai_compatible_config_from_provider(
         reasoning_effort_parameter=provider.thinking_parameter or "reasoning_effort",
         thinking_format=_thinking_format(provider, selected_model),
         compat=compat,
-        response_provider_header=(
-            "x-inference-provider" if provider.name == "huggingface" else None
-        ),
+        response_provider_header=("x-inference-provider" if provider.name == "huggingface" else None),
         include_reasoning_effort_none=_include_reasoning_effort_none(
             provider,
             model=selected_model,
@@ -1784,9 +1729,7 @@ def anthropic_config_from_provider(
             model=selected_model,
             thinking_level=thinking_level,
         ),
-        thinking_mode=_anthropic_thinking_mode(
-            provider, selected_model, thinking_level=thinking_level
-        ),
+        thinking_mode=_anthropic_thinking_mode(provider, selected_model, thinking_level=thinking_level),
     )
 
 
@@ -2006,9 +1949,7 @@ def _provider_from_json(data: object) -> ProviderConfig:
     base_url = _string(data.get("base_url"), f"providers[{name}].base_url").rstrip("/")
     api = _optional_provider_api(data.get("api"), f"providers[{name}].api")
     api_key_env = _string(data.get("api_key_env"), f"providers[{name}].api_key_env")
-    credential_name = _optional_string(
-        data.get("credential_name"), f"providers[{name}].credential_name"
-    )
+    credential_name = _optional_string(data.get("credential_name"), f"providers[{name}].credential_name")
     models = _string_tuple(data.get("models"), f"providers[{name}].models")
     default_model = _string(data.get("default_model"), f"providers[{name}].default_model")
     context_windows = _context_window_dict(
@@ -2165,11 +2106,7 @@ def _validate_context_windows(context_windows: dict[str, int]) -> None:
     for model, context_window in context_windows.items():
         if not isinstance(model, str) or not model.strip():
             raise ProviderConfigError("Provider context_windows keys must be non-empty strings")
-        if (
-            not isinstance(context_window, int)
-            or isinstance(context_window, bool)
-            or context_window <= 0
-        ):
+        if not isinstance(context_window, int) or isinstance(context_window, bool) or context_window <= 0:
             raise ProviderConfigError("Provider context_windows values must be positive integers")
 
 
@@ -2202,21 +2139,15 @@ def _validate_model_metadata(
 
 def _validate_runtime_cost_tiers(tiers: tuple[ModelCostTier, ...]) -> None:
     if tiers and tiers[-1].max_input_tokens is not None:
-        raise ProviderConfigError(
-            "Provider model_metadata final cost tier must omit max_input_tokens"
-        )
+        raise ProviderConfigError("Provider model_metadata final cost tier must omit max_input_tokens")
     previous_limit = 0
     for tier in tiers:
         if any(value < 0 for value in tier.cost.values()):
-            raise ProviderConfigError(
-                "Provider model_metadata cost tier values must be non-negative"
-            )
+            raise ProviderConfigError("Provider model_metadata cost tier values must be non-negative")
         if tier.max_input_tokens is None:
             continue
         if tier.max_input_tokens <= previous_limit:
-            raise ProviderConfigError(
-                "Provider model_metadata cost tier limits must be strictly increasing"
-            )
+            raise ProviderConfigError("Provider model_metadata cost tier limits must be strictly increasing")
         previous_limit = tier.max_input_tokens
 
 
@@ -2284,9 +2215,7 @@ def _validate_inference_providers(
         )
     for model, route in inference_providers.items():
         if model not in models:
-            raise ProviderConfigError(
-                f"Inference-provider preference references unknown model: {model}"
-            )
+            raise ProviderConfigError(f"Inference-provider preference references unknown model: {model}")
         validate_huggingface_inference_provider(route)
 
 
@@ -2309,9 +2238,7 @@ def _validate_thinking_config(
 ) -> None:
     if thinking_levels is None:
         if thinking_models or thinking_default is not None or thinking_parameter is not None:
-            raise ProviderConfigError(
-                "Provider thinking_levels must be set before thinking metadata"
-            )
+            raise ProviderConfigError("Provider thinking_levels must be set before thinking metadata")
         return
     try:
         normalized = normalize_thinking_levels(thinking_levels)
@@ -2330,8 +2257,7 @@ def _validate_thinking_config(
         "anthropic.thinking",
     }:
         raise ProviderConfigError(
-            "Provider thinking_parameter must be reasoning_effort, reasoning.effort, "
-            "or anthropic.thinking"
+            "Provider thinking_parameter must be reasoning_effort, reasoning.effort, or anthropic.thinking"
         )
 
 
@@ -2431,8 +2357,7 @@ def _optional_thinking_parameter(
     if value == "anthropic.thinking":
         return "anthropic.thinking"
     raise ProviderConfigError(
-        f"Provider field must be reasoning_effort, reasoning.effort, "
-        f"or anthropic.thinking: {field_name}"
+        f"Provider field must be reasoning_effort, reasoning.effort, or anthropic.thinking: {field_name}"
     )
 
 
@@ -2475,9 +2400,7 @@ def _model_metadata_dict(
         if model not in model_names:
             raise ProviderConfigError(f"Provider model_metadata key is not in models: {model}")
         if not isinstance(item, dict):
-            raise ProviderConfigError(
-                f"Provider model_metadata entries must be objects: {field_name}"
-            )
+            raise ProviderConfigError(f"Provider model_metadata entries must be objects: {field_name}")
         items[model] = ProviderModelMetadata(
             name=_optional_string(item.get("name"), f"{field_name}.{model}.name"),
             api=_optional_provider_api(item.get("api"), f"{field_name}.{model}.api"),
@@ -2489,9 +2412,7 @@ def _model_metadata_dict(
             context_window=_optional_positive_int(
                 item.get("context_window"), f"{field_name}.{model}.context_window"
             ),
-            max_tokens=_optional_positive_int(
-                item.get("max_tokens"), f"{field_name}.{model}.max_tokens"
-            ),
+            max_tokens=_optional_positive_int(item.get("max_tokens"), f"{field_name}.{model}.max_tokens"),
             headers=_string_dict(item.get("headers", {}), f"{field_name}.{model}.headers"),
             compat=_json_dict(item.get("compat", {}), f"{field_name}.{model}.compat"),
             thinking_level_map=_thinking_level_map_dict(
@@ -2525,9 +2446,7 @@ def _cost_tiers(value: object, field_name: str) -> tuple[ModelCostTier, ...]:
             for key in ("input", "output", "cacheRead", "cacheWrite")
         }
         if item.get("cacheWrite1h") is not None:
-            cost["cacheWrite1h"] = _non_negative_float(
-                item.get("cacheWrite1h"), f"{tier_field}.cacheWrite1h"
-            )
+            cost["cacheWrite1h"] = _non_negative_float(item.get("cacheWrite1h"), f"{tier_field}.cacheWrite1h")
         tiers.append(
             ModelCostTier(
                 max_input_tokens=_optional_positive_int(
@@ -2553,9 +2472,7 @@ def _thinking_level_map_dict(
         if level is None:
             raise ProviderConfigError(f"Provider field must be a thinking mode: {field_name}")
         if item is not None and (not isinstance(item, str) or not item.strip()):
-            raise ProviderConfigError(
-                f"Provider field values must be strings or null: {field_name}"
-            )
+            raise ProviderConfigError(f"Provider field values must be strings or null: {field_name}")
         items[level] = item.strip() if isinstance(item, str) else None
     return items
 
@@ -2597,9 +2514,7 @@ def _context_window_dict(value: object, field_name: str) -> dict[str, int]:
         if not isinstance(key, str) or not key.strip():
             raise ProviderConfigError(f"Provider field must be an integer object: {field_name}")
         if not isinstance(item, int) or isinstance(item, bool) or item <= 0:
-            raise ProviderConfigError(
-                f"Provider field values must be positive integers: {field_name}"
-            )
+            raise ProviderConfigError(f"Provider field values must be positive integers: {field_name}")
         items[key.strip()] = item
     return items
 

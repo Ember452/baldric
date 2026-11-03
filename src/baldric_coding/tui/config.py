@@ -9,10 +9,10 @@ from typing import Any, Literal, cast
 
 from baldric_coding.paths import BaldricPaths
 from baldric_coding.tui.themes import (
-    BUILTIN_TUI_THEME_NAMES,
-    HIGH_CONTRAST_THEME,
     BALDRIC_DARK_THEME,
     BALDRIC_LIGHT_THEME,
+    BUILTIN_TUI_THEME_NAMES,
+    HIGH_CONTRAST_THEME,
     TuiRoleStyle,
     TuiTheme,
     TuiThemeName,

@@ -84,9 +84,7 @@ class LlamaCppIntegrationState:
             or not self.selected_model.strip()
             or self.selected_model != self.selected_model.strip()
         ):
-            raise LlamaCppStateError(
-                "Selected llama.cpp model must be a non-empty exact string or None"
-            )
+            raise LlamaCppStateError("Selected llama.cpp model must be a non-empty exact string or None")
         if self.credential_ref is not None and not _valid_credential_ref(self.credential_ref):
             raise LlamaCppStateError("Credential reference is not owned by llama.cpp")
         if not isinstance(self.models, tuple) or any(
@@ -275,17 +273,13 @@ class LlamaCppStateStore:
         payload = {
             "schema_version": LLAMA_CPP_STATE_SCHEMA_VERSION,
             "active_endpoint": active_endpoint,
-            "endpoints": {
-                endpoint: state.to_json() for endpoint, state in sorted(endpoints.items())
-            },
+            "endpoints": {endpoint: state.to_json() for endpoint, state in sorted(endpoints.items())},
         }
         data = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
         temporary: Path | None = None
         fd = -1
         try:
-            fd, raw = tempfile.mkstemp(
-                prefix=f".{self.path.name}.", suffix=".tmp", dir=self.path.parent
-            )
+            fd, raw = tempfile.mkstemp(prefix=f".{self.path.name}.", suffix=".tmp", dir=self.path.parent)
             temporary = Path(raw)
             temporary.chmod(0o600)
             with os.fdopen(fd, "wb") as handle:

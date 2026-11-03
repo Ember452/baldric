@@ -9,7 +9,6 @@ from typing import cast
 
 import pytest
 
-from pi_event_helpers import assistant_done, assistant_start
 from baldric_agent import AssistantMessage, ToolCall, UserMessage
 from baldric_agent.messages import AgentMessage, assistant_content, message_to_user
 from baldric_agent.session import (
@@ -23,14 +22,14 @@ from baldric_agent.tools import AgentTool, AgentToolResult
 from baldric_agent.types import JSONValue
 from baldric_ai import FakeProvider
 from baldric_coding import (
+    BaldricPaths,
+    BaldricResourcePaths,
     BuiltInExtension,
     CodingSession,
     CodingSessionConfig,
     ModelChoice,
     ResourceError,
     SessionManager,
-    BaldricPaths,
-    BaldricResourcePaths,
 )
 from baldric_coding.extensions import (
     CustomMessageView,
@@ -53,6 +52,7 @@ from baldric_coding.extensions import (
 )
 from baldric_coding.project_trust import ProjectTrustRequest, ProjectTrustResolution, TrustChoice
 from baldric_coding.system_prompt import PromptSection
+from pi_event_helpers import assistant_done, assistant_start
 
 pytestmark = pytest.mark.anyio
 
@@ -356,9 +356,7 @@ def test_manifest_duplicate_entry_names_first_wins(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    discovered, diagnostics = discover_extensions(
-        paths, extra_paths=(repo,), include_resource_dirs=False
-    )
+    discovered, diagnostics = discover_extensions(paths, extra_paths=(repo,), include_resource_dirs=False)
 
     assert [entry.name for entry in discovered] == ["my_ext"]
     assert discovered[0].path == repo / "src" / "my_ext" / "extension.py"
@@ -372,9 +370,7 @@ def test_manifest_empty_list_falls_back_to_extension_py(tmp_path: Path) -> None:
     (repo / "extension.py").write_text("def setup(baldric):\n    pass\n", encoding="utf-8")
     (repo / "pyproject.toml").write_text("[tool.baldric]\nextensions = []\n", encoding="utf-8")
 
-    discovered, diagnostics = discover_extensions(
-        paths, extra_paths=(repo,), include_resource_dirs=False
-    )
+    discovered, diagnostics = discover_extensions(paths, extra_paths=(repo,), include_resource_dirs=False)
 
     assert [entry.name for entry in discovered] == ["repo"]
     assert diagnostics == ()
@@ -408,14 +404,10 @@ def test_manifest_missing_entry_is_error_with_extension_py_fallback(tmp_path: Pa
         '[tool.baldric]\nextensions = ["src/gone/extension.py"]\n', encoding="utf-8"
     )
 
-    discovered, diagnostics = discover_extensions(
-        paths, extra_paths=(repo,), include_resource_dirs=False
-    )
+    discovered, diagnostics = discover_extensions(paths, extra_paths=(repo,), include_resource_dirs=False)
 
     assert [entry.name for entry in discovered] == ["repo"]
-    assert any(
-        diag.severity == "error" and "does not exist" in diag.message for diag in diagnostics
-    )
+    assert any(diag.severity == "error" and "does not exist" in diag.message for diag in diagnostics)
 
 
 def test_manifest_without_baldric_table_falls_back_to_extension_py(tmp_path: Path) -> None:
@@ -425,9 +417,7 @@ def test_manifest_without_baldric_table_falls_back_to_extension_py(tmp_path: Pat
     (repo / "extension.py").write_text("def setup(baldric):\n    pass\n", encoding="utf-8")
     (repo / "pyproject.toml").write_text('[project]\nname = "x"\n', encoding="utf-8")
 
-    discovered, diagnostics = discover_extensions(
-        paths, extra_paths=(repo,), include_resource_dirs=False
-    )
+    discovered, diagnostics = discover_extensions(paths, extra_paths=(repo,), include_resource_dirs=False)
 
     assert [entry.name for entry in discovered] == ["repo"]
     assert diagnostics == ()
@@ -440,14 +430,10 @@ def test_manifest_invalid_declarations_are_error_diagnostics(tmp_path: Path) -> 
     (repo / "extension.py").write_text("def setup(baldric):\n    pass\n", encoding="utf-8")
     (repo / "pyproject.toml").write_text("[tool.baldric]\nextensions = 3\n", encoding="utf-8")
 
-    discovered, diagnostics = discover_extensions(
-        paths, extra_paths=(repo,), include_resource_dirs=False
-    )
+    discovered, diagnostics = discover_extensions(paths, extra_paths=(repo,), include_resource_dirs=False)
 
     assert [entry.name for entry in discovered] == ["repo"]
-    assert any(
-        diag.severity == "error" and "list of file paths" in diag.message for diag in diagnostics
-    )
+    assert any(diag.severity == "error" and "list of file paths" in diag.message for diag in diagnostics)
 
 
 def test_manifest_parse_failure_is_warning_with_fallback(tmp_path: Path) -> None:
@@ -457,14 +443,10 @@ def test_manifest_parse_failure_is_warning_with_fallback(tmp_path: Path) -> None
     (repo / "extension.py").write_text("def setup(baldric):\n    pass\n", encoding="utf-8")
     (repo / "pyproject.toml").write_text("not [ valid toml", encoding="utf-8")
 
-    discovered, diagnostics = discover_extensions(
-        paths, extra_paths=(repo,), include_resource_dirs=False
-    )
+    discovered, diagnostics = discover_extensions(paths, extra_paths=(repo,), include_resource_dirs=False)
 
     assert [entry.name for entry in discovered] == ["repo"]
-    assert any(
-        diag.severity == "warning" and "could not parse" in diag.message for diag in diagnostics
-    )
+    assert any(diag.severity == "warning" and "could not parse" in diag.message for diag in diagnostics)
 
 
 def test_helper_modules_stay_namespaced_in_sys_modules(tmp_path: Path) -> None:
@@ -508,9 +490,7 @@ def test_extension_without_setup_is_rejected(tmp_path: Path) -> None:
 
 def test_async_setup_is_rejected(tmp_path: Path) -> None:
     paths = _paths(tmp_path)
-    _write_extension(
-        _user_extensions_dir(paths), "async_setup", "async def setup(baldric):\n    pass\n"
-    )
+    _write_extension(_user_extensions_dir(paths), "async_setup", "async def setup(baldric):\n    pass\n")
 
     result = load_extensions(paths)
 
@@ -623,9 +603,7 @@ def test_built_ins_load_once_before_user_explicit_and_project_sources(tmp_path: 
     paths = _paths(tmp_path)
     setup_apis: list[ExtensionAPI] = []
     _write_extension(_user_extensions_dir(paths), "user_ext", "def setup(baldric):\n    pass\n")
-    explicit = _write_extension(
-        tmp_path / "explicit", "explicit_ext", "def setup(baldric):\n    pass\n"
-    )
+    explicit = _write_extension(tmp_path / "explicit", "explicit_ext", "def setup(baldric):\n    pass\n")
     _write_extension(_project_extensions_dir(paths), "project_ext", "def setup(baldric):\n    pass\n")
     runtime = ExtensionRuntime(built_in_extensions=(_fake_built_in(setup_apis),))
 
@@ -746,9 +724,7 @@ async def test_retiring_built_in_generation_cancels_provider_work_and_drops_regi
         await asyncio.sleep(10)
         return ProviderModelSnapshot()
 
-    runtime = ExtensionRuntime(
-        built_in_extensions=(_fake_built_in(setup_apis, refresh_models=refresh),)
-    )
+    runtime = ExtensionRuntime(built_in_extensions=(_fake_built_in(setup_apis, refresh_models=refresh),))
     runtime.load(_paths(tmp_path), include_resource_dirs=False)
     registry = runtime.provider_registry
     pending = asyncio.create_task(registry.refresh("fake-built-in-provider"))
@@ -1106,9 +1082,7 @@ async def test_tool_call_hook_can_block(tmp_path: Path) -> None:
     api.on(
         "tool_call",
         lambda event, context: (
-            ToolCallHookResult(block=True, reason="not allowed")
-            if event.tool_name == "danger"
-            else None
+            ToolCallHookResult(block=True, reason="not allowed") if event.tool_name == "danger" else None
         ),
     )
 
@@ -1199,9 +1173,7 @@ async def test_wrapped_tool_drops_on_update_for_inner_without_seam(tmp_path: Pat
     ) -> AgentToolResult:
         return AgentToolResult(content="ran")
 
-    tool = AgentTool(
-        name="plain", label="plain", description="d", parameters={}, execute_fn=executor
-    )
+    tool = AgentTool(name="plain", label="plain", description="d", parameters={}, execute_fn=executor)
     wrapped = runtime.compose_tools([tool])[0]
 
     def collect(message: str, data: object = None) -> None:
@@ -1592,9 +1564,7 @@ def test_context_exposes_available_provider_and_model_ids(tmp_path: Path) -> Non
     runtime.bind(session)
 
     assert api.context.available_providers == ("fake", "other")
-    assert [
-        (choice.provider_name, choice.model) for choice in api.context.available_model_choices
-    ] == [
+    assert [(choice.provider_name, choice.model) for choice in api.context.available_model_choices] == [
         ("fake", "fake"),
         ("other", "other-model"),
     ]
@@ -2117,7 +2087,7 @@ async def test_session_lifecycle_recreates_built_in_in_a_fresh_generation(
     from dataclasses import replace as dataclass_replace
 
     import baldric_coding.built_in_extensions as declarations
-    from baldric_coding import SessionManager, BaldricPaths
+    from baldric_coding import BaldricPaths, SessionManager
 
     setup_apis: list[ExtensionAPI] = []
     monkeypatch.setattr(
@@ -2178,9 +2148,7 @@ async def test_session_exposes_extension_tools_and_commands(tmp_path: Path) -> N
         "    _original_setup(baldric)\n"
         "    baldric.register_command('hi', _cmd, description='Say hi.')\n"
     )
-    session = await CodingSession.load(
-        _session_config(tmp_path, FakeProvider([]), extension_body=body)
-    )
+    session = await CodingSession.load(_session_config(tmp_path, FakeProvider([]), extension_body=body))
 
     tool_names = [tool.name for tool in session.tools]
     assert "hello" in tool_names
@@ -2195,9 +2163,7 @@ async def test_session_exposes_extension_tools_and_commands(tmp_path: Path) -> N
 
 async def test_extension_guideline_reaches_system_prompt(tmp_path: Path) -> None:
     body = "def setup(baldric):\n    baldric.add_prompt_guideline('Never commit directly to main')\n"
-    session = await CodingSession.load(
-        _session_config(tmp_path, FakeProvider([]), extension_body=body)
-    )
+    session = await CodingSession.load(_session_config(tmp_path, FakeProvider([]), extension_body=body))
 
     assert "Never commit directly to main" in session.system_prompt
 
@@ -2300,12 +2266,8 @@ async def test_extension_prompt_section_reaches_system_prompt_after_user_append(
 
     session = await CodingSession.load(config)
 
-    assert (
-        "## Review procedure\n\nFirst step.\n\n```bash\nuv run pytest\n```" in session.system_prompt
-    )
-    assert session.system_prompt.index("User append") < session.system_prompt.index(
-        "## Review procedure"
-    )
+    assert "## Review procedure\n\nFirst step.\n\n```bash\nuv run pytest\n```" in session.system_prompt
+    assert session.system_prompt.index("User append") < session.system_prompt.index("## Review procedure")
 
 
 async def test_reload_picks_up_prompt_section_changes(tmp_path: Path) -> None:
@@ -2350,9 +2312,7 @@ async def test_session_start_deferred_until_host_emits(tmp_path: Path) -> None:
         "def setup(baldric):\n"
         "    baldric.on('session_start', lambda event, context: EVENTS.append(event.reason))\n"
     )
-    session = await CodingSession.load(
-        _session_config(tmp_path, FakeProvider([]), extension_body=body)
-    )
+    session = await CodingSession.load(_session_config(tmp_path, FakeProvider([]), extension_body=body))
     module = _loaded_extension_module("integration")
 
     # load defers session_start so hosts can attach a UI bridge first.
@@ -2377,9 +2337,7 @@ async def test_session_start_handler_can_notify_through_attached_bridge(
         "    baldric.on('session_start', "
         "lambda event, context: baldric.notify('loaded', 'info'))\n"
     )
-    session = await CodingSession.load(
-        _session_config(tmp_path, FakeProvider([]), extension_body=body)
-    )
+    session = await CodingSession.load(_session_config(tmp_path, FakeProvider([]), extension_body=body))
     ui = RecordingUiBridge()
     session.extension_runtime.set_ui_bridge(ui)
 
@@ -2535,9 +2493,7 @@ async def test_extension_tool_call_block_reaches_model(tmp_path: Path) -> None:
 
     [event async for event in session.prompt("run ls")]
 
-    tool_results = [
-        message for message in session.messages if getattr(message, "role", None) == "toolResult"
-    ]
+    tool_results = [message for message in session.messages if getattr(message, "role", None) == "toolResult"]
     assert len(tool_results) == 1
     assert tool_results[0].is_error is False
     assert "no shell today" in tool_results[0].text
@@ -2567,9 +2523,7 @@ async def test_custom_message_metadata_survives_session_reload(tmp_path: Path) -
     persisted = [entry for entry in entries if isinstance(entry, CustomMessageEntry)]
     assert len(persisted) == 1
     assert persisted[0].custom_type == "subagent-notification"
-    assert not any(
-        isinstance(entry, MessageEntry) and entry.message.role == "custom" for entry in entries
-    )
+    assert not any(isinstance(entry, MessageEntry) and entry.message.role == "custom" for entry in entries)
     _model, _system, sent, _tools = provider.calls[0]
     assert message_to_user(sent[0]) == UserMessage(
         content="<task-notification/>", timestamp=sent[0].timestamp
@@ -2581,8 +2535,7 @@ async def test_custom_message_metadata_survives_session_reload(tmp_path: Path) -
     custom = [
         message
         for message in reopened.messages
-        if getattr(message, "role", None) == "custom"
-        and message.custom_type == "subagent-notification"
+        if getattr(message, "role", None) == "custom" and message.custom_type == "subagent-notification"
     ]
 
     assert len(custom) == 1
@@ -2699,7 +2652,7 @@ async def test_session_lifecycle_awaits_outgoing_provider_cleanup(
 ) -> None:
     from dataclasses import replace as dataclass_replace
 
-    from baldric_coding import SessionManager, BaldricPaths
+    from baldric_coding import BaldricPaths, SessionManager
 
     manager = SessionManager(
         BaldricPaths(home=tmp_path / "home-baldric", agents_home=tmp_path / "home-agents")
@@ -2772,7 +2725,7 @@ async def test_published_lifecycle_adoption_contains_cancellation_during_outgoin
 ) -> None:
     from dataclasses import replace as dataclass_replace
 
-    from baldric_coding import SessionManager, BaldricPaths
+    from baldric_coding import BaldricPaths, SessionManager
 
     manager = SessionManager(
         BaldricPaths(home=tmp_path / "home-baldric", agents_home=tmp_path / "home-agents")
@@ -2960,7 +2913,7 @@ async def test_session_swap_clears_host_extension_components(tmp_path: Path) -> 
     # otherwise survive the switch (session_start handlers can re-mount).
     from dataclasses import replace as dataclass_replace
 
-    from baldric_coding import SessionManager, BaldricPaths
+    from baldric_coding import BaldricPaths, SessionManager
 
     provider = FakeProvider([])
     manager = SessionManager(
@@ -3022,9 +2975,7 @@ def test_extension_can_read_and_change_inference_provider(tmp_path: Path) -> Non
     assert api.set_inference_provider("deepinfra") == "deepinfra"
     assert api.context.inference_provider == "deepinfra"
     assert api.context.inference_provider_mode == "fixed"
-    assert api.set_inference_provider(None) == (
-        "automatic (will pin after the next successful response)"
-    )
+    assert api.set_inference_provider(None) == ("automatic (will pin after the next successful response)")
     assert api.context.inference_provider_mode == "automatic"
 
 
@@ -3122,9 +3073,7 @@ async def test_failed_resource_reload_does_not_emit_extension_shutdown(tmp_path:
     paths.root.mkdir(parents=True)
     prompt_path = paths.root / "SYSTEM.md"
     prompt_path.write_text("Valid base", encoding="utf-8")
-    session = await CodingSession.load(
-        _session_config(tmp_path, FakeProvider([]), extension_body=body)
-    )
+    session = await CodingSession.load(_session_config(tmp_path, FakeProvider([]), extension_body=body))
     module = _loaded_extension_module("integration")
 
     prompt_path.write_bytes(b"\xff")
@@ -3148,9 +3097,7 @@ async def test_reload_awaits_shutdown_before_invalidation_and_starts_new_generat
         "        EVENTS.append(('start', event.reason, baldric.name))\n"
         "        baldric.context.ui.components.set_slot_widget('status', [event.reason])\n"
     )
-    session = await CodingSession.load(
-        _session_config(tmp_path, FakeProvider([]), extension_body=body)
-    )
+    session = await CodingSession.load(_session_config(tmp_path, FakeProvider([]), extension_body=body))
     ui = RecordingUiBridge()
     session.extension_runtime.set_ui_bridge(ui)
     old_module = _loaded_extension_module("integration")
@@ -3175,7 +3122,7 @@ async def test_session_replacement_rebuilds_and_invalidates_source_extensions(
 ) -> None:
     from dataclasses import replace as dataclass_replace
 
-    from baldric_coding import SessionManager, BaldricPaths
+    from baldric_coding import BaldricPaths, SessionManager
 
     provider = FakeProvider([])
     manager = SessionManager(
@@ -3485,9 +3432,7 @@ def test_send_custom_message_queues_metadata_while_running(tmp_path: Path) -> No
         details={"id": "run-1"},
     )
 
-    assert session.queued_custom == [
-        ("<task-notification/>", "subagent-notification", {"id": "run-1"})
-    ]
+    assert session.queued_custom == [("<task-notification/>", "subagent-notification", {"id": "run-1"})]
 
 
 def test_send_custom_message_idle_delivers_metadata_via_turn_callback(tmp_path: Path) -> None:

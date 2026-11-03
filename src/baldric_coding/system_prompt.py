@@ -13,9 +13,7 @@ from baldric_agent.tools import AgentTool
 from baldric_coding.self_docs import baldric_docs_path, baldric_examples_path, baldric_readme_path
 from baldric_coding.skills import Skill
 
-PromptSourceKind = Literal[
-    "default", "system", "append", "extension", "context", "skill", "runtime"
-]
+PromptSourceKind = Literal["default", "system", "append", "extension", "context", "skill", "runtime"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -154,9 +152,7 @@ def build_system_prompt_inspection(options: BuildSystemPromptOptions) -> SystemP
         )
     )
     text = "".join(source.content for source in sources)
-    return SystemPromptInspection(
-        text=text, sources=tuple(source for source in sources if source.content)
-    )
+    return SystemPromptInspection(text=text, sources=tuple(source for source in sources if source.content))
 
 
 def format_system_prompt_inspection(inspection: SystemPromptInspection) -> str:
@@ -164,17 +160,14 @@ def format_system_prompt_inspection(inspection: SystemPromptInspection) -> str:
     sections: list[str] = []
     for index, source in enumerate(inspection.sources, start=1):
         origin = "".join(
-            " " if ord(character) < 32 or ord(character) == 127 else character
-            for character in source.source
+            " " if ord(character) < 32 or ord(character) == 127 else character for character in source.source
         ).strip()
         delimiter = "`"
         while delimiter in origin:
             delimiter += "`"
         content = source.content.lstrip("\n")
         sections.append(
-            f"#### {index:02d} · {source.label}\n\n"
-            f"**Source:** {delimiter}{origin}{delimiter}\n\n"
-            f"{content}"
+            f"#### {index:02d} · {source.label}\n\n**Source:** {delimiter}{origin}{delimiter}\n\n{content}"
         )
     return "\n\n---\n\n".join(sections)
 
@@ -216,9 +209,7 @@ def format_available_tools(tools: Sequence[AgentTool]) -> str:
     return "\n".join(lines) if lines else "(none)"
 
 
-def collect_prompt_guidelines(
-    tools: Sequence[AgentTool], extra_guidelines: Sequence[str] = ()
-) -> list[str]:
+def collect_prompt_guidelines(tools: Sequence[AgentTool], extra_guidelines: Sequence[str] = ()) -> list[str]:
     """Collect and de-duplicate system prompt guidelines."""
     names = {tool.name for tool in tools}
     guidelines: list[str] = []
@@ -236,9 +227,7 @@ def collect_prompt_guidelines(
     if has_bash and not has_exploration_tools:
         add("Use bash for file operations like ls, rg, find")
     elif has_bash and has_exploration_tools:
-        add(
-            "Prefer grep/find/ls tools over bash for file exploration (faster, respects .gitignore)"
-        )
+        add("Prefer grep/find/ls tools over bash for file exploration (faster, respects .gitignore)")
 
     for tool in tools:
         for guideline in tool.prompt_guidelines:
@@ -260,9 +249,7 @@ def collect_prompt_guidelines(
 
 def format_guidelines(tools: Sequence[AgentTool], extra_guidelines: Sequence[str] = ()) -> str:
     """Format prompt guidelines as markdown bullets."""
-    return "\n".join(
-        f"- {guideline}" for guideline in collect_prompt_guidelines(tools, extra_guidelines)
-    )
+    return "\n".join(f"- {guideline}" for guideline in collect_prompt_guidelines(tools, extra_guidelines))
 
 
 def format_project_context(context_files: Sequence[ProjectContextFile]) -> str:
@@ -293,9 +280,7 @@ def _project_context_sources(
     sources: list[SystemPromptSource] = []
     for index, context_file in enumerate(context_files):
         prefix = (
-            "\n\n<project_context>\n\nProject-specific instructions and guidelines:\n\n"
-            if index == 0
-            else ""
+            "\n\n<project_context>\n\nProject-specific instructions and guidelines:\n\n" if index == 0 else ""
         )
         suffix = "\n</project_context>" if index == len(context_files) - 1 else "\n"
         sources.append(

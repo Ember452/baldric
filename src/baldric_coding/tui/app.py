@@ -132,7 +132,7 @@ from baldric_coding.provider_config import (
     upsert_saved_provider,
 )
 from baldric_coding.provider_runtime import ClosableModelProvider, create_model_provider
-from baldric_coding.resources import ResourceDiagnostic, BaldricResourcePaths
+from baldric_coding.resources import BaldricResourcePaths, ResourceDiagnostic
 from baldric_coding.session import (
     TREE_RUNNING_MESSAGE,
     CodingSession,
@@ -1919,9 +1919,7 @@ class SessionPickerScreen(ModalScreen[str | None]):
             return
         resolved_cwd = Path(cwd).resolve()
         if session_id is None:
-            moved = tuple(
-                record for record in self.records if Path(record.cwd).resolve() == resolved_cwd
-            )
+            moved = tuple(record for record in self.records if Path(record.cwd).resolve() == resolved_cwd)
             self.records = tuple(
                 record for record in self.records if Path(record.cwd).resolve() != resolved_cwd
             )
@@ -1942,15 +1940,11 @@ class SessionPickerScreen(ModalScreen[str | None]):
         resolved_cwd = Path(cwd).resolve()
         if session_id is None:
             restored = tuple(
-                record
-                for record in self.archived_records
-                if Path(record.cwd).resolve() == resolved_cwd
+                record for record in self.archived_records if Path(record.cwd).resolve() == resolved_cwd
             )
             self.records = (*self.records, *restored)
             self.archived_records = tuple(
-                record
-                for record in self.archived_records
-                if Path(record.cwd).resolve() != resolved_cwd
+                record for record in self.archived_records if Path(record.cwd).resolve() != resolved_cwd
             )
         else:
             self.records = (*self.records, self._record_by_id(session_id))
@@ -1961,17 +1955,13 @@ class SessionPickerScreen(ModalScreen[str | None]):
         self._rebuild_visible_records()
 
     def _record_by_id(self, session_id: str) -> SessionCompletionRecord:
-        return next(
-            record for record in (*self.records, *self.archived_records) if record.id == session_id
-        )
+        return next(record for record in (*self.records, *self.archived_records) if record.id == session_id)
 
     def _rebuild_visible_records(self) -> None:
         self.records_by_project = self._group_records_by_project()
         self.project_cwds = tuple(self.records_by_project)
         if self.project_cwds:
-            self.selected_project_index = min(
-                self.selected_project_index, len(self.project_cwds) - 1
-            )
+            self.selected_project_index = min(self.selected_project_index, len(self.project_cwds) - 1)
         else:
             self.selected_project_index = 0
         self._refresh_project_list()
@@ -1991,9 +1981,7 @@ class SessionPickerScreen(ModalScreen[str | None]):
         selected_cwd = self.project_cwds[self.selected_project_index] if self.project_cwds else None
         session_list = self.query_one("#session-picker-list", OptionList)
         selected_session_id = None
-        if session_list.highlighted is not None and session_list.highlighted < len(
-            self.visible_records
-        ):
+        if session_list.highlighted is not None and session_list.highlighted < len(self.visible_records):
             selected_session_id = self.visible_records[session_list.highlighted].id
 
         self.records = tuple(records)
@@ -2023,9 +2011,7 @@ class SessionPickerScreen(ModalScreen[str | None]):
 
     def _active_list(self) -> OptionList:
         selector = (
-            "#session-picker-project-list"
-            if self.active_column == "projects"
-            else "#session-picker-list"
+            "#session-picker-project-list" if self.active_column == "projects" else "#session-picker-list"
         )
         return self.query_one(selector, OptionList)
 
@@ -2083,9 +2069,7 @@ class SessionPickerScreen(ModalScreen[str | None]):
             self.query_one("#session-picker-session-title", Static).update(label)
         else:
             selected_cwd = self.project_cwds[self.selected_project_index]
-            self.query_one("#session-picker-session-title", Static).update(
-                f"{label} — {selected_cwd}"
-            )
+            self.query_one("#session-picker-session-title", Static).update(f"{label} — {selected_cwd}")
             project_records = self.records_by_project[selected_cwd]
             self.visible_records = _filter_session_records(project_records, self.search_value)
         session_list = self.query_one("#session-picker-list", OptionList)
@@ -2269,9 +2253,7 @@ class SkillPickerScreen(ModalScreen[SkillPickerResult | None]):
         self.visible_skills = tuple(
             skill
             for skill in self.skills
-            if not query
-            or query in skill.name.casefold()
-            or query in (skill.description or "").casefold()
+            if not query or query in skill.name.casefold() or query in (skill.description or "").casefold()
         )
         skill_list = self.query_one("#skill-picker-list", ListView)
         skill_list.clear()
@@ -2447,9 +2429,7 @@ class TreePickerScreen(ModalScreen[TreePickerResult | None]):
         index = tree_list.index
         if index is None:
             return
-        self.dismiss(
-            TreePickerResult(entry_id=self._visible_choices()[index].entry_id, summarize=True)
-        )
+        self.dismiss(TreePickerResult(entry_id=self._visible_choices()[index].entry_id, summarize=True))
 
     def action_select_with_custom_summary(self) -> None:
         """Branch from the highlighted entry with custom summary instructions."""
@@ -2541,9 +2521,7 @@ class TreePickerScreen(ModalScreen[TreePickerResult | None]):
         await tree_list.clear()
         await tree_list.extend(self._list_items())
         visible_choices = self._visible_choices()
-        tree_list.index = (
-            _tree_choice_index(visible_choices, selected_entry_id) if visible_choices else None
-        )
+        tree_list.index = _tree_choice_index(visible_choices, selected_entry_id) if visible_choices else None
         self.query_one("#tree-picker-help", Static).update(self._help_text())
 
     def _selected_entry_id(self) -> str | None:
@@ -3202,9 +3180,7 @@ class ModelPickerScreen(ModalScreen[ModelChoice | None]):
     def compose(self) -> ComposeResult:
         """Compose the model picker."""
         with Vertical(id="model-picker"):
-            title = (
-                f"Model: {self.provider_name}" if self.picker_kind == "model" else "Scoped models"
-            )
+            title = f"Model: {self.provider_name}" if self.picker_kind == "model" else "Scoped models"
             yield Static(title, id="model-picker-title")
             yield Static("", id="model-picker-tabs")
             yield ModelPickerSearchInput(placeholder="Search models", id="model-picker-search")
@@ -3370,9 +3346,7 @@ class ModelPickerScreen(ModalScreen[ModelChoice | None]):
         if rebuild_rows:
             model_list = self.query_one("#model-picker-list", OptionList)
             model_list.clear_options()
-            model_list.add_options(
-                self._label_for_choice(choice) for choice in self.visible_choices
-            )
+            model_list.add_options(self._label_for_choice(choice) for choice in self.visible_choices)
         self._reset_model_list_index()
         scope_count = len(self.scoped_choices)
         tabs = self.query_one("#model-picker-tabs", Static)
@@ -3399,10 +3373,7 @@ class ModelPickerScreen(ModalScreen[ModelChoice | None]):
             help_text = (
                 "all models: no matching models - Tab switches to scoped models"
                 if not self.visible_choices
-                else (
-                    "All models - Enter selects active model - Tab switches tabs - "
-                    f"{scope_count} scoped"
-                )
+                else (f"All models - Enter selects active model - Tab switches tabs - {scope_count} scoped")
             )
         else:
             tabs.update("Tabs: ○ All models  ● Scoped models")
@@ -3509,13 +3480,9 @@ class CustomProviderLoginScreen(ModalScreen[CustomProviderLoginResult | _LoginFl
         models_text = self._field("custom-provider-models", "Model ids")
         if models_text is None:
             return None
-        models = tuple(
-            dict.fromkeys(item.strip() for item in models_text.split(",") if item.strip())
-        )
+        models = tuple(dict.fromkeys(item.strip() for item in models_text.split(",") if item.strip()))
         if not models:
-            self.query_one("#custom-provider-help", Static).update(
-                "At least one model id is required."
-            )
+            self.query_one("#custom-provider-help", Static).update("At least one model id is required.")
             self.query_one("#custom-provider-models", Input).focus()
             return None
         default_model = self._field("custom-provider-default-model", "Default model")
@@ -3686,9 +3653,7 @@ class OAuthLoginScreen(ModalScreen[OAuthCredential | _LoginFlowAction | None]):
         # No clipboard copy here: the verification URI is short and clickable,
         # and the thing the user carries to the browser is the code below it.
         self._show_url(info.verification_uri)
-        self.query_one("#login-help", Static).update(
-            f"Open the URL and enter code: {info.user_code}"
-        )
+        self.query_one("#login-help", Static).update(f"Open the URL and enter code: {info.user_code}")
 
     def _show_progress(self, message: str) -> None:
         self.query_one("#login-help", Static).update(message)
@@ -4698,9 +4663,7 @@ class BaldricTuiApp(App[None]):
         self._last_activity_indicator_key: tuple[object, ...] | None = None
         self._last_queue_render_key: tuple[object, ...] | None = None
         self._terminal_title = TerminalTitleController()
-        self._terminal_notification = TerminalNotificationController(
-            self.tui_settings.turn_notification
-        )
+        self._terminal_notification = TerminalNotificationController(self.tui_settings.turn_notification)
         self._app_has_focus = True
         self._active_notification_keys: set[tuple[str, str]] = set()
         self._supports_pyperclip: bool | None = None
@@ -4986,11 +4949,7 @@ class BaldricTuiApp(App[None]):
         event.stop()
         item = event.item
         current = self._extension_main_view
-        if (
-            current is not None
-            and isinstance(current.widget, SidebarFileEditor)
-            and current.widget.is_dirty
-        ):
+        if current is not None and isinstance(current.widget, SidebarFileEditor) and current.widget.is_dirty:
             message = "Save or close the current file before opening another."
             self._notify(message, severity="warning")
             current.widget.query_one("#sidebar-file-editor-status", Static).update(message)
@@ -5031,8 +4990,7 @@ class BaldricTuiApp(App[None]):
         """Optionally copy selected text automatically."""
         active_screen = self.screen
         if not (
-            self.tui_settings.auto_copy_selection
-            or getattr(active_screen, "auto_copy_selection", False)
+            self.tui_settings.auto_copy_selection or getattr(active_screen, "auto_copy_selection", False)
         ):
             return
         selection = active_screen.get_selected_text()
@@ -5156,8 +5114,7 @@ class BaldricTuiApp(App[None]):
                     prompt.text = raw_text
                     prompt.move_cursor(_text_end_location(raw_text))
                     self._notify(
-                        "Wait for the current agent turn and queued messages to finish "
-                        "before compacting.",
+                        "Wait for the current agent turn and queued messages to finish before compacting.",
                         severity="warning",
                     )
                     return
@@ -5209,8 +5166,7 @@ class BaldricTuiApp(App[None]):
                 self.run_worker(
                     self._switch_model(
                         ModelChoice(
-                            provider_name=command.model_selection_provider
-                            or self.session.provider_name,
+                            provider_name=command.model_selection_provider or self.session.provider_name,
                             model=command.model_selection_model,
                         )
                     ),
@@ -5446,9 +5402,7 @@ class BaldricTuiApp(App[None]):
                 theme=theme,
                 show_tool_results=self.state.show_tool_results,
                 scroll_end=True,
-                custom_markup=self.state.resolve_custom_markup(
-                    item, expanded=self.state.show_tool_results
-                ),
+                custom_markup=self.state.resolve_custom_markup(item, expanded=self.state.show_tool_results),
             )
         self._refresh_chrome(theme=theme)
 
@@ -5462,9 +5416,7 @@ class BaldricTuiApp(App[None]):
                 return True
         return False
 
-    def _replace_transformed_optimistic_user_message(
-        self, event: CodingSessionEvent, *, run_id: int
-    ) -> bool:
+    def _replace_transformed_optimistic_user_message(self, event: CodingSessionEvent, *, run_id: int) -> bool:
         """Reconcile a transformed prompt with its optimistic render.
 
         An extension `input` hook may transform the submitted text inside
@@ -5554,9 +5506,7 @@ class BaldricTuiApp(App[None]):
             if callable(queue_follow_up):
                 queue_follow_up(content, custom_type=custom_type, details=details)
             return
-        await self._submit_prompt(
-            content, source="extension", custom_type=custom_type, details=details
-        )
+        await self._submit_prompt(content, source="extension", custom_type=custom_type, details=details)
 
     # -- component seam ------------------------------------------------------
 
@@ -6120,9 +6070,7 @@ class BaldricTuiApp(App[None]):
                 culprit.remove()
         extension_name = sidebar_owner[0] if sidebar_owner else None
         context = (
-            f"sidebar:{sidebar_owner[0]}:{sidebar_owner[1]}"
-            if sidebar_owner
-            else f"render:{id(culprit)}"
+            f"sidebar:{sidebar_owner[0]}:{sidebar_owner[1]}" if sidebar_owner else f"render:{id(culprit)}"
         )
         self._record_extension_component_failure(
             context,
@@ -6415,8 +6363,7 @@ class BaldricTuiApp(App[None]):
                 visible_blocks = [
                     block
                     for block in event.message.content
-                    if isinstance(block, TextContent | ThinkingContent)
-                    and assistant_block_is_visible(block)
+                    if isinstance(block, TextContent | ThinkingContent) and assistant_block_is_visible(block)
                 ]
                 canonical_items = self.state.items[-len(visible_blocks) :] if visible_blocks else []
                 if not visible_blocks:
@@ -6483,9 +6430,7 @@ class BaldricTuiApp(App[None]):
             return
         if isinstance(event, (AutoRetryStartEvent, CompactionStartEvent)):
             await transcript.finish_assistant_message()
-            if self.state.items and (
-                isinstance(event, AutoRetryStartEvent) or event.reason == "overflow"
-            ):
+            if self.state.items and (isinstance(event, AutoRetryStartEvent) or event.reason == "overflow"):
                 await transcript.append_item(
                     self.state.items[-1],
                     theme=theme,
@@ -6803,9 +6748,7 @@ class BaldricTuiApp(App[None]):
             callback=self._handle_prompt_template_picker_result,
         )
 
-    def _handle_prompt_template_picker_result(
-        self, result: PromptTemplatePickerResult | None
-    ) -> None:
+    def _handle_prompt_template_picker_result(self, result: PromptTemplatePickerResult | None) -> None:
         prompt = self.query_one("#prompt", PromptInput)
         prompt.focus()
         if result is None:
@@ -7272,9 +7215,7 @@ class BaldricTuiApp(App[None]):
         if entry is None:
             self._notify(f"Unknown provider: {provider_name}", severity="error")
             return
-        use_oauth = method == "subscription" or (
-            method is None and "api_key" not in entry.auth_methods
-        )
+        use_oauth = method == "subscription" or (method is None and "api_key" not in entry.auth_methods)
         if use_oauth and get_oauth_provider(entry.name) is not None:
             login = None
             if entry.name == "openai-codex":
@@ -7293,9 +7234,7 @@ class BaldricTuiApp(App[None]):
                     theme=self.tui_settings.resolved_theme,
                     login=login,
                 ),
-                callback=lambda credential: self._handle_oauth_login_navigation_result(
-                    entry, credential
-                ),
+                callback=lambda credential: self._handle_oauth_login_navigation_result(entry, credential),
             )
             return
         self.push_screen(
@@ -7508,11 +7447,7 @@ class BaldricTuiApp(App[None]):
     def _open_model_picker(self) -> None:
         choices = self._available_model_choices()
         scoped = tuple(getattr(self.session, "scoped_model_choices", ()))
-        if (
-            not choices
-            and not scoped
-            and not getattr(self.session, "has_stale_active_model", False)
-        ):
+        if not choices and not scoped and not getattr(self.session, "has_stale_active_model", False):
             self._notify(
                 "No configured providers are usable. Run /login to set up a provider.",
                 severity="warning",
@@ -7528,15 +7463,11 @@ class BaldricTuiApp(App[None]):
             picker_kind="model",
         )
         picker.on_first_refresh = lambda: self._start_model_picker_refresh(picker)
-        self.push_screen(
-            picker, callback=lambda choice: self._handle_model_picker_result(picker, choice)
-        )
+        self.push_screen(picker, callback=lambda choice: self._handle_model_picker_result(picker, choice))
 
     def _start_model_picker_refresh(self, picker: ModelPickerScreen) -> None:
         if self.screen is picker:
-            picker.refresh_worker = self.run_worker(
-                self._refresh_open_model_picker(picker), exclusive=False
-            )
+            picker.refresh_worker = self.run_worker(self._refresh_open_model_picker(picker), exclusive=False)
 
     async def _refresh_open_model_picker(self, picker: ModelPickerScreen) -> None:
         refresh = getattr(self.session, "refresh_model_catalogs", None)
@@ -7557,11 +7488,7 @@ class BaldricTuiApp(App[None]):
     def _open_scoped_models_picker(self) -> None:
         choices = self._available_model_choices()
         scoped = tuple(getattr(self.session, "scoped_model_choices", ()))
-        if (
-            not choices
-            and not scoped
-            and not getattr(self.session, "has_stale_active_model", False)
-        ):
+        if not choices and not scoped and not getattr(self.session, "has_stale_active_model", False):
             self._notify(
                 "No configured providers are usable. Run /login to set up a provider.",
                 severity="warning",
@@ -7604,9 +7531,7 @@ class BaldricTuiApp(App[None]):
         ):
             self.call_after_refresh(self._refresh_chrome)
 
-    def _handle_model_picker_result(
-        self, picker: ModelPickerScreen, choice: ModelChoice | None
-    ) -> None:
+    def _handle_model_picker_result(self, picker: ModelPickerScreen, choice: ModelChoice | None) -> None:
         picker.cancel_refresh()
         if choice is not None:
             self.call_after_refresh(self._start_selected_model_switch, choice)
@@ -7965,9 +7890,7 @@ class BaldricTuiApp(App[None]):
 
     def _refresh_footer_bindings(self) -> None:
         prompt = self.query_one("#prompt", PromptInput)
-        prompt.set_footer_mode(
-            _prompt_footer_mode(self._completion_state, working=self._is_working())
-        )
+        prompt.set_footer_mode(_prompt_footer_mode(self._completion_state, working=self._is_working()))
 
     def _sync_prompt_shell_mode(self, text: str) -> None:
         prompt = self.query_one("#prompt", PromptInput)
@@ -8031,9 +7954,7 @@ def _should_optimistically_render_prompt(text: str) -> bool:
 
 def _is_user_message_end_event(event: CodingSessionEvent) -> bool:
     """Return whether an agent event closes a user-context message."""
-    return isinstance(event, MessageEndEvent) and isinstance(
-        event.message, (UserMessage, CustomMessage)
-    )
+    return isinstance(event, MessageEndEvent) and isinstance(event.message, (UserMessage, CustomMessage))
 
 
 def _terminal_command_prefix_span(text: str) -> tuple[int, int] | None:
@@ -8437,11 +8358,7 @@ def _model_picker_label(
     scoped: bool = False,
     unavailable: bool = False,
 ) -> str:
-    marker = (
-        "* "
-        if (choice.provider_name == current_provider and choice.model == current_model)
-        else "  "
-    )
+    marker = "* " if (choice.provider_name == current_provider and choice.model == current_model) else "  "
     suffix = (" [scoped]" if scoped else "") + (" [unavailable]" if unavailable else "")
     return f"{marker}{choice.provider_name}:{choice.model}{suffix}"
 
@@ -8600,8 +8517,7 @@ def _prompt_bindings(
                 "completion_next",
                 "Choose",
                 key_display=(
-                    f"{_key_hint(keybindings.completion_previous)}/"
-                    f"{_key_hint(keybindings.completion_next)}"
+                    f"{_key_hint(keybindings.completion_previous)}/{_key_hint(keybindings.completion_next)}"
                 ),
                 priority=True,
             ),
@@ -8893,9 +8809,7 @@ def _resource_conflict_alert(
     for diagnostic in conflicts:
         resource_kind = "skill" if diagnostic.kind == "skill" else "prompt template"
         shadowed_path = diagnostic.message.removeprefix(prefix)
-        lines.append(
-            f"- {resource_kind} '{diagnostic.name}': {diagnostic.path} overrides {shadowed_path}"
-        )
+        lines.append(f"- {resource_kind} '{diagnostic.name}': {diagnostic.path} overrides {shadowed_path}")
     lines.append("Rename or remove duplicate resources to clear this alert.")
     return "\n".join(lines)
 
@@ -9022,8 +8936,7 @@ async def run_tui_app(
             )
             startup_message = f"{login_required_message}\n\nStartup error: {exc}"
             startup_error_notice = (
-                f"Startup provider creation failed for "
-                f"{selection.provider.name}:{selection.model}: {exc}"
+                f"Startup provider creation failed for {selection.provider.name}:{selection.model}: {exc}"
             )
             initial_provider = LoginRequiredProvider(startup_message)
             runtime_provider_config = None
@@ -9046,9 +8959,7 @@ async def run_tui_app(
                 )
             else:
                 if provider_name is None or model is None:
-                    raise ProviderConfigError(
-                        "An explicit provider and model are required for this startup."
-                    )
+                    raise ProviderConfigError("An explicit provider and model are required for this startup.")
                 record = manager.prepare_session(
                     cwd=cwd,
                     model=model,
@@ -9117,12 +9028,8 @@ async def run_tui_app(
         legacy_notices = (startup_notice,) if startup_notice else ()
         error_notices = (startup_error_notice,) if startup_error_notice else ()
         theme_notices = tuple(diagnostic.format() for diagnostic in theme_diagnostics)
-        all_startup_notices = tuple(
-            (*error_notices, *startup_notices, *legacy_notices, *theme_notices)
-        )
-        resource_conflict_alert = _resource_conflict_alert(
-            getattr(session, "resource_diagnostics", ())
-        )
+        all_startup_notices = tuple((*error_notices, *startup_notices, *legacy_notices, *theme_notices))
+        resource_conflict_alert = _resource_conflict_alert(getattr(session, "resource_diagnostics", ()))
         startup_alerts = (resource_conflict_alert,) if resource_conflict_alert is not None else ()
         app = BaldricTuiApp(
             session,
@@ -9148,10 +9055,7 @@ async def run_tui_app(
         # Compatibility for lightweight test/embedded session loaders that do
         # not expose ownership. A real CodingSession owns the exact candidate,
         # so this branch does not double-close it.
-        if (
-            initial_provider is not None
-            and getattr(session, "provider", None) is not initial_provider
-        ):
+        if initial_provider is not None and getattr(session, "provider", None) is not initial_provider:
             with suppress(Exception):
                 await initial_provider.aclose()
 

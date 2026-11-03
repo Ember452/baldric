@@ -120,9 +120,7 @@ def test_tui_adapter_builds_user_and_compact_skill_items() -> None:
     adapter = TuiEventAdapter(state)
 
     adapter.apply(MessageEndEvent(message=UserMessage(content="Hello Baldric")))
-    adapter.apply(
-        MessageEndEvent(message=UserMessage(content=format_skill_invocation(skill, "check auth")))
-    )
+    adapter.apply(MessageEndEvent(message=UserMessage(content=format_skill_invocation(skill, "check auth"))))
 
     assert [(item.role, item.text) for item in state.items] == [
         ("user", "Hello Baldric"),
@@ -294,12 +292,7 @@ def test_tui_state_restores_write_only_model_continuations_as_one_group() -> Non
     assert len(state.items) == 1
     item = state.items[0]
     assert item.text == (
-        "→ Written 5 files\n"
-        "  - file-1.md\n"
-        "  - file-2.md\n"
-        "  - file-3.md\n"
-        "  - file-4.md\n"
-        "  - file-5.md"
+        "→ Written 5 files\n  - file-1.md\n  - file-2.md\n  - file-3.md\n  - file-4.md\n  - file-5.md"
     )
     assert item.grouped_tool_calls is not None
     assert [member.tool_call_id for member in item.grouped_tool_calls] == [
@@ -535,9 +528,7 @@ def test_tui_state_batches_mixed_tools_and_clusters_adjacent_reads() -> None:
 
 def test_tui_state_keeps_custom_rendered_calls_out_of_tool_batches() -> None:
     state = TuiState(
-        tool_call_renderer=lambda name, _arguments: (
-            "[bold]agent card[/bold]" if name == "agent" else None
-        )
+        tool_call_renderer=lambda name, _arguments: "[bold]agent card[/bold]" if name == "agent" else None
     )
     batch_id = state.new_tool_batch_id()
 
@@ -559,9 +550,7 @@ def test_tui_state_keeps_custom_rendered_calls_out_of_tool_batches() -> None:
 
 
 def test_tui_state_keeps_result_only_extension_tools_out_of_batches() -> None:
-    state = TuiState(
-        tool_result_renderer=lambda name, _result, _expanded: f"[bold]{name} card[/bold]"
-    )
+    state = TuiState(tool_result_renderer=lambda name, _result, _expanded: f"[bold]{name} card[/bold]")
     state.load_messages(
         [
             AssistantMessage(
@@ -623,12 +612,8 @@ def test_tui_adapter_does_not_group_reads_separated_by_assistant_text() -> None:
             )
         )
     )
-    adapter.apply(
-        ToolExecutionStartEvent(tool_call_id="call-1", tool_name="read", args={"path": "a.py"})
-    )
-    adapter.apply(
-        ToolExecutionStartEvent(tool_call_id="call-2", tool_name="read", args={"path": "b.py"})
-    )
+    adapter.apply(ToolExecutionStartEvent(tool_call_id="call-1", tool_name="read", args={"path": "a.py"}))
+    adapter.apply(ToolExecutionStartEvent(tool_call_id="call-2", tool_name="read", args={"path": "b.py"}))
 
     assert [item.text for item in state.items] == ["then", "→ read a.py", "→ read b.py"]
 
@@ -638,13 +623,9 @@ def test_tui_state_groups_reads_from_tool_only_messages() -> None:
     state = TuiState()
     state.load_messages(
         [
-            AssistantMessage(
-                content=[ToolCall(id="call-1", name="read", arguments={"path": "a.py"})]
-            ),
+            AssistantMessage(content=[ToolCall(id="call-1", name="read", arguments={"path": "a.py"})]),
             ToolResultMessage(tool_call_id="call-1", tool_name="read", content="one"),
-            AssistantMessage(
-                content=[ToolCall(id="call-2", name="read", arguments={"path": "b.py"})]
-            ),
+            AssistantMessage(content=[ToolCall(id="call-2", name="read", arguments={"path": "b.py"})]),
             ToolResultMessage(tool_call_id="call-2", tool_name="read", content="two"),
         ]
     )
@@ -675,9 +656,7 @@ def test_nested_file_groups_count_toward_tool_run_limit(
         ),
         *[
             AssistantMessage(
-                content=[
-                    ToolCall(id=f"c{index}", name=tool_name, arguments={"path": f"f{index}.py"})
-                ]
+                content=[ToolCall(id=f"c{index}", name=tool_name, arguments={"path": f"f{index}.py"})]
             )
             for index in range(1, 4)
         ],
@@ -691,14 +670,10 @@ def test_nested_file_groups_count_toward_tool_run_limit(
             adapter.apply(MessageStartEvent(message=AssistantMessage()))
             adapter.apply(MessageEndEvent(message=message))
         for call in message.tool_calls:
-            messages.append(
-                ToolResultMessage(tool_call_id=call.id, tool_name=call.name, content="ok")
-            )
+            messages.append(ToolResultMessage(tool_call_id=call.id, tool_name=call.name, content="ok"))
             if streaming:
                 adapter.apply(
-                    ToolExecutionStartEvent(
-                        tool_call_id=call.id, tool_name=call.name, args=call.arguments
-                    )
+                    ToolExecutionStartEvent(tool_call_id=call.id, tool_name=call.name, args=call.arguments)
                 )
                 adapter.apply(
                     ToolExecutionEndEvent(
@@ -724,9 +699,7 @@ def test_tui_adapter_records_tool_progress_and_result() -> None:
     state = TuiState()
     adapter = TuiEventAdapter(state)
 
-    adapter.apply(
-        ToolExecutionStartEvent(tool_call_id="call-1", tool_name="read", args={"path": "notes.md"})
-    )
+    adapter.apply(ToolExecutionStartEvent(tool_call_id="call-1", tool_name="read", args={"path": "notes.md"}))
     adapter.apply(
         ToolExecutionUpdateEvent(
             tool_call_id="call-1",
@@ -744,9 +717,9 @@ def test_tui_adapter_records_tool_progress_and_result() -> None:
         )
     )
 
-    assert [
-        (item.role, item.text, item.tool_result_text, item.update_text) for item in state.items
-    ] == [("tool", "→ read notes.md", "✓ read\ndone", None)]
+    assert [(item.role, item.text, item.tool_result_text, item.update_text) for item in state.items] == [
+        ("tool", "→ read notes.md", "✓ read\ndone", None)
+    ]
 
 
 def test_tui_adapter_renders_skill_file_reads_with_skill_style() -> None:
@@ -826,9 +799,7 @@ def test_tui_adapter_records_retry_and_queue_status() -> None:
     state = TuiState()
     adapter = TuiEventAdapter(state)
     adapter.apply(
-        MessageEndEvent(
-            message=AssistantMessage(stop_reason="error", error_message="provider failed")
-        )
+        MessageEndEvent(message=AssistantMessage(stop_reason="error", error_message="provider failed"))
     )
 
     adapter.apply(
@@ -854,9 +825,7 @@ def test_tui_adapter_records_assistant_error_and_aborted_message() -> None:
     adapter = TuiEventAdapter(state)
 
     adapter.apply(
-        MessageEndEvent(
-            message=AssistantMessage(stop_reason="error", error_message="provider failed")
-        )
+        MessageEndEvent(message=AssistantMessage(stop_reason="error", error_message="provider failed"))
     )
 
     assert state.error == "provider failed"
@@ -1063,9 +1032,7 @@ def test_tui_state_recovers_full_bash_command_when_tool_output_expands() -> None
 
     assert item.text == "→ Running shell command"
     assert state.resolve_tool_invocation(item) is None
-    assert state.resolve_tool_invocation(item, expanded=True) == (
-        f"→ Running shell command\n$ {command}"
-    )
+    assert state.resolve_tool_invocation(item, expanded=True) == (f"→ Running shell command\n$ {command}")
 
 
 def test_tui_adapter_uses_canonical_result_details_for_patch() -> None:

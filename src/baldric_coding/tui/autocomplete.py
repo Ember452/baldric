@@ -135,9 +135,7 @@ def build_completion_state(
         if has_argument_text and _matches_skill_command(token, skills):
             # Skill arguments are prompt text, so @ file references stay available.
             if cwd is not None:
-                return CompletionState(
-                    _file_reference_completions(text=text, cursor=cursor, cwd=cwd)
-                )
+                return CompletionState(_file_reference_completions(text=text, cursor=cursor, cwd=cwd))
             return CompletionState()
         return CompletionState(_skill_completions(token=token, token_end=token_end, skills=skills))
 
@@ -314,9 +312,7 @@ def _is_ignored_file_completion_path(path: Path, *, cwd: Path) -> bool:
     return any(part in IGNORED_FILE_COMPLETION_DIRS for part in relative_parts)
 
 
-def _shell_path_completions(
-    *, text: str, cursor: int, cwd: Path
-) -> tuple[CompletionItem, ...] | None:
+def _shell_path_completions(*, text: str, cursor: int, cwd: Path) -> tuple[CompletionItem, ...] | None:
     prefix_span = _shell_command_prefix_span(text)
     if prefix_span is None:
         return None
@@ -435,9 +431,7 @@ def _matches_skill_command(token: str, skills: Sequence[Skill]) -> bool:
     return any(skill.name.lower() == command_name for skill in skills)
 
 
-def _matches_prompt_template_command(
-    token: str, prompt_templates: Sequence[PromptTemplate]
-) -> bool:
+def _matches_prompt_template_command(token: str, prompt_templates: Sequence[PromptTemplate]) -> bool:
     command_name = token.removeprefix("/").lower()
     return any(template.name.lower() == command_name for template in prompt_templates)
 
@@ -457,9 +451,7 @@ def _command_completions(
     prefix = token.removeprefix("/").lower()
     command_suggestions: list[CompletionItem] = []
     for command in registry.list_commands():
-        command_suggestions.extend(
-            _command_alias_completions(command, prefix=prefix, token_end=token_end)
-        )
+        command_suggestions.extend(_command_alias_completions(command, prefix=prefix, token_end=token_end))
     prompt_suggestions = [
         CompletionItem(
             display=f"/{template.name}",
@@ -487,12 +479,8 @@ def _command_completion_sort_key(item: CompletionItem, prefix: str) -> tuple[int
     return (direct_match_rank, item.display)
 
 
-def _command_alias_completions(
-    command: SlashCommand, *, prefix: str, token_end: int
-) -> list[CompletionItem]:
-    names = (
-        (command.name,) if not prefix else (command.name, *command.aliases, *command.search_terms)
-    )
+def _command_alias_completions(command: SlashCommand, *, prefix: str, token_end: int) -> list[CompletionItem]:
+    names = (command.name,) if not prefix else (command.name, *command.aliases, *command.search_terms)
     suggestions: list[CompletionItem] = []
     seen: set[str] = set()
     for name in names:
@@ -521,9 +509,7 @@ def _command_alias_completions(
     return suggestions
 
 
-def _skill_completions(
-    *, token: str, token_end: int, skills: Sequence[Skill]
-) -> tuple[CompletionItem, ...]:
+def _skill_completions(*, token: str, token_end: int, skills: Sequence[Skill]) -> tuple[CompletionItem, ...]:
     prefix = token.removeprefix("/skill:").lower()
     suggestions = [
         CompletionItem(

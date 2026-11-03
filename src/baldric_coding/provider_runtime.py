@@ -103,9 +103,7 @@ async def create_dynamic_model_provider(
         except BaseException:  # noqa: BLE001 - extension object validation boundary
             close = None
         if not callable(stream_response) or not callable(close):
-            error = ProviderConfigError(
-                f"Runtime factory for {provider.id} returned an unsupported provider"
-            )
+            error = ProviderConfigError(f"Runtime factory for {provider.id} returned an unsupported provider")
             if callable(close):
                 try:
                     close_result = close()
@@ -144,8 +142,7 @@ async def create_dynamic_model_provider(
         api=selected_api,
         max_tokens=selected_model.max_tokens,
         supports_images=(
-            selected_model.input_modalities is not None
-            and "image" in selected_model.input_modalities
+            selected_model.input_modalities is not None and "image" in selected_model.input_modalities
         ),
         compat=json_compatible_mapping(selected_model.compat),
         provider_name=provider.id,
@@ -223,9 +220,7 @@ def create_model_provider(
         validate_provider_model(provider, model)
     if inference_provider is not None:
         if provider.name != "huggingface" or model is None:
-            raise ProviderConfigError(
-                "Inference-provider pinning is only available for Hugging Face models"
-            )
+            raise ProviderConfigError("Inference-provider pinning is only available for Hugging Face models")
         inference_provider = validate_huggingface_inference_provider(inference_provider)
     credentials = credential_store or FileCredentialStore()
     if isinstance(provider, AnthropicProviderConfig):
@@ -400,9 +395,7 @@ class OpenAICodexCredentialResolver:
         if access_token:
             account_id = account_id_from_access_token(access_token)
             if account_id is None:
-                raise RuntimeError(
-                    f"{self._provider.api_key_env} must contain an OpenAI Codex access JWT"
-                )
+                raise RuntimeError(f"{self._provider.api_key_env} must contain an OpenAI Codex access JWT")
             return OpenAICodexCredentials(access_token=access_token, account_id=account_id)
 
         credential_hint = f"Run /login {self._provider.name}."
@@ -485,8 +478,7 @@ class OAuthRuntimeCredentialResolver:
             credential = self._credential_store.get_oauth(credential_name)
             if credential is None:
                 raise RuntimeError(
-                    f"Missing OAuth credentials for {self._provider.name}. "
-                    f"Run /login {self._provider.name}."
+                    f"Missing OAuth credentials for {self._provider.name}. Run /login {self._provider.name}."
                 )
             refreshed = await oauth_provider.refresh(credential)
             if refreshed != credential:

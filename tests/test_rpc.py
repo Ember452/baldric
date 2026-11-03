@@ -7,7 +7,6 @@ from types import SimpleNamespace
 import pytest
 from typer.testing import CliRunner
 
-from pi_event_helpers import assistant_done, assistant_start, text_delta
 from baldric_agent import AssistantMessage, Usage, UserMessage
 from baldric_agent.session import (
     CompactionEntry,
@@ -19,17 +18,18 @@ from baldric_agent.session import (
 )
 from baldric_ai import FakeProvider
 from baldric_coding import (
+    BaldricPaths,
     CodingSession,
     CodingSessionConfig,
     ModelChoice,
     OpenAICompatibleProviderConfig,
     ProviderSettings,
     SessionManager,
-    BaldricPaths,
 )
 from baldric_coding import cli as cli_module
 from baldric_coding.provider_config import ProviderModelMetadata
 from baldric_coding.rpc import RpcServer
+from pi_event_helpers import assistant_done, assistant_start, text_delta
 
 
 async def _session(tmp_path: Path, provider: FakeProvider) -> CodingSession:
@@ -143,9 +143,7 @@ async def test_rpc_set_session_name_persists_rename(tmp_path: Path) -> None:
 
 
 @pytest.mark.anyio
-async def test_rpc_model_shape_uses_catalog_metadata(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_rpc_model_shape_uses_catalog_metadata(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     provider_config = OpenAICompatibleProviderConfig(
         name="local",
@@ -172,9 +170,7 @@ async def test_rpc_model_shape_uses_catalog_metadata(
             storage=JsonlSessionStorage(tmp_path / "session.jsonl"),
             cwd=tmp_path,
             provider_name="local",
-            provider_settings=ProviderSettings(
-                default_provider="local", providers=(provider_config,)
-            ),
+            provider_settings=ProviderSettings(default_provider="local", providers=(provider_config,)),
             runtime_provider_config=provider_config,
         )
     )
@@ -245,9 +241,7 @@ async def test_rpc_session_inspection_matches_pi_shapes(tmp_path: Path) -> None:
 
     await RpcServer(session, stdin=stdin, stdout=stdout).run()
 
-    entries, tree, last, forks, stats = [
-        json.loads(line) for line in stdout.getvalue().splitlines()
-    ]
+    entries, tree, last, forks, stats = [json.loads(line) for line in stdout.getvalue().splitlines()]
     projected_entries = entries["data"]["entries"]
     assert projected_entries[1]["parentId"] == user.id
     assert projected_entries[2]["type"] == "model_change"
@@ -367,9 +361,7 @@ async def test_rpc_compaction_returns_canonical_summary_and_boundary(tmp_path: P
     assert boundary != compaction.id
     assert compaction.first_kept_entry_id == boundary
     assert compaction.tokens_before == response["data"]["tokensBefore"]
-    projected = next(
-        entry for entry in entries_response["data"]["entries"] if entry["type"] == "compaction"
-    )
+    projected = next(entry for entry in entries_response["data"]["entries"] if entry["type"] == "compaction")
     assert projected["usage"]["input"] == 800
     assert projected["usage"]["cacheRead"] == 200
     assert projected["usage"]["output"] == 40
@@ -418,8 +410,7 @@ async def test_rpc_projects_legacy_compaction_without_id_list_bridge(tmp_path: P
 async def test_rpc_auto_compaction_control_updates_pi_state(tmp_path: Path) -> None:
     session = await _session(tmp_path, FakeProvider([]))
     stdin = StringIO(
-        '{"id":"set","type":"set_auto_compaction","enabled":false}\n'
-        '{"id":"state","type":"get_state"}\n'
+        '{"id":"set","type":"set_auto_compaction","enabled":false}\n{"id":"state","type":"get_state"}\n'
     )
     stdout = StringIO()
 
@@ -466,14 +457,10 @@ async def test_rpc_reports_bad_records_and_continues(tmp_path: Path) -> None:
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("command", ["providers", "sessions", "setup", "export", "update"])
-def test_rpc_mode_never_dispatches_utility_commands(
-    monkeypatch: pytest.MonkeyPatch, command: str
-) -> None:
+def test_rpc_mode_never_dispatches_utility_commands(monkeypatch: pytest.MonkeyPatch, command: str) -> None:
     called: list[str] = []
     monkeypatch.setattr(cli_module, "providers_command", lambda: called.append("providers"))
-    monkeypatch.setattr(
-        cli_module, "render_session_list", lambda records: called.append("sessions")
-    )
+    monkeypatch.setattr(cli_module, "render_session_list", lambda records: called.append("sessions"))
     monkeypatch.setattr(cli_module, "setup_command", lambda **kwargs: called.append("setup"))
     monkeypatch.setattr(cli_module, "_run_export_cli", lambda args: called.append("export"))
     monkeypatch.setattr(cli_module, "update_command", lambda: called.append("update"))
@@ -521,9 +508,7 @@ class _PreflightFailureSession:
     def cancel(self) -> None:
         return None
 
-    def prompt(
-        self, content: str, *, streaming_behavior: str | None = None
-    ) -> AsyncIterator[object]:
+    def prompt(self, content: str, *, streaming_behavior: str | None = None) -> AsyncIterator[object]:
         del content, streaming_behavior
 
         async def fail() -> AsyncIterator[object]:

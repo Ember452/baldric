@@ -250,9 +250,7 @@ async def test_refresh_github_copilot_preserves_enterprise_metadata() -> None:
 
     assert refreshed.metadata == original.metadata
     assert normalize_github_domain("https://ghe.example.com/path") == "ghe.example.com"
-    assert github_copilot_base_url(None, "ghe.example.com") == (
-        "https://copilot-api.ghe.example.com"
-    )
+    assert github_copilot_base_url(None, "ghe.example.com") == ("https://copilot-api.ghe.example.com")
 
 
 @pytest.mark.anyio

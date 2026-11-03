@@ -58,8 +58,7 @@ def nvidia_model_filter(source: object, live_source: object) -> set[str]:
     return {
         model_id
         for model_id in source_models
-        if model_id.lower().replace("_", ".") in live_ids
-        and model_id not in NVIDIA_UNSUPPORTED_MODELS
+        if model_id.lower().replace("_", ".") in live_ids and model_id not in NVIDIA_UNSUPPORTED_MODELS
     }
 
 
@@ -86,9 +85,7 @@ def thinking_level_map_from_reasoning_options(
 
     return {
         "off": "none" if "none" in values else None,
-        **{
-            level: level if level in values else None for level in THINKING_LEVELS if level != "off"
-        },
+        **{level: level if level in values else None for level in THINKING_LEVELS if level != "off"},
     }
 
 
@@ -130,9 +127,7 @@ def models_dev_catalog_document(
         }
         source_ids = {model_id for model_id in source_models if isinstance(model_id, str)}
         retained_manual = [
-            model
-            for model in provider.models
-            if model not in source_ids or model == provider.default_model
+            model for model in provider.models if model not in source_ids or model == provider.default_model
         ]
         existing_eligible = [model for model in provider.models if model in eligible]
         new_models = sorted(set(eligible) - set(provider.models))
@@ -242,9 +237,7 @@ def _model_metadata(
         "context_window": _positive_int_or(
             limits.get("context") if isinstance(limits, Mapping) else None, 4096
         ),
-        "max_tokens": _positive_int_or(
-            limits.get("output") if isinstance(limits, Mapping) else None, 4096
-        ),
+        "max_tokens": _positive_int_or(limits.get("output") if isinstance(limits, Mapping) else None, 4096),
     }
     cost_tiers = _cost_tiers(cost)
     if cost_tiers:
@@ -322,6 +315,4 @@ def _number_or_zero(value: object) -> float:
 
 
 def _positive_int_or(value: object, fallback: int) -> int:
-    return (
-        value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else fallback
-    )
+    return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else fallback

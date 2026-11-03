@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 
 from baldric_coding import (
-    Skill,
     BaldricResourcePaths,
+    Skill,
     build_skill_index,
     expand_skill_command,
     format_skill_invocation,
@@ -30,9 +30,7 @@ def test_load_skills_from_directory(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     (skills_dir / "git-review").mkdir()
-    (skills_dir / "git-review" / "SKILL.md").write_text(
-        "# Git Review\nReview diffs.", encoding="utf-8"
-    )
+    (skills_dir / "git-review" / "SKILL.md").write_text("# Git Review\nReview diffs.", encoding="utf-8")
 
     skills = load_skills(BaldricResourcePaths(root=tmp_path, agents_root=None))
 
@@ -67,9 +65,7 @@ def test_user_skill_can_use_a_former_bundled_skill_name(tmp_path: Path) -> None:
     skill_path = skill_dir / "SKILL.md"
     skill_path.write_text("# Custom catalog workflow", encoding="utf-8")
 
-    skills, diagnostics = load_skills_with_diagnostics(
-        BaldricResourcePaths(root=tmp_path, agents_root=None)
-    )
+    skills, diagnostics = load_skills_with_diagnostics(BaldricResourcePaths(root=tmp_path, agents_root=None))
 
     assert [(skill.name, skill.path) for skill in skills] == [("baldric-model-catalog", skill_path)]
     assert diagnostics == []
@@ -83,9 +79,7 @@ def test_project_agents_skill_overrides_user_agents_skill(tmp_path: Path) -> Non
     (agents_home / "skills" / "review").mkdir(parents=True)
     (agents_home / "skills" / "review" / "SKILL.md").write_text("# User Review", encoding="utf-8")
     (cwd / ".agents" / "skills" / "review").mkdir(parents=True)
-    (cwd / ".agents" / "skills" / "review" / "SKILL.md").write_text(
-        "# Project Review", encoding="utf-8"
-    )
+    (cwd / ".agents" / "skills" / "review" / "SKILL.md").write_text("# Project Review", encoding="utf-8")
 
     skills = load_skills(BaldricResourcePaths(root=baldric_home, agents_root=agents_home, cwd=cwd))
 
@@ -111,9 +105,7 @@ def test_load_skills_with_diagnostics_reports_overrides(tmp_path: Path) -> None:
 
     review = next(skill for skill in skills if skill.name == "review")
     assert review.path == cwd / ".baldric" / "skills" / "review" / "SKILL.md"
-    override_diagnostics = [
-        d for d in diagnostics if "overrides lower-precedence resource" in d.message
-    ]
+    override_diagnostics = [d for d in diagnostics if "overrides lower-precedence resource" in d.message]
     assert len(override_diagnostics) == 1
     assert override_diagnostics[0].kind == "skill"
     assert override_diagnostics[0].name == "review"
@@ -133,9 +125,7 @@ def test_load_skills_with_diagnostics_reports_bare_md_migration_hint(
     (skills_dir / "good").mkdir()
     (skills_dir / "good" / "SKILL.md").write_text("# Good Skill", encoding="utf-8")
 
-    skills, diagnostics = load_skills_with_diagnostics(
-        BaldricResourcePaths(root=tmp_path, agents_root=None)
-    )
+    skills, diagnostics = load_skills_with_diagnostics(BaldricResourcePaths(root=tmp_path, agents_root=None))
 
     assert "good" in {skill.name for skill in skills}
     migration_diagnostics = [d for d in diagnostics if d.severity == "info"]
@@ -270,9 +260,7 @@ def test_parse_skill_invocation_extracts_display_metadata(tmp_path: Path) -> Non
 
 def test_expand_skill_command_returns_none_for_normal_prompt(tmp_path: Path) -> None:
     assert (
-        expand_skill_command(
-            "hello", load_skills(BaldricResourcePaths(root=tmp_path, agents_root=None))
-        )
+        expand_skill_command("hello", load_skills(BaldricResourcePaths(root=tmp_path, agents_root=None)))
         is None
     )
 

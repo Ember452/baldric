@@ -31,9 +31,7 @@ def test_message_token_estimate_counts_roles_and_tool_calls() -> None:
         AssistantMessage(content=assistant_content("using tool", [tool_call]))
     )
     tool_tokens = estimate_message_tokens(
-        ToolResultMessage(
-            tool_call_id="call-1", tool_name="read", content=[TextContent(text="contents")]
-        )
+        ToolResultMessage(tool_call_id="call-1", tool_name="read", content=[TextContent(text="contents")])
     )
 
     assert user_tokens > estimate_text_tokens("hello")

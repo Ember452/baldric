@@ -67,9 +67,7 @@ CACHE_TTL_LONG = "1h"
 MAX_CACHE_BREAKPOINTS = 4
 SYSTEM_CACHE_BREAKPOINTS = 1
 TOOLS_CACHE_BREAKPOINTS = 1
-MESSAGE_CACHE_BREAKPOINTS = (
-    MAX_CACHE_BREAKPOINTS - SYSTEM_CACHE_BREAKPOINTS - TOOLS_CACHE_BREAKPOINTS
-)
+MESSAGE_CACHE_BREAKPOINTS = MAX_CACHE_BREAKPOINTS - SYSTEM_CACHE_BREAKPOINTS - TOOLS_CACHE_BREAKPOINTS
 
 # Block types that may carry cache_control.
 CACHEABLE_BLOCK_TYPES = frozenset({"text", "image", "tool_result"})
@@ -109,9 +107,7 @@ class AnthropicProvider:
         raw = self._stream_provider_events(
             model=model, system=system, messages=messages, tools=tools, signal=signal
         )
-        return canonicalize_provider_stream(
-            raw, api="anthropic-messages", provider="anthropic", model=model
-        )
+        return canonicalize_provider_stream(raw, api="anthropic-messages", provider="anthropic", model=model)
 
     def _stream_provider_events(
         self,
@@ -173,9 +169,7 @@ class AnthropicProvider:
             while True:
                 emitted_content = False
                 try:
-                    async with client.stream(
-                        "POST", url, json=payload, headers=headers
-                    ) as response:
+                    async with client.stream("POST", url, json=payload, headers=headers) as response:
                         if response.status_code >= 400:
                             body = await response.aread()
                             body_text = body.decode(errors="replace")
@@ -231,9 +225,7 @@ class AnthropicProvider:
                                 continue
                             chunk = _loads_object(event)
                             if chunk is None:
-                                yield ProviderErrorEvent(
-                                    message="Provider returned invalid JSON chunk"
-                                )
+                                yield ProviderErrorEvent(message="Provider returned invalid JSON chunk")
                                 return
 
                             event_type = chunk.get("type")
@@ -245,9 +237,7 @@ class AnthropicProvider:
                                 block = chunk.get("content_block")
                                 if isinstance(block, Mapping) and block.get("type") == "tool_use":
                                     index = int(chunk.get("index", 0))
-                                    builder = tool_builders.setdefault(
-                                        index, _AnthropicToolBuilder()
-                                    )
+                                    builder = tool_builders.setdefault(index, _AnthropicToolBuilder())
                                     builder.id = _string_or_empty(block.get("id"))
                                     builder.name = _string_or_empty(block.get("name"))
                                     emitted_content = True
@@ -271,14 +261,10 @@ class AnthropicProvider:
                                 elif delta_type == "signature_delta":
                                     signature = _string_or_empty(delta.get("signature"))
                                     if signature:
-                                        thinking_signature = (
-                                            f"{thinking_signature or ''}{signature}"
-                                        )
+                                        thinking_signature = f"{thinking_signature or ''}{signature}"
                                 elif delta_type == "input_json_delta":
                                     index = int(chunk.get("index", 0))
-                                    builder = tool_builders.setdefault(
-                                        index, _AnthropicToolBuilder()
-                                    )
+                                    builder = tool_builders.setdefault(index, _AnthropicToolBuilder())
                                     builder.arguments_parts.append(
                                         _string_or_empty(delta.get("partial_json"))
                                     )
@@ -478,9 +464,7 @@ def _build_messages_payload(
         tools_cache_control = cache_control if cache_control_on_tools else None
         last_index = len(tools) - 1
         payload["tools"] = [
-            _anthropic_tool(
-                tool, cache_control=tools_cache_control if index == last_index else None
-            )
+            _anthropic_tool(tool, cache_control=tools_cache_control if index == last_index else None)
             for index, tool in enumerate(tools)
         ]
     return payload
@@ -592,9 +576,7 @@ def _mark_cache_breakpoint(
     if isinstance(content, str):
         if not content:
             return
-        message["content"] = [
-            {"type": "text", "text": content, "cache_control": dict(cache_control)}
-        ]
+        message["content"] = [{"type": "text", "text": content, "cache_control": dict(cache_control)}]
         return
     if not isinstance(content, list) or not content:
         return

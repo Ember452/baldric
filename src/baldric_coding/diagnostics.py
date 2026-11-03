@@ -159,9 +159,7 @@ def _safe_error_object(value: object) -> dict[str, str]:
     if not isinstance(value, dict):
         return {}
     return {
-        key: field
-        for key in _SAFE_ERROR_OBJECT_KEYS
-        if isinstance((field := value.get(key)), str) and field
+        key: field for key in _SAFE_ERROR_OBJECT_KEYS if isinstance((field := value.get(key)), str) and field
     }
 
 

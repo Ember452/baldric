@@ -651,10 +651,7 @@ cost_tiers = [
 
     save_user_catalog_entries([entry], paths)
     reloaded = next(e for e in effective_catalog(paths) if e.name == "minimax")
-    assert (
-        model_cost_for_input_tokens(reloaded.model_metadata["MiniMax-M3"], 400_001)
-        == long_context_cost
-    )
+    assert model_cost_for_input_tokens(reloaded.model_metadata["MiniMax-M3"], 400_001) == long_context_cost
 
 
 def test_user_catalog_cost_tier_accepts_one_hour_cache_write_rate(tmp_path: Path) -> None:
@@ -715,9 +712,7 @@ def test_user_catalog_rejects_unknown_keys(tmp_path: Path) -> None:
 def test_user_catalog_rejects_default_model_not_in_models(tmp_path: Path) -> None:
     paths = _write_user_catalog(
         tmp_path / ".baldric",
-        VALID_PROVIDER.replace(
-            'default_model = "deepseek-ai/DeepSeek-V4-Pro"', 'default_model = "missing"'
-        ),
+        VALID_PROVIDER.replace('default_model = "deepseek-ai/DeepSeek-V4-Pro"', 'default_model = "missing"'),
     )
     with pytest.raises(CatalogError, match=r"providers\.nebius\.default_model"):
         effective_catalog(paths)
@@ -782,9 +777,7 @@ def test_user_catalog_rejects_empty_and_coerced_values(
 
 
 def test_user_catalog_rejects_bad_kind(tmp_path: Path) -> None:
-    paths = _write_user_catalog(
-        tmp_path / ".baldric", VALID_PROVIDER.replace("openai-compatible", "grpc")
-    )
+    paths = _write_user_catalog(tmp_path / ".baldric", VALID_PROVIDER.replace("openai-compatible", "grpc"))
     with pytest.raises(CatalogError, match="kind"):
         effective_catalog(paths)
 

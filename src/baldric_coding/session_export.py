@@ -204,9 +204,7 @@ def render_session_html(
     tool_count = sum(1 for entry in visible_entries if _entry_filter_kind(entry) == "tool")
     event_count = sum(1 for entry in visible_entries if _entry_filter_kind(entry) == "event")
     usage_html = render_usage_dashboard(
-        collect_session_usage(
-            [entry for entry in entry_list if entry.id in active_path_ids] or entry_list
-        )
+        collect_session_usage([entry for entry in entry_list if entry.id in active_path_ids] or entry_list)
     )
     light_theme_css = _export_theme_css(BALDRIC_LIGHT_THEME)
     dark_theme_css = _export_theme_css(BALDRIC_DARK_THEME)
@@ -1102,9 +1100,7 @@ def _visible_export_entries(entries: list[SessionEntry]) -> list[SessionEntry]:
             parent = entries_by_id.get(parent_id)
             parent_id = parent.parent_id if parent is not None else None
         visible.append(
-            entry.model_copy(update={"parent_id": parent_id})
-            if parent_id != entry.parent_id
-            else entry
+            entry.model_copy(update={"parent_id": parent_id}) if parent_id != entry.parent_id else entry
         )
     return visible
 
@@ -1139,9 +1135,7 @@ def _render_tree(
     for entry in entries:
         children_by_parent[entry.parent_id].append(entry)
 
-    roots = [
-        entry for entry in entries if entry.parent_id is None or entry.parent_id not in entry_ids
-    ]
+    roots = [entry for entry in entries if entry.parent_id is None or entry.parent_id not in entry_ids]
     if not roots:
         roots = list(entries)
 
@@ -1210,9 +1204,7 @@ def _render_tree_chain(
         chain.append(current)
         chain_ancestors.add(current.id)
         children = [
-            child
-            for child in children_by_parent.get(current.id, [])
-            if child.id not in chain_ancestors
+            child for child in children_by_parent.get(current.id, []) if child.id not in chain_ancestors
         ]
         if len(children) == 1:
             current = children[0]
@@ -1309,9 +1301,7 @@ def _render_entry_detail(
     if _entry_is_error(entry):
         classes.append("is-error")
     status_html = (
-        f'<span class="entry-status">{_escape(" · ".join(status_bits))}</span>'
-        if status_bits
-        else ""
+        f'<span class="entry-status">{_escape(" · ".join(status_bits))}</span>' if status_bits else ""
     )
     body = _render_entry_body(entry)
     timestamp = _format_timestamp(entry.timestamp)
@@ -1347,9 +1337,7 @@ def _render_entry_body(entry: SessionEntry) -> str:
         return _render_message_entry(entry)
     if isinstance(entry, CustomMessageEntry):
         details = (
-            _render_block("Details", _render_json_block(entry.details))
-            if entry.details is not None
-            else ""
+            _render_block("Details", _render_json_block(entry.details)) if entry.details is not None else ""
         )
         return f"<pre>{_escape(content_text(entry.content))}</pre>{details}"
     if isinstance(entry, ModelChangeEntry):
@@ -1389,9 +1377,7 @@ def _render_entry_body(entry: SessionEntry) -> str:
         )
     if isinstance(entry, LabelEntry):
         action = (
-            f"Set bookmark to <strong>{_escape(entry.label)}</strong>"
-            if entry.label
-            else "Cleared bookmark"
+            f"Set bookmark to <strong>{_escape(entry.label)}</strong>" if entry.label else "Cleared bookmark"
         )
         return (
             f'<p>{action} on <a href="#entry-{_attr(entry.target_id)}">'

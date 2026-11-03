@@ -141,9 +141,7 @@ async def test_codex_resume_restores_astra_through_real_frontend(
             trust_override="trust",
         )
     else:
-        source = manager.create_session(
-            cwd=tmp_path, model="gpt-5.6-sol", provider_name="openai-codex"
-        )
+        source = manager.create_session(cwd=tmp_path, model="gpt-5.6-sol", provider_name="openai-codex")
         monkeypatch.setattr(
             session_module,
             "create_model_provider",
@@ -164,9 +162,7 @@ async def test_codex_resume_restores_astra_through_real_frontend(
                 extensions_enabled=False,
             )
         )
-        monkeypatch.setattr(
-            session_module, "create_model_provider", lambda *a, **k: CatalogProvider()
-        )
+        monkeypatch.setattr(session_module, "create_model_provider", lambda *a, **k: CatalogProvider())
         try:
             await session.resume(record.id)
             assert session.provider_name == "openai-codex"
