@@ -1,0 +1,11 @@
+[
+  {
+    "version": "0.1.0",
+    "date": null,
+    "sections": {
+      "New": [
+        "Initial Baldric release: a fork of tau (huggingface/tau), rebased onto its own 0.1.0 version line."
+      ]
+    }
+  }
+]
