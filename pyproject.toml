@@ -1,0 +1,72 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "baldric"
+version = "0.1.0"
+description = "A Python coding-agent harness in the pi→tau lineage. Forked from tau (huggingface/tau, MIT, © Alejandro AO)."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+dependencies = [
+    "anyio>=4.0",
+    "httpx[socks]>=0.27",
+    "packaging>=24.0",
+    "pillow>=11.0",
+    "pydantic>=2.11",
+    "pygments>=2.18",
+    "rich>=13.0",
+    "textual>=8.2.8",
+    "typer>=0.12",
+]
+
+[project.urls]
+Homepage = "https://github.com/Ember452/baldric"
+Documentation = "https://github.com/Ember452/baldric"
+Repository = "https://github.com/Ember452/baldric"
+Issues = "https://github.com/Ember452/baldric/issues"
+
+[project.scripts]
+baldric = "baldric_coding.cli:app"
+
+[[tool.uv.index]]
+url = "https://mirrors.aliyun.com/pypi/simple/"
+default = true
+
+[dependency-groups]
+dev = [
+    "mypy>=1.10",
+    "pytest>=8.0",
+    "pytest-timeout>=2.4.0",
+    "ruff>=0.5",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/baldric_ai", "src/baldric_agent", "src/baldric_coding"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["baldric_ai", "baldric_agent", "baldric_coding"]
+
+[[tool.mypy.overrides]]
+module = "pygments.*"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
