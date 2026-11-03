@@ -1,0 +1,66 @@
+# Startup update check
+
+Baldric now performs a small, best-effort update check in CLI startup paths that launch the product experience: the Textual TUI and text print mode.
+
+## What was added
+
+- `baldric_coding.update_check` fetches PyPI metadata for the published package (`baldric`).
+- Versions are compared with `packaging.version.Version` so PEP 440 releases sort correctly.
+- The result is cached under `~/.baldric/cache/update-check.json` and refreshed at most once per day.
+- Failures are quiet no-ops: network errors, malformed JSON, missing fields, and invalid versions do not stop startup.
+- Failed fetches are cached too (`"failed": true`) and retried after an hour, so offline launches do not each wait for the 1.5 s request timeout.
+- `BALDRIC_NO_UPDATE_CHECK=1` disables the check, and the check is skipped automatically when `CI` is set.
+- `baldric update` upgrades `baldric` with the package manager that owns the active Baldric environment.
+
+## Where it belongs
+
+This lives in `baldric_coding`, not `baldric_agent`, because update notification is CLI application behavior. The reusable agent harness remains independent of PyPI, Rich/Textual UI concerns, and Baldric's home-directory layout.
+
+## Output policy
+
+- TUI startup renders a cached update notice as the first transcript item in fixed bright-yellow, bold styling, before release notes, provider errors, theme diagnostics, or session history.
+- The TUI never waits for PyPI. `cached_update_notice` reads only the cache; when a check is due, the app runs `startup_update_notice` in a daemon thread after mount and appends the notice when it resolves (as a toast if an agent turn is streaming). The daemon thread keeps an early quit from waiting on the request.
+- Print mode writes the notice to stderr for normal text output.
+- Structured print output (`--mode json`) suppresses the notice to avoid corrupting scripted output.
+- Utility commands (`baldric --version`, `baldric update`, `baldric sessions`, `baldric export`, `baldric providers`, `baldric setup`) do not run the update check.
+
+## Update command
+
+`baldric update` inspects the active environment before running anything:
+
+- `uv-receipt.toml` means uv owns the tool. Baldric fetches the latest stable PyPI
+  version and runs `uv tool install baldric@<latest-version>`, explicitly replacing
+  any version pin recorded when the tool was installed. On Windows, Baldric hands
+  this command to a detached PowerShell process. The helper waits for the
+  original Baldric PID to exit before invoking uv, preventing Windows from partially
+  replacing the still-running tool environment. Baldric reports that the update was
+  scheduled—not completed—and gives the path to a log containing the eventual
+  command output and exit code. The helper treats process inspection or waiting
+  errors as fatal: uv never starts unless the original Baldric process is confirmed
+  absent or its observed process object exits. The update executable and a
+  Microsoft-runtime-quoted argument line are staged as base64-encoded JSON. The
+  helper launches them with non-shell `ProcessStartInfo`, preserving spaces,
+  metacharacters, embedded quotes, empty arguments, and trailing backslashes on
+  Windows PowerShell 5.1 and PowerShell 7 without interpolated shell execution.
+- `pipx_metadata.json` means pipx owns it, so Baldric runs `pipx upgrade baldric`.
+- The distribution's standard `INSTALLER` metadata identifies ordinary uv and pip installs. Baldric runs either `uv pip install --python <current-python> --upgrade baldric` or `<current-python> -m pip install --upgrade baldric`, targeting the environment that is running Baldric.
+
+Baldric does not fall through to another installer when the selected command fails. Direct-URL and editable installs are sent back to their original source; Conda/Pixi-managed and unrecognized environments get manual instructions rather than being modified with pip. Editable checkout installs can be refreshed with `uv tool install --editable --force .`.
+
+## Testing
+
+Run:
+
+```bash
+uv run pytest tests/test_updater.py tests/test_update_check.py tests/test_cli.py tests/test_tui_app.py
+```
+
+`tests/test_updater.py` also contains Windows-and-PowerShell-only integration
+coverage. On Windows it launches the generated helper against a live fake parent
+and fake updater, checking blocking, exact executable and argument delivery,
+exit-code logging, and fail-closed wait errors without installing uv or replacing
+Baldric. Every installed supported engine (`powershell.exe` and `pwsh.exe`) is tested;
+individual unavailable engines are omitted, and the runtime tests skip only when
+Windows has neither. Cross-platform tests cover the Windows quoting algorithm,
+encoded payload, script generation, detached launch options, staging failures,
+and cleanup. Current Ubuntu CI cannot execute the Windows runtime cases.
