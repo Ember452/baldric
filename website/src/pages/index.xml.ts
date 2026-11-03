@@ -1,6 +1,6 @@
 import rss from "@astrojs/rss";
 import { getCollection } from "astro:content";
-import { pagePath, site } from "../data";
+import { pagePath, site, withBase } from "../data";
 import type { APIContext } from "astro";
 
 export async function GET(context: APIContext) {
@@ -13,7 +13,7 @@ export async function GET(context: APIContext) {
       .map((entry) => ({
         title: entry.data.title,
         description: entry.data.description,
-        link: pagePath(entry.id),
+        link: withBase(pagePath(entry.id)),
       })),
   });
 }

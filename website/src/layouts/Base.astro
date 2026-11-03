@@ -1,7 +1,7 @@
 ---
 import Navbar from "../components/Navbar.astro";
 import Footer from "../components/Footer.astro";
-import { site } from "../data";
+import { site, withBase, stripBase } from "../data";
 import "../../assets/css/main.css";
 interface Props {
   title: string;
@@ -15,12 +15,13 @@ const {
   image = "/images/og-image.png",
   mathjax,
 } = Astro.props;
-const pageTitle = Astro.url.pathname === "/" ? "Baldric" : `${title} · Baldric`;
+const route = stripBase(Astro.url.pathname);
+const pageTitle = route === "/" ? "Baldric" : `${title} · Baldric`;
 const canonical = new URL(
-  Astro.url.pathname === "/404/" ? "/404.html" : Astro.url.pathname,
+  route === "/404/" ? withBase("/404.html") : Astro.url.pathname,
   Astro.site,
 );
-const ogImage = new URL(image, Astro.site);
+const ogImage = new URL(withBase(image), Astro.site);
 ---
 
 <!doctype html>
@@ -31,21 +32,18 @@ const ogImage = new URL(image, Astro.site);
     <title>{pageTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
-    <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="icon" href={withBase("/favicon.ico")} sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href={withBase("/favicon-32x32.png")} />
+    <link rel="icon" type="image/png" sizes="16x16" href={withBase("/favicon-16x16.png")} />
+    <link rel="apple-touch-icon" sizes="180x180" href={withBase("/apple-touch-icon.png")} />
+    <link rel="manifest" href={withBase("/site.webmanifest")} />
     <link
       rel="alternate"
       type="application/rss+xml"
-      href="/index.xml"
+      href={withBase("/index.xml")}
       title="Baldric"
     />
-    <meta
-      property="og:type"
-      content={Astro.url.pathname === "/" ? "website" : "article"}
-    />
+    <meta property="og:type" content={route === "/" ? "website" : "article"} />
     <meta property="og:site_name" content="Baldric" />
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description} />
@@ -60,11 +58,7 @@ const ogImage = new URL(image, Astro.site);
     {
       import.meta.env.PROD && (
         <>
-          <script
-            is:inline
-            async
-            src="https://www.googletagmanager.com/gtag/js?id=G-3KBLC76BV0"
-          />
+          <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-3KBLC76BV0" />
           <script
             is:inline
             set:html="window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-3KBLC76BV0');"
@@ -81,10 +75,7 @@ const ogImage = new URL(image, Astro.site);
               'window.MathJax = { tex: { inlineMath: [["\\\\(", "\\\\)"]], displayMath: [["\\\\[", "\\\\]"]], processEscapes: true, processEnvironments: true } };'
             }
           />
-          <script
-            is:inline
-            src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"
-          />
+          <script is:inline src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js" />
         </>
       )
     }

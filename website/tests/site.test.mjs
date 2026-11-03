@@ -40,16 +40,10 @@ test("all Markdown routes and static hosting artifacts exist", async () => {
 });
 
 test("built HTML contains no Hugo syntax or unresolved template values, and local links resolve", async () => {
-  for (const file of (await files(dist)).filter((file) =>
-    file.endsWith(".html"),
-  )) {
+  for (const file of (await files(dist)).filter((file) => file.endsWith(".html"))) {
     const html = await readFile(file, "utf8");
     assert.doesNotMatch(html, /\{\{[<%]|\{site\./, file);
-    assert.match(
-      html,
-      /rel="canonical" href="https:\/\/ember452.github.io\/baldric\//,
-      file,
-    );
+    assert.match(html, /rel="canonical" href="https:\/\/ember452.github.io\/baldric\//, file);
     const route = "/" + path.relative(dist, file).replace(/index\.html$/, "");
     for (const match of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
       const url = new URL(
@@ -57,22 +51,13 @@ test("built HTML contains no Hugo syntax or unresolved template values, and loca
         `https://ember452.github.io/baldric${route}`,
       );
       if (url.origin !== "https://ember452.github.io") continue;
-      const target = decodeURIComponent(url.pathname).replace(
-        /^\/baldric(?=\/)/,
-        "",
-      );
-      const targetFile = path.join(
-        dist,
-        target.endsWith("/") ? `${target}index.html` : target,
-      );
+      const target = decodeURIComponent(url.pathname).replace(/^\/baldric(?=\/)/, "");
+      const targetFile = path.join(dist, target.endsWith("/") ? `${target}index.html` : target);
       await access(targetFile);
       if (url.hash && targetFile.endsWith(".html")) {
         const targetHtml = await readFile(targetFile, "utf8");
         const id = decodeURIComponent(url.hash.slice(1));
-        assert.ok(
-          targetHtml.includes(`id="${id}"`),
-          `${file}: missing anchor ${url.href}`,
-        );
+        assert.ok(targetHtml.includes(`id="${id}"`), `${file}: missing anchor ${url.href}`);
       }
     }
   }

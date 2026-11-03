@@ -2,6 +2,7 @@ import { defineConfig } from "astro/config";
 import sitemap from "@astrojs/sitemap";
 import { unified } from "@astrojs/markdown-remark";
 import { admonitions } from "./src/admonitions.mjs";
+import { baseLinks } from "./src/base-links.mjs";
 
 export default defineConfig({
   site: "https://ember452.github.io",
@@ -11,6 +12,6 @@ export default defineConfig({
   integrations: [sitemap()],
   markdown: {
     shikiConfig: { theme: "min-light" },
-    processor: unified({ remarkPlugins: [admonitions] }),
+    processor: unified({ remarkPlugins: [admonitions, [baseLinks, { base: "/baldric" }]] }),
   },
 });

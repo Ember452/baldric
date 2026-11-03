@@ -1,5 +1,5 @@
 ---
-import { site } from "../data";
+import { site, withBase } from "../data";
 ---
 
 <footer class="site-footer" data-pagefind-ignore>
@@ -8,11 +8,11 @@ import { site } from "../data";
     <span class="name">baldric</span>
   </div>
   <div class="l">
-    <a href="/">Home</a>
-    <a href="/quickstart/">Docs</a>
-    <a href="/internals/architecture/">Architecture</a>
-    <a href="/releases/">Releases</a>
-    <a href="/roadmap/">Roadmap</a>
+    <a href={withBase("/")}>Home</a>
+    <a href={withBase("/quickstart/")}>Docs</a>
+    <a href={withBase("/internals/architecture/")}>Architecture</a>
+    <a href={withBase("/releases/")}>Releases</a>
+    <a href={withBase("/roadmap/")}>Roadmap</a>
     <a href={site.githubUrl}>GitHub</a>
     <a
       class="footer-hf"
@@ -24,7 +24,7 @@ import { site } from "../data";
     >
       <img
         class="hf-logo"
-        src="/images/huggingface-logo.svg"
+        src={withBase("/images/huggingface-logo.svg")}
         alt="Hugging Face"
         width="16"
         height="15"

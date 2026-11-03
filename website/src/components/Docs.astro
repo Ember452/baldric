@@ -37,10 +37,7 @@ const next = flat[index + 1];
             </div>
           ) : (
             <a
-              class:list={[
-                "sidebar-toplink",
-                { active: current === (group.link ?? group.path) },
-              ]}
+              class:list={["sidebar-toplink", { active: current === (group.link ?? group.path) }]}
               href={group.link ?? group.path}
             >
               {group.label}
@@ -55,9 +52,7 @@ const next = flat[index + 1];
     {description && <p class="docs-description">{description}</p>}
     <slot />
     <div class="docs-footer" data-pagefind-ignore>
-      <a class="edit-link" href={`${site.editRepoUrl}/${file}`}
-        >Edit this page on GitHub &#8599;</a
-      >
+      <a class="edit-link" href={`${site.editRepoUrl}/${file}`}>Edit this page on GitHub &#8599;</a>
     </div>
     {
       index >= 0 && (

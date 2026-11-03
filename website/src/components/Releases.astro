@@ -5,17 +5,15 @@ import { releases } from "../data";
 <div class="wrap">
   <header class="release-header">
     <div class="release-hero">
-      <p class="eyebrow-hand">Changelog</p><h1>Release notes.</h1><p
-        class="lede"
-      >
-        Every release is structured data in the repo &mdash; the same notes Baldric
-        shows in the TUI after an upgrade and publishes here.
+      <p class="eyebrow-hand">Changelog</p><h1>Release notes.</h1><p class="lede">
+        Every release is structured data in the repo &mdash; the same notes Baldric shows in the TUI
+        after an upgrade and publishes here.
       </p>
     </div>
     <div class="release-meta-row">
       <div class="meta-cell">
-        <span class="meta-num">v{releases[0].version}</span><span
-          class="meta-cap">latest release</span
+        <span class="meta-num">v{releases[0].version}</span><span class="meta-cap"
+          >latest release</span
         >
       </div>
       <div class="meta-cell">
@@ -24,9 +22,7 @@ import { releases } from "../data";
         >
       </div>
       <div class="meta-cell">
-        <span class="meta-num">{releases[0].date}</span><span class="meta-cap"
-          >shipped</span
-        >
+        <span class="meta-num">{releases[0].date}</span><span class="meta-cap">shipped</span>
       </div>
     </div>
   </header>
@@ -37,11 +33,7 @@ import { releases } from "../data";
     <div class="release-list">
       {
         releases.map((release, index) => (
-          <details
-            class="release-card"
-            id={`v${release.version}`}
-            open={index === 0}
-          >
+          <details class="release-card" id={`v${release.version}`} open={index === 0}>
             <summary class="release-card-head">
               <>
                 <span class="release-version">

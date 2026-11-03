@@ -4,9 +4,7 @@ export function admonitions() {
     function visit(node) {
       if (node.type === "blockquote") {
         const first = node.children?.[0]?.children?.[0];
-        const match = first?.value?.match(
-          /^\[!(NOTE|TIP|CAUTION)\](?: ([^\n]+))?\n?/,
-        );
+        const match = first?.value?.match(/^\[!(NOTE|TIP|CAUTION)\](?: ([^\n]+))?\n?/);
         if (match) {
           const kind = match[1].toLowerCase();
           first.value = first.value.slice(match[0].length);
