@@ -90,7 +90,7 @@ async def test_worktree_from_a_subdirectory_keeps_the_repo_root(tmp_path: Path) 
     assert isinstance(worktree, Worktree)
     assert worktree.work_path == worktree.path / "pkg" / "sub"
     assert (worktree.work_path / "keep.md").read_text() == "tracked\n"
-    assert (worktree.path / "README.md").exists(), "the checkout holds the whole tree, not just the subdirectory"
+    assert (worktree.path / "README.md").exists(), "the whole tree is checked out"
 
 
 async def test_a_taken_branch_name_falls_back_to_a_timed_suffix(tmp_path: Path) -> None:
