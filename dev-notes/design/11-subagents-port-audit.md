@@ -111,6 +111,16 @@ and `_load_skills_from_dir_with_diagnostics` (`skills.py:176-177`) returns
 already knows the trust decision, so a channel for it here would be redundant at
 best and misleading at worst.
 
+## Second open item, from `schedule.py`
+
+`_execute_job` records only `last_status="error"`: the `except Exception` around
+`manager.spawn` and the one around awaiting the run's task both discard the
+exception, so a job that has been failing every night for a week shows a status
+and nothing else. Retaining the message would need a `last_error` field on the
+stored job, which is a schema change rather than an adaptation, so it is left
+out of this port and recorded here. Deciding it also means deciding whether the
+store file should keep history or only the last failure.
+
 ## Cost measured, not guessed
 
 `baldric_coding` is covered by `[tool.mypy] strict = true`. `tau-subagents` declares
