@@ -57,6 +57,21 @@ def test_subagent_transcripts_are_kept_outside_the_session_directory(
     assert paths.subagent_transcripts_dir != paths.sessions_dir
 
 
+def test_agent_memory_scopes_are_three_distinct_roots(tmp_path: Path) -> None:
+    """`user`, `project` and `local` memory must never resolve to the same dir."""
+    paths = BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents")
+    cwd = tmp_path / "project"
+
+    user = paths.user_agent_memory_dir
+    project = paths.project_agent_memory_dir(cwd)
+    local = paths.project_local_agent_memory_dir(cwd)
+
+    assert user == tmp_path / ".baldric" / "agent-memory"
+    assert project == cwd / ".baldric" / "agent-memory"
+    assert local == cwd / ".baldric" / "agent-memory-local"
+    assert len({user, project, local}) == 3
+
+
 def test_default_session_path_uses_home_sessions_and_readable_project_path(
     tmp_path: Path,
 ) -> None:
