@@ -75,7 +75,14 @@ class TuiEventAdapter:
             if isinstance(nested, TextDeltaEvent):
                 self.state.assistant_buffer += nested.delta
             elif isinstance(nested, ThinkingDeltaEvent):
-                self.state.add_thinking_delta(nested.delta)
+                # Thinking that opens a message must start its own row: appending
+                # it to the previous message's thinking row would escape this
+                # message's `del items[start:]` window at MessageEnd and corrupt
+                # that earlier row (issue #382-style mis-grouping, upstream #782).
+                if len(self.state.items) == self._assistant_start_item_index:
+                    self.state.add_item("thinking", nested.delta)
+                else:
+                    self.state.add_thinking_delta(nested.delta)
             return
         if isinstance(event, MessageEndEvent):
             message = event.message
