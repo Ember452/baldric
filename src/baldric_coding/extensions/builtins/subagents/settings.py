@@ -1,27 +1,21 @@
 """Subagent settings for the bundled subagents capability.
 
-Settings merge from two JSON files, the project overriding the user:
+Settings are read from two JSON files and shallow-merged, project overriding
+user:
 
     ~/.baldric/subagents.json      user defaults
     <cwd>/.baldric/subagents.json  project overrides
 
-Keys are camelCase: `maxConcurrent`, `defaultMaxTurns`, `graceTurns`,
-`defaultJoinMode`, `transcriptRetentionDays`. Unknown keys are ignored so the
-same file can be shared across Baldric upgrades and downgrades.
+Keys mirror the ported capability's camelCase (`maxConcurrent`,
+`defaultMaxTurns`, `graceTurns`, `defaultJoinMode`, `transcriptRetentionDays`).
+Missing files are treated as empty; malformed JSON is ignored rather than
+crashing the session. Out-of-range or wrong-typed values are silently dropped
+and the field keeps its default - including when that means a bad project value
+shadows a valid user one, which is the ported behaviour and tested as such.
 
-Two deliberate differences from the capability this was ported from:
-
-* The project file is read only when the session's project inputs were
-  approved. An untrusted repository must not be able to raise `maxConcurrent`
-  or point child agents at another retention root.
-* Each source is applied in turn instead of merging the raw dictionaries first.
-  Merging raw values means one invalid project value overwrites a valid user
-  value and then gets dropped, so the setting silently falls back to its
-  default rather than to the user's own choice.
-
-Dropped or unreadable input never raises: the caller gets the effective
-settings plus one note per problem to report. Settings are read lazily in the
-middle of a spawn, and a typo in an optional file must not abort a run.
+One difference from the ported capability: the project file is read only when
+the session's project inputs were approved, because an untrusted repository must
+not be able to raise `maxConcurrent` or redirect transcript retention.
 """
 
 from __future__ import annotations
@@ -29,7 +23,6 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any
 
 from baldric_coding.paths import BaldricPaths
 
@@ -54,116 +47,54 @@ def load_subagent_settings(
     paths: BaldricPaths,
     cwd: Path,
     *,
-    project_trusted: bool = True,
-) -> tuple[SubagentSettings, tuple[str, ...]]:
-    """Return the effective settings and one note per dropped or unreadable input.
-
-    `project_trusted` gates the project file only; the user file is always read.
-    """
-    settings = SubagentSettings()
-    notes: list[str] = []
-    sources: tuple[tuple[Path, bool], ...] = (
-        (paths.user_subagent_settings_path, True),
-        (paths.project_subagent_settings_path(cwd), project_trusted),
-    )
-    for path, enabled in sources:
-        if not enabled:
-            continue
-        data, note = _read_object(path)
-        if note is not None:
-            notes.append(note)
-        if data is None:
-            continue
-        settings = _apply(data, settings=settings, source=path, notes=notes)
-    return settings, tuple(notes)
-
-
-def _read_object(path: Path) -> tuple[dict[str, Any] | None, str | None]:
-    """Return the JSON object at `path`, or None plus a note when it can't be used."""
-    if not path.is_file():
-        return None, None
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        # json.JSONDecodeError and UnicodeDecodeError both subclass ValueError, so
-        # a non-UTF-8 file lands in the same bucket as syntactically bad JSON.
-        return None, f"{path}: not readable JSON and was ignored"
-    if not isinstance(raw, dict):
-        return None, f"{path}: top level must be a JSON object and was ignored"
-    return raw, None
-
-
-def _apply(
-    data: dict[str, Any],
-    *,
-    settings: SubagentSettings,
-    source: Path,
-    notes: list[str],
+    project_trusted: bool,
 ) -> SubagentSettings:
-    """Apply one source's recognized keys over `settings`, noting what was dropped."""
-    updated = settings
+    """Load and merge user then project settings into a SubagentSettings."""
+    merged: dict[str, object] = {}
+    merged.update(_read_file(paths.user_subagent_settings_path))
+    if project_trusted:
+        merged.update(_read_file(paths.project_subagent_settings_path(cwd)))
+    return _from_dict(merged)
 
-    max_concurrent = _int_in_range(
-        data.get("maxConcurrent"), low=1, high=1024, key="maxConcurrent", source=source, notes=notes
-    )
+
+def _read_file(path: Path) -> dict[str, object]:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, ValueError):
+        return {}
+    try:
+        data = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _from_dict(data: dict[str, object]) -> SubagentSettings:
+    settings = SubagentSettings()
+    max_concurrent = _int_in_range(data.get("maxConcurrent"), 1, 1024)
     if max_concurrent is not None:
-        updated = replace(updated, max_concurrent=max_concurrent)
-
-    # `defaultMaxTurns: 0` means "no limit", which the dataclass spells None.
-    default_max_turns = _int_in_range(
-        data.get("defaultMaxTurns"),
-        low=0,
-        high=10_000,
-        key="defaultMaxTurns",
-        source=source,
-        notes=notes,
-    )
+        settings = replace(settings, max_concurrent=max_concurrent)
+    default_max_turns = _int_in_range(data.get("defaultMaxTurns"), 0, 10000)
     if default_max_turns is not None:
-        updated = replace(updated, default_max_turns=None if default_max_turns == 0 else default_max_turns)
-
-    grace_turns = _int_in_range(
-        data.get("graceTurns"), low=1, high=1000, key="graceTurns", source=source, notes=notes
-    )
+        settings = replace(
+            settings,
+            default_max_turns=None if default_max_turns == 0 else default_max_turns,
+        )
+    grace_turns = _int_in_range(data.get("graceTurns"), 1, 1000)
     if grace_turns is not None:
-        updated = replace(updated, grace_turns=grace_turns)
-
-    if "defaultJoinMode" in data:
-        join_mode = data["defaultJoinMode"]
-        if isinstance(join_mode, str) and join_mode in JOIN_MODES:
-            updated = replace(updated, default_join_mode=join_mode)
-        else:
-            notes.append(f"{source}: defaultJoinMode must be one of {', '.join(JOIN_MODES)} and was ignored")
-
-    retention = _int_in_range(
-        data.get("transcriptRetentionDays"),
-        low=0,
-        high=3650,
-        key="transcriptRetentionDays",
-        source=source,
-        notes=notes,
-    )
+        settings = replace(settings, grace_turns=grace_turns)
+    join_mode = data.get("defaultJoinMode")
+    if isinstance(join_mode, str) and join_mode in JOIN_MODES:
+        settings = replace(settings, default_join_mode=join_mode)
+    retention = _int_in_range(data.get("transcriptRetentionDays"), 0, 3650)
     if retention is not None:
-        updated = replace(updated, transcript_retention_days=retention)
+        settings = replace(settings, transcript_retention_days=retention)
+    return settings
 
-    return updated
 
-
-def _int_in_range(
-    value: object,
-    *,
-    low: int,
-    high: int,
-    key: str,
-    source: Path,
-    notes: list[str],
-) -> int | None:
-    """Return `value` when it is an in-range int; otherwise note why it was dropped."""
-    if value is None:
-        return None
+def _int_in_range(value: object, low: int, high: int) -> int | None:
     if isinstance(value, bool) or not isinstance(value, int):
-        notes.append(f"{source}: {key} must be an integer and was ignored")
         return None
     if value < low or value > high:
-        notes.append(f"{source}: {key}={value} outside {low}..{high} and was ignored")
         return None
     return value
