@@ -66,12 +66,15 @@ uv run ruff format --check .
 uv run mypy
 ```
 
-For the documentation site (a [Hugo](https://gohugo.io/) project):
+For the documentation site (an [Astro](https://astro.build/) project):
 
 ```bash
 cd website
-hugo server -D
-hugo --minify
+npm install
+npm run dev    # local dev server
+npm run check  # Astro type check
+npm run build  # build dist/ + Pagefind search index
+npm test       # site tests
 ```
 
 ## Where changes belong
