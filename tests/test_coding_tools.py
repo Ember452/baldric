@@ -87,6 +87,35 @@ def test_read_tool_schema_defines_line_controls_as_integers(tmp_path: Path) -> N
 
 
 @pytest.mark.anyio
+async def test_file_tools_offload_blocking_io_to_threads(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # read/write tools must not block the event loop on file I/O (large files
+    # froze the TUI); they run the bytes/text calls on a worker thread.
+    import asyncio
+
+    import baldric_coding.tools as tools_module
+    from baldric_coding.tools import create_read_tool, create_write_tool
+
+    real = asyncio.to_thread
+    seen: list[str] = []
+
+    async def spy(func, *args, **kwargs):  # noqa: ANN001, ANN202
+        seen.append(getattr(func, "__name__", str(func)))
+        return await real(func, *args, **kwargs)
+
+    monkeypatch.setattr(tools_module.asyncio, "to_thread", spy)
+
+    (tmp_path / "a.txt").write_text("hello")
+    read_result = await create_read_tool(cwd=tmp_path).execute("c1", {"path": "a.txt"})
+    await create_write_tool(cwd=tmp_path).execute("c2", {"path": "b.txt", "content": "x"})
+
+    assert read_result.text
+    assert "read_bytes" in seen
+    assert "write_text" in seen
+
+
+@pytest.mark.anyio
 async def test_read_tool_reads_file_with_offset_and_limit(tmp_path: Path) -> None:
     path = tmp_path / "notes.txt"
     path.write_text("one\ntwo\nthree\n")

@@ -261,7 +261,7 @@ def create_read_tool_definition(
                         reason=reason,
                     )
 
-        data = read_operations.read_bytes(path)
+        data = await asyncio.to_thread(read_operations.read_bytes, path)
         unsupported_reason = unsupported_image_reason(data)
         if unsupported_reason is not None:
             image_family = detect_image_family_mime_type(data)
@@ -458,7 +458,7 @@ def create_write_tool_definition(*, cwd: str | Path | None = None) -> ToolDefini
 
         async with _file_lock(path):
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(content, encoding="utf-8")
+            await asyncio.to_thread(path.write_text, content, encoding="utf-8")
 
         return AgentToolResult(
             content=[TextContent(text=f"Successfully wrote to {path}.")],
@@ -525,13 +525,14 @@ def create_edit_tool_definition(*, cwd: str | Path | None = None) -> ToolDefinit
             raise ToolInputError(f"Could not edit file: {path}. Path is a directory.")
 
         async with _file_lock(path):
-            raw_content = path.read_bytes().decode("utf-8")
+            raw_bytes = await asyncio.to_thread(path.read_bytes)
+            raw_content = raw_bytes.decode("utf-8")
             bom, content = _strip_bom(raw_content)
             original_ending = detect_line_ending(content)
             normalized = normalize_to_lf(content)
             base_content, new_content = apply_edits_to_normalized_content(normalized, edits, str(path))
             final_content = bom + restore_line_endings(new_content, original_ending)
-            path.write_text(final_content, encoding="utf-8", newline="")
+            await asyncio.to_thread(path.write_text, final_content, encoding="utf-8", newline="")
 
         diff_text, first_changed_line = generate_diff_string(base_content, new_content)
         patch = generate_unified_patch(str(path), base_content, new_content)

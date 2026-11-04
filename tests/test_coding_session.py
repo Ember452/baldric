@@ -68,6 +68,7 @@ from baldric_coding import (
 )
 from baldric_coding import session as coding_session_module
 from baldric_coding.codex_model_store import cached_codex_model_catalog, save_codex_model_catalog
+from baldric_coding.context_window import estimate_message_tokens
 from baldric_coding.events import AgentSettledEvent, QueueUpdateEvent, SessionAgentEndEvent
 from baldric_coding.extensions import (
     DynamicProvider,
@@ -79,6 +80,7 @@ from baldric_coding.prompt_templates import PromptTemplate
 from baldric_coding.provider_config import ProviderModelMetadata, provider_thinking_levels
 from baldric_coding.session import (
     SESSION_NAME_SYSTEM_PROMPT,
+    _first_recent_context_index,
     _ordered_tree_entries,
     _tree_branch_indents,
     is_retryable_huggingface_route_error,
@@ -1342,6 +1344,52 @@ async def test_agent_bash_tool_uses_configured_shell_command_prefix(tmp_path: Pa
     assert result.details["shell_command_prefix_applied"] is True
 
 
+def _recent_rows(*roles: str) -> tuple[tuple[str, AgentMessage], ...]:
+    def message(role: str) -> AgentMessage:
+        if role == "user":
+            return UserMessage(content=f"user-{role}")
+        if role == "assistant":
+            return AssistantMessage(content=f"assistant-{role}")
+        return ToolResultMessage(
+            content=f"result-{role}",
+            tool_call_id=f"call-{role}",
+            tool_name="tool",
+        )
+
+    return tuple((f"entry-{index}", message(role)) for index, role in enumerate(roles))
+
+
+def _total_tokens(rows: tuple[tuple[str, AgentMessage], ...]) -> int:
+    return sum(estimate_message_tokens(message) for _entry_id, message in rows)
+
+
+def test_first_recent_context_index_keeps_newest_user_turn_and_reply() -> None:
+    rows = _recent_rows("user", "assistant", "user", "assistant")
+    index = _first_recent_context_index(rows, keep_recent_tokens=_total_tokens(rows))
+    assert index == 2
+    assert [message.role for _entry_id, message in rows[index:]] == ["user", "assistant"]
+
+
+def test_first_recent_context_index_never_compacts_past_last_user() -> None:
+    rows = _recent_rows("user", "assistant", "toolResult", "toolResult")
+    index = _first_recent_context_index(rows, keep_recent_tokens=_total_tokens(rows))
+    assert index == 0
+
+
+def test_first_recent_context_index_keeps_pending_newest_user_prompt() -> None:
+    rows = _recent_rows("user", "assistant", "toolResult", "user")
+    index = _first_recent_context_index(rows, keep_recent_tokens=_total_tokens(rows))
+    assert index == 3
+    assert [message.role for _entry_id, message in rows[index:]] == ["user"]
+
+
+def test_first_recent_context_index_keeps_recent_suffix() -> None:
+    rows = _recent_rows("user", "assistant", "user", "assistant", "user", "assistant")
+    index = _first_recent_context_index(rows, keep_recent_tokens=1)
+    assert index == 4
+    assert [message.role for _entry_id, message in rows[index:]] == ["user", "assistant"]
+
+
 def test_parse_terminal_command_prefixes() -> None:
     assert parse_terminal_command("! pwd") is not None
     add_request = parse_terminal_command("! pwd")
@@ -1680,6 +1728,12 @@ async def test_context_usage_recalculates_after_prompt_and_compaction(
             ],
             [
                 assistant_start(model="fake"),
+                assistant_done(
+                    message=AssistantMessage(content="Another long answer " * 80),
+                ),
+            ],
+            [
+                assistant_start(model="fake"),
                 assistant_done(message=AssistantMessage(content="Short summary")),
             ],
         ]
@@ -1694,12 +1748,17 @@ async def test_context_usage_recalculates_after_prompt_and_compaction(
     assert after_prompt_usage.total_tokens > initial_usage.total_tokens
     assert session.context_token_estimate == after_prompt_usage.total_tokens
 
+    # A second turn so there is older context to summarize while the newest user
+    # turn is preserved (the invariant this guards).
+    _more_events = await _collect_session_events(session.prompt("And more detail please."))
+    after_second_prompt_usage = session.context_usage
+
     _message = await session.compact("Context accounting was discussed.")
     after_compaction_usage = session.context_usage
 
-    assert after_compaction_usage is not after_prompt_usage
-    assert after_compaction_usage.message_count == 2
-    assert after_compaction_usage.total_tokens != after_prompt_usage.total_tokens
+    assert after_compaction_usage is not after_second_prompt_usage
+    assert after_compaction_usage.message_count < after_second_prompt_usage.message_count
+    assert after_compaction_usage.total_tokens != after_second_prompt_usage.total_tokens
     assert session.context_token_estimate == after_compaction_usage.total_tokens
 
 
@@ -4019,6 +4078,10 @@ async def test_session_compact_persists_summary_and_rebuilds_context(
             ],
             [
                 assistant_start(model="fake"),
+                assistant_done(message=AssistantMessage(content="More answer")),
+            ],
+            [
+                assistant_start(model="fake"),
                 assistant_done(
                     message=AssistantMessage(
                         content="Generated session summary",
@@ -4037,6 +4100,7 @@ async def test_session_compact_persists_summary_and_rebuilds_context(
     )
     session = await CodingSession.load(_config(tmp_path, provider, storage))
     _events = await _collect_session_events(session.prompt("Explain sessions."))
+    _more_events = await _collect_session_events(session.prompt("Tell me more."))
 
     message_count_before = len(session.messages)
     message_entries_before = [entry.id for entry in await storage.read_all() if entry.type == "message"]
@@ -4048,12 +4112,12 @@ async def test_session_compact_persists_summary_and_rebuilds_context(
 
     _next_events = await _collect_session_events(session.prompt("Continue."))
 
-    assert result == f"Compacted {message_count_before - 1} context entries."
+    assert result == f"Compacted {message_count_before - 2} context entries."
     assert len(compactions) == 1
     assert isinstance(compactions[0], CompactionEntry)
     assert compactions[0].summary == "Generated session summary"
     assert compactions[0].replaces_entry_ids == []
-    assert compactions[0].first_kept_entry_id == message_entries_before[-1]
+    assert compactions[0].first_kept_entry_id == message_entries_before[-2]
     assert compactions[0].usage == Usage(
         input=1_000,
         output=80,
@@ -4069,16 +4133,17 @@ async def test_session_compact_persists_summary_and_rebuilds_context(
         if (payload := json.loads(line))["type"] == "compaction"
     )
     assert "replaces_entry_ids" not in persisted_payload
-    assert persisted_payload["first_kept_entry_id"] == message_entries_before[-1]
+    assert persisted_payload["first_kept_entry_id"] == message_entries_before[-2]
     assert leaves == []
     assert entries_after_compact[-1] == compactions[0]
-    assert provider.calls[1][1].startswith("You are a context summarization assistant.")
-    assert "Additional focus: Focus on session persistence." in provider.calls[1][2][0].content
+    assert provider.calls[2][1].startswith("You are a context summarization assistant.")
+    assert "Additional focus: Focus on session persistence." in provider.calls[2][2][0].content
     _assert_messages(
-        provider.calls[2][2],
+        provider.calls[3][2],
         [
             UserMessage(content=("Previous conversation summary:\nGenerated session summary")),
-            AssistantMessage(content="Session answer"),
+            UserMessage(content="Tell me more."),
+            AssistantMessage(content="More answer"),
             UserMessage(content="Continue."),
         ],
     )

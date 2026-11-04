@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Awaitable, Callable, Mapping, Sequence
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol, cast
@@ -538,6 +539,10 @@ class UiBridge(Protocol):
         """Show a notification to the user (no-op without a UI)."""
         ...
 
+    def suspend(self) -> AbstractContextManager[None]:
+        """Return a context manager that pauses the UI for an external program."""
+        ...
+
     async def select(
         self,
         title: str,
@@ -671,6 +676,10 @@ class NullUiBridge:
 
     def notify(self, message: str, level: NotifyLevel = "info") -> None:
         """Ignore notifications without a UI."""
+
+    def suspend(self) -> AbstractContextManager[None]:
+        """Return a no-op context manager: there is no UI to pause."""
+        return nullcontext()
 
     async def select(
         self,
@@ -865,6 +874,11 @@ class ExtensionUi:
         """Show a notification in the UI, if one is attached."""
         self._generation.assert_active()
         self._runtime.ui.notify(message, level)
+
+    def suspend(self) -> AbstractContextManager[None]:
+        """Pause the UI so an external program can use the terminal."""
+        self._generation.assert_active()
+        return self._runtime.ui.suspend()
 
 
 class ExtensionContext:
@@ -1219,6 +1233,11 @@ class ExtensionAPI:
         """Show a notification in the UI, if one is attached."""
         self._generation.assert_active()
         self._runtime.ui.notify(message, level)
+
+    def suspend(self) -> AbstractContextManager[None]:
+        """Pause the UI so an external program can use the terminal."""
+        self._generation.assert_active()
+        return self._runtime.ui.suspend()
 
 
 @dataclass(slots=True)
