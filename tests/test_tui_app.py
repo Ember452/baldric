@@ -161,7 +161,7 @@ from baldric_coding.tui.config import (
 from baldric_coding.tui.local_backends import LocalBackendScreen, LocalConfirmScreen
 from baldric_coding.tui.state import ChatItem, TuiState
 from baldric_coding.tui.terminal_notification import TerminalNotificationController
-from baldric_coding.tui.terminal_title import TerminalTitleController
+from baldric_coding.tui.terminal_title import RUNNING_TITLE_FRAMES, TerminalTitleController
 from baldric_coding.tui.widgets import (
     TRANSCRIPT_WINDOW_ITEMS,
     TRANSCRIPT_WINDOW_OVERSCAN_ITEMS,
@@ -6626,10 +6626,19 @@ async def test_tui_app_shows_working_state_during_manual_compaction() -> None:
         assert app._is_compaction_active() is True
         assert prompt._footer_mode == "running"
         assert indicator.render().plain != "τ"
-        assert titles[-1] == "\x1b]0;⠋ τ | build notes\x07"
+        # The title shows an animated spinner frame while working and a
+        # wall-clock activity timer advances it, so assert the stable shape and
+        # that the frame is a valid running spinner rather than pinning a frame.
+        running_title = titles[-1]
+        assert running_title.startswith("\x1b]0;")
+        assert running_title.endswith(" τ | build notes\x07")
+        frame = running_title.removeprefix("\x1b]0;").removesuffix(" τ | build notes\x07")
+        assert frame in RUNNING_TITLE_FRAMES
 
         app._tick_activity()
-        assert titles[-1] == "\x1b]0;⠙ τ | build notes\x07"
+        ticked = titles[-1].removeprefix("\x1b]0;").removesuffix(" τ | build notes\x07")
+        assert ticked in RUNNING_TITLE_FRAMES
+        assert ticked != frame
 
         finish.set()
         await pilot.pause()
