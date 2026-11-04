@@ -10,7 +10,6 @@ under the Baldric home.
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -128,6 +127,38 @@ def test_cron_validation() -> None:
     assert not validate_cron("abc * * * *")
 
 
+# ── cron branches the upstream suite leaves unexercised ───────────────────
+
+
+def test_cron_step_from_a_single_value_runs_to_the_field_maximum() -> None:
+    """`N/M` is documented in cron.py but tested by neither suite upstream."""
+    expression = CronExpression("5/15 * * * *")
+
+    assert {m for m in range(60) if expression.matches(datetime(2026, 1, 1, 0, m))} == {
+        5,
+        20,
+        35,
+        50,
+    }
+    single = CronExpression("5 * * * *")
+    assert {m for m in range(60) if single.matches(datetime(2026, 1, 1, 0, m))} == {5}
+
+
+def test_cron_next_after_gives_up_instead_of_searching_forever() -> None:
+    """The bounded forward search is the only guard against a hot loop."""
+    assert CronExpression("0 0 30 2 *").next_after(datetime(2026, 1, 1, 0, 0)) is None
+
+
+def test_cron_errors_are_value_errors_because_validation_catches_them() -> None:
+    """`validate_cron` only swallows (ValueError, TypeError)."""
+    with pytest.raises(ValueError, match="5 fields"):
+        CronExpression("* * * *")
+    with pytest.raises(ValueError, match="out of range"):
+        CronExpression("99 * * * *")
+    with pytest.raises(ValueError, match="matches nothing"):
+        CronExpression("30-10 * * * *")
+
+
 # ── detect_schedule ──────────────────────────────────────────────────────
 
 
@@ -188,8 +219,4 @@ def test_store_takes_over_stale_lock(tmp_path: Path) -> None:
 
     updated = store.update("job-1", run_count=9)
     assert updated is not None and updated.run_count == 9
-    # Upstream deletes its lock file on release, so it could assert the file is
-    # gone. Here the lock is an advisory OS lock released by the kernel and the
-    # file remains; the contract both versions keep is that a lock left behind by
-    # a dead process never blocks the next mutation.
-    assert json.loads(path.read_text(encoding="utf-8"))["jobs"][0]["run_count"] == 9
+    assert not lock_path.exists()  # stale lock taken over and released
