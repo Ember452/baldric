@@ -1693,6 +1693,12 @@ class RecordingUiBridge:
     def notify(self, message: str, level: str = "info") -> None:
         self.notifications.append((message, level))
 
+    def suspend(self):
+        self.calls.append(("suspend", (), {}))
+        from contextlib import nullcontext
+
+        return nullcontext()
+
     async def select(
         self,
         title: str,
@@ -1770,6 +1776,14 @@ async def test_headless_ui_bridges_return_pi_defaults(tmp_path: Path) -> None:
         assert await bridge.select("t", ["x"]) is None
         assert await bridge.confirm("t", "m") is False
         assert await bridge.input("t") is None
+
+
+async def test_headless_ui_bridges_suspend_is_noop_context_manager() -> None:
+    from baldric_coding.extensions import NullUiBridge, StderrUiBridge
+
+    for bridge in (NullUiBridge(), StderrUiBridge()):
+        with bridge.suspend() as value:
+            assert value is None
 
 
 async def test_headless_ui_bridges_component_seam_are_noops(tmp_path: Path) -> None:
