@@ -4684,7 +4684,7 @@ class BaldricTuiApp(App[None]):
 
     def _is_working(self) -> bool:
         """Return whether the app should show working affordances (agent turn or compaction)."""
-        return self.state.running or self._compacting
+        return self.state.running or self.state.compacting or self._compacting
 
     def _sync_terminal_title(self) -> None:
         """Reflect the active session name and running state in the terminal tab title."""
@@ -6305,6 +6305,7 @@ class BaldricTuiApp(App[None]):
             self.state.error = message
             self.state.add_item("error", message)
             self.state.running = False
+            self.state.compacting = False
             self._sync_text_selection_state()
             self._refresh()
         finally:
@@ -6435,7 +6436,9 @@ class BaldricTuiApp(App[None]):
             return
         if isinstance(event, (AutoRetryStartEvent, CompactionStartEvent)):
             await transcript.finish_assistant_message()
-            if self.state.items and (isinstance(event, AutoRetryStartEvent) or event.reason == "overflow"):
+            if self.state.items and (
+                isinstance(event, AutoRetryStartEvent) or event.reason in {"overflow", "threshold"}
+            ):
                 await transcript.append_item(
                     self.state.items[-1],
                     theme=theme,
@@ -6444,7 +6447,9 @@ class BaldricTuiApp(App[None]):
             self._refresh_chrome()
             return
         if isinstance(event, CompactionEndEvent):
-            if event.reason == "overflow" and (event.aborted or event.error_message):
+            if event.reason == "threshold" or (
+                event.reason == "overflow" and (event.aborted or event.error_message)
+            ):
                 self._refresh()
             else:
                 self._refresh_chrome()
@@ -6508,6 +6513,7 @@ class BaldricTuiApp(App[None]):
             worker.cancel()
         self._prompt_worker = None
         self.state.running = False
+        self.state.compacting = False
         self.state.assistant_buffer = ""
         self._sync_text_selection_state()
         self._refresh()

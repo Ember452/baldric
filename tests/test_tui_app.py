@@ -5600,6 +5600,80 @@ async def test_tui_app_notifies_when_agent_settles_while_unfocused() -> None:
         assert writes == ["\x1b]9;Baldric turn finished\x07"]
 
 
+@pytest.mark.anyio
+async def test_tui_app_notifies_once_for_turn_with_threshold_compaction() -> None:
+    class ThresholdCompactSession(FakeSession):
+        async def prompt(
+            self,
+            text: str,
+            *,
+            streaming_behavior: str | None = None,
+            source: str = "interactive",
+            custom_type: str | None = None,
+            details: dict[str, object] | None = None,
+        ) -> AsyncIterator[CodingSessionEvent]:
+            del streaming_behavior, source, custom_type, details
+            self.prompt_texts.append(text)
+            yield AgentStartEvent()
+            yield CompactionStartEvent(reason="threshold")
+            yield CompactionEndEvent(reason="threshold")
+            yield AgentEndEvent()
+            yield AgentSettledEvent()
+
+    app = BaldricTuiApp(ThresholdCompactSession(), tui_settings=TuiSettings(turn_notification="desktop"))
+    writes: list[str] = []
+    app._terminal_notification = TerminalNotificationController(
+        "desktop",
+        enabled=True,
+        writer=writes.append,
+        environ={"TERM_PROGRAM": "ghostty"},
+    )
+
+    async with app.run_test():
+        app.on_app_blur()
+        await app._run_prompt("work")
+
+        assert writes == ["\x1b]9;Baldric turn finished\x07"]
+        assert app.state.compacting is False
+        assert not [item for item in app.state.items if item.role == "status"]
+
+
+@pytest.mark.anyio
+async def test_tui_app_surfaces_threshold_compaction_failure() -> None:
+    class FailingThresholdCompactSession(FakeSession):
+        async def prompt(
+            self,
+            text: str,
+            *,
+            streaming_behavior: str | None = None,
+            source: str = "interactive",
+            custom_type: str | None = None,
+            details: dict[str, object] | None = None,
+        ) -> AsyncIterator[CodingSessionEvent]:
+            del streaming_behavior, source, custom_type, details
+            self.prompt_texts.append(text)
+            yield AgentStartEvent()
+            yield CompactionStartEvent(reason="threshold")
+            yield CompactionEndEvent(
+                reason="threshold",
+                aborted=True,
+                error_message="summary provider failed",
+            )
+            yield AgentEndEvent()
+            yield AgentSettledEvent()
+
+    app = BaldricTuiApp(FailingThresholdCompactSession())
+
+    async with app.run_test():
+        await app._run_prompt("work")
+
+        status_items = [item for item in app.state.items if item.role == "status"]
+        assert [item.text for item in status_items] == [
+            "… Automatic compaction failed: summary provider failed"
+        ]
+        assert app.state.compacting is False
+
+
 def test_collect_garbage_while_idle_frees_cycles_frozen_by_an_earlier_call() -> None:
     class Node:
         partner: object = None

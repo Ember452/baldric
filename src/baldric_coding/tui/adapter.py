@@ -22,6 +22,7 @@ from baldric_coding.events import (
 )
 from baldric_coding.session import is_context_overflow_error
 from baldric_coding.tui.state import (
+    ChatItem,
     TuiState,
     _is_tool_only_message,
     has_visible_assistant_text,
@@ -33,6 +34,7 @@ class TuiEventAdapter:
         self.state = state
         self._assistant_start_item_index: int | None = None
         self._pending_overflow_error: AssistantMessage | None = None
+        self._compaction_status_item: ChatItem | None = None
         self._tool_batch_ids: dict[str, int] = {}
         self._tool_continuation_calls: set[str] = set()
 
@@ -46,6 +48,7 @@ class TuiEventAdapter:
             self._flush()
             self._discard_pending_tool_tracking()
             self.state.running = False
+            self.state.compacting = False
             return
         if isinstance(event, SessionAgentEndEvent):
             # Session orchestration may still compact, retry, or drain queued work.
@@ -151,13 +154,28 @@ class TuiEventAdapter:
                 event.is_error,
             )
             return
-        if isinstance(event, CompactionStartEvent) and event.reason == "overflow":
-            self.state.add_item("status", "… Context limit reached; compacting and retrying")
+        if isinstance(event, CompactionStartEvent):
+            if event.reason == "overflow":
+                self.state.add_item("status", "… Context limit reached; compacting and retrying")
+            elif event.reason == "threshold":
+                self.state.compacting = True
+                self.state.add_item("status", "… Compacting context")
+                self._compaction_status_item = self.state.items[-1]
             return
-        if isinstance(event, CompactionEndEvent) and event.reason == "overflow":
-            if (event.aborted or event.error_message) and self._pending_overflow_error is not None:
-                self.state.add_assistant_error(self._pending_overflow_error)
-                self._pending_overflow_error = None
+        if isinstance(event, CompactionEndEvent):
+            if event.reason == "overflow":
+                if (event.aborted or event.error_message) and self._pending_overflow_error is not None:
+                    self.state.add_assistant_error(self._pending_overflow_error)
+                    self._pending_overflow_error = None
+            elif event.reason == "threshold":
+                self.state.compacting = False
+                item = self._compaction_status_item
+                self._compaction_status_item = None
+                if item is not None:
+                    if event.aborted or event.error_message:
+                        item.text = f"… Automatic compaction failed: {event.error_message or 'unknown error'}"
+                    elif item in self.state.items:
+                        self.state.items.remove(item)
             return
         if isinstance(event, AutoRetryStartEvent):
             if self.state.items and self.state.items[-1].role == "error":
