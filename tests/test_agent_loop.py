@@ -326,6 +326,46 @@ async def test_cancel_while_a_tool_runs_issues_no_further_request() -> None:
 
 
 @pytest.mark.anyio
+async def test_agent_loop_honors_tool_result_terminate_without_another_turn() -> None:
+    async def execute(
+        tool_call_id: str,
+        arguments: Mapping[str, JSONValue],
+        signal: CancellationToken | None = None,
+        on_update=None,  # noqa: ANN001
+    ) -> AgentToolResult:
+        # A tool that finalizes the run, e.g. a "complete"/handoff tool.
+        del tool_call_id, arguments, signal, on_update
+        return AgentToolResult(content=[TextContent(text="finished")], terminate=True)
+
+    tool_call = ToolCall(id="call-1", name="finish", arguments={})
+    first = AssistantMessage(content=[tool_call], model="fake")
+    unreached = AssistantMessage(content="Should not be requested.", model="fake")
+    provider = FakeProvider(
+        [
+            [assistant_start(), tool_call_end(tool_call), assistant_done(first, "toolUse")],
+            [assistant_start(), assistant_done(unreached)],
+        ]
+    )
+    messages: list[AgentMessage] = [UserMessage(content="Finish the task")]
+
+    events = await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=messages,
+            tools=[_tool("finish", execute)],
+        )
+    )
+
+    # The tool asked to terminate, so the model is not asked for a follow-up turn.
+    assert len(provider.calls) == 1
+    # The tool result still reached the transcript and the run ends cleanly.
+    assert any(isinstance(message, ToolResultMessage) for message in messages)
+    assert events[-1].type == "agent_end"
+
+
+@pytest.mark.anyio
 async def test_agent_loop_passes_call_id_signal_and_progress_to_tool() -> None:
     observed: list[tuple[str, CancellationToken | None]] = []
 
