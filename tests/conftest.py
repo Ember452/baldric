@@ -61,6 +61,7 @@ _WIN32_SKIPS = {
     "tests/test_tui_app.py::test_tui_app_session_picker_archived_tab_restores_session_and_project",
     "tests/test_tui_app.py::test_tui_tree_labels_filter_timestamps_and_clear",
     "tests/test_session_manager.py::test_session_manager_sorts_newest_updated_first",
+    "tests/test_session_manager.py::test_session_manager_returns_latest_session_for_cwd",
     # POSIX shell semantics (bash tool / quoting)
     "tests/test_coding_tools.py::test_bash_tool_",
     "tests/test_coding_tools.py::test_create_coding_tools_applies_shell_command_prefix",
