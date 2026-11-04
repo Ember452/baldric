@@ -47,6 +47,16 @@ def test_subagent_settings_files_live_next_to_the_other_settings_files(
     assert paths.project_subagent_settings_path(cwd) == cwd / ".baldric" / "subagents.json"
 
 
+def test_subagent_transcripts_are_kept_outside_the_session_directory(
+    tmp_path: Path,
+) -> None:
+    """Durable child transcripts are separate from resumable parent sessions."""
+    paths = BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents")
+
+    assert paths.subagent_transcripts_dir == tmp_path / ".baldric" / "subagents"
+    assert paths.subagent_transcripts_dir != paths.sessions_dir
+
+
 def test_default_session_path_uses_home_sessions_and_readable_project_path(
     tmp_path: Path,
 ) -> None:

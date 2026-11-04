@@ -109,6 +109,11 @@ class BaldricPaths:
         return self.home / "subagents.json"
 
     @property
+    def subagent_transcripts_dir(self) -> Path:
+        """Return the durable root for subagent conversation transcripts."""
+        return self.home / "subagents"
+
+    @property
     def user_agents_skills_dir(self) -> Path:
         """Return the user-level `.agents/skills` directory."""
         return self.agents_home / "skills"
