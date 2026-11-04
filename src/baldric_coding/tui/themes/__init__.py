@@ -72,6 +72,8 @@ class TuiTheme:
     completion_selected: str
     completion_selected_description: str
     completion_description: str
+    scrollbar: str
+    scrollbar_hover: str
     syntax_theme: str
     role_styles: dict[str, TuiRoleStyle]
 
@@ -449,6 +451,8 @@ def theme_css_variables(theme: TuiTheme) -> dict[str, str]:
         "baldric-markdown-code-block-background": theme.markdown_code_block_background,
         "baldric-markdown-link": theme.markdown_link,
         "baldric-markdown-bullet": theme.markdown_bullet,
+        "baldric-scrollbar": theme.scrollbar,
+        "baldric-scrollbar-hover": theme.scrollbar_hover,
         "footer-background": theme.chrome_background,
         "footer-foreground": theme.chrome_text,
         "footer-description-background": theme.chrome_background,

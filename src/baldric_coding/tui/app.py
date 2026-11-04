@@ -3890,8 +3890,10 @@ class BaldricTuiApp(App[None]):
         background: $baldric-transcript-background;
         padding: 0 0 0 2;
         overflow-x: auto;
-        scrollbar-size-vertical: 0;
+        scrollbar-size-vertical: 1;
         scrollbar-size-horizontal: 1;
+        scrollbar-color: $baldric-scrollbar;
+        scrollbar-color-hover: $baldric-scrollbar-hover;
     }
 
     /* Component seam: generic extension mount points. */

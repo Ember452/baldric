@@ -19,6 +19,7 @@ from baldric_coding.tui.themes import (
     load_custom_tui_themes,
     parse_tui_theme_json,
     set_custom_tui_themes,
+    theme_css_variables,
 )
 
 
@@ -394,3 +395,14 @@ def test_resource_paths_expose_theme_dirs(tmp_path: Path) -> None:
         tmp_path / ".baldric" / "themes",
         tmp_path / "project" / ".baldric" / "themes",
     )
+
+
+def test_builtin_themes_wire_scrollbar_colors_to_css_variables() -> None:
+    assert {"scrollbar", "scrollbar_hover"} <= set(THEME_COLOR_FIELDS)
+    for name in BUILTIN_TUI_THEME_NAMES:
+        theme = get_tui_theme(name)
+        assert theme.scrollbar
+        assert theme.scrollbar_hover
+        variables = theme_css_variables(theme)
+        assert variables["baldric-scrollbar"] == theme.scrollbar
+        assert variables["baldric-scrollbar-hover"] == theme.scrollbar_hover
