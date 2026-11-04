@@ -172,6 +172,16 @@ class BaldricPaths:
         """Return the unshared project root for per-agent persistent memory."""
         return self.project_baldric_dir(cwd) / "agent-memory-local"
 
+    def project_schedules_dir(self, cwd: Path) -> Path:
+        """Return the directory holding scheduled subagents for one project.
+
+        Schedules live under the Baldric home, mirroring sessions rather than the
+        project working tree: a scheduled job is a stored prompt that runs later,
+        so it must not be committed into a repository, planted by an untrusted
+        checkout, or deleted when a worktree is cleaned up.
+        """
+        return self.home / "schedules" / self.project_session_dir(cwd).name
+
     def project_session_dir(self, cwd: Path) -> Path:
         """Return the user-home session directory for a project cwd."""
         resolved = cwd.resolve()

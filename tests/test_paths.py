@@ -72,6 +72,23 @@ def test_agent_memory_scopes_are_three_distinct_roots(tmp_path: Path) -> None:
     assert len({user, project, local}) == 3
 
 
+def test_schedules_are_stored_under_the_home_not_in_the_project(tmp_path: Path) -> None:
+    """A scheduled job is a stored prompt: it must not land in a repository."""
+    paths = BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents")
+    cwd = tmp_path / "repos" / "app"
+    cwd.mkdir(parents=True)
+
+    schedules = paths.project_schedules_dir(cwd)
+
+    assert schedules.parent == tmp_path / ".baldric" / "schedules"
+    assert schedules.name == paths.project_session_dir(cwd).name
+    assert not str(schedules).startswith(str(cwd))
+    # Two projects with the same directory name still get separate stores.
+    other = tmp_path / "other" / "app"
+    other.mkdir(parents=True)
+    assert paths.project_schedules_dir(other) != schedules
+
+
 def test_default_session_path_uses_home_sessions_and_readable_project_path(
     tmp_path: Path,
 ) -> None:
