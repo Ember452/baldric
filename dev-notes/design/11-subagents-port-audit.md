@@ -70,10 +70,12 @@ importing them would import that divergence too.
    `session.py:607` loads project extensions only when trusted). Porting upstream's
    behavior as-is would let an untrusted repository inject a subagent system
    prompt and tool allow-list, which is a security regression, not a style choice.
-   The extension context exposes `cwd` and `paths` but not the session's trust
-   decision, so the read-only trust flag is surfaced on the extension context
-   instead of being re-derived inside the extension (re-deriving could disagree
-   with the decision the session already made).
+   The gate needs no new plumbing: `extensions/api.py` already exposes
+   `ExtensionContext.project_trust_resolution` (:977) and
+   `ExtensionContext.project_trusted` (:991), whose docstring already instructs a
+   host that builds child sessions to forward `CodingSessionConfig(trust_override=...)`
+   so children inherit the decision instead of re-resolving headlessly. The port
+   consumes that; it does not re-derive trust inside the extension.
 2. **Worktree cleanup failure.** Upstream `worktree.py` ends cleanup with
    `except Exception: _remove_worktree(); return WorktreeResult(has_changes=False)`,
    i.e. a failed commit/branch is reported as "nothing changed" and the child's
