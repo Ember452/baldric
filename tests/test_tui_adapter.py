@@ -141,6 +141,29 @@ def test_tui_adapter_groups_nested_thinking_deltas() -> None:
     assert state.show_thinking is False
 
 
+def test_tui_adapter_new_message_thinking_starts_its_own_row() -> None:
+    # Regression for upstream #782 (grouping): a message that opens with thinking
+    # must start its own row, not append to the previous message's canonical
+    # thinking row (which sits before this message's MessageEnd replace window).
+    state = TuiState()
+    state.show_thinking = True
+    adapter = TuiEventAdapter(state)
+
+    first = AssistantMessage()
+    adapter.apply(MessageStartEvent(message=first))
+    adapter.apply(_update(ThinkingDeltaEvent(content_index=0, delta="A", partial=first)))
+    adapter.apply(
+        MessageEndEvent(message=AssistantMessage(content=[ThinkingContent(thinking="A")], model="m"))
+    )
+
+    second = AssistantMessage()
+    adapter.apply(MessageStartEvent(message=second))
+    adapter.apply(_update(ThinkingDeltaEvent(content_index=0, delta="B", partial=second)))
+
+    thinking_rows = [item.text for item in state.items if item.role == "thinking"]
+    assert thinking_rows == ["A", "B"]
+
+
 def test_tui_state_restores_persisted_assistant_blocks_in_order() -> None:
     state = TuiState()
     state.load_messages(

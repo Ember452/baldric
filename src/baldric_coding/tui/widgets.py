@@ -157,6 +157,28 @@ class SidebarFileItem(Static):
             self.post_message(self.OpenRequested(self))
 
 
+def _set_collapsible_title(collapsible: Collapsible, title: str) -> None:
+    """Set a Collapsible title, forcing a re-render on style-only changes.
+
+    Textual's ``CollapsibleTitle`` keeps the title in a reactive ``label`` whose
+    change detection compares plain text only, so re-theming a title whose text
+    is unchanged leaves the previously baked colors in place. When the new
+    markup differs from the current label, push it directly onto the label
+    widget and keep its reactive state in sync so later collapse/expand toggles
+    keep the new colors.
+    """
+    collapsible.title = title
+    title_widget = collapsible._title
+    new_label = Content.from_markup(title)
+    current_label = title_widget.label
+    if isinstance(current_label, Content) and new_label.is_same(current_label):
+        return
+    symbol = title_widget.expanded_symbol if not title_widget.collapsed else title_widget.collapsed_symbol
+    title_widget.update(Content.assemble(symbol, " ", new_label))
+    if hasattr(title_widget, "_reactive_label"):
+        title_widget._reactive_label = new_label
+
+
 class SessionSidebar(Vertical):
     """Compact sidebar with collapsible resource lists and pinned branding."""
 
@@ -237,16 +259,19 @@ class SessionSidebar(Vertical):
             _context_file_widgets(session.context_files, cwd=session.cwd, theme=theme),
         )
         skills = self.query_one("#sidebar-skills", Collapsible)
-        skills.title = _skill_section_title(session, theme=theme)
+        _set_collapsible_title(skills, _skill_section_title(session, theme=theme))
         _replace_sidebar_file_widgets(
             self.query_one("#sidebar-skills-content", Vertical),
             _skill_file_widgets(session.skills, cwd=session.cwd, theme=theme),
         )
         prompts = self.query_one("#sidebar-prompts", Collapsible)
-        prompts.title = _sidebar_resource_title(
-            "prompts",
-            str(len(session.prompt_templates)),
-            theme=theme,
+        _set_collapsible_title(
+            prompts,
+            _sidebar_resource_title(
+                "prompts",
+                str(len(session.prompt_templates)),
+                theme=theme,
+            ),
         )
         _replace_sidebar_file_widgets(
             self.query_one("#sidebar-prompts-content", Vertical),

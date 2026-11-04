@@ -679,8 +679,11 @@ class PromptInput(TextArea):
         self._completion_target().action_toggle_thinking()
 
     def action_clear_prompt(self) -> None:
-        """Clear the current prompt."""
-        if self.selected_text:
+        """Copy the active selection, or clear the prompt when nothing is selected."""
+        selection = self.selected_text or self.screen.get_selected_text()
+        if selection:
+            self.app.copy_to_clipboard(selection)
+            self.app.notify("Copied selection to clipboard.")
             return
         if self.text:
             self.text = ""
@@ -868,13 +871,9 @@ class PromptInput(TextArea):
             event.stop()
             self._completion_target().action_toggle_thinking()
         elif event.key == keybindings.copy_message:
-            if self.selected_text:
-                return
             event.stop()
             event.prevent_default()
-            if self.text:
-                self.text = ""
-                self.move_cursor((0, 0))
+            self.action_clear_prompt()
         elif event.key == keybindings.completion_next:
             event.stop()
             if self._has_completion_options():
@@ -4776,10 +4775,12 @@ class BaldricTuiApp(App[None]):
         if getattr(self, "_applying_settings_theme", False):
             return
         baldric_theme: TuiThemeName = theme_name
-        if self.tui_settings.theme == baldric_theme:
-            return
-        self._replace_tui_settings(theme=baldric_theme)
-        save_tui_settings(self.tui_settings)
+        if self.tui_settings.theme != baldric_theme:
+            self._replace_tui_settings(theme=baldric_theme)
+            save_tui_settings(self.tui_settings)
+        # Re-render theme-baked chrome so a Textual-side theme switch updates
+        # the sidebar even when Baldric's durable settings already match.
+        self._refresh_chrome_if_mounted()
 
     def get_theme_variable_defaults(self) -> dict[str, str]:
         """Return Baldric-specific CSS variables for the selected TUI theme."""
@@ -6542,8 +6543,18 @@ class BaldricTuiApp(App[None]):
         applied = self._apply_selected_completion(prompt.text)
         if applied is None or item is None:
             return
-        prompt.text = applied
         cursor = item.cursor_after_apply()
+        if item.kind is CompletionKind.FILE_REFERENCE and item.replacement.endswith("/"):
+            # Commit a directory reference instead of drilling into it: leave
+            # the @ token by moving past (or inserting) a separating space, so
+            # accepting a directory does not immediately reopen the picker on
+            # the directory's children.
+            if cursor < len(applied) and applied[cursor].isspace():
+                cursor += 1
+            else:
+                applied = f"{applied[:cursor]} {applied[cursor:]}"
+                cursor += 1
+        prompt.text = applied
         prompt.cursor_position = cursor
         self._completion_state = self._build_completion_state(prompt.text, cursor=cursor)
         self._refresh_completions()
@@ -8489,7 +8500,7 @@ def _app_bindings(keybindings: TuiKeybindings) -> list[Binding]:
         ),
         Binding(keybindings.toggle_tool_results, "toggle_tool_results", "Tool results"),
         Binding(keybindings.toggle_thinking, "toggle_thinking", "Thinking tokens"),
-        Binding(keybindings.copy_message, "clear_prompt", "Clear input"),
+        Binding(keybindings.copy_message, "clear_prompt", "Copy/Clear"),
         Binding(keybindings.quit, "quit", "Quit"),
     ]
 
@@ -8567,7 +8578,7 @@ def _prompt_bindings(
         Binding(
             keybindings.copy_message,
             "clear_prompt",
-            "Clear",
+            "Copy/Clear",
             priority=True,
         ),
         Binding(keybindings.quit, "quit", "Quit", priority=True),

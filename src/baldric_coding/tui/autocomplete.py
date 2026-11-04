@@ -6,8 +6,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from time import monotonic
 
 from baldric_coding.commands import CommandRegistry, SlashCommand
+from baldric_coding.gitignore import gitignore_rules_for
 from baldric_coding.prompt_templates import PromptTemplate
 from baldric_coding.skills import Skill
 
@@ -28,6 +30,11 @@ IGNORED_FILE_COMPLETION_DIRS = frozenset(
     }
 )
 MAX_FILE_COMPLETIONS = 50
+# Long enough that a burst of typing reuses one workspace walk, short enough
+# that newly created files show up without a restart.
+FILE_REFERENCE_CACHE_TTL_SECONDS = 2.0
+
+_file_reference_cache: tuple[Path, float, tuple[tuple[str, str], ...]] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -191,11 +198,10 @@ def _file_reference_completions(*, text: str, cursor: int, cwd: Path) -> tuple[C
         return external_completions
 
     suggestions: list[CompletionItem] = []
-    for path in _iter_file_reference_paths(cwd):
-        relative = path.relative_to(cwd).as_posix()
-        if prefix.lower() not in relative.lower():
+    lowered_prefix = prefix.lower()
+    for searchable, display in _file_reference_candidates(cwd):
+        if lowered_prefix not in searchable:
             continue
-        display = f"@{relative}{'/' if path.is_dir() else ''}"
         if display == existing:
             continue
         suggestions.append(
@@ -211,6 +217,31 @@ def _file_reference_completions(*, text: str, cursor: int, cwd: Path) -> tuple[C
         if len(suggestions) >= MAX_FILE_COMPLETIONS:
             break
     return tuple(suggestions)
+
+
+def _file_reference_candidates(cwd: Path) -> tuple[tuple[str, str], ...]:
+    """Return `(searchable, display)` completion candidates for a workspace.
+
+    Walking the workspace dominates the cost of building these completions, so
+    without caching every keystroke re-walks the whole tree (issue #463). One
+    slot is enough because a session completes against a single workspace, and
+    the short TTL keeps newly created files appearing promptly.
+    """
+    global _file_reference_cache
+
+    now = monotonic()
+    cached = _file_reference_cache
+    if cached is not None and cached[0] == cwd and now - cached[1] < FILE_REFERENCE_CACHE_TTL_SECONDS:
+        return cached[2]
+
+    candidates = tuple(
+        (relative.lower(), f"@{relative}{'/' if path.is_dir() else ''}")
+        for path, relative in (
+            (path, path.relative_to(cwd).as_posix()) for path in _iter_file_reference_paths(cwd)
+        )
+    )
+    _file_reference_cache = (cwd, now, candidates)
+    return candidates
 
 
 def _external_file_reference_completions(
@@ -306,10 +337,19 @@ def _iter_file_reference_paths(cwd: Path) -> tuple[Path, ...]:
 
 def _is_ignored_file_completion_path(path: Path, *, cwd: Path) -> bool:
     try:
-        relative_parts = path.relative_to(cwd).parts
+        relative = path.relative_to(cwd)
     except ValueError:
         return True
-    return any(part in IGNORED_FILE_COMPLETION_DIRS for part in relative_parts)
+    if any(part in IGNORED_FILE_COMPLETION_DIRS for part in relative.parts):
+        return True
+    segments = relative.as_posix().split("/")
+    rules = gitignore_rules_for(str(cwd.resolve()))
+    for index, _segment in enumerate(segments):
+        segment_path = "/".join(segments[: index + 1])
+        is_dir = index < len(segments) - 1 or path.is_dir()
+        if rules.matches(segment_path, is_dir=is_dir):
+            return True
+    return False
 
 
 def _shell_path_completions(*, text: str, cursor: int, cwd: Path) -> tuple[CompletionItem, ...] | None:
