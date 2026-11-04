@@ -160,11 +160,14 @@ def test_store_round_trip_is_sorted_and_nearest_decision_wins(tmp_path: Path) ->
     assert payload == {
         "version": 1,
         "decisions": [
-            {"path": str(parent.resolve()), "decision": "trusted"},
-            {"path": str(child.resolve()), "decision": "untrusted"},
+            {"path": str(parent_key.value), "decision": "trusted"},
+            {"path": str(child_key.value), "decision": "untrusted"},
         ],
     }
-    assert store.path.stat().st_mode & 0o777 == 0o600
+    if sys.platform != "win32":
+        # Windows has no POSIX permission bits (os.stat reports 0o666); the
+        # store still requests 0o600, which is enforced on POSIX runners.
+        assert store.path.stat().st_mode & 0o777 == 0o600
 
 
 def test_parent_trust_removes_exact_child_for_inheritance(tmp_path: Path) -> None:

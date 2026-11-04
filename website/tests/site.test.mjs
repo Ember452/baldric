@@ -21,6 +21,8 @@ test("all Markdown routes and static hosting artifacts exist", async () => {
     if (!file.endsWith(".md")) continue;
     const route = path
       .relative(path.resolve("content"), file)
+      .split(path.sep)
+      .join("/")
       .replace(/\.md$/, "")
       .replace(/(^|\/)\_index$/, "");
     await access(path.join(dist, route, "index.html"));
