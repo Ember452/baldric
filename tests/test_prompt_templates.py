@@ -91,7 +91,9 @@ def test_load_prompt_templates_with_diagnostics_reports_overrides(tmp_path: Path
     assert "overrides lower-precedence resource" in diagnostics[0].message
 
 
-@pytest.mark.parametrize("reserved_name", ["prompts", "skills", "tools", "reload", "new", "quit", "exit"])
+@pytest.mark.parametrize(
+    "reserved_name", ["diagnostics", "prompts", "skills", "tools", "reload", "new", "quit", "exit"]
+)
 def test_reserved_template_is_ignored_with_diagnostic(tmp_path: Path, reserved_name: str) -> None:
     prompts_dir = tmp_path / "prompts"
     prompts_dir.mkdir()

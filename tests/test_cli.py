@@ -205,7 +205,8 @@ def test_unknown_user_prompt_path_is_forwarded_as_literal(
             raise RuntimeError("Could not determine home directory")
         return original_expanduser(path)
 
-    async def fake_run_openai_tui(*args: object) -> None:
+    async def fake_run_openai_tui(*args: object, **kwargs: object) -> None:
+        del kwargs
         calls.append((args[-2], args[-1]))  # type: ignore[arg-type]
 
     monkeypatch.setattr(Path, "expanduser", fail_for_unknown_user)
@@ -293,7 +294,8 @@ def test_prompt_input_reports_path_inspection_error(monkeypatch: pytest.MonkeyPa
             raise PermissionError("permission denied")
         return original_exists(path)
 
-    async def fake_run_openai_tui(*args: object) -> None:
+    async def fake_run_openai_tui(*args: object, **kwargs: object) -> None:
+        del kwargs
         nonlocal tui_calls
         tui_calls += 1
 
@@ -322,7 +324,8 @@ def test_system_prompt_flags_forward_to_resumed_tui(
 ) -> None:
     calls: list[tuple[str | None, str | None, str | None]] = []
 
-    async def fake_run_openai_tui(*args: object) -> None:
+    async def fake_run_openai_tui(*args: object, **kwargs: object) -> None:
+        del kwargs
         calls.append((args[2], args[-2], args[-1]))  # type: ignore[arg-type]
 
     monkeypatch.setattr(cli, "_startup_update_notice", lambda: None)
@@ -513,8 +516,9 @@ def test_cli_without_prompt_invokes_tui_runner(monkeypatch: pytest.MonkeyPatch, 
         initial_prompt: str | None,
         update_notice: object | None = None,
         *extra: object,
+        **kwargs: object,
     ) -> None:
-        del update_notice, extra
+        del update_notice, extra, kwargs
         calls.append(
             (
                 model,
@@ -635,8 +639,9 @@ def test_cli_positional_prompt_invokes_tui_runner(monkeypatch: pytest.MonkeyPatc
         initial_prompt: str | None,
         update_notice: object | None = None,
         *extra: object,
+        **kwargs: object,
     ) -> None:
-        del update_notice, extra
+        del update_notice, extra, kwargs
         calls.append(
             (
                 model,
@@ -817,6 +822,46 @@ async def test_run_print_mode_system_command_prints_prompt_without_provider_call
     assert captured.err == ""
     assert provider.calls == []
     assert await storage.read_all() == []
+
+
+@pytest.mark.anyio
+async def test_run_print_mode_diagnostics_command_prints_resource_details(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    resource_root = tmp_path / "resources"
+    prompts_dir = resource_root / "prompts"
+    prompts_dir.mkdir(parents=True)
+    diagnostic_path = prompts_dir / "diagnostics.md"
+    diagnostic_path.write_text("Shadow the built-in command.", encoding="utf-8")
+    provider = FakeProvider([])
+
+    ok = await run_print_mode(
+        prompt="/diagnostics",
+        model="fake",
+        cwd=tmp_path,
+        provider=provider,
+        resource_paths=BaldricResourcePaths(root=resource_root, agents_root=None),
+    )
+
+    captured = capsys.readouterr()
+    assert ok is True
+    assert captured.out == "\n".join(
+        [
+            "Resource diagnostics (1):",
+            "",
+            "1. WARNING",
+            "Kind: prompt",
+            "Name: diagnostics",
+            f"Path: {diagnostic_path}",
+            (
+                "Message: prompt template name is reserved by the built-in "
+                "/diagnostics command; template ignored"
+            ),
+            "",
+        ]
+    )
+    assert captured.err == ""
+    assert provider.calls == []
 
 
 @pytest.mark.anyio
@@ -1399,8 +1444,9 @@ def test_default_tui_invokes_tui_runner_with_flags(monkeypatch: pytest.MonkeyPat
         initial_prompt: str | None,
         update_notice: object | None = None,
         *extra: object,
+        **kwargs: object,
     ) -> None:
-        del update_notice, extra
+        del update_notice, extra, kwargs
         calls.append(
             (
                 model,

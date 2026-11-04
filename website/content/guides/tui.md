@@ -66,6 +66,7 @@ In-session commands start with `/`. Open the **command palette** with **Ctrl+K**
 to search and run them. Common ones:
 
 - `/session` — show model, tools, skills, and context usage for the session. Text selected in this modal is copied to the clipboard automatically.
+- `/diagnostics` — inspect resource loading warnings and errors, including the resource kind, name, source path, severity, and remediation message
 - `/system` — show the active system prompt grouped by source in the transcript without adding it to context or session history
 - `/model` — pick the active model
 - `/tools` — search active tools by origin and open their full descriptions
@@ -207,6 +208,15 @@ hiding the contents. The same toggle reveals exact shell commands and full outpu
 for other tools. Compaction and grouping affect only the TUI display; execution,
 session history, and print-mode transcripts retain every complete call and
 result.
+
+Previews are lossy: a long tool result or `!` shell-command output is cut to a
+fixed number of lines and characters, and Baldric appends
+`[Preview only: … hidden from the TUI.]` where the rest was dropped. Expanding with
+**Ctrl+O** renders the untruncated text instead, so debugging a `!` command (for
+example while configuring a sandbox profile) no longer needs a session export.
+To have the whole transcript start expanded, pass
+`--show-full-output` when launching `baldric`. Both controls only affect display;
+session history always holds the complete output.
 
 Markdown link hover styling underlines only the linked text, never the rest of its
 row. User message blocks use the same theme background as the prompt field and sidebar,

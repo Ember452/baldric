@@ -238,6 +238,65 @@ def test_render_session_html_includes_filter_bar_and_accordions() -> None:
     assert "m15 12-8.373" in html
 
 
+def test_render_session_html_includes_compact_session_summary() -> None:
+    entries = [
+        MessageEntry(id="user", timestamp=100.0, message=UserMessage(content="Hello")),
+        MessageEntry(
+            id="assistant",
+            parent_id="user",
+            timestamp=101.0,
+            message=AssistantMessage(
+                content=[
+                    TextContent(text="Reading a file"),
+                    ToolCall(id="call-1", name="read", arguments={"path": "README.md"}),
+                ]
+            ),
+        ),
+        MessageEntry(
+            id="tool",
+            parent_id="assistant",
+            timestamp=102.0,
+            message=ToolResultMessage(
+                tool_call_id="call-1",
+                tool_name="read",
+                content=[TextContent(text="File contents")],
+            ),
+        ),
+        ModelChangeEntry(id="model", parent_id="tool", timestamp=103.0, model="example/model"),
+    ]
+
+    html = render_session_html(entries, title="Summary Export")
+
+    assert '<section class="session-summary" aria-label="Session summary">' in html
+    assert "<strong>4</strong><span>Entries</span>" in html
+    assert "<strong>2</strong><span>Messages</span>" in html
+    assert "<strong>1</strong><span>Tools</span>" in html
+    assert "<strong>1</strong><span>Events</span>" in html
+    assert "<strong>3s</strong><span>Duration</span>" in html
+
+
+def test_render_session_html_includes_timestamp_timeline() -> None:
+    entries = [
+        MessageEntry(id="user", timestamp=100.0, message=UserMessage(content="Hello")),
+        MessageEntry(
+            id="assistant",
+            parent_id="user",
+            timestamp=110.0,
+            message=AssistantMessage(content="Done"),
+        ),
+        ModelChangeEntry(id="model", parent_id="assistant", timestamp=120.0, model="fake"),
+    ]
+
+    html = render_session_html(entries)
+
+    assert '<section class="timeline-overview" aria-label="Session timeline">' in html
+    assert "Timeline" in html
+    assert 'data-timeline-kind="message"' in html
+    assert 'data-timeline-kind="event"' in html
+    assert 'style="left: 0.00%"' in html
+    assert 'style="left: 100.00%"' in html
+
+
 def test_render_session_html_marks_tool_only_assistant_messages_as_tools() -> None:
     entries = [
         MessageEntry(

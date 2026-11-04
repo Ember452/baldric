@@ -375,6 +375,17 @@ section, and `prompt_guidelines` for usage guidance tied to the tool.
 Registering a tool with a built-in's name (`read`, `write`, `edit`,
 `bash`) replaces the built-in.
 
+Before a tool runs, the agent loop checks the call's arguments against
+`parameters`. A call that does not fit is not run: the model gets one error
+listing every problem (missing required keys, wrong types, values outside an
+`enum`, keys not declared when `additionalProperties` is `false`), with the path
+of each. The check covers `type`, `required`, `properties`,
+`additionalProperties`, `enum` and `items`, and ignores other keywords. An empty
+`parameters` mapping is not checked, and an optional argument sent as `null`
+counts as not sent. Nothing is coerced. To accept other shapes, set
+`prepare_arguments` to a function that rewrites the arguments into the declared
+shape; the loop checks its result and passes that to `execute_fn`.
+
 A long-running tool can stream progress: an executor that additionally
 uses `on_update` receives a callback accepting an `AgentToolResult`; each call becomes a
 `tool_execution_update` event and drives the TUI's live progress line.
@@ -637,6 +648,15 @@ Observation events mirror the canonical agent/session stream. Handlers receive
 | `auto_retry_start` | `attempt`, `max_attempts`, `delay_ms`, `error_message` |
 | `auto_retry_end` | `success`, `attempt`, `final_error` |
 
+`compaction_start` and `compaction_end` bracket the compactions the session
+performs. `threshold` is emitted when automatic compaction runs because the
+estimated context crossed the configured limit, so extensions can observe
+background compaction that happens after a turn's response has already been
+delivered. `overflow` is emitted for recovery from a provider context-overflow
+error. A failed threshold compaction still emits `compaction_end` with `aborted`
+set and `error_message` populated. Manual `/compact` runs are driven by the CLI
+and do not emit these events.
+
 `message_update.assistant_message_event` is the provider-neutral incremental
 stream. Its nested `type` is one of `text_start`, `text_delta`, `text_end`,
 `thinking_start`, `thinking_delta`, `thinking_end`, `toolcall_start`,
@@ -695,7 +715,9 @@ Lifecycle and intercepting hooks:
   consumes it without an agent run and shows `message` as a notification.
 - `tool_call` runs before a tool executes. `block=True` prevents execution
   and reports `reason` to the model; returning `arguments` rewrites the
-  call. A crashing `tool_call` handler blocks the tool (fail-safe).
+  call. A crashing `tool_call` handler blocks the tool (fail-safe). It runs
+  after the arguments were checked against the tool's schema, so it never sees a
+  call that check refused, and arguments it returns are not checked again.
 - `tool_result` can rewrite a result's text `content` or `details`; execution
   error state belongs to the host's tool lifecycle rather than the result payload.
 

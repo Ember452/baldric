@@ -3,6 +3,7 @@ from pathlib import Path
 from baldric_coding.commands import CommandRegistry, SlashCommand, create_default_command_registry
 from baldric_coding.paths import BaldricPaths
 from baldric_coding.reload import CodingReloadSummary, ReloadCategorySummary
+from baldric_coding.resources import ResourceDiagnostic
 from baldric_coding.session import ModelChoice
 from baldric_coding.session_manager import SessionManager
 from baldric_coding.skills import Skill
@@ -121,11 +122,12 @@ def test_registry_ignores_unregistered_slash_prompts(tmp_path: Path) -> None:
         assert result.message is None
 
 
-def test_registered_commands_are_pi_aligned(tmp_path: Path) -> None:
+def test_registered_commands_are_expected(tmp_path: Path) -> None:
     commands = create_default_command_registry().list_commands()
 
     assert [command.name for command in commands] == [
         "compact",
+        "diagnostics",
         "export",
         "hotkeys",
         "local",
@@ -148,6 +150,54 @@ def test_registered_commands_are_pi_aligned(tmp_path: Path) -> None:
         "tools",
         "tree",
     ]
+
+
+def test_diagnostics_command_shows_empty_state(tmp_path: Path) -> None:
+    result = create_default_command_registry().execute(FakeSession(tmp_path), "/diagnostics")
+
+    assert result.handled is True
+    assert result.message == "No resource diagnostics."
+    assert (
+        create_default_command_registry().execute(FakeSession(tmp_path), "/diagnostics extra").message
+        == "Usage: /diagnostics"
+    )
+
+
+def test_diagnostics_command_shows_complete_literal_details(tmp_path: Path) -> None:
+    session = FakeSession(tmp_path)
+    prompt_path = tmp_path / "[project]" / "prompts" / "review.md"
+    session.resource_diagnostics = (
+        ResourceDiagnostic(
+            kind="prompt",
+            name="review",
+            path=prompt_path,
+            severity="warning",
+            message="template [ignored] because it is invalid",
+        ),
+        ResourceDiagnostic(
+            kind="extension",
+            severity="error",
+            message="setup failed",
+        ),
+    )
+
+    result = create_default_command_registry().execute(session, "/diagnostics")
+
+    assert result.message == "\n".join(
+        [
+            "Resource diagnostics (2):",
+            "",
+            "1. WARNING",
+            "Kind: prompt",
+            "Name: review",
+            f"Path: {prompt_path}",
+            "Message: template [ignored] because it is invalid",
+            "",
+            "2. ERROR",
+            "Kind: extension",
+            "Message: setup failed",
+        ]
+    )
 
 
 def test_local_command_requests_host_action(tmp_path: Path) -> None:

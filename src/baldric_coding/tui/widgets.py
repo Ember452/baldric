@@ -1828,8 +1828,8 @@ def _transcript_plain_body_text(
         return Group(invocation_text, markup_text)
 
     result_text: str | None = None
-    if show_tool_results and item.tool_result_text:
-        result_text = item.tool_result_text
+    if show_tool_results and (visible_result := item.result_text(expanded=show_tool_results)):
+        result_text = visible_result
     elif item.update_text and not item.tool_result_text:
         result_text = f"… {item.update_text}"
     if result_text is None:
@@ -2456,11 +2456,12 @@ def _render_tool_chat_body(
         accent_style=accent_style,
         description_only=_bash_row_is_description_only(item),
     )
-    if item.grouped_tool_calls is not None or not show_tool_results or not item.tool_result_text:
+    visible_result = item.result_text(expanded=show_tool_results)
+    if item.grouped_tool_calls is not None or not show_tool_results or not visible_result:
         return text
 
     result_body = _render_chat_body(
-        item.tool_result_text,
+        visible_result,
         role=item.role,
         body_style=body_style,
         syntax_theme=syntax_theme,

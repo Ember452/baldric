@@ -3890,8 +3890,10 @@ class BaldricTuiApp(App[None]):
         background: $baldric-transcript-background;
         padding: 0 0 0 2;
         overflow-x: auto;
-        scrollbar-size-vertical: 0;
+        scrollbar-size-vertical: 1;
         scrollbar-size-horizontal: 1;
+        scrollbar-color: $baldric-scrollbar;
+        scrollbar-color-hover: $baldric-scrollbar-hover;
     }
 
     /* Component seam: generic extension mount points. */
@@ -4584,6 +4586,7 @@ class BaldricTuiApp(App[None]):
         startup_alerts: Sequence[str] = (),
         startup_notices: Sequence[str] = (),
         initial_prompt: str | None = None,
+        show_full_output: bool = False,
     ) -> None:
         self.tui_settings = tui_settings or TuiSettings()
         self.startup_message = startup_message
@@ -4606,6 +4609,10 @@ class BaldricTuiApp(App[None]):
         self._bindings = BindingsMap(_app_bindings(self.tui_settings.keybindings))
         self.session = session
         self.state = TuiState(skills=session.skills, cwd=session.cwd)
+        # A deliberate per-invocation opt-in (like the sidebar override below):
+        # startup state rather than a durable preference, so it never reaches
+        # tui.json.
+        self.state.set_full_output(show_full_output)
         if startup_update_notice is not None:
             self.state.add_item("status", startup_update_notice, highlight="update")
         for alert in startup_alerts:
@@ -4684,7 +4691,7 @@ class BaldricTuiApp(App[None]):
 
     def _is_working(self) -> bool:
         """Return whether the app should show working affordances (agent turn or compaction)."""
-        return self.state.running or self._compacting
+        return self.state.running or self.state.compacting or self._compacting
 
     def _sync_terminal_title(self) -> None:
         """Reflect the active session name and running state in the terminal tab title."""
@@ -6195,6 +6202,17 @@ class BaldricTuiApp(App[None]):
             added_to_context=result.added_to_context,
             output=result.output,
         )
+        # Keep the untruncated output when the preview hid some of it, so
+        # `--show-full-output` (and the tool-results toggle) can reveal it
+        # without re-running the command.
+        full_output_text = format_terminal_command_result_block(
+            ok=result.ok,
+            added_to_context=result.added_to_context,
+            output=result.output,
+            full=True,
+        )
+        item.tool_result_full_text = None if full_output_text == item.tool_result_text else full_output_text
+        item.full_output = self.state.show_full_output
         self._follow_transcript_output()
         await transcript.update_item(
             item,
@@ -6305,6 +6323,7 @@ class BaldricTuiApp(App[None]):
             self.state.error = message
             self.state.add_item("error", message)
             self.state.running = False
+            self.state.compacting = False
             self._sync_text_selection_state()
             self._refresh()
         finally:
@@ -6435,7 +6454,9 @@ class BaldricTuiApp(App[None]):
             return
         if isinstance(event, (AutoRetryStartEvent, CompactionStartEvent)):
             await transcript.finish_assistant_message()
-            if self.state.items and (isinstance(event, AutoRetryStartEvent) or event.reason == "overflow"):
+            if self.state.items and (
+                isinstance(event, AutoRetryStartEvent) or event.reason in {"overflow", "threshold"}
+            ):
                 await transcript.append_item(
                     self.state.items[-1],
                     theme=theme,
@@ -6444,7 +6465,9 @@ class BaldricTuiApp(App[None]):
             self._refresh_chrome()
             return
         if isinstance(event, CompactionEndEvent):
-            if event.reason == "overflow" and (event.aborted or event.error_message):
+            if event.reason == "threshold" or (
+                event.reason == "overflow" and (event.aborted or event.error_message)
+            ):
                 self._refresh()
             else:
                 self._refresh_chrome()
@@ -6508,6 +6531,7 @@ class BaldricTuiApp(App[None]):
             worker.cancel()
         self._prompt_worker = None
         self.state.running = False
+        self.state.compacting = False
         self.state.assistant_buffer = ""
         self._sync_text_selection_state()
         self._refresh()
@@ -8859,6 +8883,7 @@ async def run_tui_app(
     provider_name: str | None = None,
     auto_compact_token_threshold: int | None = None,
     initial_prompt: str | None = None,
+    show_full_output: bool = False,
     session_manager: SessionManager | None = None,
     startup_notice: str | None = None,
     startup_update_notice: str | None = None,
@@ -9055,6 +9080,7 @@ async def run_tui_app(
             startup_alerts=startup_alerts,
             startup_notices=all_startup_notices,
             initial_prompt=initial_prompt,
+            show_full_output=show_full_output,
         )
         set_trust_prompt = getattr(session, "set_project_trust_prompt", None)
         if set_trust_prompt is not None:
