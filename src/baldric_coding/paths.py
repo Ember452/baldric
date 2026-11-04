@@ -99,6 +99,11 @@ class BaldricPaths:
         return self.home / "extensions"
 
     @property
+    def user_subagent_types_dir(self) -> Path:
+        """Return the user-level directory holding subagent type definitions."""
+        return self.home / "agents"
+
+    @property
     def user_agents_skills_dir(self) -> Path:
         """Return the user-level `.agents/skills` directory."""
         return self.agents_home / "skills"
@@ -135,6 +140,10 @@ class BaldricPaths:
     def project_agents_prompts_dir(self, cwd: Path) -> Path:
         """Return the project-local `.agents/prompts` directory."""
         return self.project_agents_dir(cwd) / "prompts"
+
+    def project_subagent_types_dir(self, cwd: Path) -> Path:
+        """Return the project-local subagent type definitions directory."""
+        return self.project_baldric_dir(cwd) / "agents"
 
     def project_session_dir(self, cwd: Path) -> Path:
         """Return the user-home session directory for a project cwd."""
