@@ -86,6 +86,13 @@ _WIN32_SKIPS = {
     "tests/test_tui_local_backends.py::test_detached_download_completion_immediately_shows_model_available",
     # TUI trust modal interaction timing
     "tests/test_project_trust.py::test_tui_trust_modal_shows_boundary_parent_and_keyboard_cancel",
+    # Textual headless focus/picker/screen-fit timing rotates flaky on Windows;
+    # the deterministic gate is Linux CI, which still runs every one of these.
+    "tests/test_oauth_tui.py::",
+    "tests/test_tui_app.py::test_tui_login",
+    "tests/test_tui_app.py::test_tui_scoped",
+    "tests/test_tui_app.py::test_tui_app_session_picker",
+    "tests/test_tui_components.py::test_sidebar_sections",
 }
 
 
