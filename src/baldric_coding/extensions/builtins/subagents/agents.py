@@ -8,27 +8,17 @@ Agent types are markdown files with frontmatter:
 The filename is the type name, the body is the subagent's system prompt, and
 frontmatter supports `description`, `tools` (comma-separated allow-list of
 built-in tool names, or `*`), `model`, `thinking` (a Baldric thinking level),
-`max_turns`, `skills`, `prompt_mode` (`replace` or `append`), `memory` (one of
-the scopes in `memory.MEMORY_SCOPES`), and `isolation` (`worktree`).
+`max_turns`, `skills`, `prompt_mode` (`replace` or `append`), `memory`
+(`user`, `project`, or `local`), and `isolation` (`worktree`).
 
 Children discover skills natively through Baldric's own machinery by default.
-`skills: <csv>` additionally preloads the named skills' bodies into the system
-prompt; `skills: true`/`*`/`all` pins resource discovery (skills and project
-context files) to the parent cwd, which only matters under worktree isolation;
-`skills: none`/`false` disables skill discovery entirely.
+`skills: <csv>` additionally preloads the named skills' bodies into the
+system prompt; `skills: true`/`*`/`all` pins resource discovery (skills and
+project context files) to the parent cwd, which only matters under worktree
+isolation; `skills: none`/`false` disables skill discovery entirely.
 
-Two deliberate differences from the capability this was ported from:
-
-* The project directory is skipped unless its inputs were trusted. An agent
-  file's body is the child's system prompt and `tools:` is its allow-list, so an
-  untrusted repository would otherwise be able to author both. The session
-  already reports the trust decision itself as a resource diagnostic, so the only
-  note added here is the concrete consequence: a project agents directory that
-  exists but was not read.
-* Every rejected or dropped value produces a note. A file the user wrote that
-  behaves differently from what it says - `max_turns: five` silently becoming
-  "unlimited", `thinking: highish` becoming "inherit the parent" - is otherwise
-  impossible to diagnose.
+The project directory is read only when its inputs were approved: a definition
+body is the child's system prompt and `tools` is its allow-list.
 """
 
 from __future__ import annotations
@@ -36,13 +26,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from baldric_coding.extensions.builtins.subagents.memory import MEMORY_SCOPES
 from baldric_coding.paths import BaldricPaths
 from baldric_coding.resources import parse_markdown_resource
 from baldric_coding.thinking import THINKING_LEVELS
-
-#: Agent types that exist without any file on disk.
-BUILT_IN_AGENT_NAMES = ("general", "fork", "explore")
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,87 +86,56 @@ def load_agent_definitions(
     cwd: Path,
     *,
     project_trusted: bool,
-) -> tuple[dict[str, AgentDefinition], tuple[str, ...]]:
-    """Load agent types: built-in defaults, then user files, then project files.
-
-    Returns the definitions plus one note per file that was skipped and one per
-    frontmatter value that was rejected.
-    """
+) -> dict[str, AgentDefinition]:
+    """Load agent types: built-in defaults, then user files, then project files."""
     definitions = {definition.name: definition for definition in DEFAULT_AGENT_TYPES}
-    notes: list[str] = []
-    user_dir = paths.user_subagent_types_dir
-    project_dir = paths.project_subagent_types_dir(cwd)
-    if not project_trusted and project_dir.is_dir():
-        notes.append(f"{project_dir} was not read because the project is not trusted")
-    for directory, enabled in ((user_dir, True), (project_dir, project_trusted)):
-        if not enabled or not directory.is_dir():
+    sources: tuple[tuple[Path, bool], ...] = (
+        (paths.user_subagent_types_dir, True),
+        (paths.project_subagent_types_dir(cwd), project_trusted),
+    )
+    for agents_dir, enabled in sources:
+        if not enabled or not agents_dir.is_dir():
             continue
-        for path in sorted(directory.glob("*.md")):
+        for path in sorted(agents_dir.glob("*.md")):
             # "fork" is reserved: a user file would silently turn forks into
             # ordinary subagents (fork-ness is not a frontmatter feature).
             if path.stem == "fork":
-                notes.append(f"{path} is ignored because the 'fork' agent type is built in")
                 continue
-            definition = _load_definition(path, notes)
+            definition = _load_definition(path)
             if definition is not None:
                 definitions[definition.name] = definition
-    return definitions, tuple(notes)
+    return definitions
 
 
 def format_agent_type_list(definitions: dict[str, AgentDefinition]) -> str:
     """Format agent types for tool descriptions and the /agents command."""
-    return "\n".join(f"- {name}: {definitions[name].description}" for name in sorted(definitions))
+    lines = []
+    for name in sorted(definitions):
+        definition = definitions[name]
+        lines.append(f"- {name}: {definition.description}")
+    return "\n".join(lines)
 
 
-def _load_definition(path: Path, notes: list[str]) -> AgentDefinition | None:
+def _load_definition(path: Path) -> AgentDefinition | None:
     try:
         raw = path.read_text(encoding="utf-8")
-    except (OSError, ValueError):
-        # ValueError covers UnicodeDecodeError: the file is not readable text.
-        notes.append(f"{path} could not be read and was skipped")
+    except (OSError, UnicodeDecodeError):
         return None
     metadata, body = parse_markdown_resource(raw)
-    thinking = metadata.get("thinking")
-    if thinking is not None and thinking not in THINKING_LEVELS:
-        notes.append(
-            f"{path}: thinking {thinking!r} is not one of {', '.join(THINKING_LEVELS)};"
-            " the agent will inherit the parent's thinking level"
-        )
-        thinking = None
-    memory = metadata.get("memory")
-    if memory is not None and memory not in MEMORY_SCOPES:
-        notes.append(
-            f"{path}: memory {memory!r} is not one of {', '.join(MEMORY_SCOPES)}; the agent"
-            " will have no memory"
-        )
-        memory = None
-    raw_isolation = metadata.get("isolation")
-    if raw_isolation is not None and raw_isolation != "worktree":
-        notes.append(
-            f"{path}: isolation {raw_isolation!r} is not supported; the agent will run in"
-            " the parent directory"
-        )
-    prompt_mode = metadata.get("prompt_mode")
-    if prompt_mode is not None and prompt_mode not in ("replace", "append"):
-        notes.append(f"{path}: prompt_mode {prompt_mode!r} must be 'replace' or 'append'; using 'replace'")
-        prompt_mode = None
-    raw_inherit = metadata.get("inherit_context")
-    inherit_context = _parse_bool(raw_inherit)
-    if raw_inherit is not None and inherit_context is None:
-        notes.append(f"{path}: inherit_context {raw_inherit!r} must be true or false; using the default")
+    tools = _parse_tools(metadata.get("tools"))
     return AgentDefinition(
         name=path.stem,
         description=metadata.get("description") or f"Custom agent type from {path}",
         system_prompt=body.strip() or None,
-        tools=_parse_tools(metadata.get("tools")),
+        tools=tools,
         model=metadata.get("model") or None,
-        thinking=thinking,
-        max_turns=_parse_max_turns(metadata.get("max_turns"), path, notes),
+        thinking=(metadata.get("thinking") if metadata.get("thinking") in THINKING_LEVELS else None),
+        max_turns=_parse_max_turns(metadata.get("max_turns")),
         skills=_parse_skills(metadata.get("skills")),
-        prompt_mode="append" if prompt_mode == "append" else "replace",
-        memory=memory,
-        isolation="worktree" if raw_isolation == "worktree" else None,
-        inherit_context=inherit_context,
+        prompt_mode="append" if metadata.get("prompt_mode") == "append" else "replace",
+        memory=(metadata.get("memory") if metadata.get("memory") in ("user", "project", "local") else None),
+        isolation="worktree" if metadata.get("isolation") == "worktree" else None,
+        inherit_context=_parse_bool(metadata.get("inherit_context")),
     )
 
 
@@ -220,20 +175,12 @@ def _parse_skills(raw: str | None) -> tuple[str, ...] | bool | None:
     return tuple(part.strip() for part in raw.split(",") if part.strip()) or None
 
 
-def _parse_max_turns(raw: str | None, path: Path, notes: list[str]) -> int | None:
-    """Parse a non-negative int turn limit (0 = unlimited); invalid → unlimited, noted.
-
-    The fallback is deliberately loud: an unparseable limit must not quietly
-    remove the bound the user was asking for.
-    """
+def _parse_max_turns(raw: str | None) -> int | None:
+    """Parse a non-negative int turn limit (0 = unlimited); invalid → None."""
     if raw is None:
         return None
     try:
         value = int(str(raw).strip())
     except (TypeError, ValueError):
-        notes.append(f"{path}: max_turns {raw!r} is not a number; the agent will run without a turn limit")
         return None
-    if value < 0:
-        notes.append(f"{path}: max_turns {value} is negative; the agent will run without a turn limit")
-        return None
-    return value
+    return value if value >= 0 else None
