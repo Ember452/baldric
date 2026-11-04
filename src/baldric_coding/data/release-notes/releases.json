@@ -1,5 +1,26 @@
 [
   {
+    "version": "0.1.2",
+    "date": null,
+    "sections": {
+      "Fixed": [
+        "Preserve streamed Responses-API tool-call arguments when the final frame is empty.",
+        "Stream tool progress updates live while a long-running tool is still working.",
+        "Automatic and manual compaction no longer drop the newest user turn.",
+        "Re-render sidebar collapsible titles when the theme changes.",
+        "Honor the project .gitignore in @ file-reference completion.",
+        "Commit a directory reference (@src/) on Tab instead of immediately drilling into its children.",
+        "Ctrl-C now copies the active selection and only clears the prompt when nothing is selected.",
+        "Run blocking file I/O in the read/write/edit tools on a worker thread so large files no longer stall the event loop."
+      ],
+      "Added": [
+        "All built-in slash-command names and aliases are reserved so a prompt template cannot shadow them.",
+        "@ file-reference completion caches the workspace walk with a short TTL.",
+        "ui.suspend() lets an extension pause the TUI to run an external terminal program."
+      ]
+    }
+  },
+  {
     "version": "0.1.1",
     "date": null,
     "sections": {
