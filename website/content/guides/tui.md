@@ -66,6 +66,7 @@ In-session commands start with `/`. Open the **command palette** with **Ctrl+K**
 to search and run them. Common ones:
 
 - `/session` — show model, tools, skills, and context usage for the session. Text selected in this modal is copied to the clipboard automatically.
+- `/diagnostics` — inspect resource loading warnings and errors, including the resource kind, name, source path, severity, and remediation message
 - `/system` — show the active system prompt grouped by source in the transcript without adding it to context or session history
 - `/model` — pick the active model
 - `/tools` — search active tools by origin and open their full descriptions

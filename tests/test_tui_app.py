@@ -57,7 +57,7 @@ from baldric_agent import (
 from baldric_agent.messages import assistant_content
 from baldric_agent.provider_events import TextDeltaEvent, ThinkingDeltaEvent, ThinkingEndEvent
 from baldric_coding.catalog_loader import user_catalog_path
-from baldric_coding.commands import CommandResult
+from baldric_coding.commands import CommandResult, format_resource_diagnostics
 from baldric_coding.credentials import FileCredentialStore, OAuthCredential
 from baldric_coding.events import (
     AgentSettledEvent,
@@ -368,6 +368,11 @@ class FakeSession:
                 handled=True,
                 message=format_system_prompt_inspection(inspection),
                 system_prompt_inspection=inspection,
+            )
+        if text == "/diagnostics":
+            return CommandResult(
+                handled=True,
+                message=format_resource_diagnostics(self.resource_diagnostics),
             )
         if text == "/skills":
             return CommandResult(handled=True, skills_picker_requested=True)
@@ -9023,6 +9028,80 @@ async def test_tui_app_cycles_completion_selection() -> None:
 
 
 @pytest.mark.anyio
+async def test_tui_app_diagnostics_modal_shows_empty_state_and_dismisses() -> None:
+    app = BaldricTuiApp(FakeSession())
+
+    async with app.run_test() as pilot:
+        prompt = app.query_one("#prompt", PromptInput)
+        prompt.value = "/diagnostics"
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert isinstance(app.screen, CommandOutputScreen)
+        assert app.screen.title_text == "/diagnostics"
+        assert app.screen.message == "No resource diagnostics."
+        assert app.state.items == []
+
+        await pilot.press("escape")
+        await pilot.pause()
+
+        assert not isinstance(app.screen, CommandOutputScreen)
+        assert prompt.value == ""
+
+
+@pytest.mark.anyio
+async def test_tui_app_diagnostics_modal_reflects_post_reload_details() -> None:
+    diagnostic_path = Path("/tmp/[project]/prompts/review.md")
+    diagnostic = ResourceDiagnostic(
+        kind="prompt",
+        name="review",
+        path=diagnostic_path,
+        severity="warning",
+        message="template [ignored]; rename it and reload",
+    )
+
+    class ReloadingDiagnosticSession(FakeSession):
+        def handle_command(self, text: str) -> CommandResult:
+            if text == "/reload":
+                self.resource_diagnostics = (diagnostic,)
+                return CommandResult(handled=True, message="Reloaded resources.")
+            return super().handle_command(text)
+
+    app = BaldricTuiApp(ReloadingDiagnosticSession())
+
+    async with app.run_test() as pilot:
+        prompt = app.query_one("#prompt", PromptInput)
+        prompt.value = "/diagnostics"
+        await pilot.press("enter")
+        await pilot.pause()
+        assert isinstance(app.screen, CommandOutputScreen)
+        assert app.screen.message == "No resource diagnostics."
+
+        await pilot.press("escape")
+        prompt.value = "/reload"
+        await pilot.press("enter")
+        await pilot.pause()
+
+        prompt.value = "/diagnostics"
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert isinstance(app.screen, CommandOutputScreen)
+        body = app.screen.query_one("#command-output-body", Static)
+        assert body.render().plain == "\n".join(
+            [
+                "Resource diagnostics (1):",
+                "",
+                "1. WARNING",
+                "Kind: prompt",
+                "Name: review",
+                f"Path: {diagnostic_path}",
+                "Message: template [ignored]; rename it and reload",
+            ]
+        )
+
+
+@pytest.mark.anyio
 async def test_tui_app_opens_command_palette_from_keybinding() -> None:
     app = BaldricTuiApp(FakeSession())
 
@@ -9033,6 +9112,7 @@ async def test_tui_app_opens_command_palette_from_keybinding() -> None:
         assert prompt.value == "/"
         assert app._completion_state.items
         assert any(item.display == "/session" for item in app._completion_state.items)
+        assert any(item.display == "/diagnostics" for item in app._completion_state.items)
         assert app.query_one("#autocomplete").display is True
 
 
