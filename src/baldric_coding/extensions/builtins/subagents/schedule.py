@@ -7,7 +7,7 @@ a full concurrency queue. Result delivery is implicit: the spawn goes through
 the manager's normal background-completion path, which reuses the existing
 ``<task-notification>`` follow-up - no new delivery code.
 
-Differences vs the source project this was ported from:
+Differences vs the source this was ported from:
   * Cron is 5-field (see ``cron.py``); the original used a 6-field engine.
   * No cron or nanoid dependency - the cron matcher is vendored and job ids use
     the ``<prefix>-<n>`` counter style (``job-1``, ``job-2``).
@@ -30,11 +30,6 @@ Lifecycle: created -> (fired -> done/error)* -> cancelled/disabled. One-shot
 jobs auto-disable after firing. On restart missed fires are skipped (no
 catch-up): recurring jobs arm to their next future fire, and one-shots whose
 time has already passed are disabled and marked errored.
-
-The manager is reached through a narrow protocol rather than imported from the
-capability's host module: the scheduler only needs to look up a definition,
-spawn, and read a run's status, and that keeps it testable without building the
-whole manager.
 """
 
 from __future__ import annotations
@@ -43,14 +38,16 @@ import asyncio
 import contextlib
 import re
 from datetime import datetime, timedelta
-from typing import Protocol
+from typing import TYPE_CHECKING
 
-from baldric_coding.extensions.builtins.subagents.agents import AgentDefinition
 from baldric_coding.extensions.builtins.subagents.cron import CronExpression, validate_cron
 from baldric_coding.extensions.builtins.subagents.schedule_store import (
     ScheduledSubagent,
     ScheduleStore,
 )
+
+if TYPE_CHECKING:
+    from .extension import SubagentManager
 
 _UNIT_MS = {"s": 1000, "m": 60_000, "h": 3_600_000, "d": 86_400_000}
 _RELATIVE_RE = re.compile(r"^\+(\d+)(s|m|h|d)$")
@@ -60,37 +57,6 @@ _ISO_PREFIX_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T")
 _TERMINAL_FAILURE = ("error", "aborted", "cancelled", "stopped")
 
 MIN_INTERVAL_MS = 5_000
-
-
-class ScheduledRun(Protocol):
-    """The run state the scheduler reads after awaiting a spawned job."""
-
-    agent_id: str
-    status: str
-    task: asyncio.Task[None] | None
-
-
-class SchedulingManager(Protocol):
-    """The slice of the subagent manager the scheduler drives."""
-
-    runs: dict[str, ScheduledRun]
-
-    def definitions(self) -> dict[str, AgentDefinition]: ...
-
-    def spawn(
-        self,
-        *,
-        agent_type: AgentDefinition,
-        prompt: str,
-        description: str,
-        background: bool,
-        bypass_queue: bool,
-        max_turns: int | None,
-        isolation: str | None,
-        provider: str | None,
-        model: str | None,
-        thinking: str | None,
-    ) -> ScheduledRun: ...
 
 
 def _now_iso() -> str:
@@ -109,7 +75,7 @@ def _parse_iso(value: str | None) -> datetime | None:
 class SubagentScheduler:
     """Arms per-job timers and fires scheduled subagents through the manager."""
 
-    def __init__(self, manager: SchedulingManager) -> None:
+    def __init__(self, manager: SubagentManager) -> None:
         self._manager = manager
         self._store: ScheduleStore | None = None
         self._timers: dict[str, asyncio.TimerHandle] = {}

@@ -5,14 +5,6 @@ completion notifications are consolidated into one message. If some members are
 still running when the group timeout fires, a partial notification is delivered
 and the remaining members become a straggler group with a shorter timeout,
 repeating until the group drains.
-
-The timeout starts when the first member completes, not when the group is
-registered: an empty batch would otherwise burn its whole window before any
-result exists to consolidate.
-
-Runs are typed through a local protocol rather than importing the host's run
-record, so this module stays testable and importable on its own; anything with
-an `agent_id` and a `result_consumed` flag can be joined.
 """
 
 from __future__ import annotations
@@ -20,31 +12,21 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Literal, Protocol
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .extension import AgentRun
 
 DEFAULT_TIMEOUT = 30.0
 STRAGGLER_TIMEOUT = 15.0
 
-#: "pass" - not grouped, the caller notifies individually.
-#: "held" - waiting for the rest of the group.
-#: "delivered" - this completion triggered the group notification.
-GroupOutcome = Literal["pass", "held", "delivered"]
-
-
-class JoinableRun(Protocol):
-    """The slice of a subagent run record that group accounting needs."""
-
-    agent_id: str
-    result_consumed: bool
-
-
-DeliverCallback = Callable[[list[JoinableRun], bool], None]
+DeliverCallback = Callable[[list["AgentRun"], bool], None]
 
 
 @dataclass(slots=True)
 class _Group:
     agent_ids: set[str]
-    completed: dict[str, JoinableRun] = field(default_factory=dict)
+    completed: dict[str, AgentRun] = field(default_factory=dict)
     timer: asyncio.TimerHandle | None = None
     is_straggler: bool = False
 
@@ -72,8 +54,13 @@ class GroupJoinManager:
         for agent_id in ids:
             self._agent_to_group[agent_id] = group_id
 
-    def on_agent_complete(self, run: JoinableRun) -> GroupOutcome:
-        """Feed a terminal run into group accounting and report what happened."""
+    def on_agent_complete(self, run: AgentRun) -> str:
+        """Feed a terminal run into group accounting.
+
+        Returns "pass" (not grouped; caller notifies individually), "held"
+        (waiting for the rest of the group), or "delivered" (this completion
+        triggered the group notification).
+        """
         group_id = self._agent_to_group.get(run.agent_id)
         if group_id is None:
             return "pass"
@@ -127,7 +114,7 @@ class GroupJoinManager:
         for agent_id in group.agent_ids:
             self._agent_to_group.pop(agent_id, None)
 
-    def _fire(self, records: list[JoinableRun], *, partial: bool) -> None:
+    def _fire(self, records: list[AgentRun], *, partial: bool) -> None:
         unconsumed = [run for run in records if not run.result_consumed]
         if not unconsumed:
             return
