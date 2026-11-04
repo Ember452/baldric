@@ -4584,6 +4584,7 @@ class BaldricTuiApp(App[None]):
         startup_alerts: Sequence[str] = (),
         startup_notices: Sequence[str] = (),
         initial_prompt: str | None = None,
+        show_full_output: bool = False,
     ) -> None:
         self.tui_settings = tui_settings or TuiSettings()
         self.startup_message = startup_message
@@ -4606,6 +4607,10 @@ class BaldricTuiApp(App[None]):
         self._bindings = BindingsMap(_app_bindings(self.tui_settings.keybindings))
         self.session = session
         self.state = TuiState(skills=session.skills, cwd=session.cwd)
+        # A deliberate per-invocation opt-in (like the sidebar override below):
+        # startup state rather than a durable preference, so it never reaches
+        # tui.json.
+        self.state.set_full_output(show_full_output)
         if startup_update_notice is not None:
             self.state.add_item("status", startup_update_notice, highlight="update")
         for alert in startup_alerts:
@@ -6195,6 +6200,17 @@ class BaldricTuiApp(App[None]):
             added_to_context=result.added_to_context,
             output=result.output,
         )
+        # Keep the untruncated output when the preview hid some of it, so
+        # `--show-full-output` (and the tool-results toggle) can reveal it
+        # without re-running the command.
+        full_output_text = format_terminal_command_result_block(
+            ok=result.ok,
+            added_to_context=result.added_to_context,
+            output=result.output,
+            full=True,
+        )
+        item.tool_result_full_text = None if full_output_text == item.tool_result_text else full_output_text
+        item.full_output = self.state.show_full_output
         self._follow_transcript_output()
         await transcript.update_item(
             item,
@@ -8865,6 +8881,7 @@ async def run_tui_app(
     provider_name: str | None = None,
     auto_compact_token_threshold: int | None = None,
     initial_prompt: str | None = None,
+    show_full_output: bool = False,
     session_manager: SessionManager | None = None,
     startup_notice: str | None = None,
     startup_update_notice: str | None = None,
@@ -9061,6 +9078,7 @@ async def run_tui_app(
             startup_alerts=startup_alerts,
             startup_notices=all_startup_notices,
             initial_prompt=initial_prompt,
+            show_full_output=show_full_output,
         )
         set_trust_prompt = getattr(session, "set_project_trust_prompt", None)
         if set_trust_prompt is not None:

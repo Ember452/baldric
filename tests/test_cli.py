@@ -205,7 +205,8 @@ def test_unknown_user_prompt_path_is_forwarded_as_literal(
             raise RuntimeError("Could not determine home directory")
         return original_expanduser(path)
 
-    async def fake_run_openai_tui(*args: object) -> None:
+    async def fake_run_openai_tui(*args: object, **kwargs: object) -> None:
+        del kwargs
         calls.append((args[-2], args[-1]))  # type: ignore[arg-type]
 
     monkeypatch.setattr(Path, "expanduser", fail_for_unknown_user)
@@ -293,7 +294,8 @@ def test_prompt_input_reports_path_inspection_error(monkeypatch: pytest.MonkeyPa
             raise PermissionError("permission denied")
         return original_exists(path)
 
-    async def fake_run_openai_tui(*args: object) -> None:
+    async def fake_run_openai_tui(*args: object, **kwargs: object) -> None:
+        del kwargs
         nonlocal tui_calls
         tui_calls += 1
 
@@ -322,7 +324,8 @@ def test_system_prompt_flags_forward_to_resumed_tui(
 ) -> None:
     calls: list[tuple[str | None, str | None, str | None]] = []
 
-    async def fake_run_openai_tui(*args: object) -> None:
+    async def fake_run_openai_tui(*args: object, **kwargs: object) -> None:
+        del kwargs
         calls.append((args[2], args[-2], args[-1]))  # type: ignore[arg-type]
 
     monkeypatch.setattr(cli, "_startup_update_notice", lambda: None)
@@ -513,8 +516,9 @@ def test_cli_without_prompt_invokes_tui_runner(monkeypatch: pytest.MonkeyPatch, 
         initial_prompt: str | None,
         update_notice: object | None = None,
         *extra: object,
+        **kwargs: object,
     ) -> None:
-        del update_notice, extra
+        del update_notice, extra, kwargs
         calls.append(
             (
                 model,
@@ -635,8 +639,9 @@ def test_cli_positional_prompt_invokes_tui_runner(monkeypatch: pytest.MonkeyPatc
         initial_prompt: str | None,
         update_notice: object | None = None,
         *extra: object,
+        **kwargs: object,
     ) -> None:
-        del update_notice, extra
+        del update_notice, extra, kwargs
         calls.append(
             (
                 model,
@@ -1439,8 +1444,9 @@ def test_default_tui_invokes_tui_runner_with_flags(monkeypatch: pytest.MonkeyPat
         initial_prompt: str | None,
         update_notice: object | None = None,
         *extra: object,
+        **kwargs: object,
     ) -> None:
-        del update_notice, extra
+        del update_notice, extra, kwargs
         calls.append(
             (
                 model,
