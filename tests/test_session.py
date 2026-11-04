@@ -658,6 +658,35 @@ def test_session_state_applies_compaction_and_branch_summary() -> None:
     assert "A side branch explored storage." in state.messages[1].text
 
 
+def test_compaction_and_branch_summary_messages_carry_the_entrys_own_timestamp() -> None:
+    """Resuming must not reset provider-usage anchoring to wall-clock "now".
+
+    ``_last_applicable_provider_usage`` (baldric_coding/context_window.py) trusts a
+    provider usage block only when its message timestamp is not older than the
+    latest prefix timestamp. A synthetic summary defaulting to "now" instead of
+    the entry's own historical timestamp would poison that check for every later
+    assistant message - the same bug ``custom_message`` entries were fixed against.
+    """
+    entries = [
+        CompactionEntry(
+            id="compact",
+            timestamp=1_700_000_020.0,
+            summary="The user asked about sessions.",
+        ),
+        BranchSummaryEntry(
+            id="branch",
+            parent_id="compact",
+            timestamp=1_700_000_030.5,
+            summary="A side branch explored storage.",
+        ),
+    ]
+
+    state = SessionState.from_entries(entries)
+
+    assert state.messages[0].timestamp == 1_700_000_020_000
+    assert state.messages[1].timestamp == 1_700_000_030_500
+
+
 @pytest.mark.parametrize(
     ("boundary", "expected"),
     [
