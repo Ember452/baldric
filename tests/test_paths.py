@@ -37,6 +37,16 @@ def test_subagent_type_directories_are_baldric_native(tmp_path: Path) -> None:
     assert paths.project_subagent_types_dir(cwd) != paths.project_agents_dir(cwd) / "agents"
 
 
+def test_subagent_settings_files_live_next_to_the_other_settings_files(
+    tmp_path: Path,
+) -> None:
+    paths = BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents")
+    cwd = tmp_path / "project"
+
+    assert paths.user_subagent_settings_path == tmp_path / ".baldric" / "subagents.json"
+    assert paths.project_subagent_settings_path(cwd) == cwd / ".baldric" / "subagents.json"
+
+
 def test_default_session_path_uses_home_sessions_and_readable_project_path(
     tmp_path: Path,
 ) -> None:
