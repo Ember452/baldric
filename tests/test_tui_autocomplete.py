@@ -469,6 +469,26 @@ def test_file_reference_completion_matches_workspace_files(tmp_path: Path) -> No
     assert state.selected.apply("please read @app") == "please read @src/app.py"
 
 
+def test_file_reference_completion_respects_gitignore(tmp_path: Path) -> None:
+    (tmp_path / ".gitignore").write_text("ignored/\n*.log\n", encoding="utf-8")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("print('hi')\n", encoding="utf-8")
+    (tmp_path / "ignored").mkdir()
+    (tmp_path / "ignored" / "app.py").write_text("", encoding="utf-8")
+    (tmp_path / "app.log").write_text("", encoding="utf-8")
+
+    state = build_completion_state(
+        "please read @app",
+        command_registry=create_default_command_registry(),
+        skills=(),
+        prompt_templates=(),
+        cwd=tmp_path,
+    )
+
+    # src/app.py stays; ignored/app.py and app.log are hidden by .gitignore.
+    assert [item.display for item in state.items] == ["@src/app.py"]
+
+
 def test_file_reference_completion_includes_dotfiles_and_dot_directories(
     tmp_path: Path,
 ) -> None:

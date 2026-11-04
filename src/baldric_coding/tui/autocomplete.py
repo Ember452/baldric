@@ -8,6 +8,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from baldric_coding.commands import CommandRegistry, SlashCommand
+from baldric_coding.gitignore import gitignore_rules_for
 from baldric_coding.prompt_templates import PromptTemplate
 from baldric_coding.skills import Skill
 
@@ -306,10 +307,19 @@ def _iter_file_reference_paths(cwd: Path) -> tuple[Path, ...]:
 
 def _is_ignored_file_completion_path(path: Path, *, cwd: Path) -> bool:
     try:
-        relative_parts = path.relative_to(cwd).parts
+        relative = path.relative_to(cwd)
     except ValueError:
         return True
-    return any(part in IGNORED_FILE_COMPLETION_DIRS for part in relative_parts)
+    if any(part in IGNORED_FILE_COMPLETION_DIRS for part in relative.parts):
+        return True
+    segments = relative.as_posix().split("/")
+    rules = gitignore_rules_for(str(cwd.resolve()))
+    for index, _segment in enumerate(segments):
+        segment_path = "/".join(segments[: index + 1])
+        is_dir = index < len(segments) - 1 or path.is_dir()
+        if rules.matches(segment_path, is_dir=is_dir):
+            return True
+    return False
 
 
 def _shell_path_completions(*, text: str, cursor: int, cwd: Path) -> tuple[CompletionItem, ...] | None:
