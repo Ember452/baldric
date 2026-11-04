@@ -1,5 +1,23 @@
 [
   {
+    "version": "0.2.0",
+    "date": null,
+    "sections": {
+      "Added": [
+        "Tool-call arguments are validated against each tool's JSON schema before execution, and a refused call returns one aggregated error that names every problem with its path.",
+        "Automatic threshold compaction emits `CompactionStartEvent` and `CompactionEndEvent`, so the TUI shows a `Compacting context` status row and extensions can observe background compaction.",
+        "HTML session exports include a compact summary (entries, messages, tools, events, duration) and a timestamp timeline grouped into message, tool, and event lanes.",
+        "A `/diagnostics` command renders resource loading warnings and errors with severity, kind, name, source path, and message; the scrollable command modal keeps paths literal.",
+        "A themed vertical scrollbar on the transcript via new `scrollbar` and `scrollbar_hover` theme colors.",
+        "`--show-full-output` starts the TUI with untruncated tool and `!`-command output; the tool-results toggle reveals the full text for rows captured under it."
+      ],
+      "Fixed": [
+        "The bash `description` argument is now optional and display-only, matching how it is used.",
+        "Legacy `edit` calls that send top-level `oldText`/`newText` or a JSON-string `edits` value are prepared into the canonical schema shape before validation, so they no longer trip the new argument check."
+      ]
+    }
+  },
+  {
     "version": "0.1.2",
     "date": null,
     "sections": {
