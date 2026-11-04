@@ -102,6 +102,8 @@ tends to relay that as "you have no such skill".
 The fix belongs at the call site in `extension.py`, which holds both
 `project_trusted` and `definition.skills`: emit one note saying the preload was
 skipped for lack of trust. It does **not** belong inside `resolve_skill_blocks`.
+**Deferred, not done:** the landed `extension.py` keeps that call site as written,
+so an untrusted project still produces no message about its skipped preloads.
 An earlier draft of this port added a `diagnostics` + `missing` split there on
 the theory that it would separate "repository not authorized" from "typo". That
 theory is wrong on the facts: the untrusted case produces no diagnostic at all,
@@ -134,3 +136,45 @@ files**: `schedule_store.py` 16, `extension.py` 16, `prompts.py` 3,
 
 All 44 are fixed as part of this port. No per-module `strict = false` override is
 added, so the port does not leave a new exemption behind.
+
+## Landed state, after the full copy
+
+Thirteen modules are in `extensions/builtins/subagents/` plus `ui/`: `cron`,
+`settings`, `schedule_store`, `schedule`, `worktree`, `group_join`, `memory`,
+`agents`, `prompts`, `fork`, `output_file`, `notification_render`, `agents_menu`,
+`extension`, `ui/{__init__,controller,strip,viewer}`. The last five arrived as a
+straight copy with mechanical name rewrites only (module paths, `BaldricPaths`,
+`BALDRIC_DARK_THEME`, `BaldricTuiApp`, `baldric-agent-`, `.baldric/`), then the
+conflicts below were resolved one at a time, each against a declared type rather
+than a judgement: `BaldricPaths` and `project_trusted` at the loader call sites,
+`resolve_store_path` needing paths, `CodingSessionEvent` for observed events
+(`session.py:3227`), the storage protocol's `append_batch` (`storage.py:36`),
+block-list message and tool content, the host's `ThinkingLevel` parameter, the
+renderer's must-return-text contract, `isinstance` in place of a `getattr` role
+check so the union narrows, the menu protocol's `Literal` notify level, and the
+host's tool/command handler signatures.
+
+Reversals recorded because they were wrong the first time. Claims of an
+original defect in the settings merge order, the memory prompt path, the
+silent frontmatter fallbacks, the best-effort worktree cleanup, the swallowed
+transcript write errors and the lock-file deletion were all mistaken: the
+corresponding tests assert those behaviours as intended, or the code says so in
+a comment. Each was reverted to the original form, and the local protocol in
+`group_join.py` and `schedule.py` went away once `extension.py` existed to name
+the real run record.
+
+Checks at this commit: mypy at its 14-error `fcntl` baseline with zero errors in
+`subagents`, `ruff check` and `ruff format --check` clean, and the suite at 2238
+passed / 119 skipped - the same numbers as before the copy, because none of this
+code is under test yet.
+
+Two things remain, in order: bring in the original test suite for these modules
+(`test_extension.py`, `test_ui.py`, `test_integration_tui.py` and the harness they
+rely on), replacing the hand-written files that duplicate their cases, and only
+then add the extension to `BUILT_IN_EXTENSIONS` so it actually loads.
+
+One environment note: a full-suite run blocked once with zero CPU in an existing
+TUI test and had to be killed. Re-runs of that group standalone (672 passed) and
+of the whole suite (2238 passed, 134s) do not reproduce it. Nothing in these
+modules is imported by any test, so this port is not the cause; it is left
+alone rather than chased.
