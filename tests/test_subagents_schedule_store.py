@@ -17,9 +17,9 @@ import pytest
 from baldric_coding.extensions.builtins.subagents.schedule_store import (
     STORE_VERSION,
     ScheduledSubagent,
+    ScheduleStore,
     ScheduleStoreError,
-    SubagentScheduleStore,
-    schedule_store_path,
+    resolve_store_path,
 )
 from baldric_coding.paths import BaldricPaths
 
@@ -50,7 +50,7 @@ def _raw(path: Path) -> dict[str, object]:
 
 
 def test_an_absent_store_reads_empty(path: Path) -> None:
-    store = SubagentScheduleStore(path)
+    store = ScheduleStore(path)
 
     assert store.list() == []
     assert store.get("job-1") is None
@@ -74,9 +74,9 @@ def test_add_round_trips_every_field_through_a_new_instance(path: Path) -> None:
         next_run="2026-11-09T09:00:00+00:00",
         run_count=3,
     )
-    SubagentScheduleStore(path).add(job)
+    ScheduleStore(path).add(job)
 
-    reloaded = SubagentScheduleStore(path).get("job-1")
+    reloaded = ScheduleStore(path).get("job-1")
 
     assert reloaded == job
     payload = _raw(path)
@@ -86,7 +86,7 @@ def test_add_round_trips_every_field_through_a_new_instance(path: Path) -> None:
 
 
 def test_adding_the_same_id_replaces_the_job(path: Path) -> None:
-    store = SubagentScheduleStore(path)
+    store = ScheduleStore(path)
     store.add(_job(name="first"))
 
     store.add(_job(name="second"))
@@ -96,8 +96,8 @@ def test_adding_the_same_id_replaces_the_job(path: Path) -> None:
 
 def test_two_stores_over_one_path_never_serve_a_stale_copy(path: Path) -> None:
     """The reason every method re-reads under the lock."""
-    first = SubagentScheduleStore(path)
-    second = SubagentScheduleStore(path)
+    first = ScheduleStore(path)
+    second = ScheduleStore(path)
 
     first.add(_job(id="a"))
     second.add(_job(id="b"))
@@ -106,7 +106,7 @@ def test_two_stores_over_one_path_never_serve_a_stale_copy(path: Path) -> None:
 
 
 def test_remove_reports_presence_and_leaves_an_absent_id_untouched(path: Path) -> None:
-    store = SubagentScheduleStore(path)
+    store = ScheduleStore(path)
     store.add(_job(id="a"))
     before = path.read_text(encoding="utf-8")
 
@@ -117,7 +117,7 @@ def test_remove_reports_presence_and_leaves_an_absent_id_untouched(path: Path) -
 
 
 def test_update_changes_only_the_patched_fields(path: Path) -> None:
-    store = SubagentScheduleStore(path)
+    store = ScheduleStore(path)
     store.add(_job(run_count=0, next_run=None))
 
     updated = store.update("job-1", run_count=1, last_status="success")
@@ -126,7 +126,7 @@ def test_update_changes_only_the_patched_fields(path: Path) -> None:
     assert updated.run_count == 1
     assert updated.last_status == "success"
     assert updated.name == "nightly"
-    assert SubagentScheduleStore(path).get("job-1") == updated
+    assert ScheduleStore(path).get("job-1") == updated
     assert store.update("nope", run_count=5) is None
 
 
@@ -143,17 +143,17 @@ def test_update_changes_only_the_patched_fields(path: Path) -> None:
     ],
 )
 def test_update_rejects_patches_that_would_silently_do_nothing(path: Path, patch: dict[str, object]) -> None:
-    store = SubagentScheduleStore(path)
+    store = ScheduleStore(path)
     store.add(_job())
 
     with pytest.raises(ScheduleStoreError):
         store.update("job-1", **patch)
 
-    assert SubagentScheduleStore(path).get("job-1") is not None
+    assert ScheduleStore(path).get("job-1") is not None
 
 
 def test_has_name_excludes_the_job_being_renamed(path: Path) -> None:
-    store = SubagentScheduleStore(path)
+    store = ScheduleStore(path)
     store.add(_job(id="a", name="nightly"))
 
     assert store.has_name("nightly") is True
@@ -164,7 +164,7 @@ def test_has_name_excludes_the_job_being_renamed(path: Path) -> None:
 def test_a_corrupt_store_raises_instead_of_being_reset(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("{ this is not json", encoding="utf-8")
-    store = SubagentScheduleStore(path)
+    store = ScheduleStore(path)
 
     with pytest.raises(ScheduleStoreError, match="Could not read"):
         store.list()
@@ -210,7 +210,7 @@ def test_malformed_documents_are_rejected(path: Path, payload: object, fragment:
     path.write_text(json.dumps(payload), encoding="utf-8")
 
     with pytest.raises(ScheduleStoreError, match=fragment):
-        SubagentScheduleStore(path).list()
+        ScheduleStore(path).list()
 
 
 def test_an_atomic_write_leaves_no_temporary_and_sweeps_old_ones(path: Path) -> None:
@@ -218,7 +218,7 @@ def test_an_atomic_write_leaves_no_temporary_and_sweeps_old_ones(path: Path) -> 
     stray = path.parent / f".{path.name}.deadbeef.tmp"
     stray.write_text("interrupted write", encoding="utf-8")
 
-    SubagentScheduleStore(path).add(_job())
+    ScheduleStore(path).add(_job())
 
     assert not stray.exists(), "the sweep removes this store's own leftovers"
     assert list(path.parent.glob(f".{path.name}.*.tmp")) == []
@@ -234,19 +234,19 @@ def test_a_leftover_lock_file_does_not_block_the_next_process(path: Path) -> Non
     lock_path = path.with_name(f"{path.name}.lock")
     lock_path.write_text(str(os.getpid() + 1_000_000), encoding="utf-8")
 
-    SubagentScheduleStore(path).add(_job())
+    ScheduleStore(path).add(_job())
 
-    assert [job.id for job in SubagentScheduleStore(path).list()] == ["job-1"]
+    assert [job.id for job in ScheduleStore(path).list()] == ["job-1"]
 
 
 def test_clear_removes_the_document(path: Path) -> None:
-    store = SubagentScheduleStore(path)
+    store = ScheduleStore(path)
     store.add(_job())
 
     store.clear()
 
     assert not path.exists()
-    assert SubagentScheduleStore(path).list() == []
+    assert ScheduleStore(path).list() == []
 
 
 def test_store_path_is_validated_before_becoming_a_file_name(tmp_path: Path) -> None:
@@ -254,18 +254,18 @@ def test_store_path_is_validated_before_becoming_a_file_name(tmp_path: Path) -> 
     cwd = tmp_path / "project"
     cwd.mkdir()
 
-    resolved = schedule_store_path(paths, cwd, "sess-1")
+    resolved = resolve_store_path(paths, cwd, "sess-1")
     assert resolved.parent == paths.project_schedules_dir(cwd)
     assert resolved.name == "sess-1.json"
 
     for unsafe in ("", "../evil", "nested/id", "a" * 300, ".hidden"):
         with pytest.raises(ValueError):
-            schedule_store_path(paths, cwd, unsafe)
+            resolve_store_path(paths, cwd, unsafe)
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes; Linux CI runs this")
 def test_the_store_is_private_to_its_user(path: Path) -> None:
-    store = SubagentScheduleStore(path)
+    store = ScheduleStore(path)
     store.add(_job())
 
     assert path.stat().st_mode & 0o077 == 0

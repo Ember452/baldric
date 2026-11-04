@@ -148,7 +148,7 @@ def _is_count(value: object) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and value >= 0
 
 
-def schedule_store_path(paths: BaldricPaths, cwd: Path, session_id: str) -> Path:
+def resolve_store_path(paths: BaldricPaths, cwd: Path, session_id: str) -> Path:
     """Return the store path for one session, rejecting unsafe session ids.
 
     Session ids are user-supplied for ``/new --name`` style flows, so they go
@@ -158,7 +158,7 @@ def schedule_store_path(paths: BaldricPaths, cwd: Path, session_id: str) -> Path
     return paths.project_schedules_dir(cwd) / f"{session_id}.json"
 
 
-class SubagentScheduleStore:
+class ScheduleStore:
     """Session-scoped, OS-locked, atomically replaced store of scheduled subagents."""
 
     def __init__(self, path: Path, *, lock_path: Path | None = None) -> None:
@@ -349,6 +349,6 @@ __all__ = [
     "LAST_STATUS_SUCCESS",
     "STORE_VERSION",
     "ScheduledSubagent",
-    "SubagentScheduleStore",
-    "schedule_store_path",
+    "ScheduleStore",
+    "resolve_store_path",
 ]
