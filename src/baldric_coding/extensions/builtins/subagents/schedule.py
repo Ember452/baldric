@@ -48,9 +48,6 @@ from typing import Protocol
 from baldric_coding.extensions.builtins.subagents.agents import AgentDefinition
 from baldric_coding.extensions.builtins.subagents.cron import CronExpression, validate_cron
 from baldric_coding.extensions.builtins.subagents.schedule_store import (
-    LAST_STATUS_ERROR,
-    LAST_STATUS_RUNNING,
-    LAST_STATUS_SUCCESS,
     ScheduledSubagent,
     ScheduleStore,
 )
@@ -124,14 +121,13 @@ class SubagentScheduler:
     def start(self, store: ScheduleStore) -> None:
         """Bind a session's store and arm every enabled job."""
         self._store = store
-        jobs = store.list()
         max_n = 0
-        for job in jobs:
+        for job in store.list():
             if job.id.startswith("job-"):
                 with contextlib.suppress(ValueError):
                     max_n = max(max_n, int(job.id[4:]))
         self._id_counter = max_n
-        for job in jobs:
+        for job in store.list():
             if job.enabled:
                 self._arm(job)
 
@@ -233,27 +229,27 @@ class SubagentScheduler:
         if job.schedule_type == "interval":
             if not job.interval_ms or job.interval_ms < MIN_INTERVAL_MS:
                 # A corrupt/migrated store entry must not become a hot loop.
-                store.update(job.id, enabled=False, last_status=LAST_STATUS_ERROR)
+                store.update(job.id, enabled=False, last_status="error")
                 return
             delay = job.interval_ms / 1000
         elif job.schedule_type == "once":
             target = _parse_iso(job.schedule)
             if target is None:
-                store.update(job.id, enabled=False, last_status=LAST_STATUS_ERROR)
+                store.update(job.id, enabled=False, last_status="error")
                 return
             delay = (target - now).total_seconds()
             if delay <= 0:
                 # Past one-shot (e.g. missed while offline) — never fire.
-                store.update(job.id, enabled=False, last_status=LAST_STATUS_ERROR)
+                store.update(job.id, enabled=False, last_status="error")
                 return
         else:  # cron
             try:
                 nxt = CronExpression(job.schedule).next_after(now)
             except ValueError:
-                store.update(job.id, enabled=False, last_status=LAST_STATUS_ERROR)
+                store.update(job.id, enabled=False, last_status="error")
                 return
             if nxt is None:
-                store.update(job.id, enabled=False, last_status=LAST_STATUS_ERROR)
+                store.update(job.id, enabled=False, last_status="error")
                 return
             delay = (nxt - now).total_seconds()
         store.update(job.id, next_run=self.get_next_run(job.id))
@@ -289,10 +285,10 @@ class SubagentScheduler:
         job = store.get(job_id)
         if job is None:
             return
-        store.update(job_id, last_status=LAST_STATUS_RUNNING)
+        store.update(job_id, last_status="running")
         definition = self._manager.definitions().get(job.subagent_type)
         if definition is None:
-            store.update(job_id, last_run=_now_iso(), last_status=LAST_STATUS_ERROR)
+            store.update(job_id, last_run=_now_iso(), last_status="error")
             return
         try:
             run = self._manager.spawn(
@@ -308,7 +304,7 @@ class SubagentScheduler:
                 thinking=job.thinking,
             )
         except Exception:  # noqa: BLE001 - a bad spawn must not kill the scheduler
-            store.update(job_id, last_run=_now_iso(), last_status=LAST_STATUS_ERROR)
+            store.update(job_id, last_run=_now_iso(), last_status="error")
             return
         task = run.task
         if task is not None:
@@ -320,7 +316,7 @@ class SubagentScheduler:
                 pass
         final = self._manager.runs.get(run.agent_id) or run
         failed = final.status in _TERMINAL_FAILURE
-        self._finalize(job_id, LAST_STATUS_ERROR if failed else LAST_STATUS_SUCCESS)
+        self._finalize(job_id, "error" if failed else "success")
 
     def _finalize(self, job_id: str, status: str) -> None:
         store = self._store
