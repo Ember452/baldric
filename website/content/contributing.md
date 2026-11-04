@@ -64,9 +64,9 @@ npm run preview      # preview the built site, including search
 Search requires the built Pagefind index: use `build` followed by `preview`,
 not the development server, to validate search.
 
-User-facing docs live in `website/content/`; the landing and "Why Baldric?" pages
-are `website/content/_index.md` and `website/content/why-baldric.md`, rendered by
-Astro components in `website/src/components/`. Content collections validate page
+User-facing docs live in `website/content/`; the landing page is
+`website/content/_index.md`, rendered by Astro components in
+`website/src/components/`. Content collections validate page
 metadata and preserve the existing trailing-slash URLs. Internal links use normal
 Markdown paths; callouts use blockquotes beginning with `[!NOTE]`, `[!TIP]`, or
 `[!CAUTION]`, optionally followed by a title. GitHub Pages still hosts the site

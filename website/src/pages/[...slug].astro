@@ -3,7 +3,6 @@ import { getCollection, render } from "astro:content";
 import Base from "../layouts/Base.astro";
 import Docs from "../components/Docs.astro";
 import Home from "../components/Home.astro";
-import WhyBaldric from "../components/WhyBaldric.astro";
 import Releases from "../components/Releases.astro";
 import Roadmap from "../components/Roadmap.astro";
 import { pagePath } from "../data";
@@ -23,8 +22,6 @@ const file = entry.filePath?.replace(/^.*?content\//, "") ?? `${entry.id}.md`;
   {
     isHome ? (
       <Home />
-    ) : entry.data.layout === "why-baldric" ? (
-      <WhyBaldric />
     ) : entry.data.layout === "releases" ? (
       <Releases />
     ) : entry.data.layout === "roadmap" ? (

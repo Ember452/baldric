@@ -18,10 +18,6 @@ It's two things at once:
   organized into small, honest layers so you can see exactly how a coding agent
   works — from model streaming, to the agent loop, to tools and sessions.
 
-> [!NOTE] Why "Baldric"?
-> The name is a small joke about picking the *right* foundation. See
-> [Why "Baldric"?](/why-baldric/) for the (genuinely fun) math rant behind it.
-
 ## What can it do?
 
 - Hold a conversation while **reading, writing, and editing files** and

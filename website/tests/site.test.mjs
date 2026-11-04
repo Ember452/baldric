@@ -76,8 +76,6 @@ test("docs retain callouts, highlighting, navigation, and edit links", async () 
   const home = await readFile(path.join(dist, "index.html"), "utf8");
   assert.ok(home.includes("https://github.com/Ember452/baldric"));
   assert.ok(home.includes("loopRadius"));
-  const why = await readFile(path.join(dist, "why-baldric/index.html"), "utf8");
-  assert.ok(why.includes("MathJax"));
 });
 
 test("callout plugin preserves inline content and supports default titles", () => {
