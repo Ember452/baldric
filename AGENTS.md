@@ -4,9 +4,9 @@ Baldric is a Python implementation of Pi's minimalist coding-agent harness archi
 
 ## Project Roadmap
 
-The implementation roadmap is tracked in GitHub issue #1:
+The implementation roadmap is tracked in GitHub issue #2:
 
-- https://github.com/Ember452/baldric/issues
+- https://github.com/Ember452/baldric/issues/2
 
 Use that issue as the primary reference for phase ordering and architectural intent.
 

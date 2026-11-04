@@ -5,7 +5,7 @@ They are **not** published on the docs site — they live here for contributors 
 want to trace how the system was assembled.
 
 User-facing documentation lives in `website/content/` and is published at
-<https://twotimespi.dev/>.
+<https://ember452.github.io/baldric/>.
 
 ## Contents
 
@@ -39,4 +39,4 @@ User-facing documentation lives in `website/content/` and is published at
 - `tui-transcript-spacing-and-tool-runs.md` — the uniform one-blank-line block
   rhythm, invisible whitespace-only blocks, and same-tool run continuation.
 
-The roadmap is tracked in [GitHub issue #1](https://github.com/Ember452/baldric/issues).
+The roadmap is tracked in [GitHub issue #2](https://github.com/Ember452/baldric/issues/2).

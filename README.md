@@ -15,7 +15,7 @@
   ·
   <a href="https://pypi.org/project/baldric/">PyPI</a>
   ·
-  <a href="https://github.com/Ember452/baldric/issues">Roadmap</a>
+  <a href="https://github.com/Ember452/baldric/issues/2">Roadmap</a>
 </p>
 
 <p align="center">
@@ -267,7 +267,7 @@ Useful entry points:
 - [CLI reference](https://ember452.github.io/baldric/reference/cli/)
 
 Baldric is under active development. The implementation roadmap is tracked in
-[GitHub issue #1](https://github.com/Ember452/baldric/issues).
+[GitHub issue #2](https://github.com/Ember452/baldric/issues/2).
 
 ## License
 

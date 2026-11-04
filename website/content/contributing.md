@@ -25,7 +25,7 @@ material. The published docs distill the result; see
 
 The published, phase-by-phase roadmap and status lives on the
 [roadmap page](/roadmap/). The underlying checklist is
-tracked in [GitHub issue #1](https://github.com/Ember452/baldric/issues).
+tracked in [GitHub issue #2](https://github.com/Ember452/baldric/issues/2).
 
 ## Running the project locally
 
