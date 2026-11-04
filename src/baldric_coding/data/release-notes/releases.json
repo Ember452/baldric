@@ -1,5 +1,19 @@
 [
   {
+    "version": "0.1.1",
+    "date": null,
+    "sections": {
+      "Fixed": [
+        "End the agent run when every tool result sets terminate, without requesting another turn.",
+        "Preserve CRLF line endings in the edit tool.",
+        "Ignore the Anthropic SSE [DONE] sentinel and empty SSE data frames (OpenAI-compatible and Google) instead of aborting the stream.",
+        "Correlate streamed Responses-API tool calls by call_id/output_index so parallel tool calls keep their IDs and arguments.",
+        "Send parallel Gemini function responses in a single user turn.",
+        "Anchor compaction and branch-summary messages to their own entry timestamp so resuming keeps provider usage valid."
+      ]
+    }
+  },
+  {
     "version": "0.1.0",
     "date": null,
     "sections": {
