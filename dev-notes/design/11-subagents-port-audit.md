@@ -91,6 +91,26 @@ Upstream uses eight `.tau` roots (user and project scopes of `agents/`,
 so that `BALDRIC_HOME` overrides keep working and the naming matches the existing
 `extension_state_dir` convention used by the llama.cpp built-in.
 
+## Open item found while porting `prompts.py`
+
+`(Skill "x" not found)` is an upstream placeholder that becomes untrue in one
+case: when the project is not trusted, `BaldricResourcePaths.skills_dirs`
+(`resources.py:86-104`) simply omits the project directories, so a skill that
+does exist in the repository is reported to the model as missing, and the model
+tends to relay that as "you have no such skill".
+
+The fix belongs at the call site in `extension.py`, which holds both
+`project_trusted` and `definition.skills`: emit one note saying the preload was
+skipped for lack of trust. It does **not** belong inside `resolve_skill_blocks`.
+An earlier draft of this port added a `diagnostics` + `missing` split there on
+the theory that it would separate "repository not authorized" from "typo". That
+theory is wrong on the facts: the untrusted case produces no diagnostic at all,
+and `_load_skills_from_dir_with_diagnostics` (`skills.py:176-177`) returns
+`([], [])` for a missing or non-directory path, so its diagnostics report bare
+`.md` files and precedence overrides - not unreadable directories. The caller
+already knows the trust decision, so a channel for it here would be redundant at
+best and misleading at worst.
+
 ## Cost measured, not guessed
 
 `baldric_coding` is covered by `[tool.mypy] strict = true`. `tau-subagents` declares
