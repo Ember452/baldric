@@ -149,12 +149,12 @@ This status is display-only: it is not saved to session history or sent to the
 model as context.
 
 HTML exports are self-contained and include two tabs: **Transcript** preserves
-the session tree and entries in storage order, while **Cache** summarizes the
+the session tree and entries in storage order, while **Usage** summarizes the
 active branch's model requests, including the requests that generate compaction
 and branch summaries, prompt caching, output and reasoning tokens, estimated
 API-rate cost, tool calls, and compactions. Summary-generation requests are
 labeled separately in the request table rather than blended into assistant turns.
-Cache charts are
+Usage charts are
 interactive—hover for exact values and select a legend item to hide a
 series—and can be downloaded as static PNG images with white backgrounds. The
 export follows Baldric's themes: baldric-light in light mode and baldric-dark in dark mode,
@@ -177,7 +177,10 @@ remain readable and take precedence during replay, so exporting or resuming a le
 session does not change its message history. HTML entry details show the first-kept
 boundary for modern compactions and identify unavailable legacy boundaries.
 
-Every transcript entry is a compact accordion row
+The export header starts with a compact summary of total entries, messages,
+tools, session events, and elapsed duration. A timestamp timeline below the
+summary groups message, tool, and event markers into separate lanes; selecting
+a marker jumps to that entry. Every transcript entry is a compact accordion row
 (icon, title, one-line preview, timestamp) that expands to reveal the full
 content; thinking blocks, tool-call arguments, and tool-result details are
 nested accordions. The export header includes controls to:
