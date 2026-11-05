@@ -63,7 +63,7 @@ frontend adapter/state translates events into UI state
 frontend widgets render that state
 ```
 
-The TUI should use `baldric_coding.session.CodingSession`, not raw provider streams
+The TUI should use `baldric_coding.session.session.CodingSession`, not raw provider streams
 and usually not raw `AgentHarness`. `CodingSession` is the application/session
 environment: it owns provider/model selection, tools, persistence, resources,
 skills, prompt templates, commands, compaction, diagnostics, and session-manager

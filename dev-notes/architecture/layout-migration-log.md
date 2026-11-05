@@ -242,7 +242,8 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 | 8 | `session/` | `6aec645` | 31 (8 moved + 13 src refs + 12 tests + 2 new inits) | M-1..M-7 | R100 ×4, R9x ×4 | see below | empty diff (139) | `8ca814d` | batch 3 checkpoint |
 | 9 | `tools/` `backends/` `trust/` | `6e8a2fb` | 32 (6 moved + 10 non-moved src + 13 tests + 3 new inits) | M-1..M-7 | R100 ×3, R9x ×3 | see below | empty diff (139) | `a62ebec` | batch 3 |
 | 10 | `extensions/` `commands/` | `a62ebec` | 20 (3 moved + 9 src refs + 7 tests + 1 new init) | M-1..M-7 | R100 ×3 | see below | empty diff (139) | `9954257` | batch 3 |
-| 11 | facade / O-class review | _pending_ | | | | | | | |
+| 11 | facade / O-class review | `07ff10a` | 0 moved | M-11 | — | see below | `(empty diff)` 139 | _pending_ | batch 4 |
+| 12 | docs close-out | `07ff10a` | 22 doc path updates | M-12 | — | `(empty diff)` 139 | `(empty diff)` 139 | _pending_ | batch 4 |
 
 ### Task 3 — `tui/themes/` → `rendering/themes/` (batch 1)
 
@@ -464,3 +465,62 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
   `F_after ⊆ F_before` holds. No new flake entries needed.
 - **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/`
 - **Commit:** `9954257` (`refactor(layout): move commands and extension registries into packages`).
+
+### Task 11 — facade / O-class review (batch 4)
+
+- Facade `__all__` snapshot vs Phase-1 baseline: `(empty diff)`; `len(__all__) = 139`
+  (must not compare `dir(m)`).
+- O-class review: the only files touched among `rendering/` own files and `tui/` untouched
+  files are import-line updates from other clusters' closures; `rendering/base.py`,
+  `plain.py`, `json.py`, `transcript.py` remain byte-identical to `main`.
+- No O-class file was moved.
+
+### Task 12 — docs close-out and phase-2 entry conditions (batch 4)
+
+- **Wheel build:** `uv build --wheel` → `Successfully built dist\baldric-0.2.1-py3-none-any.whl`;
+  `uv run python -c "import baldric_coding, baldric_coding.rendering.themes, baldric_coding.providers.loader as l; print('ok')"` → `ok`.
+  Wheel content check: all of `baldric_coding/rendering/themes/baldric-{dark,light}.json`,
+  `high-contrast.json`, `baldric_coding/data/catalog.toml`,
+  `baldric_coding/data/models-dev-catalog.json`,
+  `baldric_coding/data/release-notes/releases.json` present; `missing: []`.
+- **Root-file reconciliation:** expected from `layout-mapping.md` =
+  `['__init__.py', 'cli.py', 'events.py', 'py.typed', 'rpc.py', 'version.py']`;
+  actual = same; `EQUAL: True`.
+- **Docs updated:** 22 stale module-path replacements across `website/content/` (2),
+  non-historical `dev-notes/` topic docs (19) and packaged `src/baldric_coding/data/docs/extensions.md` (1).
+  Historical `dev-notes/architecture/phase-19-*.md`, `phase-20-1-*.md`,
+  `phase-20-2-*.md` and `dev-notes/design/project-trust.md` are snapshots of their time
+  and intentionally left unchanged (4 refs).
+- **Blueprint corrections applied** in `dev-notes/architecture/target-project-layout.md`:
+  1. `extensions/builtins.py` → `extensions/builtin_registry.py`;
+  2. `cli.py` obstacle row marked "阶段 1 按不动处理，拆分归第二阶段";
+  3. `modes/` subtree marked "本阶段不建；第二阶段新增";
+  4. `session/export/`, `tui/app/`, `tui/widgets/` marked as second-phase splits;
+  plus the actual phase-1 state section, `config/`, `auth/oauth.py`, and `tui/config.py`
+  added to the tree.
+- **`tests/test_package_metadata.py`:** `3 passed in 1.59s`.
+
+## Phase 2 entry conditions
+
+The 7 C-class files (all are single-file parking results in phase 1):
+
+| File after phase 1 | Target split (phase 2) | Note |
+|---|---|---|
+| `src/baldric_coding/tools/registry.py` | `tools/read.py`, `write.py`, `edit.py`, `bash.py`, `base.py`, `truncate.py`, `output_accumulator.py`, `renderers/` | 1230 lines today; split one tool per file |
+| `src/baldric_coding/commands/registry.py` | `commands/login.py`, `model.py`, `resume.py`, `compact.py`, `export.py`, … | 940 lines today; one command per file |
+| `src/baldric_coding/session/session.py` | `session/runtime.py`, `session/services.py` (+ keep `session.py`) | 5221 lines today; state/history vs loop vs injected services |
+| `src/baldric_coding/session/export.py` | `session/export/` package including HTML rendering | 1936 lines today |
+| `src/baldric_coding/rpc.py` | `modes/rpc/` | **Hard ordering rule:** first commit `rpc.py → modes/rpc.py` as a single-file move (A/B, zero logic change); the next commit performs the multi-file split. Never build the package and split in one commit — `check_move_only.py` could no longer prove the move-only part. |
+| `src/baldric_coding/tui/app.py` | `tui/app/` package | 9106 lines today |
+| `src/baldric_coding/tui/widgets.py` | `tui/widgets/` package | 3351 lines today |
+
+Two phase-1 "no split" candidates registered for phase 2:
+- `src/baldric_coding/session/compaction/context_window.py` — whether the compaction
+  module should split into multiple files inside `session/compaction/`.
+- `src/baldric_coding/cli.py` — argv parsing vs startup assembly split; the published
+  entry point `baldric_coding.cli:app` must not change.
+
+Also still second phase: `modes/` subtree (`interactive/`, `print.py`, `json.py`, `rpc/`),
+`extensions/package_manager.py`, `mcp/`, `security/`, `providers/virtual_models.py` /
+`providers/compose/`, `tools/base.py`/`truncate.py`/`output_accumulator.py`, and the
+`examples/` duplicate cleanup (separate small PR, explicitly out of phase 1).

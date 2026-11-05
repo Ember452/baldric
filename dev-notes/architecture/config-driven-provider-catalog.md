@@ -47,8 +47,8 @@ harness still receives only a ready model provider and model name. The `baldric_
 layer remains focused on provider-neutral runtime adapters.
 
 The public compatibility surface remains `ProviderCatalogEntry` in
-`baldric_coding.provider_catalog`. TOML parsing, validation, and overlay behavior
-live in `baldric_coding.catalog_loader`.
+`baldric_coding.providers.catalog`. TOML parsing, validation, and overlay behavior
+live in `baldric_coding.providers.loader`.
 
 ## Catalog shape
 

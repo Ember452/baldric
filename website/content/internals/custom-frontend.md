@@ -19,7 +19,7 @@ Frontend state  — belongs to your UI
 
 The reusable `baldric_agent` package stays independent of terminal frameworks,
 widgets, keybindings, config paths, and slash-command UX. Build against
-`baldric_coding.session.CodingSession`, not Textual widgets.
+`baldric_coding.session.session.CodingSession`, not Textual widgets.
 
 `CodingSession` provides the environment (provider/model, tools, persistence,
 skills, prompt templates, project context, slash-command handling, compaction).
@@ -81,7 +81,7 @@ Initialize the visible transcript from `session.messages` (the built-in
 structured metadata (e.g. edit patches), so you can render restored tool results
 without reading JSONL directly.
 
-For session switching, use `baldric_coding.session_manager.SessionManager` —
+For session switching, use `baldric_coding.session.manager.SessionManager` —
 `list_sessions(session.cwd)`, then `await session.resume(session_id)` (or load a
 fresh `CodingSession` with `storage=jsonl_session_storage(record.path)`), then
 rebuild the transcript from `session.messages`.

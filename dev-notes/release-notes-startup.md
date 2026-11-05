@@ -12,7 +12,7 @@ Baldric records the last installed version seen at startup in `~/.baldric/cache/
 
 On the first run it only writes the current version. On later runs, if the installed version is newer than the recorded version, the TUI prepends a status-style transcript item with release highlights for versions between the old and new versions.
 
-This keeps the reusable agent harness unchanged: release-note detection lives in `baldric_coding.update_check`, and the TUI consumes the resulting startup notice as display state.
+This keeps the reusable agent harness unchanged: release-note detection lives in `baldric_coding.update.check`, and the TUI consumes the resulting startup notice as display state.
 
 Test with:
 

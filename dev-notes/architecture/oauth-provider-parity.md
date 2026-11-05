@@ -50,7 +50,7 @@ still an API key. Baldric therefore does not mislabel either product as OAuth.
 Textual OAuthLoginScreen
         │ OAuthLoginCallbacks (URL, device code, prompts, progress)
         ▼
-baldric_coding.oauth_registry
+baldric_coding.auth.registry
         │ OAuthProvider protocol
         ├── OpenAI Codex
         ├── Anthropic

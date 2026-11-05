@@ -45,7 +45,7 @@ change moves persistence to the same side of the event stream.
   during cancelled cleanup as notify-only
   pushes wrapped in `suppress(Exception)` so a listener failure cannot mask
   the in-flight `CancelledError`.
-- `baldric_coding.session` owns persistence as a harness subscriber. The listener
+- `baldric_coding.session.session` owns persistence as a harness subscriber. The listener
   is attached first — before the extension event fan-out — in every path:
   construction, load (re-attached after the load-time repair rebuilds the
   harness), and `_adopt_replacement` on resume/`/new` (the replacement's own

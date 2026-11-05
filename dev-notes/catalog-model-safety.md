@@ -28,7 +28,7 @@ For larger catalog changes, also parse the whole built-in catalog and inspect th
 
 ```bash
 uv run python - <<'PY'
-from baldric_coding.catalog_loader import builtin_catalog
+from baldric_coding.providers.loader import builtin_catalog
 entry = next(e for e in builtin_catalog() if e.name == "provider-name")
 print(entry)
 PY

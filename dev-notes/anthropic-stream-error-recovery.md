@@ -20,7 +20,7 @@ content arrived.
 Retry classification remains in `baldric_ai.anthropic`, where the provider-specific
 error type is available. The adapter wraps final stream diagnostics as an
 `event` plus the number of attempts, matching the safe extraction performed by
-`baldric_coding.diagnostics`. The portable agent layer does not gain Anthropic-specific
+`baldric_coding.observability.diagnostics`. The portable agent layer does not gain Anthropic-specific
 logic.
 
 Only errors received before text, thinking, or tool payload starts are retried.

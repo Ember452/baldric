@@ -152,17 +152,22 @@ baldric_agent/
 
 ### `src/baldric_coding/`
 
+> **阶段 1 更新（2026-11-05）：** A/B/O 类移动已落地；树中标注“第二阶段”的拆分项仍未实现，
+> 仍属蓝图。`config/` 是阶段 1 新增的补充包（蓝图原文未列，已在树中补入）。
+> 实际落地与提交级证据见 [layout-migration-log.md](./layout-migration-log.md)。
+
 ```text
 src/baldric_coding/
 ├── __init__.py            公开门面；对外兼容面就在这里
 ├── cli.py                 真实入口；pyproject 的 baldric = "baldric_coding.cli:app"
 ├── events.py              Pi 兼容的会话事件契约
 ├── version.py  py.typed
+├── rpc.py                 C 类停车：第二阶段先整体搬到 modes/rpc.py，再拆分
 │
-│                          ▲ 根目录就这五个，全部真实存在
+│                          ▲ 根目录就是这六个（rpc.py 为阶段 1 的 C 类停车）
 │                            （py.typed 是 PEP 561 标记，必须留在包根，不可进子目录）
 │
-├── modes/                 一个会话，多种外壳。这是 Pi 的思路
+├── modes/                 一个会话，多种外壳。这是 Pi 的思路（本阶段不建；第二阶段新增）
 │   ├── interactive/       由 TUI 承载的模式：只做编排，不放 widget
 │   ├── print.py           一次性文本输出
 │   ├── json.py            机器可读的事件输出
@@ -173,18 +178,18 @@ src/baldric_coding/
 │   └── themes/            主题数据与主题 json（从 tui/ 并入：它不是 UI）
 │
 ├── session/               一切拥有会话状态的东西
-│   ├── session.py         状态与历史
-│   ├── runtime.py         驱动 agent 循环
-│   ├── services.py        被注入进来的能力
+│   ├── session.py         状态与历史（阶段 1 整文件停车）
+│   ├── runtime.py         驱动 agent 循环（第二阶段拆出）
+│   ├── services.py        被注入进来的能力（第二阶段拆出）
 │   ├── manager.py  prepare.py  usage.py  stats.py  branch_summary.py
 │   ├── compaction/        上下文窗口计量与摘要
-│   └── export/            会话导出，含 HTML
+│   └── export.py          会话导出（阶段 1 整文件停车；export/ 目录属第二阶段）
 │
 ├── tools/                 模型可以调用的能力
-│   ├── registry.py  base.py  truncate.py  output_accumulator.py
-│   ├── read.py  write.py  edit.py  bash.py
+│   ├── registry.py  base.py  truncate.py  output_accumulator.py（registry 为阶段 1 停车；其余第二阶段）
+│   ├── read.py  write.py  edit.py  bash.py（第二阶段）
 │   ├── image_processing.py
-│   └── renderers/         每个工具一个渲染器，同名、同目录
+│   └── renderers/         每个工具一个渲染器，同名、同目录（第二阶段）
 │
 ├── context/               提示词的周围环境如何拼出来
 │   ├── project.py  gitignore.py  resources.py
@@ -192,16 +197,16 @@ src/baldric_coding/
 │   ├── skills/            技能的发现与调用
 │   └── prompts.py         提示词模板
 │
-├── commands/              斜杠命令，一条命令一个文件
+├── commands/              斜杠命令，一条命令一个文件（第二阶段的拆分）
 │   └── registry.py  login.py  model.py  resume.py  compact.py  export.py  …
 │
 ├── providers/             模型与端点配置
 │   ├── config.py  catalog.py  runtime.py  loader.py  virtual_models.py
 │   ├── stores/            缓存的与生成的模型元数据
-│   └── compose/           provider 组合、远端目录覆盖
+│   └── compose/           provider 组合、远端目录覆盖（第二阶段）
 │
 ├── auth/                  凭据与登录
-│   ├── credentials.py  registry.py  types.py
+│   ├── credentials.py  registry.py  types.py  oauth.py
 │   └── flows/             每个 provider 的 OAuth 流程一个文件
 │
 ├── trust/                 环境级项目信任策略与存储（它的 Textual 屏在 tui/trust.py）
@@ -209,23 +214,38 @@ src/baldric_coding/
 │
 ├── extensions/            插件边界
 │   ├── api.py  loader.py  runtime.py  providers.py  provider_registry.py
-│   ├── installer.py  builtins.py      （从根目录搬入的两个）
+│   ├── installer.py  builtin_registry.py  （从根目录搬入的两个）
 │   ├── package_manager.py            （预期新增，今天不存在）
 │   └── builtins/          subagents/  llama_cpp/  …
 │
 ├── tui/                   Textual 前端
-│   ├── app/  widgets/  adapter.py  state.py  keybindings.py
+│   ├── app/  widgets/  adapter.py  state.py  keybindings.py（app/ widgets/ 属第二阶段；config.py 为阶段 1 保留）
 │   ├── autocomplete.py  footer.py  file_drop.py
+│   ├── config.py
 │   ├── trust.py  backends.py          （两个契约域的 Textual 屏，见下方说明）
 │   └── terminal_title.py  terminal_notification.py
 │
+├── config/                paths.py  shell_config.py（阶段 1 补充包）
 ├── observability/         遥测、缓存统计、耗时、崩溃日志
 ├── update/                更新检查、updater、reload
 ├── mcp/                   Model Context Protocol（等它落地时）
 ├── security/              沙箱或权限边界（需要时）
-├── data/                  打包资源，随所属模块一起搬
+├── data/                  打包资源，永远留在包根，不随模块移动
 └── utils/
 ```
+
+**阶段 1 后的实际状态（2026-11-05）：** 根目录实际为 `__init__.py`、`cli.py`、
+`events.py`、`version.py`、`rpc.py`（外加 `py.typed`）。已落地的包与文件：
+`rendering/themes/`；`session/{session,manager,prepare,usage,stats,branch_summary}.py`、
+`session/compaction/context_window.py`、`session/export.py`；`tools/{registry,image_processing}.py`；
+`context/{project,gitignore,resources,system_prompt,thinking,prompts}.py`、`context/skills/skills.py`；
+`commands/registry.py`；`providers/{config,catalog,runtime,loader}.py`、`providers/stores/*`；
+`auth/{credentials,oauth,registry,types}.py`、`auth/flows/*`；`trust/policy.py`；`backends/contracts.py`；
+`extensions/{installer,builtin_registry}.py`；`config/{paths,shell_config}.py`；
+`observability/diagnostics.py`；`update/{check,updater,reload}.py`；`utils/self_docs.py`。
+仍属第二阶段的内容：`tools/registry.py` 内的单工具文件与 renderers、`session/session.py` 的
+runtime/services 拆分、`session/export/`、`commands/` 的其余命令文件、`tui/app/`、
+`tui/widgets/`、以及整个 `modes/` 子树。
 
 关于这个包的四处选择：
 
@@ -375,14 +395,14 @@ OpenHands、SWE-agent、atomic-agents 的对应数字是 3、4、1。这是被�
 
 | 阻碍 | 证据 |
 |---|---|
-| `commands` 与 `tui` 互相 import | `commands` 内部对 `tui` 的 import 是延迟的，并且带注释说明它必须保持延迟 |
-| `session` 与 `tui` 互相 import | 会话导出与用量模块在模块顶层从 `tui` 引入主题名，而 TUI 又在模块顶层引入 session。这一对目前只是靠 import 顺序侥幸成立 |
-| 主题数据被 3 个非 UI 模块读取 | `commands.py`、会话导出、用量统计均在模块顶层（或延迟处）引入 `tui.themes`。正是这一条把上面两行变成了环，也是主题从 `tui/` 移入 `rendering/themes/` 的原因 |
+| `commands` 与 `tui` 互相 import | **阶段 1 已消除**：`commands/registry.py` 不再 import `tui`（主题改由 `rendering.themes` 提供）；`tui → commands` 单向保留 |
+| `session` 与 `tui` 互相 import | **阶段 1 已消除**：`session/` 包不再在顶层 import `tui`（主题改由 `rendering.themes` 提供）；`tui → session` 单向保留 |
+| 主题数据被 3 个非 UI 模块读取 | **阶段 1 已解决**：`themes` 已从 `tui/` 移入 `rendering/themes/`，非 UI 导入不再拖入终端前端 |
 | TUI 前端依赖几乎所有其他领域 | 终端层引用了大约二十七个不同的模块 |
-| 有两个文件各自承担多份职责 | 会话包装器与 TUI 应用。Pi 在同等规模上是同样的形状，所以这是继承来的，不是本地写坏的 |
+| 有两个文件各自承担多份职责 | 会话包装器与 TUI 应用。Pi 在同等规模上是同样的形状，所以这是继承来的，不是本地写坏的；拆分属第二阶段 |
 | 扩展示例已有两份并且在漂移 | `examples/extensions/` 与包内 `data/examples/extensions/` 共享四个文件，其中一份多出 `permission_gate.py` |
 | 同类职责住在多处 | 文档有 `docs/`、`dev-notes/`、`website/content/` 三处；计划有 `plans/` 与 `dev-notes/design/` 两处；网站测试有 `tests/website/` 与 `website/tests/` 两处 |
-| 入口文件同时承担参数解析与起动装配 | `cli.py` 一个文件 1409 行；而它是已发布的入口点 `baldric_coding.cli:app`，拆分时包名路径不能变 |
+| 入口文件同时承担参数解析与起动装配 | `cli.py` 一个文件 1409 行；而它是已发布的入口点 `baldric_coding.cli:app`，拆分时包名路径不能变。**阶段 1 按不动处理，拆分归第二阶段** |
 
 **断环在任何搬移之前。** 拆那两个大文件放在最后，因为和搬移不同，它会改变行为，
 需要先补上或扩展测试。

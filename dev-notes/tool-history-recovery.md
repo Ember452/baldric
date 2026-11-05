@@ -56,7 +56,7 @@ branches or diagnostics.
 - `baldric_agent.tool_history` owns the pure, provider-neutral transformation.
 - `baldric_agent.loop` applies it only to provider input; durable harness history is
   not silently mutated at this safety boundary.
-- `baldric_coding.session` owns append-only branch repair and durable diagnostics.
+- `baldric_coding.session.session` owns append-only branch repair and durable diagnostics.
 - Provider adapters remain unchanged and receive valid canonical history.
 
 This preserves Baldric's package boundary: portable transcript correctness belongs

@@ -50,7 +50,7 @@ Project prompt files load automatically in this phase, consistent with Baldric's
 current project-resource behavior. They can change the model's highest-priority
 instructions, so published documentation tells users to inspect them. A unified
 Pi-compatible project trust boundary is tracked separately in issue #535; prompt
-file discovery is isolated in `baldric_coding.resources` so that trust can later gate
+file discovery is isolated in `baldric_coding.context.resources` so that trust can later gate
 project candidates without changing `baldric_agent` or prompt assembly.
 
 ## Verification

@@ -56,7 +56,7 @@ pricing, Baldric displays `$N/A` rather than showing a misleading partial estima
 
 ## Architecture
 
-Lifetime aggregation lives in `baldric_coding.session_stats`; it consumes durable
+Lifetime aggregation lives in `baldric_coding.session.stats`; it consumes durable
 session entries and remains independent of Textual. `CodingSession` supplies the
 active branch and resolves configured pricing. The TUI widget only formats the
 result. This preserves Baldric's boundary between session behavior and frontend
