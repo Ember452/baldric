@@ -132,6 +132,18 @@ context.py         → context/project.py        （蓝图目标位置，1:1）
 
 - [ ] **M-1 记录起点。** `git rev-parse HEAD` 记入台账；确认 `uv run pytest -q` 全绿。若已红，停下报告，不要带着红灯搬。
 - [ ] **M-2 生成该簇的 import 改写清单。** 用第 4 节的扫描命令得到"谁引用了本簇的模块"，输出用 `Set-Content` 写入 `$env:TEMP` 下的临时文件，**不要写进仓库**。
+- [ ] **M-2.5 把引用闭包算全（本阶段最重要的批次规则）。** 一个提交的单位**不是目标包，而是引用闭包**：
+
+```text
+提交内容 = 本簇被搬的文件
+         ∪ 所有引用这些文件的文件（即使它们属于别的簇、别的包）
+         ∪ tests/ 里对应的 import
+         ∪ baldric_coding/__init__.py 的门面行
+```
+
+实测跳簇引用是常态不是例外：`paths.py` 有 **30 个**外部引用者，`credentials.py` 与 `resources.py` 各 13 个，`commands.py` 8 个，`session.py` 7 个。**跳簇的引用者只改 import 行，不碰它们的其他内容。**
+
+不允许把引用者推迟到“它所属的那个任务”里再改。理由：一旦允许中间提交是红的，`mypy --strict` 与 M-3 的故意红灯同时失效，此后每个失败都无法区分“本次搬坏了”和“上个任务欠的账”——那正是 agent 开始乱改代码的起点。
 - [ ] **M-3 先改测试的 import，不改任何源码。** 只改 `tests/**` 里的路径到新位置。跑测试。
       **预期结果：`ModuleNotFoundError` / `ImportError` 大面积失败。** 这是正确状态，不是事故。它证明安全网仍然连着。
       若此时仍全绿：先查该簇的真实测试覆盖再下结论。两种分岔：
@@ -190,6 +202,31 @@ Task 2 的产出格式（写成 `dev-notes/architecture/layout-mapping.md`，供
 - [ ] **导出集不变。** 重跑 4.4 得 `facade_after.txt`，再跑
       `Compare-Object (Get-Content $facadeBefore) (Get-Content $facadeAfter)`，**输出必须为空**。
       这条守住"门面 `__all__` 冻结"。**不得用 `dir(m)` 做此检查**（理由见 4.4 注释）。
+
+## 5.1 失败分诊（M-4 之后出现任何失败时）
+
+前提：**M-1 已确认基线全绿，所以 M-4 之后的任何新失败必然是本次搬移造成的。** 不存在“是因为别的文件还没搬”这种原因——那只能说明闭包没算全。把每个失败归入三类之一：
+
+| 类型 | 特征 | 允许的处置 |
+|---|---|---|
+| **A 路径没改完** | `ModuleNotFoundError` / `ImportError`，报的是旧模块名或旧路径 | 补改那个引用者的 import 行。**这是闭包漏了，不是“该等后续任务”** |
+| **B 新包成了急加载** | `cannot import name` / `partially initialized module` / 指向包属性的 `AttributeError` | 把新包 `__init__.py` 改回**只有 docstring**（规则 2.1）。不改逻辑，不加 `sys.modules` hack |
+| **C 其他任何失败** | 断言值不符、行为差异、超时、平台差异…… | **停下。不改产品代码，不改测试，不 skip/xfail。** 原样记入台账（失败名 + 报错原文 + 出现于哪次提交）并报告等人 |
+
+判不准属于哪一类，一律按 C 处理。**目标不是“让测试变绿”，而是“能解释每个失败为什么绿”。**
+
+## 5.2 永久禁止的动作（为了绿而做这些就是违规）
+
+- 新增转发模块 / shim / `sys.modules` 注册 / `sys.path` 修补
+- 修改任何测试断言、参数化取值，或加 `@pytest.mark.skip` / `xfail`
+- 改动 `baldric_coding/__init__.py` 的导出集内容或名字（只允许改路径）
+- 为绕开环而把顶层 import 改成函数内延迟 import（**唯一例外**：`commands.py` 里已有的那一处保持原样，不新增此类）
+- 用 `# type: ignore` 压住 mypy 报错
+- 重命名符号、拆函数、顺手修 bug
+
+## 5.3 只有结构检查允许“预期非空”
+
+**测试永远应当全绿。唯一允许非空/非绿信号的是 grep 与结构检查项**，例如 Task 9 的 `backends/ → tui` 方向检查：若移动前就已有引用，那是既有违反，记台账归入第二阶段，不由本阶段修。Task 3 的第 2 条反向 grep 非空也属于这一类。
 
 ---
 
