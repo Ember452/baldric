@@ -1,5 +1,24 @@
 [
   {
+    "version": "0.2.1",
+    "date": null,
+    "sections": {
+      "Added": [
+        "Sub-agents now ship by default as a bundled built-in extension: the `agent` tool spawns `general`, `fork`, and `explore` runs, `get_subagent_result` and `steer_subagent` read and redirect them, and `/agents` lists the available types and live runs.",
+        "The transcript shows a completion card for each finished subagent run, with the detail fields the card was designed to carry.",
+        "A timer-driven dispatcher arms scheduled subagent runs from the `agent` tool, accepting an interval (`5m`, `1h`), a cron-style time, or a one-shot delay (`+10m`).",
+        "A spawned subagent inherits the parent's project-trust decision instead of prompting again in the child session."
+      ],
+      "Fixed": [
+        "A spawned subagent continues the session's thinking level rather than resolving it against the wrong branch or falling back to the default.",
+        "Fork capture works when the parent session carries no thinking level.",
+        "An unknown key in a schedule patch is rejected instead of being silently dropped.",
+        "A settings-file read failure is scoped to the settings loader rather than breaking the whole extension.",
+        "Subagent modules import their siblings by relative path, so the bundled extension loads correctly from an installed package."
+      ]
+    }
+  },
+  {
     "version": "0.2.0",
     "date": null,
     "sections": {
