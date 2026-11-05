@@ -24,7 +24,7 @@ import json
 import os
 import time
 from collections.abc import Callable, Mapping
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -88,7 +88,8 @@ class ScheduledSubagent:
             "last_status",
             "next_run",
         }
-        return cls(**{key: value for key, value in data.items() if key in fields})  # type: ignore[arg-type]
+        values: dict[str, Any] = {key: value for key, value in data.items() if key in fields}
+        return cls(**values)
 
 
 def resolve_store_path(paths: BaldricPaths, cwd: Path, session_id: str) -> Path:
@@ -213,7 +214,8 @@ class ScheduleStore:
             existing = self._jobs.get(job_id)
             if existing is None:
                 return None
-            updated = ScheduledSubagent.from_dict({**asdict(existing), **patch})
+            patch_values: dict[str, Any] = {**asdict(existing), **patch}
+            updated = replace(existing, **patch_values)
             self._jobs[job_id] = updated
             return updated
 
