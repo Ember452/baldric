@@ -1,8 +1,9 @@
-"""Tests for agent type discovery and frontmatter parsing.
+"""Agent-type parsing branches the end-to-end suite leaves out.
 
-The first case is upstream's, ported verbatim. The rest cover parsing branches
-its suite leaves out (the four `skills` states, tool wildcards, precedence
-between the two directories, quoting, CRLF input, and the project-trust gate).
+The frontmatter cases that suite asserts are `memory` and `isolation`. What is
+covered only here is the rest of the file format: the four `skills` states, tool
+wildcards, precedence between the two directories, the reserved ``fork`` name, an
+unreadable file, quoting and CRLF input, and the project-trust gate.
 """
 
 from __future__ import annotations
@@ -36,25 +37,6 @@ def _write(directory: Path, name: str, text: str) -> Path:
     path = directory / f"{name}.md"
     path.write_bytes(text.encode("utf-8"))
     return path
-
-
-def test_agent_frontmatter_memory_and_isolation(paths: BaldricPaths, cwd: Path) -> None:
-    _write(
-        paths.project_subagent_types_dir(cwd),
-        "iso",
-        "---\ndescription: x\nmemory: local\nisolation: worktree\n---\nBody.",
-    )
-    _write(
-        paths.project_subagent_types_dir(cwd),
-        "bad",
-        "---\ndescription: x\nmemory: galactic\nisolation: docker\n---\nBody.",
-    )
-
-    definitions = load_agent_definitions(paths, cwd, project_trusted=True)
-    assert definitions["iso"].memory == "local"
-    assert definitions["iso"].isolation == "worktree"
-    assert definitions["bad"].memory is None
-    assert definitions["bad"].isolation is None
 
 
 def test_the_three_built_in_types_need_no_files(paths: BaldricPaths, cwd: Path) -> None:

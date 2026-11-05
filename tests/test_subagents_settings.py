@@ -1,11 +1,8 @@
-"""Tests for subagent settings resolution.
+"""The project-trust gate on subagent settings files.
 
-The behaviour cases are upstream's, ported verbatim in assertion order: project
-overrides user, out-of-range and wrong-typed values are dropped and fall back to
-the default (even when that discards a valid user value), `defaultMaxTurns: 0`
-means unlimited, and a malformed project file is treated as absent so the user
-value survives. Only the last case is new, because this host gates project files
-on project trust.
+Defaults, overrides, out-of-range drops and malformed files are asserted by the
+suite that loads the capability end to end. This covers only what that suite
+cannot: the project file staying unread while the directory is untrusted.
 """
 
 from __future__ import annotations
@@ -38,51 +35,6 @@ def _write_project(tmp_path: Path, text: str) -> None:
     target = _paths(tmp_path).project_subagent_settings_path(tmp_path / "cwd")
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(text, encoding="utf-8")
-
-
-def test_settings_defaults_overrides_and_validation(tmp_path: Path) -> None:
-    defaults = _load(tmp_path)
-    assert defaults == SubagentSettings()
-    assert defaults.max_concurrent == 4
-    assert defaults.default_max_turns is None
-    assert defaults.grace_turns == 5
-    assert defaults.default_join_mode == "smart"
-    assert defaults.transcript_retention_days is None  # unlimited retention
-
-    # transcriptRetentionDays: 0 (opt out) is in range; negatives are dropped.
-    _write_project(tmp_path, '{"transcriptRetentionDays": 0}')
-    assert _load(tmp_path).transcript_retention_days == 0
-    _write_project(tmp_path, '{"transcriptRetentionDays": -1}')
-    assert _load(tmp_path).transcript_retention_days is None
-    _write_project(tmp_path, "{}")
-
-    _write_user(tmp_path, '{"maxConcurrent": 8, "graceTurns": 9, "defaultJoinMode": "group"}')
-    _write_project(tmp_path, '{"maxConcurrent": 2}')
-    merged = _load(tmp_path)
-    assert merged.max_concurrent == 2  # project overrides global
-    assert merged.grace_turns == 9  # inherited from global
-    assert merged.default_join_mode == "group"
-
-    # Project sets an out-of-range int (dropped) but leaves graceTurns unset.
-    _write_project(tmp_path, '{"maxConcurrent": 0, "defaultMaxTurns": 0}')
-    invalid = _load(tmp_path)
-    assert invalid.max_concurrent == 4  # 0 out of range dropped => default
-    assert invalid.grace_turns == 9  # untouched, global value kept
-    assert invalid.default_max_turns is None  # 0 => unlimited
-    assert invalid.default_join_mode == "group"  # untouched global value kept
-
-    # A wrong-typed value shadows the global and falls back to the default.
-    _write_project(tmp_path, '{"graceTurns": "x"}')
-    assert _load(tmp_path).grace_turns == 5
-
-    # A boolean is not a valid int even though bool subclasses int; the
-    # shadowed global is dropped too, so the field falls back to its default.
-    _write_project(tmp_path, '{"maxConcurrent": true}')
-    assert _load(tmp_path).max_concurrent == 4
-
-    # Malformed project JSON is treated as empty, so only the global applies.
-    _write_project(tmp_path, "not json {")
-    assert _load(tmp_path).max_concurrent == 8
 
 
 def test_an_untrusted_project_file_is_not_merged(tmp_path: Path) -> None:

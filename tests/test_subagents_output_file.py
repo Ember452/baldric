@@ -1,16 +1,15 @@
-"""Tests for transcript locations and the retention sweep.
+"""Transcript locations and the writer, tested without a session.
 
-The sweep case and the `encode_cwd` assertion are upstream's, ported; the
-isolation seam is an explicit `home=` argument now instead of an environment
-variable. The remaining cases cover the writer itself, which upstream only
-exercises through the agent tool.
+Streaming a run's transcript, the retention sweep and the ephemeral fallback are
+asserted by the end-to-end suite. This file covers what that suite cannot see
+from outside: how a path is built from the given home, what `encode_cwd` does to
+a Windows drive, and the writer's own behaviour - inherited-message skipping, an
+idempotent flush, and a directory it cannot create.
 """
 
 from __future__ import annotations
 
 import json
-import os
-import time
 from pathlib import Path
 
 import pytest
@@ -57,18 +56,6 @@ def test_missing_parent_session_id_gets_an_explicit_component(tmp_path: Path) ->
     assert output_file_path(tmp_path, None, "a1", home=tmp_path / "home").parts[-3] == "no-session"
 
 
-def test_retention_zero_uses_temp_directory(tmp_path: Path) -> None:
-    cwd = tmp_path / "project"
-    cwd.mkdir(parents=True)
-
-    result = output_file_path(cwd, "sess-1", "a1", home=tmp_path / "home", durable=False)
-
-    import tempfile
-
-    assert str(result).startswith(tempfile.gettempdir())
-    assert "baldric-subagents-" in str(result)
-
-
 def test_encode_cwd_collapses_separators_and_never_returns_empty() -> None:
     assert encode_cwd("/") == "root"
     assert encode_cwd("") == "root"
@@ -89,36 +76,6 @@ def test_encode_cwd_result_stays_under_its_base() -> None:
 
 
 # ── retention sweep ──────────────────────────────────────────────────────
-
-
-def test_sweep_transcripts_deletes_old_and_prunes(tmp_path: Path) -> None:
-    root = transcripts_root(tmp_path)
-    assert str(root) == str(tmp_path / "subagents")
-    old_dir = root / "proj-aaaaaa" / "session-old" / "tasks"
-    new_dir = root / "proj-aaaaaa" / "session-new" / "tasks"
-    old_dir.mkdir(parents=True)
-    new_dir.mkdir(parents=True)
-    old_file = old_dir / "old.jsonl"
-    new_file = new_dir / "new.jsonl"
-    old_file.write_text("{}\n")
-    new_file.write_text("{}\n")
-    stale = time.time() - 15 * 86_400
-    os.utime(old_file, (stale, stale))
-
-    assert sweep_transcripts(14, tmp_path) == 1
-    assert not old_file.exists()
-    assert new_file.exists()
-    # Emptied ancestors are pruned; populated ones and the root survive.
-    assert not old_dir.exists()
-    assert new_dir.exists()
-    assert root.exists()
-
-    # Retention 0 never deletes anything.
-    os.utime(new_file, (stale, stale))
-    assert sweep_transcripts(0, tmp_path) == 0
-    assert new_file.exists()
-
-
 def test_sweep_is_inert_when_there_is_no_root(tmp_path: Path) -> None:
     assert sweep_transcripts(14, tmp_path / "absent") == 0
     assert sweep_transcripts(0, tmp_path) == 0
