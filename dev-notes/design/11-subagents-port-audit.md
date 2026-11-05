@@ -123,6 +123,29 @@ stored job, which is a schema change rather than an adaptation, so it is left
 out of this port and recorded here. Deciding it also means deciding whether the
 store file should keep history or only the last failure.
 
+## Thinking level: the inherited default, and why the old one was wrong
+
+The capability chose `DEFAULT_THINKING_LEVEL` (`thinking.py:21`, i.e. `medium`) for
+any non-fork child that had no level in its frontmatter or parameters, while
+provider and model were already inherited from the parent. On a model that does
+not offer `medium` the spawn died outright: `create_model_provider` forwards the
+level to the host, which raises when it is outside
+`provider_thinking_levels(provider, model=...)` (`provider_config.py:1787-1792`,
+`1821-1826`). A hardcoded default was also wrong in the benign case - it made a
+child think at a level nobody chose, and lower than the conversation that spawned
+it.
+
+The fallback is now: explicit frontmatter or parameter, else the parent's live
+level while the child still runs the parent's provider and model, else nothing at
+all, which the host defines as "send no thinking parameter" and let the model's
+own default apply (`provider_config.py:1775`, `1809`). Explicit values are still
+passed through untouched, because a stated intent should surface rather than be
+silently rewritten.
+
+This was only visible after shipping the capability by default: the original
+tested it with fakes whose models always supported `medium`, so the precedence
+case asserted the default value as if it were the design.
+
 ## Cost measured, not guessed
 
 `baldric_coding` is covered by `[tool.mypy] strict = true`. `tau-subagents` declares
