@@ -1,6 +1,8 @@
-"""Bundled subagents capability (Phase 2 of the integration roadmap).
+"""Subagents: spawnable agent types, background runs with completion
+notifications, git worktree isolation, per-agent memory, and scheduled jobs.
 
-Loaded as a trusted built-in extension, so it ships inside the wheel and is
-auto-registered like the llama.cpp built-in. Modules are ported one at a time;
-``setup`` is declared here only once the whole capability is in place.
+`extension.setup` is the entry point. It registers the `agent`,
+`get_subagent_result` and `steer_subagent` tools, the `/agents` command, the
+fleet strip and the conversation viewer, and starts the scheduler for the
+session's stored jobs.
 """
