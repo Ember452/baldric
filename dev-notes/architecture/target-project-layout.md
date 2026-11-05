@@ -169,7 +169,8 @@ src/baldric_coding/
 │   └── rpc/               行分隔的控制协议
 │
 ├── rendering/             事件 → 输出的渲染器（已存在，被 cli.py 与 __init__.py 引用）
-│   └── base.py  plain.py  json.py  transcript.py
+│   ├── base.py  plain.py  json.py  transcript.py
+│   └── themes/            主题数据与主题 json（从 tui/ 并入：它不是 UI）
 │
 ├── session/               一切拥有会话状态的东西
 │   ├── session.py         状态与历史
@@ -202,8 +203,6 @@ src/baldric_coding/
 ├── auth/                  凭据与登录
 │   ├── credentials.py  registry.py  types.py
 │   └── flows/             每个 provider 的 OAuth 流程一个文件
-│
-├── themes/                主题数据。它不是 UI：有好几个非 UI 的使用方
 │
 ├── trust/                 环境级项目信任策略与存储（它的 Textual 屏在 tui/trust.py）
 ├── backends/              provider 中立的本地后端契约（它的宿主屏在 tui/backends.py）
@@ -239,8 +238,12 @@ src/baldric_coding/
 > 对不上才是真的缺口（本轮修订前的 `cli.py` 与 `rendering/` 就是这种情况）。
 > 树中确实不存在、也未标注为预期的名字，属于缺陷，应该修文档。
 
-- `themes/` 刻意放在 `tui/` 之外。主题数据现在被会话导出和用量统计读取，
-  这等于把整个终端前端拖进了非 UI 代码。原因见「蓝图尚未成为现实的阻碍」一节。
+- **主题不属于 `tui/`，但也不单独成一个顶层包**，它住在 `rendering/themes/`。两件事各自有证据：
+  其一，主题数据被 **3 个非 UI 模块**读取（`commands.py`、会话导出、用量统计），把它留在 `tui/`
+  等于把整个终端前端拖进非 UI 代码——这是那两组环的根因。其二，已核实 `tui/themes/` 自身
+  对 `tui` 其他部分**零引用**，而 `tui/` 对 `rendering/` **零引用**，所以并入渲染层不产生新环。
+  主题与 plain/json/transcript 渲染器同属“输出样式”，放在一处比开一个顶层包更贴合职责，
+  也少一个顶层包。
 - `mcp/` 是顶层包而不是内置扩展。被调查的 Python 项目都把它放在顶层；Pi 把它
   藏成 extension，那是它的 JavaScript 打包方式决定的。这两种选择将来改动都只是
   一次搬移，所以这是个低风险决定。
@@ -254,9 +257,25 @@ src/baldric_coding/
   依赖方向是 `tui/ → trust/` 和 `tui/ → backends/`，单向的。承重规则 2 禁止的
   不是这种依赖，而是把跨前端必需的逻辑写进 `tui/` 里。
 
-一个尚不存在但蓝图想要的位置：Pi 把命令行拆成参数解析与起动装配两个文件，
-而 Baldric 今天两者同在 `cli.py` 里。入口名 `baldric_coding.cli:app` 是
-pyproject 里的已发布入口点，改动它等于改动安装契约，所以这不是一个可以顺手做的重命名。
+**`modes/` 与 `cli/` 的分界（这条比包名本身重要）。** 两者读起来都带“命令行”的味，不划清
+就会反复摇摆：
+
+| | 负责什么 | 特征 |
+|---|---|---|
+| `cli/` | 解析参数、校验、**决定用哪个模式**、装配所需对象，然后把控制权交出去 | 只在“进程被启动”这一刻成立，**不跑会话** |
+| `modes/` | 持有一次会话，把事件流变成该外壳的输出 | 从会话开始之后，**不碰 argv** |
+
+一句话判据：**“换个前端还要不要重写一遍？”** 要重写 → 属于 `modes/` 下那个具体外壳；
+不需要重写、只跟启动有关 → 属于 `cli/`。这条是承重规则 2 在启动路径上的具体形态。
+
+注意 `modes/` 这个包名来自 Pi，**被参考的 Python 项目里没有先例**（gptme 把这类逻辑
+分散在 `cli/`、`tui/`、`server/` 顶层包）。保留它是为了“一个会话、多种外壳”这个意图
+能被直接读出来，以及和 Pi 的上游 PR 能一一对号——这是取舍，不是证据结论。
+改名很容易（纯目录改名），所以这不是一个需要现在定下的决定。
+
+今天 `cli.py`（1409 行）同时承担上表两件事。而入口名 `baldric_coding.cli:app` 是
+pyproject 里的已发布入口点，改动它等于改动安装契约，所以**这不是一个可以顺手做的
+重命名**。蓝图想要 Pi 那种“参数解析 / 起动装配”分离，但那是本蓝图之外的阶段。
 
 ### `tests/`
 
@@ -358,7 +377,7 @@ OpenHands、SWE-agent、atomic-agents 的对应数字是 3、4、1。这是被�
 |---|---|
 | `commands` 与 `tui` 互相 import | `commands` 内部对 `tui` 的 import 是延迟的，并且带注释说明它必须保持延迟 |
 | `session` 与 `tui` 互相 import | 会话导出与用量模块在模块顶层从 `tui` 引入主题名，而 TUI 又在模块顶层引入 session。这一对目前只是靠 import 顺序侥幸成立 |
-| 主题数据被非 UI 代码读取 | 正是这一条把上面两行变成了环，也是树里把 `themes/` 列为顶层包的原因 |
+| 主题数据被 3 个非 UI 模块读取 | `commands.py`、会话导出、用量统计均在模块顶层（或延迟处）引入 `tui.themes`。正是这一条把上面两行变成了环，也是主题从 `tui/` 移入 `rendering/themes/` 的原因 |
 | TUI 前端依赖几乎所有其他领域 | 终端层引用了大约二十七个不同的模块 |
 | 有两个文件各自承担多份职责 | 会话包装器与 TUI 应用。Pi 在同等规模上是同样的形状，所以这是继承来的，不是本地写坏的 |
 | 扩展示例已有两份并且在漂移 | `examples/extensions/` 与包内 `data/examples/extensions/` 共享四个文件，其中一份多出 `permission_gate.py` |

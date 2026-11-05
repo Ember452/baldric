@@ -31,6 +31,7 @@
 | `mcp/` | 蓝图自标“when it lands”，功能本身还不存在 |
 | `security/` | 蓝图自标“when needed”，沙箱能力尚未开做 |
 | `extensions/` 下的 `package_manager.py` | 蓝图自标“预期新增，今天不存在” |
+| `modes/` 目录 | print/json 驱动今天仍在 `cli.py` 里，`rpc.py` 又属 C 类不能拆——**本阶段建它就是建空包**。它与 `cli/` 的职责分界已写进蓝图（“换个前端还要不要重写一遍”），供第二阶段引用 |
 | `examples/` 双拷贝去重（蓝图阻碍表的一项） | 它是仓库根问题，不是 `baldric_coding` 内部的移动；**单独开一个小型 PR 做**，混进本分支只会把 PR 的评审边界弄浑 |
 
 5. **命令环境：Windows PowerShell。** 本计划所有命令以 PowerShell 形式书写（**PowerShell 5.1 不支持 `&&`，多语句用 `;`**）。若环境里有 Git Bash，可用其等价形式，但两者语义必须逐字对应。遇到命令报错时**不要现场自创扫描方式**，而是把失败原文记台账并停下报告——这正是第 0 节要防的事。
@@ -317,18 +318,20 @@ git commit -m "chore(layout): add move-only guard script and migration ledger"
 
 ---
 
-## Task 3: `themes` 提出为顶层包（消环，最先做）
+## Task 3: `themes` 并入 `rendering/`（消环，最先做）
 
 **Files:**
-- Move: `src/baldric_coding/tui/themes/__init__.py` → `src/baldric_coding/themes/__init__.py`
+- Move: `src/baldric_coding/tui/themes/__init__.py` → `src/baldric_coding/rendering/themes/__init__.py`
 - Move: `src/baldric_coding/tui/themes/*.json`（3 个主题文件随 `__init__.py` 一起走）
-- Modify: 所有 `baldric_coding.tui.themes` 引用点（至少含 `session_export.py`、`session_usage.py`、`commands.py`、`tui/` 内部引用；**以 4.2 扫描结果为准，不要只改这几处**）
+- Modify: 所有 `baldric_coding.tui.themes` 引用点。**已测得 src 侧共 7 个引用文件，其中非 UI 侧 3 个**：`commands.py:766`、`session_export.py:51`、`session_usage.py:22`；UI 侧 4 个（`tui/app.py:186` 等）。**以 4.2 扫描结果为准，不要只改这几处**
 - Test: 以 `tests/test_tui_themes.py` 为主，其余按扫描
+
+**为什么是 `rendering/themes/` 而不是顶层 `themes/`：** 已核实两条前提——`tui/themes/` 自身对 `tui` 其他部分**零引用**，`tui/` 对 `rendering/`**零引用**。所以并入渲染层既消了原有环，又不产生新环；主题与 plain/json/transcript 同属输出样式，语义更准，顶层包也少一个。
 
 **为什么它必须排第一：** `session_export.py` 与 `session_usage.py` 在模块顶层从 `tui.themes` 取主题名，而 `tui/` 又在顶层 import session —— 这是一组靠 import 顺序存活的环。把 `themes` 移出 `tui` 只需一次目录移动（它是包目录，不是单文件），零逻辑改动，却直接把这组包级环拆干净。**若先动 `session/` 再做这一步，`session/` 会拖进整个终端前端。**
 
 **Interfaces:**
-- Produces: `baldric_coding.themes`（路径变化，符号名不变：`BALDRIC_DARK_THEME`、`BALDRIC_LIGHT_THEME`、`TuiTheme`、`available_tui_theme_names` 等）
+- Produces: `baldric_coding.rendering.themes`（路径变化，符号名不变：`BALDRIC_DARK_THEME`、`BALDRIC_LIGHT_THEME`、`TuiTheme`、`available_tui_theme_names` 等）
 
 - [ ] 执行配方 M 的 Step 1-7。本簇特殊注意：
   - `themes/__init__.py` 若用 `importlib.resources` 或 `__file__` 定位同目录的 `.json`，**移动后这两类定位方式都会失效** → 属于第 2 节禁止清单之外（这是移动导致的必要改动，允许改），但改动范围只能到"路径表达式修正"为止，不得重构加载逻辑
@@ -490,7 +493,7 @@ Select-String -Path (Get-ChildItem src\baldric_coding\backends -Filter *.py).Ful
 - Move: `built_in_extensions.py` → `extensions/builtin_registry.py`（**改名**；不能用蓝图写的 `extensions/builtins.py`，见下方硬冲突说明）
 - Move: `extension_installer.py` → `extensions/installer.py`（**改名**）
 - Move: `commands.py` → `commands/registry.py`（**C 类停车，规则 1.1**；含空 `commands/__init__.py`）
-- **不动：** `rpc.py`（C 类，且本阶段不建 `modes/` 目录——没有可搬进去的东西）
+- **不动：** `rpc.py`（C 类，且本阶段不建 `modes/` 目录——没有可搬进去的东西；与 `cli/` 的分界见蓝图「`modes/` 与 `cli/` 的分界」）
 - Test: `tests/test_extensions.py`、`test_extension_installer.py`、`test_example_extensions.py`、`test_commands.py`（按扫描）
 
 **硬冲突（已核实，必须避开）：** 蓝图把 `built_in_extensions.py` 的目标写成 `extensions/builtins.py`，但 `extensions/builtins/` **已经是一个真实目录**（内含 `subagents/`、`llama_cpp/`）。同名模块与包不能共存，所以**该蓝图条目是错的** → 本计划改用 `extensions/builtin_registry.py`，并在 Task 12 按蓝图规则 4 修正文档。
@@ -503,7 +506,7 @@ Select-String -Path (Get-ChildItem src\baldric_coding\backends -Filter *.py).Ful
 
 **Files:**
 - Modify: `src/baldric_coding/__init__.py`（**只改路径，不改导出集**）
-- Verify: `rendering/` 5 个文件、`tui/` 未列改动的 8 个文件、`extensions/` 原有 5 个文件 —— 应为 O 类，不搬
+- Verify: `rendering/` 的 4 个自有文件（base/plain/json/transcript）、`tui/` 未列改动的文件、`extensions/` 原有 5 个文件 —— 除 `tui/` 那部分属 O 类不搬以外，`rendering/` 在 Task 3 后多了一个 `themes/` 子包
 
 - [ ] **Step 1:** 重跑 4.4 的 `__all__` 快照，与 Phase-1 起点的 `facade_before.txt` 比对（`Compare-Object`）。**必须为空 diff**；若非空，说明某次移动改动了导出集，回退那次提交的导出行修正。
 - [ ] **Step 2:** `uv run python -c "import baldric_coding as m; print(len(m.__all__))"` 与起点一致。**不要拿 `len(dir(m))` 对比**——它必然因新建子包而变大。
@@ -524,13 +527,19 @@ Select-String -Path (Get-ChildItem src\baldric_coding\backends -Filter *.py).Ful
 
 ```powershell
 uv build --wheel
-uv run python -c "import baldric_coding, baldric_coding.themes, baldric_coding.providers.loader as l; print('ok')"
+uv run python -c "import baldric_coding, baldric_coding.rendering.themes, baldric_coding.providers.loader as l; print('ok')"
 ```
 
 理由：资源文件（3 个主题 `.json`、`data/catalog.toml`、`data/models-dev-catalog.json`）在 sdist/wheel 里的包含规则与本地目录不同，`hatch` 的 `packages` 配置只列了三个顶层包，新增子目录必须验证被打进产物。
 
 - [ ] **Step 2: 根目录文件数复核。** 不要拿固定数字当验收标准（它会和 Task 2 的扫描权威性互相矛盾）。做法：从 `layout-mapping.md` 导出“目标仍在 `baldric_coding/` 根”的文件集合，与 `Get-ChildItem src\baldric_coding -Filter *.py` 的实际结果对差。**两边必须相等。** 若有出入，逐个写清原因（某簇被跳过 / 它被重判为 C 且无同名冲突 / 映射表本身需要修正），**不要现场改方案，也不要为了让两边对上而挪文件**。
 - [ ] **Step 3: 写第二阶段入口条件。** 在台账末尾列出：7 个 C 类文件各自的拆分依据、以及 `context_window.py` / `cli.py` 两个"本阶段按不拆处理"的候选。**不要在本计划里给它们的拆分方案。**
+
+  其中 `rpc.py` 必须记一条**硬顺序规则**：第二阶段建 `modes/` 时，拆它要分两次提交——
+  先 `rpc.py → modes/rpc.py`（单文件移动，属 A/B，零逻辑改动），**下一次提交**再拆成多文件。
+  同一次提交里既建包又拆分，就违反第 2 节禁止清单里“不拆分文件”与配方 M 里“搬移与改逻辑不混合”
+  这两条根约束；而且混在一块后，`check_move_only.py` 将无法再用 R100/R9x 证明其中“只搬不动”
+  的那部分是干净的。
 
 - [ ] **Step 4: Commit**
 
