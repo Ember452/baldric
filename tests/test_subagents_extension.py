@@ -125,7 +125,11 @@ class RecordingSession:
 
 
 def _load_runtime(tmp_path: Path) -> ExtensionRuntime:
-    runtime = ExtensionRuntime()
+    # These suites load the capability from its source directory through
+    # ``extra_paths``, so the built-in declaration has to stay out of the way:
+    # loading both would register the tools twice and the first registration
+    # would win, leaving patches on the loaded copy without effect.
+    runtime = ExtensionRuntime(built_in_extensions=())
     runtime.load(
         _paths(tmp_path),
         extra_paths=(EXTENSION_DIR,),
@@ -2500,3 +2504,31 @@ async def test_fork_rejects_model_thinking_and_isolated(tmp_path: Path) -> None:
     assert "A fork cannot take provider, model, isolated" in result.text
     assert "inherit_context" in result.text  # the suggested alternative
     assert provider.calls == []  # nothing was spawned
+
+
+def test_loads_as_a_bundled_extension(tmp_path: Path) -> None:
+    """Load through the built-in declaration, which is how a real session gets this.
+
+    Everything above loads the source directory through ``extra_paths`` instead,
+    because that lets a case patch the loaded module. This one checks the other
+    half: the declaration in the shipped list registers the surfaces, reports no
+    load error, and stays out of the listing the user sees while doing so.
+    """
+    from baldric_coding.built_in_extensions import BUILT_IN_EXTENSIONS
+
+    declaration = next(item for item in BUILT_IN_EXTENSIONS if item.name == "subagents")
+    assert declaration.hidden is True
+
+    runtime = ExtensionRuntime()
+    runtime.load(_paths(tmp_path), include_resource_dirs=False)
+
+    assert {"agent", "get_subagent_result", "steer_subagent"} <= {
+        tool.name for tool in runtime.extension_tools
+    }
+    assert runtime.build_command_registry().get("agents") is not None
+    assert not [diag for diag in runtime.diagnostics if diag.severity == "error"]
+    assert "subagents" not in runtime.extension_names
+    assert any(
+        metadata.name == "subagents" and metadata.source == "built-in"
+        for metadata in runtime.extension_metadata
+    )

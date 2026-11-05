@@ -365,7 +365,18 @@ async def test_load_empty_session_defers_transcript_file(tmp_path: Path) -> None
     )
     assert session.cwd == tmp_path
     assert session.model == "fake"
-    assert [tool.name for tool in session.tools] == ["read", "write", "edit", "bash"]
+    # Core tools first, then the tools the bundled subagent capability adds to
+    # every session (`agent` is what lets the assistant delegate, and `/agents`
+    # is the user's way to pick a type).
+    assert [tool.name for tool in session.tools] == [
+        "read",
+        "write",
+        "edit",
+        "bash",
+        "agent",
+        "get_subagent_result",
+        "steer_subagent",
+    ]
 
 
 @pytest.mark.anyio

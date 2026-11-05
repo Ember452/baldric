@@ -92,6 +92,13 @@ def _llama_cpp_setup_with_context(
     setup(api, context)
 
 
+def _subagents_setup(api: ExtensionAPI) -> None:
+    """Load the bundled subagent capability with its normal process dependencies."""
+    from baldric_coding.extensions.builtins.subagents.extension import setup
+
+    setup(api)
+
+
 # Product capabilities are declared explicitly so filesystem discovery or
 # project inputs cannot change what Baldric treats as trusted.
 BUILT_IN_EXTENSIONS: tuple[BuiltInExtension, ...] = (
@@ -100,6 +107,11 @@ BUILT_IN_EXTENSIONS: tuple[BuiltInExtension, ...] = (
         setup=_llama_cpp_setup,
         hidden=True,
         setup_with_context=_llama_cpp_setup_with_context,
+    ),
+    BuiltInExtension(
+        name="subagents",
+        setup=_subagents_setup,
+        hidden=True,
     ),
 )
 
