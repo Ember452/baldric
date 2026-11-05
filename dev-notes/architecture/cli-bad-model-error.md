@@ -43,7 +43,7 @@ This is a pure CLI-layer fix. It does not touch:
 - the provider/model streaming layer (`baldric_ai`), or
 - the Textual TUI rendering.
 
-The validation itself already lives in `baldric_coding.provider_config`; only the
+The validation itself already lives in `baldric_coding.providers.config`; only the
 CLI's error boundary was wrong. This is consistent with the architecture
 principle that CLI error handling should consume errors from the lower layers
 rather than letting them leak as raw tracebacks.

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from baldric_coding.gitignore import load_gitignore_rules
+from baldric_coding.context.gitignore import load_gitignore_rules
 
 
 def test_load_gitignore_rules_matches_directory_and_extension(tmp_path: Path) -> None:

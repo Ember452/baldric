@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from baldric_coding import BaldricPaths, BaldricResourcePaths
-from baldric_coding.resources import (
+from baldric_coding.context.resources import (
     ResourceError,
     derive_description,
     discover_system_prompt_resources,

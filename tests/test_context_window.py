@@ -2,7 +2,7 @@ from pathlib import Path
 
 from baldric_agent import AssistantMessage, TextContent, ToolCall, ToolResultMessage, Usage, UserMessage
 from baldric_agent.messages import assistant_content
-from baldric_coding.context_window import (
+from baldric_coding.session.compaction.context_window import (
     ContextUsageEstimate,
     auto_compaction_threshold_for_context_window,
     build_compaction_summary_prompt,
@@ -13,7 +13,7 @@ from baldric_coding.context_window import (
     serialize_messages_for_compaction,
     summarize_messages_for_compaction,
 )
-from baldric_coding.tools import create_coding_tools
+from baldric_coding.tools.registry import create_coding_tools
 
 
 def test_text_token_estimate_is_deterministic() -> None:

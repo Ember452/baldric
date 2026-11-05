@@ -18,12 +18,12 @@ if TYPE_CHECKING:
     from textual import events
     from textual.widget import Widget
 
+    from baldric_coding.backends.contracts import LocalBackend
+    from baldric_coding.config.paths import BaldricPaths
     from baldric_coding.extensions.providers import DynamicProvider
     from baldric_coding.extensions.runtime import ExtensionRuntime
-    from baldric_coding.local_backends import LocalBackend
-    from baldric_coding.paths import BaldricPaths
-    from baldric_coding.project_trust import ProjectTrustResolution
-    from baldric_coding.session import ModelChoice
+    from baldric_coding.session.session import ModelChoice
+    from baldric_coding.trust.policy import ProjectTrustResolution
     from baldric_coding.tui.config import TuiTheme
 
 AGENT_EVENT_TYPES: frozenset[str] = frozenset(

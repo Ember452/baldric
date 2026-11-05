@@ -5,8 +5,8 @@ from threading import Barrier
 
 import pytest
 
-from baldric_coding.paths import BaldricPaths
-from baldric_coding.session_manager import CodingSessionRecord, SessionManager, SessionRecordModel
+from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.session.manager import CodingSessionRecord, SessionManager, SessionRecordModel
 
 
 def test_session_manager_creates_and_lists_sessions(tmp_path: Path) -> None:

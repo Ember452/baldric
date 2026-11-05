@@ -17,22 +17,22 @@ from baldric_agent.messages import AssistantMessage, UserMessage
 from baldric_agent.session import JsonlSessionStorage
 from baldric_agent.session.entries import SessionEntry
 from baldric_agent.types import JSONValue
-from baldric_coding.commands import CommandRegistry
+from baldric_coding.commands.registry import CommandRegistry
 from baldric_coding.events import CodingSessionEvent
-from baldric_coding.provider_config import (
+from baldric_coding.providers.config import (
     AnthropicProviderConfig,
     OpenAICompatibleProviderConfig,
     ProviderConfig,
     provider_thinking_levels,
 )
-from baldric_coding.session import (
+from baldric_coding.session.manager import SessionManager
+from baldric_coding.session.session import (
     CodingSession,
     ManualCompactionResult,
     ModelChoice,
     TerminalCommandResult,
 )
-from baldric_coding.session_manager import SessionManager
-from baldric_coding.session_stats import SessionStats
+from baldric_coding.session.stats import SessionStats
 
 _MAX_RECORD_BYTES = 16 * 1024 * 1024
 

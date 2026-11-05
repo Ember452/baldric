@@ -38,7 +38,7 @@ The fix preserves Baldric's layer boundaries:
   the usual backoff, `ProviderRetryEvent` progress, and cancellation checks.
   Retry classification stays in the provider adapter; `baldric_agent` only forwards
   events.
-- `baldric_coding.diagnostics` copies only non-secret scalar fields (`type`,
+- `baldric_coding.observability.diagnostics` copies only non-secret scalar fields (`type`,
   `code`, `message`, `sequence_number`, status code, attempt count) from the
   provider event into `agent-calls.jsonl`. Bodies and full payloads stay out.
 - `baldric_coding.tui.app` appends "Run ended before completion. Send a message to

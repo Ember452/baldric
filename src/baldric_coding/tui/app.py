@@ -74,14 +74,28 @@ from baldric_agent.provider_events import (
 )
 from baldric_agent.tools import AgentTool
 from baldric_agent.types import JSONValue
-from baldric_coding.catalog_loader import save_user_catalog_entries
-from baldric_coding.commands import (
+from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
+from baldric_coding.auth.oauth import login_openai_codex
+from baldric_coding.auth.registry import get_oauth_provider, oauth_provider_ids
+from baldric_coding.auth.types import (
+    OAuthAuthInfo,
+    OAuthDeviceCodeInfo,
+    OAuthLoginCallbacks,
+    OAuthPrompt,
+    OAuthSelectPrompt,
+)
+from baldric_coding.commands.registry import (
     LOGIN_PROVIDER_ALIASES,
     CommandRegistry,
     create_default_command_registry,
     format_reload_summary,
 )
-from baldric_coding.credentials import FileCredentialStore, OAuthCredential
+from baldric_coding.config.shell_config import load_shell_settings
+from baldric_coding.context.prompts import PromptTemplate
+from baldric_coding.context.resources import BaldricResourcePaths, ResourceDiagnostic
+from baldric_coding.context.skills.skills import Skill
+from baldric_coding.context.system_prompt import SystemPromptInspection
+from baldric_coding.context.thinking import ThinkingLevel
 from baldric_coding.events import (
     AgentSettledEvent,
     AutoRetryStartEvent,
@@ -99,23 +113,12 @@ from baldric_coding.extensions.api import (
     SlotWidgetContent,
     SlotWidgetFactory,
 )
-from baldric_coding.oauth import login_openai_codex
-from baldric_coding.oauth_registry import get_oauth_provider, oauth_provider_ids
-from baldric_coding.oauth_types import (
-    OAuthAuthInfo,
-    OAuthDeviceCodeInfo,
-    OAuthLoginCallbacks,
-    OAuthPrompt,
-    OAuthSelectPrompt,
-)
-from baldric_coding.project_trust import ProjectTrustRequest, TrustChoice, TrustOverride
-from baldric_coding.prompt_templates import PromptTemplate
-from baldric_coding.provider_catalog import (
+from baldric_coding.providers.catalog import (
     BUILTIN_PROVIDER_CATALOG,
     ProviderCatalogEntry,
     builtin_provider_entry,
 )
-from baldric_coding.provider_config import (
+from baldric_coding.providers.config import (
     DEFAULT_MODEL,
     DEFAULT_PROVIDER_NAME,
     OpenAICompatibleProviderConfig,
@@ -131,9 +134,18 @@ from baldric_coding.provider_config import (
     upsert_openai_compatible_provider,
     upsert_saved_provider,
 )
-from baldric_coding.provider_runtime import ClosableModelProvider, create_model_provider
-from baldric_coding.resources import BaldricResourcePaths, ResourceDiagnostic
-from baldric_coding.session import (
+from baldric_coding.providers.loader import save_user_catalog_entries
+from baldric_coding.providers.runtime import ClosableModelProvider, create_model_provider
+from baldric_coding.rendering.themes import (
+    available_tui_theme_names,
+    load_custom_tui_themes,
+    set_custom_tui_themes,
+    textual_theme_for_tui_theme,
+    theme_css_variables,
+)
+from baldric_coding.session.manager import CodingSessionRecord, SessionManager
+from baldric_coding.session.prepare import prepare_coding_session
+from baldric_coding.session.session import (
     TREE_RUNNING_MESSAGE,
     CodingSession,
     CodingSessionConfig,
@@ -144,12 +156,7 @@ from baldric_coding.session import (
     jsonl_session_storage,
     parse_terminal_command,
 )
-from baldric_coding.session_manager import CodingSessionRecord, SessionManager
-from baldric_coding.session_preparation import prepare_coding_session
-from baldric_coding.shell_config import load_shell_settings
-from baldric_coding.skills import Skill
-from baldric_coding.system_prompt import SystemPromptInspection
-from baldric_coding.thinking import ThinkingLevel
+from baldric_coding.trust.policy import ProjectTrustRequest, TrustChoice, TrustOverride
 from baldric_coding.tui.adapter import TuiEventAdapter
 from baldric_coding.tui.autocomplete import (
     CompletionItem,
@@ -157,6 +164,13 @@ from baldric_coding.tui.autocomplete import (
     CompletionOption,
     CompletionState,
     build_completion_state,
+)
+from baldric_coding.tui.backends import (
+    LocalBackendPickerScreen,
+    LocalBackendScreen,
+    LocalChoiceConfirmScreen,
+    LocalConfirmScreen,
+    LocalSearchResultsScreen,
 )
 from baldric_coding.tui.config import (
     BALDRIC_DARK_THEME,
@@ -168,14 +182,6 @@ from baldric_coding.tui.config import (
     save_tui_settings,
 )
 from baldric_coding.tui.file_drop import normalize_dropped_paths
-from baldric_coding.tui.local_backends import (
-    LocalBackendPickerScreen,
-    LocalBackendScreen,
-    LocalChoiceConfirmScreen,
-    LocalConfirmScreen,
-    LocalSearchResultsScreen,
-)
-from baldric_coding.tui.project_trust import ProjectTrustScreen, prompt_project_trust
 from baldric_coding.tui.state import (
     TuiState,
     assistant_block_is_visible,
@@ -183,13 +189,7 @@ from baldric_coding.tui.state import (
 )
 from baldric_coding.tui.terminal_notification import TerminalNotificationController
 from baldric_coding.tui.terminal_title import TerminalTitleController
-from baldric_coding.tui.themes import (
-    available_tui_theme_names,
-    load_custom_tui_themes,
-    set_custom_tui_themes,
-    textual_theme_for_tui_theme,
-    theme_css_variables,
-)
+from baldric_coding.tui.trust import ProjectTrustScreen, prompt_project_trust
 from baldric_coding.tui.widgets import (
     CompactSessionInfo,
     SessionSidebar,

@@ -2,45 +2,20 @@
 
 from __future__ import annotations
 
-from baldric_coding.built_in_extensions import BuiltInExtension, BuiltInExtensionSetup
-from baldric_coding.commands import (
-    CommandRegistry,
-    CommandResult,
-    SlashCommand,
-    create_default_command_registry,
-)
-from baldric_coding.context import (
-    discover_project_context,
-    discover_project_context_with_diagnostics,
-)
-from baldric_coding.context_window import (
-    DEFAULT_COMPACTION_KEEP_RECENT_TOKENS,
-    DEFAULT_COMPACTION_RESERVE_TOKENS,
-    DEFAULT_CONTEXT_WINDOW_TOKENS,
-    SUMMARIZATION_SYSTEM_PROMPT,
-    auto_compaction_threshold_for_context_window,
-    build_compaction_summary_prompt,
-    estimate_context_tokens,
-    estimate_message_tokens,
-    estimate_text_tokens,
-    estimate_tool_tokens,
-    serialize_messages_for_compaction,
-    summarize_messages_for_compaction,
-)
-from baldric_coding.credentials import (
+from baldric_coding.auth.credentials import (
     CredentialStoreError,
     FileCredentialStore,
     OAuthCredential,
     credentials_path,
 )
-from baldric_coding.oauth_registry import (
+from baldric_coding.auth.registry import (
     get_oauth_provider,
     get_oauth_providers,
     register_oauth_provider,
     reset_oauth_providers,
     unregister_oauth_provider,
 )
-from baldric_coding.oauth_types import (
+from baldric_coding.auth.types import (
     OAuthAuthInfo,
     OAuthDeviceCodeInfo,
     OAuthLoginCallbacks,
@@ -48,8 +23,25 @@ from baldric_coding.oauth_types import (
     OAuthProvider,
     OAuthRuntimeAuth,
 )
-from baldric_coding.paths import BaldricPaths
-from baldric_coding.prompt_templates import (
+from baldric_coding.commands.registry import (
+    CommandRegistry,
+    CommandResult,
+    SlashCommand,
+    create_default_command_registry,
+)
+from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.config.shell_config import (
+    ShellConfigError,
+    ShellSettings,
+    load_shell_settings,
+    shell_settings_from_json,
+    shell_settings_path,
+)
+from baldric_coding.context.project import (
+    discover_project_context,
+    discover_project_context_with_diagnostics,
+)
+from baldric_coding.context.prompts import (
     PromptTemplate,
     expand_prompt_template_command,
     load_prompt_templates,
@@ -58,12 +50,42 @@ from baldric_coding.prompt_templates import (
     render_prompt_template,
     substitute_prompt_template_args,
 )
-from baldric_coding.provider_catalog import (
+from baldric_coding.context.resources import BaldricResourcePaths, ResourceDiagnostic, ResourceError
+from baldric_coding.context.skills.skills import (
+    Skill,
+    build_skill_index,
+    expand_skill_command,
+    format_skill_invocation,
+    load_skills,
+    load_skills_with_diagnostics,
+    parse_skill_invocation,
+)
+from baldric_coding.context.system_prompt import (
+    BuildSystemPromptOptions,
+    ProjectContextFile,
+    build_system_prompt,
+    collect_prompt_guidelines,
+    format_available_tools,
+    format_guidelines,
+    format_project_context,
+    format_skills_for_prompt,
+)
+from baldric_coding.context.thinking import (
+    DEFAULT_THINKING_LEVEL,
+    THINKING_LEVELS,
+    ReasoningEffort,
+    ThinkingLevel,
+    ThinkingParameter,
+    normalize_thinking_levels,
+    reasoning_effort_for_level,
+)
+from baldric_coding.extensions.builtin_registry import BuiltInExtension, BuiltInExtensionSetup
+from baldric_coding.providers.catalog import (
     BUILTIN_PROVIDER_CATALOG,
     ProviderCatalogEntry,
     builtin_provider_entry,
 )
-from baldric_coding.provider_config import (
+from baldric_coding.providers.config import (
     DEFAULT_MODEL,
     DEFAULT_PROVIDER_NAME,
     AnthropicProviderConfig,
@@ -104,8 +126,28 @@ from baldric_coding.rendering import (
     TranscriptRenderer,
     create_event_renderer,
 )
-from baldric_coding.resources import BaldricResourcePaths, ResourceDiagnostic, ResourceError
-from baldric_coding.session import (
+from baldric_coding.session.compaction.context_window import (
+    DEFAULT_COMPACTION_KEEP_RECENT_TOKENS,
+    DEFAULT_COMPACTION_RESERVE_TOKENS,
+    DEFAULT_CONTEXT_WINDOW_TOKENS,
+    SUMMARIZATION_SYSTEM_PROMPT,
+    auto_compaction_threshold_for_context_window,
+    build_compaction_summary_prompt,
+    estimate_context_tokens,
+    estimate_message_tokens,
+    estimate_text_tokens,
+    estimate_tool_tokens,
+    serialize_messages_for_compaction,
+    summarize_messages_for_compaction,
+)
+from baldric_coding.session.export import (
+    SessionExportError,
+    default_session_export_path,
+    export_session_html,
+    render_session_html,
+)
+from baldric_coding.session.manager import CodingSessionRecord, SessionManager
+from baldric_coding.session.session import (
     CodingSession,
     CodingSessionConfig,
     ModelChoice,
@@ -114,49 +156,7 @@ from baldric_coding.session import (
     default_session_path,
     jsonl_session_storage,
 )
-from baldric_coding.session_export import (
-    SessionExportError,
-    default_session_export_path,
-    export_session_html,
-    render_session_html,
-)
-from baldric_coding.session_manager import CodingSessionRecord, SessionManager
-from baldric_coding.shell_config import (
-    ShellConfigError,
-    ShellSettings,
-    load_shell_settings,
-    shell_settings_from_json,
-    shell_settings_path,
-)
-from baldric_coding.skills import (
-    Skill,
-    build_skill_index,
-    expand_skill_command,
-    format_skill_invocation,
-    load_skills,
-    load_skills_with_diagnostics,
-    parse_skill_invocation,
-)
-from baldric_coding.system_prompt import (
-    BuildSystemPromptOptions,
-    ProjectContextFile,
-    build_system_prompt,
-    collect_prompt_guidelines,
-    format_available_tools,
-    format_guidelines,
-    format_project_context,
-    format_skills_for_prompt,
-)
-from baldric_coding.thinking import (
-    DEFAULT_THINKING_LEVEL,
-    THINKING_LEVELS,
-    ReasoningEffort,
-    ThinkingLevel,
-    ThinkingParameter,
-    normalize_thinking_levels,
-    reasoning_effort_for_level,
-)
-from baldric_coding.tools import (
+from baldric_coding.tools.registry import (
     ImageSupportState,
     ReadOperations,
     ToolDefinition,

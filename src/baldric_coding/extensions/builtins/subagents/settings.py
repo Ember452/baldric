@@ -24,7 +24,7 @@ import json
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 
 JOIN_MODES = ("async", "group", "smart")
 TRANSCRIPT_RETENTION_DAYS_DEFAULT: int | None = None

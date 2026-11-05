@@ -65,7 +65,7 @@ dependencies or provide package remove/update commands yet.
 ## Trusted built-in sources
 
 Baldric can declare product capabilities as `BuiltInExtension` values in
-`baldric_coding.built_in_extensions`. These call the same synchronous `setup(baldric)`
+`baldric_coding.extensions.builtin_registry`. These call the same synchronous `setup(baldric)`
 and use the same tool, command, provider, hook, and lifecycle APIs as filesystem
 extensions. Generic loading never branches on a capability's name.
 

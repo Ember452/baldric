@@ -12,7 +12,10 @@ import pytest
 
 from baldric_agent.harness import SimpleCancellationToken
 from baldric_ai.env import DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS
-from baldric_coding.credentials import FileCredentialStore
+from baldric_coding.auth.credentials import FileCredentialStore
+from baldric_coding.backends.contracts import LocalOperationContext, LocalProgress
+from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.context.resources import BaldricResourcePaths
 from baldric_coding.extensions import ExtensionRuntime
 from baldric_coding.extensions.builtins.llama_cpp import service as llama_service
 from baldric_coding.extensions.builtins.llama_cpp.huggingface import discover_hf_token
@@ -38,10 +41,7 @@ from baldric_coding.extensions.builtins.llama_cpp.state import (
     LlamaCppStoredModel,
 )
 from baldric_coding.extensions.providers import ProviderRefreshContext, ResolvedProviderAuth
-from baldric_coding.local_backends import LocalOperationContext, LocalProgress
-from baldric_coding.paths import BaldricPaths
-from baldric_coding.provider_runtime import create_dynamic_model_provider
-from baldric_coding.resources import BaldricResourcePaths
+from baldric_coding.providers.runtime import create_dynamic_model_provider
 from conftest import isolate_home
 
 pytestmark = pytest.mark.anyio
@@ -1507,12 +1507,12 @@ async def test_llama_scoped_reference_persists_pair_and_stays_inert_when_unloade
 ) -> None:
     from dataclasses import replace
 
-    from baldric_coding.provider_config import (
+    from baldric_coding.providers.config import (
         OpenAICompatibleProviderConfig,
         ProviderSettings,
         load_provider_settings,
     )
-    from baldric_coding.session import CodingSession, ModelChoice
+    from baldric_coding.session.session import CodingSession, ModelChoice
 
     paths = BaldricPaths(home=tmp_path / "baldric", agents_home=tmp_path / "agents")
     LlamaCppStateStore(paths=paths).save(_state())

@@ -47,7 +47,7 @@ usage and cost totals but do not enter the speed denominator.
 - `baldric_agent.messages.ResponseTiming` owns the provider-neutral wire shape.
 - `baldric_agent.loop` accumulates monotonic provider-await durations and attaches
   timing to the final assistant message.
-- `baldric_coding.session_stats` aggregates token-weighted TPS and arithmetic-mean TTFT.
+- `baldric_coding.session.stats` aggregates token-weighted TPS and arithmetic-mean TTFT.
 - `baldric_coding.tui.widgets` renders average TPS and average TTFT.
 
 No Textual dependency enters `baldric_agent`, and provider adapters need no custom

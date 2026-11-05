@@ -13,7 +13,7 @@ from typing import Literal, Protocol, cast
 
 import httpx
 
-import baldric_coding.built_in_extensions as built_in_extension_registry
+import baldric_coding.extensions.builtin_registry as built_in_extension_registry
 from baldric_agent.events import AgentEvent, AgentStartEvent
 from baldric_agent.events import TurnEndEvent as AgentTurnEndEvent
 from baldric_agent.events import TurnStartEvent as AgentTurnStartEvent
@@ -25,15 +25,18 @@ from baldric_agent.tools import (
     ToolUpdateCallback,
 )
 from baldric_agent.types import JSONValue
-from baldric_coding.built_in_extensions import BuiltInExtension, BuiltInExtensionContext
-from baldric_coding.commands import (
+from baldric_coding.auth.credentials import CredentialStore, FileCredentialStore, credentials_path
+from baldric_coding.backends.contracts import LocalBackend, LocalBackendRegistry
+from baldric_coding.commands.registry import (
     CommandContext,
     CommandRegistry,
     CommandResult,
     SlashCommand,
     create_default_command_registry,
 )
-from baldric_coding.credentials import CredentialStore, FileCredentialStore, credentials_path
+from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.context.resources import BaldricResourcePaths, ResourceDiagnostic
+from baldric_coding.context.system_prompt import PromptSection
 from baldric_coding.extensions.api import (
     AGENT_EVENT_TYPES,
     AGENT_EVENT_WILDCARD,
@@ -63,6 +66,7 @@ from baldric_coding.extensions.api import (
     TurnStartEvent,
     UiBridge,
 )
+from baldric_coding.extensions.builtin_registry import BuiltInExtension, BuiltInExtensionContext
 from baldric_coding.extensions.loader import (
     ExtensionSourceMetadata,
     LoadedExtension,
@@ -74,16 +78,12 @@ from baldric_coding.extensions.provider_registry import (
     ProviderRegistryCloseResult,
 )
 from baldric_coding.extensions.providers import CredentialReader, DynamicProvider
-from baldric_coding.local_backends import LocalBackend, LocalBackendRegistry
-from baldric_coding.paths import BaldricPaths
-from baldric_coding.project_trust import (
+from baldric_coding.providers.config import ProviderConfig
+from baldric_coding.trust.policy import (
     ExtensionTrustResult,
     ProjectTrustEvent,
     ProjectTrustResolution,
 )
-from baldric_coding.provider_config import ProviderConfig
-from baldric_coding.resources import BaldricResourcePaths, ResourceDiagnostic
-from baldric_coding.system_prompt import PromptSection
 
 # Host callback that delivers a message through the frontend's serialized run
 # path when the session is idle. Carries the same presentation metadata as a

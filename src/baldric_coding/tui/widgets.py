@@ -39,15 +39,15 @@ from textual.widgets._markdown import MarkdownParagraph  # not publicly re-expor
 from textual.widgets.markdown import MarkdownFence
 
 from baldric_agent.tools import AgentTool, ToolCall
-from baldric_coding.context_window import estimate_text_tokens
-from baldric_coding.prompt_templates import PromptTemplate
-from baldric_coding.session_stats import SessionStats
-from baldric_coding.skills import Skill
-from baldric_coding.system_prompt import (
+from baldric_coding.context.prompts import PromptTemplate
+from baldric_coding.context.skills.skills import Skill
+from baldric_coding.context.system_prompt import (
     ProjectContextFile,
     SystemPromptSource,
     format_skills_for_prompt,
 )
+from baldric_coding.session.compaction.context_window import estimate_text_tokens
+from baldric_coding.session.stats import SessionStats
 from baldric_coding.tui.autocomplete import CompletionState
 from baldric_coding.tui.config import BALDRIC_DARK_THEME, TuiRoleStyle, TuiTheme
 from baldric_coding.tui.state import (

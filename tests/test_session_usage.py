@@ -9,7 +9,7 @@ from baldric_agent import (
     UserMessage,
 )
 from baldric_agent.messages import Usage, UsageCost, assistant_content
-from baldric_coding.session_usage import USAGE_SCRIPT, collect_session_usage, render_usage_dashboard
+from baldric_coding.session.usage import USAGE_SCRIPT, collect_session_usage, render_usage_dashboard
 
 
 def _assistant(

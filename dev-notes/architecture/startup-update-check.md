@@ -4,7 +4,7 @@ Baldric now performs a small, best-effort update check in CLI startup paths that
 
 ## What was added
 
-- `baldric_coding.update_check` fetches PyPI metadata for the published package (`baldric`).
+- `baldric_coding.update.check` fetches PyPI metadata for the published package (`baldric`).
 - Versions are compared with `packaging.version.Version` so PEP 440 releases sort correctly.
 - The result is cached under `~/.baldric/cache/update-check.json` and refreshed at most once per day.
 - Failures are quiet no-ops: network errors, malformed JSON, missing fields, and invalid versions do not stop startup.

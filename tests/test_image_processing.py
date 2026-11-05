@@ -3,8 +3,8 @@ from io import BytesIO
 import pytest
 from PIL import Image
 
-import baldric_coding.image_processing as image_processing
-from baldric_coding.image_processing import (
+import baldric_coding.tools.image_processing as image_processing
+from baldric_coding.tools.image_processing import (
     ImageProcessingFailure,
     ProcessedImage,
     detect_supported_image_mime_type,

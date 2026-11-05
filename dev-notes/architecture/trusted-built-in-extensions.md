@@ -12,7 +12,7 @@ The declaration is intentionally small:
 BuiltInExtension(name="capability", setup=setup, hidden=True)
 ```
 
-Declarations live in `baldric_coding.built_in_extensions.BUILT_IN_EXTENSIONS`.
+Declarations live in `baldric_coding.extensions.builtin_registry.BUILT_IN_EXTENSIONS`.
 Later phases can add product capabilities to that tuple without teaching the
 loader their names. The Phase 2 production tuple is empty; deterministic tests
 inject a minimal fake declaration.

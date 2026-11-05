@@ -11,30 +11,30 @@ from baldric_ai import (
 )
 from baldric_coding import CodingSessionRecord, SessionManager, cli
 from baldric_coding.cli import app, run_print_mode
-from baldric_coding.extensions import ExtensionRuntime
-from baldric_coding.paths import BaldricPaths
-from baldric_coding.provider_config import (
-    OpenAICompatibleProviderConfig,
-    ProviderSettings,
-    load_provider_settings,
-)
-from baldric_coding.rendering import PrintOutputMode
-from baldric_coding.resources import BaldricResourcePaths
-from baldric_coding.skills import load_skills
-from baldric_coding.system_prompt import (
+from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.context.resources import BaldricResourcePaths
+from baldric_coding.context.skills.skills import load_skills
+from baldric_coding.context.system_prompt import (
     BuildSystemPromptOptions,
     build_system_prompt,
     build_system_prompt_inspection,
     format_system_prompt_inspection,
 )
-from baldric_coding.tools import create_coding_tools
-from baldric_coding.update_check import (
+from baldric_coding.extensions import ExtensionRuntime
+from baldric_coding.providers.config import (
+    OpenAICompatibleProviderConfig,
+    ProviderSettings,
+    load_provider_settings,
+)
+from baldric_coding.rendering import PrintOutputMode
+from baldric_coding.tools.registry import create_coding_tools
+from baldric_coding.update.check import (
     ReleaseNoteSection,
     ReleaseNotesEntry,
     ReleaseNotesNotice,
     UpdateNotice,
 )
-from baldric_coding.updater import UpdateResult
+from baldric_coding.update.updater import UpdateResult
 from conftest import isolate_home
 from pi_event_helpers import assistant_done, assistant_error, assistant_start, text_delta
 

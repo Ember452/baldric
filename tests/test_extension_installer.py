@@ -5,13 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from baldric_coding.extension_installer import (
+from baldric_coding.context.resources import BaldricResourcePaths
+from baldric_coding.extensions import discover_extensions
+from baldric_coding.extensions.installer import (
     ExtensionInstallError,
     install_extension,
     parse_git_extension_source,
 )
-from baldric_coding.extensions import discover_extensions
-from baldric_coding.resources import BaldricResourcePaths
 
 
 def test_install_local_extension_file_is_discovered(tmp_path: Path) -> None:

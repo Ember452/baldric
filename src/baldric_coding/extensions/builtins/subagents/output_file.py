@@ -27,7 +27,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 
 _SECONDS_PER_DAY = 86_400
 

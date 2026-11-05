@@ -28,9 +28,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from baldric_agent.messages import AgentMessage
-from baldric_coding.paths import BaldricPaths
-from baldric_coding.resources import BaldricResourcePaths
-from baldric_coding.skills import format_skill_invocation, load_skills
+from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.context.resources import BaldricResourcePaths
+from baldric_coding.context.skills.skills import format_skill_invocation, load_skills
 
 if TYPE_CHECKING:
     from .agents import AgentDefinition

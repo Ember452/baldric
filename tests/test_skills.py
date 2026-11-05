@@ -12,7 +12,7 @@ from baldric_coding import (
     load_skills_with_diagnostics,
     parse_skill_invocation,
 )
-from baldric_coding.resources import ResourceError
+from baldric_coding.context.resources import ResourceError
 
 
 def test_load_skills_does_not_include_baldric_self_knowledge(tmp_path: Path) -> None:

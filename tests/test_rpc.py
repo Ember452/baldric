@@ -27,7 +27,7 @@ from baldric_coding import (
     SessionManager,
 )
 from baldric_coding import cli as cli_module
-from baldric_coding.provider_config import ProviderModelMetadata
+from baldric_coding.providers.config import ProviderModelMetadata
 from baldric_coding.rpc import RpcServer
 from pi_event_helpers import assistant_done, assistant_start, text_delta
 

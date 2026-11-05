@@ -13,7 +13,7 @@ from types import SimpleNamespace
 import pytest
 
 from baldric_ai import FakeProvider
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 
 # Reuse the runtime/provider fakes and helpers from the main test module.
 from test_subagents_extension import (

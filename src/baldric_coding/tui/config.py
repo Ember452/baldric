@@ -7,8 +7,8 @@ from json import dumps, loads
 from pathlib import Path
 from typing import Any, Literal, cast
 
-from baldric_coding.paths import BaldricPaths
-from baldric_coding.tui.themes import (
+from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.rendering.themes import (
     BALDRIC_DARK_THEME,
     BALDRIC_LIGHT_THEME,
     BUILTIN_TUI_THEME_NAMES,

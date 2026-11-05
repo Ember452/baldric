@@ -2,7 +2,7 @@ from stat import S_IMODE
 
 import pytest
 
-from baldric_coding.credentials import CredentialStoreError, FileCredentialStore, OAuthCredential
+from baldric_coding.auth.credentials import CredentialStoreError, FileCredentialStore, OAuthCredential
 
 
 def test_file_credential_store_round_trips_and_sets_private_permissions(tmp_path) -> None:

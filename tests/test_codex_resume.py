@@ -15,9 +15,9 @@ from baldric_coding import (
     OpenAICodexProviderConfig,
     ProviderSettings,
 )
-from baldric_coding import session as session_module
-from baldric_coding.paths import BaldricPaths
-from baldric_coding.session_manager import SessionManager
+from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.session import session as session_module
+from baldric_coding.session.manager import SessionManager
 from baldric_coding.tui import app as tui_app
 
 

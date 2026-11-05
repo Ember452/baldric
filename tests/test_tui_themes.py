@@ -5,9 +5,8 @@ from typing import Any
 
 import pytest
 
-from baldric_coding.resources import BaldricResourcePaths
-from baldric_coding.tui.config import TuiSettings
-from baldric_coding.tui.themes import (
+from baldric_coding.context.resources import BaldricResourcePaths
+from baldric_coding.rendering.themes import (
     BALDRIC_DARK_THEME,
     BALDRIC_LIGHT_THEME,
     BUILTIN_TUI_THEME_NAMES,
@@ -21,6 +20,7 @@ from baldric_coding.tui.themes import (
     set_custom_tui_themes,
     theme_css_variables,
 )
+from baldric_coding.tui.config import TuiSettings
 
 
 @pytest.fixture(autouse=True)
@@ -221,8 +221,8 @@ def test_parse_theme_rejects_var_values_that_are_not_colors() -> None:
 
 
 def test_transcript_roles_are_shared_with_tui_state() -> None:
+    from baldric_coding.rendering.themes import TranscriptRole
     from baldric_coding.tui.state import ChatItemRole
-    from baldric_coding.tui.themes import TranscriptRole
 
     assert ChatItemRole is TranscriptRole
 

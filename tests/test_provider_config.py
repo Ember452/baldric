@@ -3,11 +3,12 @@ from pathlib import Path
 
 import pytest
 
-import baldric_coding.provider_config as provider_config
-from baldric_coding.credentials import FileCredentialStore, OAuthCredential
-from baldric_coding.paths import BaldricPaths
-from baldric_coding.provider_catalog import ModelCostTier
-from baldric_coding.provider_config import (
+import baldric_coding.providers.config as provider_config
+from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
+from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.context.thinking import ThinkingLevel
+from baldric_coding.providers.catalog import ModelCostTier
+from baldric_coding.providers.config import (
     DEFAULT_MODEL,
     AnthropicProviderConfig,
     OpenAICodexProviderConfig,
@@ -33,7 +34,6 @@ from baldric_coding.provider_config import (
     set_provider_thinking_level,
     upsert_openai_compatible_provider,
 )
-from baldric_coding.thinking import ThinkingLevel
 
 
 def test_stale_preferences_cannot_restore_removed_codex_alias(tmp_path: Path) -> None:

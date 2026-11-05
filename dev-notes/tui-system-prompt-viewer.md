@@ -25,7 +25,7 @@ Markup tags are protected from Markdown's HTML handling and rendered as inline c
 
 ## Architecture
 
-The behavior stays in `baldric_coding.tui`: slash-command semantics remain in `baldric_coding.commands`, while the Textual frontend chooses how local command output is presented. The prompt itself remains owned by `CodingSession` and is never added to `TuiState` as a model message.
+The behavior stays in `baldric_coding.tui`: slash-command semantics remain in `baldric_coding.commands.registry`, while the Textual frontend chooses how local command output is presented. The prompt itself remains owned by `CodingSession` and is never added to `TuiState` as a model message.
 
 ## Testing
 

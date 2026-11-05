@@ -28,8 +28,8 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, TypeVar
 
-from baldric_coding.paths import BaldricPaths
-from baldric_coding.session_manager import validate_session_id
+from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.session.manager import validate_session_id
 
 STORE_VERSION = 1
 _LOCK_RETRY_SECONDS = 0.05

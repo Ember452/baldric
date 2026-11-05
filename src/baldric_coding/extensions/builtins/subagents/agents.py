@@ -27,9 +27,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from baldric_coding.paths import BaldricPaths
-from baldric_coding.resources import parse_markdown_resource
-from baldric_coding.thinking import THINKING_LEVELS
+from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.context.resources import parse_markdown_resource
+from baldric_coding.context.thinking import THINKING_LEVELS
 
 
 @dataclass(frozen=True, slots=True)

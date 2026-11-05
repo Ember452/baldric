@@ -10,7 +10,7 @@ Baldric supports user and project resources under both `.baldric` and `.agents`.
 
 ## Architecture
 
-Resource discovery and precedence remain in `baldric_coding.skills` and `baldric_coding.prompt_templates`. The Textual adapter formats relevant `ResourceDiagnostic` values and adds display-only alert items. No TUI behavior enters `baldric_agent`.
+Resource discovery and precedence remain in `baldric_coding.context.skills.skills` and `baldric_coding.context.prompts`. The Textual adapter formats relevant `ResourceDiagnostic` values and adds display-only alert items. No TUI behavior enters `baldric_agent`.
 
 ## Verification
 

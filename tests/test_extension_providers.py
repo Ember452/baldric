@@ -13,7 +13,6 @@ import pytest
 from baldric_agent import UserMessage
 from baldric_ai import OpenAICompatibleProvider
 from baldric_coding import BaldricResourcePaths
-from baldric_coding.diagnostics import AgentCallDiagnosticContext, AgentCallDiagnosticLogger
 from baldric_coding.extensions import (
     DynamicProvider,
     DynamicProviderError,
@@ -34,12 +33,13 @@ from baldric_coding.extensions.provider_registry import (
     MAX_PROVIDER_REFRESH_DIAGNOSTICS,
     PROVIDER_DISCOVERY_CANCELLATION_TIMEOUT_SECONDS,
 )
-from baldric_coding.provider_config import (
+from baldric_coding.observability.diagnostics import AgentCallDiagnosticContext, AgentCallDiagnosticLogger
+from baldric_coding.providers.config import (
     OpenAICompatibleProviderConfig,
     ProviderConfigError,
     ProviderModelMetadata,
 )
-from baldric_coding.provider_runtime import create_dynamic_model_provider
+from baldric_coding.providers.runtime import create_dynamic_model_provider
 
 pytestmark = pytest.mark.anyio
 
@@ -1413,8 +1413,8 @@ async def test_dynamic_provider_operations_never_call_durable_write_paths(
     def reject_write(*args, **kwargs):
         raise AssertionError(f"durable provider write attempted: {args!r} {kwargs!r}")
 
-    monkeypatch.setattr("baldric_coding.provider_config._write_provider_settings", reject_write)
-    monkeypatch.setattr("baldric_coding.provider_config.save_user_catalog_entries", reject_write)
+    monkeypatch.setattr("baldric_coding.providers.config._write_provider_settings", reject_write)
+    monkeypatch.setattr("baldric_coding.providers.config.save_user_catalog_entries", reject_write)
 
     async def refresh(context):
         return ProviderModelSnapshot((ProviderModel("fresh"),), "fresh")

@@ -56,9 +56,18 @@ from baldric_agent import (
 )
 from baldric_agent.messages import assistant_content
 from baldric_agent.provider_events import TextDeltaEvent, ThinkingDeltaEvent, ThinkingEndEvent
-from baldric_coding.catalog_loader import user_catalog_path
-from baldric_coding.commands import CommandResult, format_resource_diagnostics
-from baldric_coding.credentials import FileCredentialStore, OAuthCredential
+from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
+from baldric_coding.commands.registry import CommandResult, format_resource_diagnostics
+from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.context.prompts import PromptTemplate
+from baldric_coding.context.resources import ResourceDiagnostic
+from baldric_coding.context.skills.skills import Skill, format_skill_invocation
+from baldric_coding.context.system_prompt import (
+    ProjectContextFile,
+    SystemPromptInspection,
+    SystemPromptSource,
+    format_system_prompt_inspection,
+)
 from baldric_coding.events import (
     AgentSettledEvent,
     CodingSessionEvent,
@@ -80,9 +89,7 @@ from baldric_coding.extensions import (
     OpenAICompatibleTransport,
     ProviderModel,
 )
-from baldric_coding.paths import BaldricPaths
-from baldric_coding.prompt_templates import PromptTemplate
-from baldric_coding.provider_config import (
+from baldric_coding.providers.config import (
     OpenAICodexProviderConfig,
     OpenAICompatibleProviderConfig,
     ProviderSelection,
@@ -90,23 +97,16 @@ from baldric_coding.provider_config import (
     ScopedModelConfig,
     save_provider_settings,
 )
-from baldric_coding.resources import ResourceDiagnostic
-from baldric_coding.session import (
+from baldric_coding.providers.loader import user_catalog_path
+from baldric_coding.session.manager import CodingSessionRecord
+from baldric_coding.session.session import (
     ModelChoice,
     SessionTreeBranchResult,
     SessionTreeChoice,
     TerminalCommandResult,
 )
-from baldric_coding.session_manager import CodingSessionRecord
-from baldric_coding.session_stats import SessionStats
-from baldric_coding.skills import Skill, format_skill_invocation
-from baldric_coding.system_prompt import (
-    ProjectContextFile,
-    SystemPromptInspection,
-    SystemPromptSource,
-    format_system_prompt_inspection,
-)
-from baldric_coding.tools import create_coding_tools
+from baldric_coding.session.stats import SessionStats
+from baldric_coding.tools.registry import create_coding_tools
 from baldric_coding.tui import app as tui_app
 from baldric_coding.tui.adapter import TuiEventAdapter
 from baldric_coding.tui.app import (
@@ -149,6 +149,7 @@ from baldric_coding.tui.app import (
     _visible_completion_state,
 )
 from baldric_coding.tui.autocomplete import CompletionItem, CompletionKind, CompletionState
+from baldric_coding.tui.backends import LocalBackendScreen, LocalConfirmScreen
 from baldric_coding.tui.config import (
     BALDRIC_DARK_THEME,
     BALDRIC_LIGHT_THEME,
@@ -158,7 +159,6 @@ from baldric_coding.tui.config import (
     TuiTheme,
     tui_settings_path,
 )
-from baldric_coding.tui.local_backends import LocalBackendScreen, LocalConfirmScreen
 from baldric_coding.tui.state import ChatItem, TuiState
 from baldric_coding.tui.terminal_notification import TerminalNotificationController
 from baldric_coding.tui.terminal_title import RUNNING_TITLE_FRAMES, TerminalTitleController
@@ -5148,7 +5148,7 @@ def test_tui_app_uses_configured_theme_css_variables() -> None:
 
 
 def test_tui_app_registers_and_applies_custom_theme() -> None:
-    from baldric_coding.tui.themes import (
+    from baldric_coding.rendering.themes import (
         THEME_COLOR_FIELDS,
         TRANSCRIPT_ROLES,
         parse_tui_theme_json,
@@ -5174,7 +5174,7 @@ def test_tui_app_registers_and_applies_custom_theme() -> None:
 async def test_tui_app_removes_source_project_themes_after_resume(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from baldric_coding.tui.themes import (
+    from baldric_coding.rendering.themes import (
         THEME_COLOR_FIELDS,
         TRANSCRIPT_ROLES,
         available_tui_theme_names,

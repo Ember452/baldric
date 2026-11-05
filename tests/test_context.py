@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from baldric_coding.context import discover_project_context
-from baldric_coding.paths import BaldricPaths
-from baldric_coding.resources import BaldricResourcePaths
+from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.context.project import discover_project_context
+from baldric_coding.context.resources import BaldricResourcePaths
 
 
 def test_discovers_user_project_and_agents_context_files(tmp_path: Path) -> None:
