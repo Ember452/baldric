@@ -268,6 +268,44 @@ value than moving to the 9k-line TUI app; Task 7 is the next high-value target.
 - **Remaining:** transcript/markdown `core.py` still 2.4k lines; further split would
   need cross-cutting helpers and is deferred.
 
+## Phase 2 closure
+
+**Final verification (branch `refactor/layout-phase-2`, not merged):**
+
+| Check | Result |
+|---|---|
+| Full pytest | `2355 passed, 122 skipped in 224.58s` |
+| Public API | `baldric_coding` 139 / `baldric_ai` 37 / `baldric_agent` 56 |
+| Import graph | `import-graph: OK` |
+| ruff / format | pass (306 files formatted) |
+| mypy | 14 baseline Windows `fcntl` errors / 2 files, no new errors |
+| Wheel | `baldric-0.2.1-py3-none-any.whl`; new subpackages present |
+
+**Final structural result:**
+
+- `session/session.py` 5,224 → 2,216 lines, with runtime/model-selection/lifecycle/
+  tree/provider/resource helpers separated.
+- `providers/config.py` 2,545 lines → layered package.
+- `commands/registry.py` 940 lines → base/core/session/resources/config/formatting.
+- `tools/registry.py` 1,230 lines → base + one module per tool.
+- `session/export.py` 1,936 lines → writer/html/jsonl package (render internals
+  partially deferred).
+- `tui/app.py` 9,106 → 6,207 lines; 33 screens + support in `tui/screens/`.
+- `tui/widgets.py` 3,351 lines → `core.py` + `sidebar.py` package.
+
+**Deliberately deferred:**
+
+- Task 9 `cli.py` mode split: tests patch many `cli` globals directly; the
+  compatibility plumbing would cost more than the ~450-line reduction currently
+  justifies.
+- Task 10 optional extension internals: lower maintenance value.
+- Task 11 large test-tree mirroring/examples cleanup: separate follow-up after the
+  source layout stabilizes.
+
+**Merge policy for this branch:** intentionally **not merged to `main`**; kept as a
+reviewable branch/PR per user instruction.
+
+
 
 
 
