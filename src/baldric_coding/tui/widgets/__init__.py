@@ -11,18 +11,6 @@ from baldric_coding.tui.widgets.core import (
     _HIDDEN_THINKING_PLACEHOLDER as _HIDDEN_THINKING_PLACEHOLDER,
 )
 from baldric_coding.tui.widgets.core import (
-    _SYSTEM_PROMPT_FENCE_PATTERN as _SYSTEM_PROMPT_FENCE_PATTERN,
-)
-from baldric_coding.tui.widgets.core import (
-    _SYSTEM_PROMPT_INDENTED_CODE_PATTERN as _SYSTEM_PROMPT_INDENTED_CODE_PATTERN,
-)
-from baldric_coding.tui.widgets.core import (
-    _SYSTEM_PROMPT_TAG_PATTERN as _SYSTEM_PROMPT_TAG_PATTERN,
-)
-from baldric_coding.tui.widgets.core import (
-    _SYSTEM_PROMPT_URI_AUTOLINK_PATTERN as _SYSTEM_PROMPT_URI_AUTOLINK_PATTERN,
-)
-from baldric_coding.tui.widgets.core import (
     _TOOL_GROUP_INVOCATION_PATTERN as _TOOL_GROUP_INVOCATION_PATTERN,
 )
 from baldric_coding.tui.widgets.core import (
@@ -38,15 +26,6 @@ from baldric_coding.tui.widgets.core import (
     TRANSCRIPT_WINDOW_PAGE_ITEMS as TRANSCRIPT_WINDOW_PAGE_ITEMS,
 )
 from baldric_coding.tui.widgets.core import (
-    BaldricMarkdownBlock as BaldricMarkdownBlock,
-)
-from baldric_coding.tui.widgets.core import (
-    BaldricMarkdownFence as BaldricMarkdownFence,
-)
-from baldric_coding.tui.widgets.core import (
-    LeftAlignedMarkdownHeading as LeftAlignedMarkdownHeading,
-)
-from baldric_coding.tui.widgets.core import (
     StreamingTranscriptMessageWidget as StreamingTranscriptMessageWidget,
 )
 from baldric_coding.tui.widgets.core import (
@@ -54,15 +33,6 @@ from baldric_coding.tui.widgets.core import (
 )
 from baldric_coding.tui.widgets.core import (
     SystemPromptSourcesWidget as SystemPromptSourcesWidget,
-)
-from baldric_coding.tui.widgets.core import (
-    ThemedCodeBlock as ThemedCodeBlock,
-)
-from baldric_coding.tui.widgets.core import (
-    ThemedMarkdown as ThemedMarkdown,
-)
-from baldric_coding.tui.widgets.core import (
-    ThemedMarkdownWidget as ThemedMarkdownWidget,
 )
 from baldric_coding.tui.widgets.core import (
     TranscriptLine as TranscriptLine,
@@ -78,12 +48,6 @@ from baldric_coding.tui.widgets.core import (
 )
 from baldric_coding.tui.widgets.core import (
     TranscriptWindowBoundary as TranscriptWindowBoundary,
-)
-from baldric_coding.tui.widgets.core import (
-    _append_plain as _append_plain,
-)
-from baldric_coding.tui.widgets.core import (
-    _backtick_run_end as _backtick_run_end,
 )
 from baldric_coding.tui.widgets.core import (
     _bash_row_is_description_only as _bash_row_is_description_only,
@@ -107,55 +71,16 @@ from baldric_coding.tui.widgets.core import (
     _custom_selection_text as _custom_selection_text,
 )
 from baldric_coding.tui.widgets.core import (
-    _escape_plain_markdown_line as _escape_plain_markdown_line,
-)
-from baldric_coding.tui.widgets.core import (
     _extract_text_selection as _extract_text_selection,
-)
-from baldric_coding.tui.widgets.core import (
-    _fence_language as _fence_language,
-)
-from baldric_coding.tui.widgets.core import (
-    _find_backtick_closer as _find_backtick_closer,
-)
-from baldric_coding.tui.widgets.core import (
-    _has_unclosed_fence as _has_unclosed_fence,
 )
 from baldric_coding.tui.widgets.core import (
     _identity_index as _identity_index,
 )
 from baldric_coding.tui.widgets.core import (
-    _is_system_prompt_fence_close as _is_system_prompt_fence_close,
-)
-from baldric_coding.tui.widgets.core import (
     _last_transcript_child_is_hidden_thinking_placeholder as _last_transcript_child_is_hidden_thinking_placeholder,  # noqa: E501
 )
 from baldric_coding.tui.widgets.core import (
-    _markdown_highlight_style as _markdown_highlight_style,
-)
-from baldric_coding.tui.widgets.core import (
-    _markdown_inline_code_style as _markdown_inline_code_style,
-)
-from baldric_coding.tui.widgets.core import (
-    _markdown_theme as _markdown_theme,
-)
-from baldric_coding.tui.widgets.core import (
-    _plain_markdown as _plain_markdown,
-)
-from baldric_coding.tui.widgets.core import (
-    _plain_text as _plain_text,
-)
-from baldric_coding.tui.widgets.core import (
-    _position_in_ranges as _position_in_ranges,
-)
-from baldric_coding.tui.widgets.core import (
-    _protected_range_end as _protected_range_end,
-)
-from baldric_coding.tui.widgets.core import (
     _render_chat_body as _render_chat_body,
-)
-from baldric_coding.tui.widgets.core import (
-    _render_fenced_body as _render_fenced_body,
 )
 from baldric_coding.tui.widgets.core import (
     _render_patch_body as _render_patch_body,
@@ -182,28 +107,7 @@ from baldric_coding.tui.widgets.core import (
     _styled_tool_invocation as _styled_tool_invocation,
 )
 from baldric_coding.tui.widgets.core import (
-    _syntax_language as _syntax_language,
-)
-from baldric_coding.tui.widgets.core import (
-    _system_prompt_fenced_ranges as _system_prompt_fenced_ranges,
-)
-from baldric_coding.tui.widgets.core import (
-    _system_prompt_indented_code_ranges as _system_prompt_indented_code_ranges,
-)
-from baldric_coding.tui.widgets.core import (
-    _system_prompt_inline_code_ranges as _system_prompt_inline_code_ranges,
-)
-from baldric_coding.tui.widgets.core import (
-    _system_prompt_markdown as _system_prompt_markdown,
-)
-from baldric_coding.tui.widgets.core import (
-    _system_prompt_protected_ranges as _system_prompt_protected_ranges,
-)
-from baldric_coding.tui.widgets.core import (
     _system_prompt_source_color as _system_prompt_source_color,
-)
-from baldric_coding.tui.widgets.core import (
-    _system_prompt_uri_autolink_ranges as _system_prompt_uri_autolink_ranges,
 )
 from baldric_coding.tui.widgets.core import (
     _tool_accent_style as _tool_accent_style,
@@ -237,6 +141,102 @@ from baldric_coding.tui.widgets.core import (
 )
 from baldric_coding.tui.widgets.core import (
     transcript_item_selection_text as transcript_item_selection_text,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _SYSTEM_PROMPT_FENCE_PATTERN as _SYSTEM_PROMPT_FENCE_PATTERN,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _SYSTEM_PROMPT_INDENTED_CODE_PATTERN as _SYSTEM_PROMPT_INDENTED_CODE_PATTERN,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _SYSTEM_PROMPT_TAG_PATTERN as _SYSTEM_PROMPT_TAG_PATTERN,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _SYSTEM_PROMPT_URI_AUTOLINK_PATTERN as _SYSTEM_PROMPT_URI_AUTOLINK_PATTERN,
+)
+from baldric_coding.tui.widgets.markdown import (
+    BaldricMarkdownBlock as BaldricMarkdownBlock,
+)
+from baldric_coding.tui.widgets.markdown import (
+    BaldricMarkdownFence as BaldricMarkdownFence,
+)
+from baldric_coding.tui.widgets.markdown import (
+    LeftAlignedMarkdownHeading as LeftAlignedMarkdownHeading,
+)
+from baldric_coding.tui.widgets.markdown import (
+    ThemedCodeBlock as ThemedCodeBlock,
+)
+from baldric_coding.tui.widgets.markdown import (
+    ThemedMarkdown as ThemedMarkdown,
+)
+from baldric_coding.tui.widgets.markdown import (
+    ThemedMarkdownWidget as ThemedMarkdownWidget,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _append_plain as _append_plain,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _backtick_run_end as _backtick_run_end,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _escape_plain_markdown_line as _escape_plain_markdown_line,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _fence_language as _fence_language,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _find_backtick_closer as _find_backtick_closer,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _has_unclosed_fence as _has_unclosed_fence,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _is_system_prompt_fence_close as _is_system_prompt_fence_close,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _markdown_highlight_style as _markdown_highlight_style,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _markdown_inline_code_style as _markdown_inline_code_style,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _markdown_theme as _markdown_theme,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _plain_markdown as _plain_markdown,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _plain_text as _plain_text,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _position_in_ranges as _position_in_ranges,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _protected_range_end as _protected_range_end,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _render_fenced_body as _render_fenced_body,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _syntax_language as _syntax_language,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _system_prompt_fenced_ranges as _system_prompt_fenced_ranges,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _system_prompt_indented_code_ranges as _system_prompt_indented_code_ranges,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _system_prompt_inline_code_ranges as _system_prompt_inline_code_ranges,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _system_prompt_markdown as _system_prompt_markdown,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _system_prompt_protected_ranges as _system_prompt_protected_ranges,
+)
+from baldric_coding.tui.widgets.markdown import (
+    _system_prompt_uri_autolink_ranges as _system_prompt_uri_autolink_ranges,
 )
 from baldric_coding.tui.widgets.prompt_input import (
     PASTE_DISPLAY_THRESHOLD as PASTE_DISPLAY_THRESHOLD,
@@ -417,6 +417,38 @@ from baldric_coding.tui.widgets.sidebar import (
 )
 
 __all__ = [
+    "BaldricMarkdownBlock",
+    "BaldricMarkdownFence",
+    "LeftAlignedMarkdownHeading",
+    "ThemedCodeBlock",
+    "ThemedMarkdown",
+    "ThemedMarkdownWidget",
+    "_SYSTEM_PROMPT_FENCE_PATTERN",
+    "_SYSTEM_PROMPT_INDENTED_CODE_PATTERN",
+    "_SYSTEM_PROMPT_TAG_PATTERN",
+    "_SYSTEM_PROMPT_URI_AUTOLINK_PATTERN",
+    "_append_plain",
+    "_backtick_run_end",
+    "_escape_plain_markdown_line",
+    "_fence_language",
+    "_find_backtick_closer",
+    "_has_unclosed_fence",
+    "_is_system_prompt_fence_close",
+    "_markdown_highlight_style",
+    "_markdown_inline_code_style",
+    "_markdown_theme",
+    "_plain_markdown",
+    "_plain_text",
+    "_position_in_ranges",
+    "_protected_range_end",
+    "_render_fenced_body",
+    "_syntax_language",
+    "_system_prompt_fenced_ranges",
+    "_system_prompt_indented_code_ranges",
+    "_system_prompt_inline_code_ranges",
+    "_system_prompt_markdown",
+    "_system_prompt_protected_ranges",
+    "_system_prompt_uri_autolink_ranges",
     "PASTE_DISPLAY_THRESHOLD",
     "CompletionActionTarget",
     "PromptInput",
@@ -425,7 +457,6 @@ __all__ = [
     "_key_hint",
     "_prompt_bindings",
     "_terminal_command_prefix_span",
-
     "BALDRIC_SIDEBAR_LOGO",
     "SIDEBAR_BULLET_LIST_LIMIT",
     "SIDEBAR_COMMA_LIST_MAX_LINES",

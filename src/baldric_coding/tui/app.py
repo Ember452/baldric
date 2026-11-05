@@ -606,12 +606,6 @@ class _DeadMainViewHandle:
         return False
 
 
-
-
-
-
-
-
 #: Keys an extension key interceptor is never consulted for. These flow
 #: straight to normal dispatch so a buggy interceptor (one that returns True
 #: too broadly) cannot swallow the session's hard interrupt/exit reflexes and
@@ -4898,8 +4892,6 @@ def _is_user_message_end_event(event: CodingSessionEvent) -> bool:
     return isinstance(event, MessageEndEvent) and isinstance(event.message, (UserMessage, CustomMessage))
 
 
-
-
 def _blend_hex_colors(start: str, end: str, *, fraction: float) -> str:
     """Blend two ``#rrggbb`` colors by ``fraction``."""
     start_rgb = _hex_to_rgb(start)
@@ -5191,8 +5183,6 @@ def _command_output_title(command_text: str) -> str:
     return f"/{command_name or 'help'}"
 
 
-
-
 def _render_queued_messages(state: TuiState, *, theme: TuiTheme) -> Group:
     """Render queued prompts stacked above the prompt input."""
     rows: list[Text] = []
@@ -5226,8 +5216,6 @@ def _prompt_footer_mode(
     if working:
         return "running"
     return "normal"
-
-
 
 
 def _app_bindings(keybindings: TuiKeybindings) -> list[Binding]:
@@ -5272,10 +5260,6 @@ def _app_bindings(keybindings: TuiKeybindings) -> list[Binding]:
         Binding(keybindings.copy_message, "clear_prompt", "Copy/Clear"),
         Binding(keybindings.quit, "quit", "Quit"),
     ]
-
-
-
-
 
 
 def _text_end_location(text: str) -> tuple[int, int]:
