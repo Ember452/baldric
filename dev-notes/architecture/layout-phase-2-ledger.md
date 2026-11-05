@@ -44,3 +44,37 @@ Phase 1 ledger: `dev-notes/architecture/layout-migration-log.md`
   `14 errors in 2 files (checked 164 source files)` (same baseline errors);
   ruff/format pass.
 - **Next:** Task 2 `commands/registry.py` split (Wave 2A).
+
+## Task 2 — `commands/registry.py` → domain modules
+
+- **Commit:** `0e203f5` `refactor(layout): split commands registry into modules`
+- **Structure:** `commands/base.py` (types/`CommandRegistry`), `core.py`
+  (lifecycle/export/status/help), `session.py` (resume/tree/name),
+  `resources.py` (skills/prompts/context/diagnostics/system), `config.py`
+  (model/thinking/theme/local/login/logout), `formatting.py` (diagnostics/reload/session),
+  `registry.py` (only `create_default_command_registry` + re-exports).
+- **Independent deviation:** not one file per every tiny command; grouped by domain
+  to avoid 20 boilerplate files. The registry remains the single public import path.
+- **Checks:** `tests/test_commands.py` + `test_prompt_templates.py` +
+  `test_tui_autocomplete.py` → `116 passed`; broader consumers
+  (`test_extensions.py`, `test_cli.py`, `test_coding_session.py`) → `418 passed, 21 skipped`.
+  `import baldric_coding.commands.registry` re-exports the original public names and
+  registers 23 commands; ruff/format pass.
+
+## Task 3 — `tools/registry.py` → base + per-tool modules
+
+- **Commit:** `9f8e935` `refactor(layout): split tools registry into modules`
+- **Structure:** `tools/base.py` (constants/types/arg + file-lock primitives),
+  `output_accumulator.py`, `truncate.py`, `read.py`, `write.py`, `edit.py`,
+  `bash.py`, and `registry.py` (only `create_coding_tools` + re-exports).
+- **Checks:** `tests/test_coding_tools.py` + `test_tool_arguments.py` +
+  `test_tool_history.py` → `48 passed, 8 skipped`; with `test_image_processing.py`
+  → `64 passed, 8 skipped`; import smoke (`create_coding_tools`, `ToolInputError`) OK;
+  `ruff`/format pass; mypy `14 errors in 2 files (checked 177 source files)`
+  (same baseline Windows `fcntl` errors).
+- **Note:** kept `asyncio` imported in `tools/registry.py` because
+  `tests/test_coding_tools.py` monkeypatches `tools_module.asyncio.to_thread`
+  (checked: test passes).
+
+**Batch 2A end full suite:** `2355 passed, 122 skipped in 242.56s` — 0 failed.
+
