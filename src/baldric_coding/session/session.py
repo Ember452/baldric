@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import string
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field, replace
@@ -29,7 +28,6 @@ from baldric_agent.session import (
     CompactionEntry,
     CustomEntry,
     CustomMessageEntry,
-    JsonlSessionStorage,
     LabelEntry,
     MessageEntry,
     ModelChangeEntry,
@@ -39,36 +37,29 @@ from baldric_agent.session import (
     ThinkingLevelChangeEntry,
 )
 from baldric_agent.session.entries import SessionEntry
-from baldric_agent.session.jsonl import entry_to_json_line
-from baldric_agent.session.tree import SessionTreeError, path_to_entry
-from baldric_agent.tool_history import ToolHistoryRepair, repair_tool_history
+from baldric_agent.tool_history import ToolHistoryRepair
 from baldric_agent.tools import AgentTool
 from baldric_agent.types import JSONValue
-from baldric_ai.model_catalog import ModelCatalogProvider, RuntimeModel, RuntimeModelCatalog
+from baldric_ai.model_catalog import ModelCatalogProvider, RuntimeModelCatalog
 from baldric_ai.model_limits import ModelLimitsProvider, RuntimeModelLimits
 from baldric_coding.auth.credentials import FileCredentialStore, credentials_path
-from baldric_coding.auth.oauth import account_id_from_access_token
 from baldric_coding.commands.registry import CommandRegistry, CommandResult, create_default_command_registry
 from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.context.project import discover_project_context_with_diagnostics
 from baldric_coding.context.prompts import (
     PromptTemplate,
     expand_prompt_template_command,
-    load_prompt_templates_with_diagnostics,
 )
 from baldric_coding.context.resources import (
     BaldricResourcePaths,
     ResourceDiagnostic,
     ResourceError,
-    discover_system_prompt_resources,
     resource_paths_with_cwd,
     resource_paths_with_project_trust,
 )
-from baldric_coding.context.skills.skills import Skill, expand_skill_command, load_skills_with_diagnostics
+from baldric_coding.context.skills.skills import Skill, expand_skill_command
 from baldric_coding.context.system_prompt import (
     BuildSystemPromptOptions,
     ProjectContextFile,
-    PromptSection,
     SystemPromptInspection,
     SystemPromptSource,
     build_system_prompt,
@@ -93,7 +84,6 @@ from baldric_coding.events import (
     SessionInfoChangedEvent,
     ThinkingLevelChangedEvent,
 )
-from baldric_coding.extensions.provider_registry import DynamicProviderRegistry
 from baldric_coding.extensions.providers import DynamicProvider, ProviderModel
 from baldric_coding.extensions.runtime import ExtensionRuntime
 from baldric_coding.observability.diagnostics import (
@@ -103,13 +93,10 @@ from baldric_coding.observability.diagnostics import (
 )
 from baldric_coding.providers.config import (
     OpenAICodexProviderConfig,
-    OpenAICompatibleProviderConfig,
     ProviderConfig,
     ProviderConfigError,
-    ProviderModelMetadata,
     ProviderSettings,
     load_provider_settings,
-    provider_default_thinking_level,
     provider_has_usable_credentials,
     provider_model_supports_images,
     provider_thinking_levels,
@@ -145,11 +132,9 @@ from baldric_coding.session.compaction.context_window import (
     auto_compaction_threshold_for_context_window,
     build_compaction_summary_prompt,
     estimate_context_usage,
-    estimate_message_tokens,
     summarize_messages_for_compaction,
 )
 from baldric_coding.session.export import (
-    default_session_export_artifact_path,
     export_session_artifact,
     normalize_export_format,
 )
@@ -158,7 +143,211 @@ from baldric_coding.session.manager import (
     SessionManager,
     normalize_session_name,
 )
+from baldric_coding.session.provider_helpers import (  # noqa: F401
+    _coerced_thinking_level as _coerced_thinking_level,
+)
+from baldric_coding.session.provider_helpers import (
+    _configured_inference_provider as _configured_inference_provider,
+)
+from baldric_coding.session.provider_helpers import (
+    _configured_inference_provider_mode as _configured_inference_provider_mode,
+)
+from baldric_coding.session.provider_helpers import (
+    _configured_model_supports_images as _configured_model_supports_images,
+)
+from baldric_coding.session.provider_helpers import (
+    _create_runtime_provider as _create_runtime_provider,
+)
+from baldric_coding.session.provider_helpers import (
+    _default_thinking_level_for_active_model as _default_thinking_level_for_active_model,
+)
+from baldric_coding.session.provider_helpers import (
+    _fallback_session_name as _fallback_session_name,
+)
+from baldric_coding.session.provider_helpers import (
+    _filter_tools as _filter_tools,
+)
+from baldric_coding.session.provider_helpers import (
+    _initial_model_for_config as _initial_model_for_config,
+)
+from baldric_coding.session.provider_helpers import (
+    _initial_thinking_level_for_config as _initial_thinking_level_for_config,
+)
+from baldric_coding.session.provider_helpers import (
+    _preferred_thinking_level_for_model as _preferred_thinking_level_for_model,
+)
+from baldric_coding.session.provider_helpers import (
+    _prepare_provider_selection as _prepare_provider_selection,
+)
+from baldric_coding.session.provider_helpers import (
+    _provider_config_for_name as _provider_config_for_name,
+)
+from baldric_coding.session.provider_helpers import (
+    _runtime_model_for_state as _runtime_model_for_state,
+)
+from baldric_coding.session.provider_helpers import (
+    _sanitize_session_name as _sanitize_session_name,
+)
+from baldric_coding.session.provider_helpers import (
+    _session_inference_provider as _session_inference_provider,
+)
+from baldric_coding.session.provider_helpers import (
+    _session_inference_provider_mode as _session_inference_provider_mode,
+)
+from baldric_coding.session.provider_helpers import (
+    _state_thinking_level as _state_thinking_level,
+)
+from baldric_coding.session.provider_helpers import (
+    _terminal_command_context_message as _terminal_command_context_message,
+)
+from baldric_coding.session.provider_helpers import (
+    _unavailable_thinking_message as _unavailable_thinking_message,
+)
+from baldric_coding.session.resource_helpers import (  # noqa: F401
+    SessionResources as SessionResources,
+)
+from baldric_coding.session.resource_helpers import (
+    TerminalCommandRequest as TerminalCommandRequest,
+)
+from baldric_coding.session.resource_helpers import (
+    _append_prompt_sections as _append_prompt_sections,
+)
+from baldric_coding.session.resource_helpers import (
+    _append_session_entry_sync as _append_session_entry_sync,
+)
+from baldric_coding.session.resource_helpers import (
+    _category_summary as _category_summary,
+)
+from baldric_coding.session.resource_helpers import (
+    _codex_account_id as _codex_account_id,
+)
+from baldric_coding.session.resource_helpers import (
+    _context_file_signatures as _context_file_signatures,
+)
+from baldric_coding.session.resource_helpers import (
+    _custom_prompt_source as _custom_prompt_source,
+)
+from baldric_coding.session.resource_helpers import (
+    _diagnostic_signatures as _diagnostic_signatures,
+)
+from baldric_coding.session.resource_helpers import (
+    _extension_signatures as _extension_signatures,
+)
+from baldric_coding.session.resource_helpers import (
+    _load_session_resources as _load_session_resources,
+)
+from baldric_coding.session.resource_helpers import (
+    _merge_context_files as _merge_context_files,
+)
+from baldric_coding.session.resource_helpers import (
+    _prompt_template_signatures as _prompt_template_signatures,
+)
+from baldric_coding.session.resource_helpers import (
+    _provider_config_or_none as _provider_config_or_none,
+)
+from baldric_coding.session.resource_helpers import (
+    _provider_settings_with_runtime_catalogs as _provider_settings_with_runtime_catalogs,
+)
+from baldric_coding.session.resource_helpers import (
+    _provider_with_runtime_model_catalog as _provider_with_runtime_model_catalog,
+)
+from baldric_coding.session.resource_helpers import (
+    _runtime_model_thinking_defaults as _runtime_model_thinking_defaults,
+)
+from baldric_coding.session.resource_helpers import (
+    _runtime_provider_model_metadata as _runtime_provider_model_metadata,
+)
+from baldric_coding.session.resource_helpers import (
+    _skill_signatures as _skill_signatures,
+)
+from baldric_coding.session.resource_helpers import (
+    _system_prompt_resource_signatures as _system_prompt_resource_signatures,
+)
+from baldric_coding.session.resource_helpers import (
+    _tool_history_repair_plan as _tool_history_repair_plan,
+)
+from baldric_coding.session.resource_helpers import (
+    default_session_path as default_session_path,
+)
+from baldric_coding.session.resource_helpers import (
+    jsonl_session_storage as jsonl_session_storage,
+)
+from baldric_coding.session.resource_helpers import (
+    parse_terminal_command as parse_terminal_command,
+)
 from baldric_coding.session.stats import SessionStats, calculate_session_stats
+from baldric_coding.session.tree_helpers import (  # noqa: F401
+    _active_branchable_entry_id as _active_branchable_entry_id,
+)
+from baldric_coding.session.tree_helpers import (
+    _custom_message_from_entry as _custom_message_from_entry,
+)
+from baldric_coding.session.tree_helpers import (
+    _detach_missing_parents as _detach_missing_parents,
+)
+from baldric_coding.session.tree_helpers import (
+    _first_recent_context_index as _first_recent_context_index,
+)
+from baldric_coding.session.tree_helpers import (
+    _is_branchable_tree_entry as _is_branchable_tree_entry,
+)
+from baldric_coding.session.tree_helpers import (
+    _is_tool_call_tree_entry as _is_tool_call_tree_entry,
+)
+from baldric_coding.session.tree_helpers import (
+    _last_parent_id_from_state as _last_parent_id_from_state,
+)
+from baldric_coding.session.tree_helpers import (
+    _last_user_message_index as _last_user_message_index,
+)
+from baldric_coding.session.tree_helpers import (
+    _message_text_preview as _message_text_preview,
+)
+from baldric_coding.session.tree_helpers import (
+    _messages_after_entry_on_active_path as _messages_after_entry_on_active_path,
+)
+from baldric_coding.session.tree_helpers import (
+    _next_user_message_index as _next_user_message_index,
+)
+from baldric_coding.session.tree_helpers import (
+    _ordered_tree_entries as _ordered_tree_entries,
+)
+from baldric_coding.session.tree_helpers import (
+    _resolve_export_destination as _resolve_export_destination,
+)
+from baldric_coding.session.tree_helpers import (
+    _resolved_labels as _resolved_labels,
+)
+from baldric_coding.session.tree_helpers import (
+    _session_entry_for_message as _session_entry_for_message,
+)
+from baldric_coding.session.tree_helpers import (
+    _session_export_title as _session_export_title,
+)
+from baldric_coding.session.tree_helpers import (
+    _short_preview as _short_preview,
+)
+from baldric_coding.session.tree_helpers import (
+    _storage_path as _storage_path,
+)
+from baldric_coding.session.tree_helpers import (
+    _tree_branch_indents as _tree_branch_indents,
+)
+from baldric_coding.session.tree_helpers import (
+    _tree_choice_label as _tree_choice_label,
+)
+from baldric_coding.session.tree_helpers import (
+    _tree_entry_title as _tree_entry_title,
+)
+from baldric_coding.session.tree_helpers import (
+    _tree_layout as _tree_layout,
+)
+from baldric_coding.session.tree_helpers import (
+    is_context_overflow_error as is_context_overflow_error,
+)
+from baldric_coding.session.tree_helpers import (
+    is_retryable_huggingface_route_error as is_retryable_huggingface_route_error,
+)
 from baldric_coding.tools.registry import ImageSupportState, create_bash_tool, create_coding_tools
 from baldric_coding.trust.policy import (
     CanonicalProjectPath,
@@ -170,7 +359,7 @@ from baldric_coding.trust.policy import (
     TrustPrompt,
     format_trust_diagnostic,
 )
-from baldric_coding.update.reload import CodingReloadSummary, ReloadCategorySummary
+from baldric_coding.update.reload import CodingReloadSummary
 
 StreamingBehavior = Literal["steer", "follow_up"]
 SESSION_NAME_SYSTEM_PROMPT = (
@@ -273,29 +462,6 @@ class SessionTreeBranchResult:
 
     message: str
     input_prefill: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class TerminalCommandRequest:
-    """Parsed input-bar terminal command request."""
-
-    command: str
-    add_to_context: bool
-
-
-@dataclass(frozen=True, slots=True)
-class SessionResources:
-    """Baldric-owned resources loaded around a coding session."""
-
-    skills: tuple[Skill, ...]
-    prompt_templates: tuple[PromptTemplate, ...]
-    context_files: tuple[ProjectContextFile, ...]
-    custom_system_prompt: str | None
-    custom_system_prompt_path: Path | None
-    append_system_prompt: str | None
-    append_system_prompts: tuple[str, ...]
-    append_system_prompt_paths: tuple[Path, ...]
-    diagnostics: tuple[ResourceDiagnostic, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -4106,1119 +4272,3 @@ class CodingSession:
         self._harness.replace_messages(self._state.messages)
         self._invalidate_context_usage_cache()
         return compaction
-
-
-def _first_recent_context_index(
-    rows: tuple[tuple[str, AgentMessage], ...],
-    *,
-    keep_recent_tokens: int,
-) -> int:
-    if keep_recent_tokens <= 0:
-        return len(rows)
-
-    accumulated_tokens = 0
-    candidate_index: int | None = None
-    for index in range(len(rows) - 1, -1, -1):
-        _entry_id, message = rows[index]
-        accumulated_tokens += estimate_message_tokens(message)
-        if accumulated_tokens >= keep_recent_tokens:
-            candidate_index = index
-            break
-
-    if candidate_index is None:
-        return 0
-
-    candidate_message = rows[candidate_index][1]
-    if candidate_message.role == "user":
-        if candidate_index > 0:
-            boundary = candidate_index
-        else:
-            next_user_index = _next_user_message_index(rows, start=1)
-            boundary = next_user_index if next_user_index is not None else 0
-    else:
-        next_user_index = _next_user_message_index(rows, start=candidate_index + 1)
-        if next_user_index is not None:
-            boundary = next_user_index
-        else:
-            for index in range(candidate_index, len(rows)):
-                if rows[index][1].role != "toolResult":
-                    boundary = index
-                    break
-            else:
-                boundary = len(rows)
-
-    last_user_index = _last_user_message_index(rows)
-    if last_user_index is not None:
-        boundary = min(boundary, last_user_index)
-    return boundary
-
-
-def _last_user_message_index(
-    rows: tuple[tuple[str, AgentMessage], ...],
-) -> int | None:
-    for index in range(len(rows) - 1, -1, -1):
-        if rows[index][1].role == "user":
-            return index
-    return None
-
-
-def _next_user_message_index(
-    rows: tuple[tuple[str, AgentMessage], ...],
-    *,
-    start: int,
-) -> int | None:
-    for index in range(start, len(rows)):
-        if rows[index][1].role == "user":
-            return index
-    return None
-
-
-def is_context_overflow_error(message: AssistantMessage) -> bool:
-    """Return True when an assistant error looks like a context overflow."""
-    text = message.error_message or ""
-    normalized = text.lower()
-    markers = (
-        "context length",
-        "context window",
-        "context limit",
-        "maximum context",
-        "max context",
-        "input is too long",
-        "input length",
-        "prompt is too long",
-        "too many tokens",
-        "token limit",
-        "exceeds the limit",
-        "exceeded the limit",
-    )
-    return any(marker in normalized for marker in markers)
-
-
-def is_retryable_huggingface_route_error(message: AssistantMessage) -> bool:
-    """Return whether a pre-output Hugging Face HTTP failure is safe to reroute."""
-    if message.content:
-        return False
-    for diagnostic in message.diagnostics or []:
-        if diagnostic.type != "provider_error" or diagnostic.details is None:
-            continue
-        status_code = diagnostic.details.get("status_code")
-        if isinstance(status_code, int) and not isinstance(status_code, bool):
-            return status_code in {408, 409, 425, 429} or status_code >= 500
-    return False
-
-
-def _session_entry_for_message(
-    *, parent_id: str | None, message: AgentMessage
-) -> MessageEntry | CustomMessageEntry:
-    """Build the canonical persisted entry for one completed runtime message."""
-    if isinstance(message, CustomMessage):
-        return CustomMessageEntry(
-            parent_id=parent_id,
-            timestamp=message.timestamp / 1000,
-            custom_type=message.custom_type,
-            content=message.content,
-            display=message.display,
-            details=message.details,
-        )
-    return MessageEntry(parent_id=parent_id, message=message)
-
-
-def _detach_missing_parents(entries: list[SessionEntry]) -> list[SessionEntry]:
-    """Return entries with dangling parent pointers detached from external history."""
-    entry_ids = {entry.id for entry in entries}
-    return [
-        entry.model_copy(update={"parent_id": None})
-        if entry.parent_id is not None and entry.parent_id not in entry_ids
-        else entry
-        for entry in entries
-    ]
-
-
-def _last_parent_id_from_state(state: SessionState) -> str | None:
-    if state.active_leaf_id is not None:
-        return state.active_leaf_id
-    if state.entries:
-        return state.entries[-1].id
-    return None
-
-
-def _active_branchable_entry_id(entries: list[SessionEntry], active_leaf_id: str | None) -> str | None:
-    if active_leaf_id is None:
-        return None
-    try:
-        path = path_to_entry(entries, active_leaf_id)
-    except SessionTreeError:
-        return active_leaf_id
-    return next((entry.id for entry in reversed(path) if _is_branchable_tree_entry(entry)), None)
-
-
-def _resolved_labels(entries: list[SessionEntry]) -> tuple[dict[str, str], dict[str, float]]:
-    """Resolve the latest label change for every target in storage order."""
-    labels: dict[str, str] = {}
-    timestamps: dict[str, float] = {}
-    for entry in entries:
-        if not isinstance(entry, LabelEntry):
-            continue
-        label = entry.label.strip() if entry.label is not None else ""
-        if label:
-            labels[entry.target_id] = label
-            timestamps[entry.target_id] = entry.timestamp
-        else:
-            labels.pop(entry.target_id, None)
-            timestamps.pop(entry.target_id, None)
-    return labels, timestamps
-
-
-def _is_branchable_tree_entry(entry: SessionEntry) -> bool:
-    if entry.type in {"compaction", "branch_summary"}:
-        return True
-    if entry.type != "message":
-        return False
-    return isinstance(entry.message, UserMessage | AssistantMessage)
-
-
-def _tree_choice_label(entry: SessionEntry, *, branch_indent: int = 0) -> str:
-    prefix = "  " * branch_indent
-    return f"{prefix}{_tree_entry_title(entry)}"
-
-
-def _tree_branch_indents(entries: list[SessionEntry]) -> dict[str, int]:
-    return _tree_layout(entries)[1]
-
-
-def _ordered_tree_entries(entries: list[SessionEntry]) -> tuple[SessionEntry, ...]:
-    return _tree_layout(entries)[0]
-
-
-def _tree_layout(
-    entries: list[SessionEntry],
-) -> tuple[tuple[SessionEntry, ...], dict[str, int]]:
-    tree_entries = [entry for entry in entries if entry.type != "leaf"]
-    children_by_parent: dict[str | None, list[SessionEntry]] = {}
-    entries_by_id: dict[str, SessionEntry] = {}
-    for entry in tree_entries:
-        children_by_parent.setdefault(entry.parent_id, []).append(entry)
-        entries_by_id[entry.id] = entry
-
-    # Resolve each child's longest path to a leaf without recursion. Processing
-    # leaves upward also keeps deep sessions safe. Malformed cycles retain a
-    # finite fallback length and are handled by the traversal's `seen` set.
-    branch_lengths = dict.fromkeys(entries_by_id, 1)
-    remaining_children = {entry_id: len(children_by_parent.get(entry_id, ())) for entry_id in entries_by_id}
-    pending = [entry_id for entry_id, count in remaining_children.items() if count == 0]
-    while pending:
-        entry_id = pending.pop()
-        parent_id = entries_by_id[entry_id].parent_id
-        if parent_id not in remaining_children:
-            continue
-        branch_lengths[parent_id] = max(branch_lengths[parent_id], branch_lengths[entry_id] + 1)
-        remaining_children[parent_id] -= 1
-        if remaining_children[parent_id] == 0:
-            pending.append(parent_id)
-
-    def ordered_children(parent_id: str | None) -> list[SessionEntry]:
-        return sorted(
-            children_by_parent.get(parent_id, ()),
-            key=lambda child: branch_lengths.get(child.id, 1),
-            reverse=True,
-        )
-
-    ordered: list[SessionEntry] = []
-    indents: dict[str, int] = {}
-    seen: set[str] = set()
-
-    def child_stack_items(children: list[SessionEntry], parent_indent: int) -> list[tuple[SessionEntry, int]]:
-        if not children:
-            return []
-        main_child, *alternate_children = children
-        display_children = [*alternate_children, main_child]
-        return [
-            (child, parent_indent if child is main_child else parent_indent + 1)
-            for child in reversed(display_children)
-        ]
-
-    def append_subtrees(children: list[SessionEntry], parent_indent: int) -> None:
-        # The longest child is the unindented main branch. Emit shorter siblings
-        # immediately after their parent, indented one level, before continuing
-        # down the main branch. Stable length sorting preserves storage order
-        # when histories have equal lengths.
-        stack = child_stack_items(children, parent_indent)
-        while stack:
-            entry, indent = stack.pop()
-            if entry.id in seen:
-                continue
-            seen.add(entry.id)
-            ordered.append(entry)
-            indents[entry.id] = indent
-            stack.extend(child_stack_items(ordered_children(entry.id), indent))
-
-    append_subtrees(ordered_children(None), 0)
-    for entry in tree_entries:
-        if entry.id not in seen:
-            append_subtrees([entry], 0)
-    return tuple(ordered), indents
-
-
-def _is_tool_call_tree_entry(entry: SessionEntry) -> bool:
-    return (
-        entry.type == "message"
-        and isinstance(entry.message, AssistantMessage)
-        and bool(entry.message.tool_calls)
-    )
-
-
-def _tree_entry_title(entry: SessionEntry) -> str:
-    match entry.type:
-        case "message":
-            message = entry.message
-            if isinstance(message, AssistantMessage) and message.tool_calls and not message.text.strip():
-                tool_names = ", ".join(call.name for call in message.tool_calls)
-                return f"tool call: {tool_names}"
-            return f"{message.role}: {_message_text_preview(message)}"
-        case "custom_message":
-            return f"custom: {_short_preview(message_text(_custom_message_from_entry(entry)))}"
-        case "compaction":
-            return f"compaction summary: {_short_preview(entry.summary)}"
-        case "branch_summary":
-            return f"branch summary: {_short_preview(entry.summary)}"
-        case _:
-            return entry.type
-
-
-def _message_text_preview(message: AgentMessage) -> str:
-    return _short_preview(message_text(message))
-
-
-def _short_preview(text: str, *, limit: int = 72) -> str:
-    normalized = " ".join(text.split())
-    if len(normalized) <= limit:
-        return normalized or "(empty)"
-    return f"{normalized[: limit - 1]}..."
-
-
-def _messages_after_entry_on_active_path(
-    entries: list[SessionEntry],
-    entry_id: str,
-    active_leaf_id: str | None,
-) -> tuple[AgentMessage, ...]:
-    if active_leaf_id is None:
-        return ()
-    try:
-        active_path = path_to_entry(entries, active_leaf_id)
-    except SessionTreeError:
-        return ()
-    try:
-        target_index = next(index for index, entry in enumerate(active_path) if entry.id == entry_id)
-    except StopIteration:
-        return ()
-    messages: list[AgentMessage] = []
-    for entry in active_path[target_index + 1 :]:
-        if entry.type == "message":
-            messages.append(entry.message)
-        elif entry.type == "custom_message":
-            messages.append(_custom_message_from_entry(entry))
-    return tuple(messages)
-
-
-def _custom_message_from_entry(entry: CustomMessageEntry) -> CustomMessage:
-    return CustomMessage(
-        custom_type=entry.custom_type,
-        content=entry.content,
-        display=entry.display,
-        details=entry.details,
-        timestamp=round(entry.timestamp * 1000),
-    )
-
-
-def _storage_path(storage: SessionStorage) -> Path | None:
-    path = getattr(storage, "path", None)
-    return path if isinstance(path, Path) else None
-
-
-def _resolve_export_destination(
-    destination: Path | None,
-    *,
-    cwd: Path,
-    session_path: Path | None,
-    format: str,
-) -> Path:
-    if destination is None:
-        if session_path is not None:
-            return default_session_export_artifact_path(
-                session_path,
-                destination_dir=cwd,
-                format=format,
-            )
-        return cwd / f"baldric-session.{format}"
-
-    resolved = destination if destination.is_absolute() else cwd / destination
-    if resolved.suffix:
-        return resolved
-    name = session_path.stem if session_path is not None else "baldric-session"
-    return default_session_export_artifact_path(
-        Path(name),
-        destination_dir=resolved,
-        format=format,
-    )
-
-
-def _session_export_title(session: CodingSession) -> str:
-    manager = session.session_manager
-    session_id = session.session_id
-    if manager is not None and session_id is not None:
-        record = manager.get_session(session_id)
-        if record is not None and record.title:
-            return record.title
-    return f"Baldric session {session_id}" if session_id is not None else "Baldric Session Export"
-
-
-@dataclass(frozen=True, slots=True)
-class _PreparedProvider:
-    """A runtime candidate built after the destination environment is trusted."""
-
-    provider: ClosableModelProvider
-    provider_name: str
-    model: str
-    inference_provider: str | None
-    inference_provider_mode: InferenceProviderMode
-    runtime_provider_config: ProviderConfig | None
-    dynamic_provider: DynamicProvider | None
-    runtime_model_catalog: RuntimeModelCatalog | None = None
-
-
-async def _prepare_provider_selection(
-    config: CodingSessionConfig,
-    *,
-    state: SessionState,
-    provider_registry: DynamicProviderRegistry,
-    credential_store: FileCredentialStore | None = None,
-) -> _PreparedProvider:
-    """Resolve and construct the provider after extension/project staging."""
-    requested_provider = config.requested_provider
-    requested_model = config.requested_model
-    provider_name = requested_provider or state.provider or config.session_provider_name
-    explicit = requested_provider is not None or requested_model is not None
-
-    if provider_name is not None:
-        effective = provider_registry.effective(provider_name)
-        if effective is not None and isinstance(effective.definition, DynamicProvider):
-            dynamic = effective.definition
-            model = requested_model
-            if model is None and state.provider == provider_name:
-                model = state.model
-            if model is None:
-                model = dynamic.default_model
-            if model is None and len(dynamic.models) == 1:
-                model = dynamic.models[0].id
-            if (
-                (model is None or not any(item.id == model for item in dynamic.models))
-                and dynamic.refresh_models is not None
-                and (explicit or state.provider == provider_name)
-            ):
-                refreshed = await provider_registry.refresh(
-                    provider_name,
-                    allow_network=True,
-                    timeout_seconds=5.0,
-                )
-                if refreshed.provider is not None:
-                    dynamic = refreshed.provider
-                if model is None:
-                    model = dynamic.default_model
-                    if model is None and len(dynamic.models) == 1:
-                        model = dynamic.models[0].id
-            if model is None:
-                raise ProviderConfigError(
-                    f"Provider {provider_name} has no selectable models; refresh it explicitly."
-                )
-            selected = next((item for item in dynamic.models if item.id == model), None)
-            if selected is None:
-                raise ProviderConfigError(f"Model is not available for provider {provider_name}: {model}")
-            try:
-                runtime = await create_dynamic_model_provider(
-                    dynamic,
-                    model=model,
-                    credential_store=provider_registry.credentials,
-                    environment=provider_registry.environment,
-                )
-            except (ProviderConfigError, RuntimeError) as exc:
-                raise ProviderConfigError(str(exc)) from exc
-            return _PreparedProvider(
-                provider=runtime,
-                provider_name=provider_name,
-                model=model,
-                inference_provider=None,
-                inference_provider_mode="automatic",
-                runtime_provider_config=None,
-                dynamic_provider=dynamic,
-            )
-
-    settings = config.provider_settings
-    discovered_catalog: RuntimeModelCatalog | None = None
-    if settings is None:
-        raise ProviderConfigError(
-            f"Provider is not available after trusted extension loading: {provider_name or config.model}"
-        )
-    selected_model = requested_model or (state.model if state.provider == provider_name else None)
-    selected_provider = settings.get_provider(provider_name or settings.default_provider)
-    if (
-        isinstance(selected_provider, OpenAICodexProviderConfig)
-        and selected_model is not None
-        and selected_model not in selected_provider.models
-        and environ.get("BALDRIC_OFFLINE") is None
-    ):
-        # Live-only explicit/resumed models need discovery before static validation.
-        discovery_provider = None
-        try:
-            discovery_provider = create_model_provider(
-                selected_provider,
-                credential_store=credential_store,
-                model=None,
-                thinking_level=None,
-            )
-            if isinstance(discovery_provider, ModelCatalogProvider):
-                catalog = await discovery_provider.discover_models()
-                if catalog.models:
-                    discovered_catalog = catalog
-                    live_provider = _provider_with_runtime_model_catalog(selected_provider, catalog)
-                    settings = replace(
-                        settings,
-                        providers=tuple(
-                            live_provider if item.name == selected_provider.name else item
-                            for item in settings.providers
-                        ),
-                    )
-        except Exception:  # noqa: BLE001 - retain ordinary static validation on failure
-            pass
-        finally:
-            if discovery_provider is not None:
-                await discovery_provider.aclose()
-    selection = resolve_provider_selection(
-        settings,
-        provider_name=provider_name,
-        model=selected_model,
-    )
-    inference_provider = _session_inference_provider(
-        config,
-        state,
-        selection.provider.name,
-        selection.model,
-    )
-    inference_provider_mode = _session_inference_provider_mode(
-        config,
-        state,
-        selection.provider,
-        selection.model,
-        inference_provider,
-    )
-    try:
-        runtime = _create_runtime_provider(
-            selection.provider,
-            credential_store=credential_store,
-            model=selection.model,
-            inference_provider=inference_provider,
-            thinking_level=resolve_startup_thinking_level(
-                selection.provider,
-                selection.model,
-            ),
-        )
-    except RuntimeError as exc:
-        raise ProviderConfigError(str(exc)) from exc
-    return _PreparedProvider(
-        provider=runtime,
-        provider_name=selection.provider.name,
-        model=selection.model,
-        inference_provider=inference_provider,
-        inference_provider_mode=inference_provider_mode,
-        runtime_provider_config=selection.provider,
-        dynamic_provider=None,
-        runtime_model_catalog=discovered_catalog,
-    )
-
-
-def _session_inference_provider(
-    config: CodingSessionConfig,
-    state: SessionState,
-    provider_name: str,
-    model: str,
-) -> str | None:
-    """Preserve HF routing only for the same logical provider/model."""
-    if provider_name != "huggingface":
-        return None
-    if state.provider == provider_name and state.model == model:
-        return config.inference_provider
-    provider = config.provider_settings.get_provider(provider_name) if config.provider_settings else None
-    if isinstance(provider, OpenAICompatibleProviderConfig):
-        return provider.inference_providers.get(model)
-    return None
-
-
-def _session_inference_provider_mode(
-    config: CodingSessionConfig,
-    state: SessionState,
-    provider: ProviderConfig,
-    model: str,
-    inference_provider: str | None,
-) -> InferenceProviderMode:
-    """Preserve automatic/fixed HF routing for the same resumed model."""
-    if provider.name != "huggingface":
-        return "automatic"
-    if state.provider == provider.name and state.model == model:
-        return config.inference_provider_mode or ("fixed" if inference_provider is not None else "automatic")
-    return _configured_inference_provider_mode(provider, model)
-
-
-def _filter_tools(tools: Sequence[AgentTool], allowed_tool_names: frozenset[str] | None) -> list[AgentTool]:
-    """Apply ``CodingSessionConfig.allowed_tool_names`` to a composed tool list."""
-    if allowed_tool_names is None:
-        return list(tools)
-    return [tool for tool in tools if tool.name in allowed_tool_names]
-
-
-def _configured_model_supports_images(config: CodingSessionConfig, model: str) -> bool | None:
-    if config.dynamic_provider is not None:
-        selected = next((item for item in config.dynamic_provider.models if item.id == model), None)
-        if selected is None or selected.input_modalities is None:
-            return None
-        return "image" in selected.input_modalities
-    provider = config.runtime_provider_config
-    if provider is None and config.provider_settings is not None:
-        try:
-            provider = config.provider_settings.get_provider(config.provider_name)
-        except ProviderConfigError:
-            return None
-    return provider_model_supports_images(provider, model) if provider is not None else None
-
-
-def _initial_model_for_config(config: CodingSessionConfig) -> str:
-    if config.provider_settings is None or config.runtime_provider_config is None:
-        return config.model
-    provider = _provider_config_for_name(config, config.provider_name)
-    if provider is None:
-        return config.model
-    try:
-        validate_provider_model(provider, config.model)
-    except ProviderConfigError:
-        return provider.default_model
-    return config.model
-
-
-def _runtime_model_for_state(config: CodingSessionConfig, state: SessionState) -> str:
-    state_model = state.model or config.model
-    if config.dynamic_provider is not None:
-        return config.model
-    if config.provider_settings is None or config.runtime_provider_config is None:
-        return state_model
-    provider = _provider_config_for_name(config, config.provider_name)
-    if provider is None:
-        return state_model
-    try:
-        validate_provider_model(provider, state_model)
-    except ProviderConfigError:
-        return config.model if config.model in provider.models else provider.default_model
-    return state_model
-
-
-def _initial_thinking_level_for_config(
-    config: CodingSessionConfig,
-    *,
-    model: str,
-) -> ThinkingLevel:
-    provider = _provider_config_for_name(config, config.provider_name)
-    if config.thinking_level_override is not None:
-        if provider is None:
-            return config.thinking_level_override
-        resolved = resolve_startup_thinking_level(
-            provider,
-            model,
-            cli_override=config.thinking_level_override,
-        )
-        if resolved is not None:
-            return resolved
-    if provider is None:
-        return config.thinking_level
-    return _preferred_thinking_level_for_model(
-        provider,
-        model=model,
-        fallback=config.thinking_level,
-    )
-
-
-def _provider_config_for_name(
-    config: CodingSessionConfig,
-    provider_name: str,
-) -> ProviderConfig | None:
-    if (
-        isinstance(config.runtime_provider_config, OpenAICodexProviderConfig)
-        and config.runtime_provider_config.name == provider_name
-    ):
-        return config.runtime_provider_config
-    if config.provider_settings is not None:
-        try:
-            return config.provider_settings.get_provider(provider_name)
-        except ProviderConfigError:
-            pass
-    if config.runtime_provider_config is not None:
-        return config.runtime_provider_config
-    return None
-
-
-def _state_thinking_level(
-    state: SessionState,
-    default: ThinkingLevel,
-) -> ThinkingLevel:
-    thinking_level = getattr(state, "thinking_level", None)
-    if thinking_level is None:
-        return default
-    return normalize_thinking_level(thinking_level)
-
-
-def _create_runtime_provider(
-    provider: ProviderConfig,
-    *,
-    credential_store: FileCredentialStore | None,
-    model: str,
-    thinking_level: ThinkingLevel | None,
-    inference_provider: str | None,
-    response_headers_observer: Callable[[Mapping[str, str]], None] | None = None,
-) -> ClosableModelProvider:
-    if inference_provider is None and response_headers_observer is None:
-        return create_model_provider(
-            provider,
-            credential_store=credential_store,
-            model=model,
-            thinking_level=thinking_level,
-        )
-    if inference_provider is None:
-        return create_model_provider(
-            provider,
-            credential_store=credential_store,
-            model=model,
-            thinking_level=thinking_level,
-            response_headers_observer=response_headers_observer,
-        )
-    return create_model_provider(
-        provider,
-        credential_store=credential_store,
-        model=model,
-        thinking_level=thinking_level,
-        inference_provider=inference_provider,
-        response_headers_observer=response_headers_observer,
-    )
-
-
-def _configured_inference_provider(
-    provider: ProviderConfig | None,
-    model: str,
-) -> str | None:
-    if not isinstance(provider, OpenAICompatibleProviderConfig) or provider.name != "huggingface":
-        return None
-    return provider.inference_providers.get(model)
-
-
-def _configured_inference_provider_mode(
-    provider: ProviderConfig | None,
-    model: str,
-) -> InferenceProviderMode:
-    return "fixed" if _configured_inference_provider(provider, model) is not None else "automatic"
-
-
-def _default_thinking_level_for_active_model(session: CodingSession) -> ThinkingLevel:
-    provider = session._active_provider_config()
-    if provider is None:
-        return session._config.thinking_level
-    return _preferred_thinking_level_for_model(
-        provider,
-        model=session.model,
-        fallback=session._config.thinking_level,
-    )
-
-
-def _preferred_thinking_level_for_model(
-    provider: ProviderConfig,
-    *,
-    model: str,
-    fallback: ThinkingLevel,
-) -> ThinkingLevel:
-    levels = provider_thinking_levels(provider, model=model)
-    preferred = provider.thinking_defaults.get(model)
-    if preferred in levels:
-        return preferred
-    if fallback in levels or not levels:
-        return fallback
-    default = provider_default_thinking_level(provider, model=model)
-    return default or levels[0]
-
-
-def _coerced_thinking_level(
-    provider: ProviderConfig,
-    *,
-    model: str,
-    current: ThinkingLevel,
-    preferred: ThinkingLevel | None = None,
-) -> ThinkingLevel:
-    levels = provider_thinking_levels(provider, model=model)
-    if not levels or current in levels:
-        return current
-    if preferred in levels:
-        return preferred
-    default = provider_default_thinking_level(provider, model=model)
-    return default or levels[0]
-
-
-def _unavailable_thinking_message(session: CodingSession) -> str:
-    message = f"Thinking controls are unavailable for {session.provider_name}:{session.model}"
-    reason = session.thinking_unavailable_reason
-    if reason:
-        return f"{message}: {reason}"
-    return message
-
-
-def _sanitize_session_name(text: str) -> str | None:
-    cleaned = " ".join(text.split()).strip()
-    cleaned = cleaned.strip("\"'`“”‘’")
-    cleaned = cleaned.strip(string.punctuation + " ")
-    words = [word.strip(string.punctuation + "\"'`“”‘’") for word in cleaned.split()]
-    words = [word for word in words if word]
-    if not words:
-        return None
-    return " ".join(words[:4])
-
-
-def _fallback_session_name(first_message: str) -> str | None:
-    return _sanitize_session_name(first_message)
-
-
-def _terminal_command_context_message(command: str, output: str) -> str:
-    return (
-        "Terminal command executed by the user.\n\n"
-        f"Command:\n```bash\n{command}\n```\n\n"
-        f"Output:\n```text\n{output}\n```"
-    )
-
-
-def parse_terminal_command(text: str) -> TerminalCommandRequest | None:
-    """Parse input-bar terminal command syntax."""
-    stripped = text.strip()
-    if stripped.startswith("!!"):
-        command = stripped[2:].strip()
-        if not command:
-            return None
-        return TerminalCommandRequest(command=command, add_to_context=False)
-    if stripped.startswith("!"):
-        command = stripped[1:].strip()
-        if not command:
-            return None
-        return TerminalCommandRequest(command=command, add_to_context=True)
-    return None
-
-
-def _category_summary(
-    before: tuple[tuple[object, ...], ...],
-    after: tuple[tuple[object, ...], ...],
-) -> ReloadCategorySummary:
-    return ReloadCategorySummary(
-        before=len(before),
-        after=len(after),
-        changed=before != after,
-    )
-
-
-def _skill_signatures(skills: tuple[Skill, ...]) -> tuple[tuple[object, ...], ...]:
-    return tuple(
-        (
-            skill.name,
-            str(skill.path),
-            skill.description,
-            skill.content,
-            skill.disable_model_invocation,
-        )
-        for skill in skills
-    )
-
-
-def _prompt_template_signatures(
-    prompt_templates: tuple[PromptTemplate, ...],
-) -> tuple[tuple[object, ...], ...]:
-    return tuple(
-        (template.name, str(template.path), template.description, template.content)
-        for template in prompt_templates
-    )
-
-
-def _context_file_signatures(
-    context_files: tuple[ProjectContextFile, ...],
-) -> tuple[tuple[object, ...], ...]:
-    return tuple((context_file.path, context_file.content) for context_file in context_files)
-
-
-def _diagnostic_signatures(
-    diagnostics: tuple[ResourceDiagnostic, ...],
-) -> tuple[tuple[object, ...], ...]:
-    return tuple(
-        (
-            diagnostic.kind,
-            diagnostic.message,
-            str(diagnostic.path) if diagnostic.path is not None else None,
-            diagnostic.name,
-            diagnostic.severity,
-        )
-        for diagnostic in diagnostics
-    )
-
-
-def _extension_signatures(runtime: ExtensionRuntime) -> tuple[tuple[object, ...], ...]:
-    return tuple((name,) for name in runtime.extension_names)
-
-
-def _system_prompt_resource_signatures(
-    *,
-    skills: tuple[Skill, ...],
-    context_files: tuple[ProjectContextFile, ...],
-    custom_system_prompt: str | None,
-    custom_system_prompt_path: Path | None,
-    append_system_prompt: str | None,
-    append_system_prompt_paths: tuple[Path, ...],
-) -> tuple[object, ...]:
-    prompt_skills = tuple(
-        (skill.name, str(skill.path), skill.description, skill.disable_model_invocation)
-        for skill in sorted(skills, key=lambda item: item.name)
-    )
-    return (
-        prompt_skills,
-        _context_file_signatures(context_files),
-        custom_system_prompt,
-        str(custom_system_prompt_path) if custom_system_prompt_path is not None else None,
-        append_system_prompt,
-        tuple(str(path) for path in append_system_prompt_paths),
-    )
-
-
-def _provider_config_or_none(
-    settings: ProviderSettings | None,
-    provider_name: str | None,
-) -> ProviderConfig | None:
-    if settings is None or provider_name is None:
-        return None
-    try:
-        return settings.get_provider(provider_name)
-    except ProviderConfigError:
-        return None
-
-
-def _codex_account_id(
-    provider: OpenAICodexProviderConfig,
-    credential_store: FileCredentialStore,
-) -> str | None:
-    if provider.credential_name:
-        credential = credential_store.get_oauth(provider.credential_name)
-        if credential is not None and credential.account_id:
-            return credential.account_id
-    return account_id_from_access_token(environ.get(provider.api_key_env, ""))
-
-
-def _provider_settings_with_runtime_catalogs(
-    settings: ProviderSettings | None,
-    catalogs: Mapping[str, RuntimeModelCatalog],
-) -> ProviderSettings | None:
-    if settings is None or not catalogs:
-        return settings
-    providers = tuple(
-        _provider_with_runtime_model_catalog(provider, catalogs.get(provider.name))
-        for provider in settings.providers
-    )
-    return replace(settings, providers=providers)
-
-
-def _provider_with_runtime_model_catalog(
-    provider: ProviderConfig,
-    catalog: RuntimeModelCatalog | None,
-) -> ProviderConfig:
-    """Overlay one account-specific catalog without changing durable settings."""
-    if catalog is None or not isinstance(provider, OpenAICodexProviderConfig):
-        return provider
-
-    models = tuple(model.id for model in catalog.models)
-    metadata = {model.id: _runtime_provider_model_metadata(provider, model) for model in catalog.models}
-    context_windows = {
-        model.id: (
-            model.limits.context_window if model.limits is not None else provider.context_windows[model.id]
-        )
-        for model in catalog.models
-        if model.limits is not None or model.id in provider.context_windows
-    }
-    return replace(
-        provider,
-        models=models,
-        default_model=(provider.default_model if provider.default_model in models else models[0]),
-        context_windows=context_windows,
-        model_metadata=metadata,
-        thinking_models=tuple(model.id for model in catalog.models if model.thinking_levels),
-        thinking_defaults=_runtime_model_thinking_defaults(provider, catalog),
-    )
-
-
-def _runtime_model_thinking_defaults(
-    provider: OpenAICodexProviderConfig,
-    catalog: RuntimeModelCatalog,
-) -> dict[str, ThinkingLevel]:
-    defaults: dict[str, ThinkingLevel] = {}
-    for model in catalog.models:
-        default = provider.thinking_defaults.get(model.id) or model.default_thinking_level
-        if default is not None:
-            defaults[model.id] = default
-    return defaults
-
-
-def _runtime_provider_model_metadata(
-    provider: OpenAICodexProviderConfig,
-    model: RuntimeModel,
-) -> ProviderModelMetadata:
-    existing = provider.model_metadata.get(model.id, ProviderModelMetadata())
-    supported = set(model.thinking_levels)
-    thinking_level_map = {
-        level: ("none" if level == "off" else level) if level in supported else None
-        for level in THINKING_LEVELS
-    }
-    return replace(
-        existing,
-        name=model.name or existing.name,
-        reasoning=True if model.thinking_levels else existing.reasoning,
-        input=model.input_modalities,
-        context_window=(model.limits.context_window if model.limits is not None else existing.context_window),
-        max_tokens=(
-            model.limits.max_output_tokens
-            if model.limits is not None and model.limits.max_output_tokens is not None
-            else existing.max_tokens
-        ),
-        thinking_level_map=thinking_level_map,
-    )
-
-
-def _load_session_resources(
-    resource_paths: BaldricResourcePaths,
-    explicit_context_files: tuple[ProjectContextFile, ...],
-    *,
-    skills_enabled: bool = True,
-    system_prompt_enabled: bool = True,
-    custom_system_prompt_explicit: bool = False,
-) -> SessionResources:
-    loaded_skills: list[Skill]
-    skill_diagnostics: list[ResourceDiagnostic]
-    if skills_enabled:
-        loaded_skills, skill_diagnostics = load_skills_with_diagnostics(resource_paths)
-    else:
-        loaded_skills, skill_diagnostics = [], []
-    loaded_prompt_templates, prompt_diagnostics = load_prompt_templates_with_diagnostics(resource_paths)
-    discovered_context, context_diagnostics = discover_project_context_with_diagnostics(resource_paths)
-    system_prompts = discover_system_prompt_resources(
-        resource_paths,
-        custom_prompt_explicit=custom_system_prompt_explicit,
-        enabled=system_prompt_enabled,
-    )
-    return SessionResources(
-        skills=tuple(loaded_skills),
-        prompt_templates=tuple(loaded_prompt_templates),
-        context_files=_merge_context_files(explicit_context_files, discovered_context),
-        custom_system_prompt=system_prompts.custom_prompt,
-        custom_system_prompt_path=system_prompts.custom_prompt_path,
-        append_system_prompt=system_prompts.append_prompt,
-        append_system_prompts=system_prompts.append_prompts,
-        append_system_prompt_paths=system_prompts.append_prompt_paths,
-        diagnostics=tuple(
-            [
-                *skill_diagnostics,
-                *prompt_diagnostics,
-                *context_diagnostics,
-                *system_prompts.diagnostics,
-            ]
-        ),
-    )
-
-
-def _append_prompt_sections(
-    prompts: tuple[str, ...],
-    paths: tuple[Path, ...],
-    explicit_prompt: str | None,
-) -> tuple[PromptSection, ...]:
-    """Pair append content with its file or CLI origin in composition order."""
-    sections = [
-        PromptSection(title=None, body=prompt, source=str(path))
-        for prompt, path in zip(prompts, paths, strict=True)
-    ]
-    if explicit_prompt is not None:
-        sections.append(
-            PromptSection(
-                title=None,
-                body=explicit_prompt,
-                source="CLI --append-system-prompt",
-            )
-        )
-    return tuple(sections)
-
-
-def _custom_prompt_source(*, explicit: bool, path: Path | None) -> str:
-    if explicit:
-        return "CLI --system-prompt"
-    return str(path) if path is not None else "runtime configuration"
-
-
-def _merge_context_files(
-    explicit: tuple[ProjectContextFile, ...],
-    discovered: tuple[ProjectContextFile, ...],
-) -> tuple[ProjectContextFile, ...]:
-    merged: list[ProjectContextFile] = []
-    seen: set[str] = set()
-    for context_file in (*explicit, *discovered):
-        if context_file.path in seen:
-            continue
-        seen.add(context_file.path)
-        merged.append(context_file)
-    return tuple(merged)
-
-
-def _tool_history_repair_plan(
-    messages: tuple[AgentMessage, ...],
-    *,
-    context_entry_ids: tuple[str, ...],
-    entries: tuple[SessionEntry, ...],
-) -> tuple[str | None, tuple[AgentMessage, ...], ToolHistoryRepair] | None:
-    repair = repair_tool_history(messages)
-    if not repair.changed:
-        return None
-
-    common_prefix_length = 0
-    for old_message, repaired_message in zip(messages, repair.messages, strict=False):
-        if old_message != repaired_message:
-            break
-        common_prefix_length += 1
-
-    if common_prefix_length > 0:
-        parent_id: str | None = context_entry_ids[common_prefix_length - 1]
-    elif context_entry_ids:
-        entries_by_id = {entry.id: entry for entry in entries}
-        first_entry = entries_by_id.get(context_entry_ids[0])
-        parent_id = first_entry.parent_id if first_entry is not None else None
-    else:
-        parent_id = None
-
-    return parent_id, repair.messages[common_prefix_length:], repair
-
-
-def default_session_path(cwd: Path) -> Path:
-    """Return Baldric's default user-home session path for a project cwd."""
-    return BaldricPaths().default_session_path(cwd)
-
-
-def jsonl_session_storage(path: str | Path) -> JsonlSessionStorage:
-    """Convenience factory for local JSONL coding-session storage."""
-    return JsonlSessionStorage(path)
-
-
-def _append_session_entry_sync(storage: SessionStorage, entry: SessionEntry) -> None:
-    """Append an entry synchronously for slash commands that cannot await storage."""
-    if isinstance(storage, JsonlSessionStorage):
-        storage.path.parent.mkdir(parents=True, exist_ok=True)
-        with storage.path.open("a", encoding="utf-8") as file:
-            file.write(entry_to_json_line(entry))
-        return
-    raise RuntimeError("Session storage does not support synchronous initialization")
