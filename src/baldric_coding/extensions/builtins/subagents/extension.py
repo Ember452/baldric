@@ -571,12 +571,14 @@ class SubagentManager:
                 provider_name=capture.provider_name,
                 model=capture.model,
             )
+            thinking_level = capture.thinking_level
         else:
             selection = resolve_provider_selection(
                 provider_settings,
                 provider_name=run.requested_provider or parent_provider,
                 model=definition.model or run.requested_model or parent_model,
             )
+            thinking_level = definition.thinking or run.requested_thinking or DEFAULT_THINKING_LEVEL
         provider = create_model_provider(
             selection.provider,
             model=selection.model,
@@ -586,14 +588,7 @@ class SubagentManager:
             # prompt cache. When Baldric does not expose the level (pre-0.4.0)
             # the capture is None and the provider's persisted per-model
             # level applies instead.
-            thinking_level=cast(
-                "ThinkingLevel | None",
-                (
-                    capture.thinking_level
-                    if capture is not None
-                    else definition.thinking or run.requested_thinking or DEFAULT_THINKING_LEVEL
-                ),
-            ),
+            thinking_level=cast("ThinkingLevel | None", thinking_level),
         )
         run.provider = provider
         run.model = selection.model
