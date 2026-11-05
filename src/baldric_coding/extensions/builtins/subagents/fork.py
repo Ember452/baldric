@@ -58,11 +58,9 @@ class ForkCapture:
     model: str
     provider_name: str
     messages: tuple[AgentMessage, ...]
-    # Baldric always exposes the live level on the extension context, so the
-    # ported version's `getattr(context, "thinking_level", None)` fallback for
-    # older hosts - which quietly meant "use the persisted per-model level" - is
-    # not needed and would be indistinguishable from an unset level.
-    thinking_level: str
+    # None when the host does not expose the live level: the provider then uses
+    # its persisted per-model level, which is what an absent level means.
+    thinking_level: str | None = None
 
 
 def capture_fork(context: ExtensionContext) -> ForkCapture:
@@ -78,7 +76,7 @@ def capture_fork(context: ExtensionContext) -> ForkCapture:
         system_prompt=context.system_prompt,
         model=context.model,
         provider_name=context.provider_name,
-        thinking_level=context.thinking_level,
+        thinking_level=getattr(context, "thinking_level", None),
         messages=tuple(_close_dangling_tool_calls(list(context.transcript))),
     )
 
