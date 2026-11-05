@@ -40,8 +40,8 @@ import re
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
-from baldric_coding.extensions.builtins.subagents.cron import CronExpression, validate_cron
-from baldric_coding.extensions.builtins.subagents.schedule_store import (
+from .cron import CronExpression, validate_cron
+from .schedule_store import (
     ScheduledSubagent,
     ScheduleStore,
 )

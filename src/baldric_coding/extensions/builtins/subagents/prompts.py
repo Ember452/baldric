@@ -33,7 +33,7 @@ from baldric_coding.resources import BaldricResourcePaths
 from baldric_coding.skills import format_skill_invocation, load_skills
 
 if TYPE_CHECKING:
-    from baldric_coding.extensions.builtins.subagents.agents import AgentDefinition
+    from .agents import AgentDefinition
 
 GIT_TIMEOUT_SECONDS = 5
 
