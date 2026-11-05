@@ -221,12 +221,16 @@ Expected: 全绿。若红，停止并报告，不要开始任何移动。
 
 - [ ] **Step 2: 提交蓝图文档与本计划**
 
+**已执行（2026-11-05）：** 蓝图与 `index.md` 指针已在 `7b2d30c` 提交，本计划在 `c94c7c1` 提交，`AGENTS.md` 在 `749611a` 单独提交；v0.2.1 发布提交为 `444befe`。**执行到这一步时先跑 `git status`，若这些文件已不在未提交列表里，直接跳过本步并在台账记一句“已前置提交”。**
+
+当时用的命令（仅当文件仍未提交时才跑）：
+
 ```powershell
 git add dev-notes/architecture/target-project-layout.md dev-notes/architecture/index.md plans/layout-phase-1-moves.md
 git commit -m "docs(architecture): add target project layout blueprint and phase 1 move plan"
 ```
 
-（本计划文件 `plans/layout-phase-1-moves.md` 也在这里提交。它住在 `plans/` 是故意的——仓库现有惯例如此，`602-built-in-local-inference.md` 就在那里。`AGENTS.md` 那条未提交改动**不属本计划范围**，不要把它 `git add` 进来。）
+（本计划文件 `plans/layout-phase-1-moves.md` 也在这里提交。它住在 `plans/` 是故意的——仓库现有惯例如此，`602-built-in-local-inference.md` 就在那里。）
 
 - [ ] **Step 3: 写 `check_move_only.py`**
 
