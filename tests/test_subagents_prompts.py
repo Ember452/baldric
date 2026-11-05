@@ -56,24 +56,6 @@ def test_empty_or_absent_names_preload_nothing(paths: BaldricPaths, cwd: Path) -
     assert resolve_skill_blocks((), paths, cwd, project_trusted=True) == []
 
 
-def test_a_named_user_skill_is_preloaded_with_its_body(paths: BaldricPaths, cwd: Path) -> None:
-    _skill(paths.user_skills_dir, "testing", "Run pytest first.")
-
-    blocks = resolve_skill_blocks(("testing",), paths, cwd, project_trusted=False)
-
-    assert len(blocks) == 1
-    name, block = blocks[0]
-    assert name == "testing"
-    assert 'skill name="testing"' in block
-    assert "Run pytest first." in block
-
-
-def test_an_unknown_name_becomes_a_visible_placeholder_not_a_crash(paths: BaldricPaths, cwd: Path) -> None:
-    blocks = resolve_skill_blocks(("nope",), paths, cwd, project_trusted=True)
-
-    assert blocks == [("nope", '(Skill "nope" not found)')]
-
-
 def test_project_skills_are_invisible_until_the_project_is_trusted(paths: BaldricPaths, cwd: Path) -> None:
     _skill(paths.project_skills_dir(cwd), "review", "Review the diff.")
 

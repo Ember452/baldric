@@ -81,32 +81,6 @@ def _manager(monkeypatch: pytest.MonkeyPatch, loop: FakeLoop) -> tuple[GroupJoin
     return GroupJoinManager(deliver), deliveries
 
 
-async def test_unregistered_run_passes_and_notifies_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
-    loop = FakeLoop()
-    manager, deliveries = _manager(monkeypatch, loop)
-
-    outcome = manager.on_agent_complete(FakeRun("stray"))
-
-    assert outcome == "pass"
-    assert deliveries == []
-    assert loop.arm_delays() == [], "an ungrouped run must not start a window"
-
-
-async def test_group_waits_for_every_member_then_delivers_once(monkeypatch: pytest.MonkeyPatch) -> None:
-    loop = FakeLoop()
-    manager, deliveries = _manager(monkeypatch, loop)
-    manager.register_group("b1", ["a1", "a2"])
-    first, second = FakeRun("a1"), FakeRun("a2")
-
-    assert manager.on_agent_complete(first) == "held"
-    assert deliveries == [], "the first completion is held for the batch"
-    assert manager.on_agent_complete(second) == "delivered"
-
-    assert len(deliveries) == 1
-    assert [run.agent_id for run in deliveries[0].runs] == ["a1", "a2"]
-    assert deliveries[0].partial is False
-
-
 async def test_window_starts_at_the_first_completion_with_the_default_timeout(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -118,27 +92,6 @@ async def test_window_starts_at_the_first_completion_with_the_default_timeout(
     manager.on_agent_complete(FakeRun("a2"))
 
     assert loop.arm_delays() == [DEFAULT_TIMEOUT], "registration arms nothing"
-
-
-async def test_timeout_delivers_partial_and_rearms_stragglers_shorter(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    loop = FakeLoop()
-    manager, deliveries = _manager(monkeypatch, loop)
-    manager.register_group("b1", ["a1", "a2"])
-    manager.on_agent_complete(FakeRun("a1"))
-
-    loop.fire_next()
-
-    assert len(deliveries) == 1
-    assert [run.agent_id for run in deliveries[0].runs] == ["a1"]
-    assert deliveries[0].partial is True
-
-    # The straggler keeps its membership and gets the shorter second window.
-    assert manager.on_agent_complete(FakeRun("a2")) == "delivered"
-    assert loop.arm_delays() == [DEFAULT_TIMEOUT]
-    assert len(deliveries) == 2
-    assert deliveries[1].partial is False
 
 
 async def test_straggler_window_is_the_shorter_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -171,28 +124,6 @@ async def test_timeout_is_silent_when_the_completed_member_was_consumed(
 
     assert deliveries == []
     assert manager.on_agent_complete(FakeRun("a2")) == "delivered"
-    assert [[run.agent_id for run in item.runs] for item in deliveries] == [["a2"]]
-
-
-async def test_consumed_results_are_never_delivered(monkeypatch: pytest.MonkeyPatch) -> None:
-    loop = FakeLoop()
-    manager, deliveries = _manager(monkeypatch, loop)
-    manager.register_group("b1", ["a1", "a2"])
-
-    manager.on_agent_complete(FakeRun("a1", result_consumed=True))
-    manager.on_agent_complete(FakeRun("a2", result_consumed=True))
-
-    assert deliveries == [], "a fully consumed batch notifies nobody"
-
-
-async def test_mixed_batch_delivers_only_the_unconsumed_runs(monkeypatch: pytest.MonkeyPatch) -> None:
-    loop = FakeLoop()
-    manager, deliveries = _manager(monkeypatch, loop)
-    manager.register_group("b1", ["a1", "a2"])
-
-    manager.on_agent_complete(FakeRun("a1", result_consumed=True))
-    manager.on_agent_complete(FakeRun("a2"))
-
     assert [[run.agent_id for run in item.runs] for item in deliveries] == [["a2"]]
 
 

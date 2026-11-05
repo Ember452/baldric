@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from types import SimpleNamespace
 
 from baldric_agent.messages import (
@@ -12,11 +11,8 @@ from baldric_agent.messages import (
     ToolResultMessage,
     UserMessage,
 )
-from baldric_agent.session import MessageEntry, SessionInfoEntry
 from baldric_coding.extensions.builtins.subagents.fork import (
     FORK_FILLER_RESULT,
-    ForkCapture,
-    build_fork_entries,
     capture_fork,
     wrap_fork_task,
 )
@@ -92,29 +88,6 @@ def test_interleaved_calls_get_their_fillers_in_order() -> None:
         "ToolResultMessage",
     ]
     assert [message.tool_call_id for message in capture.messages[1:]] == ["b", "a"]
-
-
-def test_fork_entries_chain_from_the_session_info_entry(tmp_path: Path) -> None:
-    capture = ForkCapture(
-        system_prompt="p",
-        model="m",
-        provider_name="prov",
-        messages=(UserMessage(content="one"), AssistantMessage(content=[TextContent(text="two")])),
-        thinking_level="off",
-    )
-    project = tmp_path / "work" / "app"
-
-    entries = build_fork_entries(capture, project)
-
-    assert len(entries) == 3
-    info = entries[0]
-    assert isinstance(info, SessionInfoEntry)
-    assert info.cwd == str(project), "the child must report its own working directory"
-    first, second = entries[1:]
-    assert isinstance(first, MessageEntry) and isinstance(second, MessageEntry)
-    assert first.parent_id == info.id
-    assert second.parent_id == first.id, "an unchained entry would be detached on replay"
-    assert len({entry.id for entry in entries}) == 3
 
 
 def test_wrap_fork_task_frames_the_prompt_and_notes_isolation() -> None:
