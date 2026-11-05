@@ -28,7 +28,10 @@ def anyio_backend() -> str:
 
 
 def _runtime_with_examples(tmp_path: Path, *names: str) -> ExtensionRuntime:
-    runtime = ExtensionRuntime()
+    # Bundled capabilities stay out of this runtime: these cases are about what
+    # the shipped examples register, and several of them read the composed tool
+    # list positionally, so a built-in tool would silently become the subject.
+    runtime = ExtensionRuntime(built_in_extensions=())
     runtime.load(
         BaldricResourcePaths(
             root=tmp_path / "home-baldric",
