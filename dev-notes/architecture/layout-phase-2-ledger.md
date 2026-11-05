@@ -193,6 +193,33 @@ Phase 1 ledger: `dev-notes/architecture/layout-migration-log.md`
 - **Remaining Task 6 seams:** lifecycle (`reload`, catalogs, `resume`,
   `new_session`, `_adopt_replacement`, `aclose`) and tree/query surface.
 
+## Task 6d — lifecycle moved to `session/lifecycle.py`
+
+- **Commit:** `95f0650` `refactor(layout): move session lifecycle to lifecycle module`
+- **Moved:** `reload`, model-catalog refresh/publish, `resume`, session naming
+  persistence, `new_session`, `_adopt_replacement`, `compact`/`compact_detailed`,
+  `aclose`/owned-resource close, command handling, session indexing, prompt
+  expansion, terminal command execution.
+- **Size:** `session.py` 3,014 → **2,216 lines** (from 5,224 originally);
+  `lifecycle.py` 1,173 lines.
+- **Compatibility fixes:** lifecycle calls back into the session module for
+  `create_model_provider`, `load_provider_settings`, `_load_session_resources`,
+  `_await_cleanup_completion`, `_finish_*_close`, and dataclass construction, so
+  existing monkeypatch tests still affect the implementation; `cast(..., "Type")`
+  used for runtime class lookups only needed by typing.
+- **Checks:** `test_coding_session.py` → `182 passed, 7 skipped`; broad
+  session/CLI/extensions/TUI-adapter group → `613 passed, 25 skipped`; ruff/format
+  pass; mypy `14 errors in 2 files (checked 192 source files)` baseline.
+
+### Task 6 final state
+
+`session/session.py` now contains the state object, properties/query surface, and
+remaining tree/branch methods. Turn runtime, persistence/compaction, model/thinking
+selection, lifecycle, providers, resources, and tree helpers are separate modules.
+A further split of the remaining tree/branch query surface is possible but lower
+value than moving to the 9k-line TUI app; Task 7 is the next high-value target.
+
+
 
 
 
