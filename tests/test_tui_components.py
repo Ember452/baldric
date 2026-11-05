@@ -24,8 +24,8 @@ from baldric_coding.tui.widgets import SessionSidebar, TranscriptView
 from conftest import isolate_home
 from test_tui_app import (  # noqa: E402 - sibling test module (see docstring)
     FakeSession,
-    _component_bridge,
 )
+from tui_helpers import _component_bridge
 
 
 @pytest.mark.anyio
