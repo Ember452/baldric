@@ -235,7 +235,7 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 | Task | Cluster | Start commit | Closure files | M steps | Rename detection | check_move_only | Facade `__all__` | Commit | Notes |
 |---|---|---|---|---|---|---|---|---|---|
 | 3 | `rendering/themes` | `3e470cb` | 17 (4 moved + 7 src + 6 tests) | M-1..M-7 | R100 ×4 | see below | empty diff (139) | `e36eae8` | batch 1 |
-| 4 | `auth/` | _pending_ | | | | | | | |
+| 4 | `auth/` | `af06dbe` | 28 (7 moved + 10 src + 9 tests + 2 new inits) | M-1..M-7 | R100 ×1, R9x ×6 | see below | empty diff (139) | _pending_ | batch 2 |
 | 5 | leaf (`config/`, `update/`, `observability/`, `utils/`) | _pending_ | | | | | | | |
 | 6 | `context/` | _pending_ | | | | | | | |
 | 7 | `providers/` | _pending_ | | | | | | | |
@@ -282,3 +282,24 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
   `2352 passed, 122 skipped in 268.12s` → `F_after = ∅`; `F_after ⊆ F_before` holds.
 - **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/`
 - **Commit:** `e36eae8` (`refactor(layout): move tui themes into rendering`).
+
+### Task 4 — `auth/` (batch 2)
+
+- **Start commit:** `af06dbe`. `F_before` = `∅` (Task 3 batch-end full suite was green).
+- **Closure:** 28 files = 7 moved + 10 non-moved src importers + 9 test files + 2 new package inits.
+- **4.2b:** no `from baldric_coding import <auth module>` forms found.
+- **M-2:** 25 referencing files (16 src + 9 tests), 50 rewrite sites.
+- **M-3 (intentional red):** 9 collection errors after test import rewrite
+  (`ERROR tests/test_credentials.py`, `test_llama_cpp_extension.py`, `test_oauth.py`,
+  `test_oauth_providers.py`, `test_oauth_tui.py`, `test_phase6_hardening.py`,
+  `test_provider_config.py`, `test_provider_runtime.py`, `test_tui_app.py`).
+- **M-4:** 7 `git mv` moves; `auth/__init__.py` + `auth/flows/__init__.py` created with
+  docstring only; 35 src rewrite sites.
+- **M-5 evidence:** residual old auth paths `(none)`; import smoke
+  `all= 139`; rename detection `credentials.py => auth/credentials.py | 0` (R100),
+  other six R9x; facade `__all__` `(empty diff)` 139.
+- **M-6:** cluster tests `655 passed, 46 skipped in 165.60s`; mypy
+  `Found 14 errors in 2 files (checked 146 source files)` (same baseline errors);
+  `ruff check .` → `All checks passed!`; `ruff format --check .` → `242 files already formatted`.
+- **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/`
+- **Commit:** _pending_

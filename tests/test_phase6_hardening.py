@@ -10,7 +10,7 @@ import httpx
 import pytest
 
 from baldric_agent.harness import SimpleCancellationToken
-from baldric_coding.credentials import FileCredentialStore
+from baldric_coding.auth.credentials import FileCredentialStore
 from baldric_coding.extensions import (
     DynamicProvider,
     DynamicProviderRegistry,

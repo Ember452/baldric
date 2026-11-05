@@ -10,10 +10,10 @@ from urllib.parse import urlparse
 import httpx
 
 from baldric_ai.http import create_async_client
-from baldric_coding.credentials import OAuthCredential
-from baldric_coding.oauth import OAuthError, oauth_credential_is_expired
-from baldric_coding.oauth_device import DevicePollResult, poll_oauth_device_code
-from baldric_coding.oauth_types import (
+from baldric_coding.auth.credentials import OAuthCredential
+from baldric_coding.auth.flows.device import DevicePollResult, poll_oauth_device_code
+from baldric_coding.auth.oauth import OAuthError, oauth_credential_is_expired
+from baldric_coding.auth.types import (
     OAuthDeviceCodeInfo,
     OAuthFlowKind,
     OAuthLoginCallbacks,

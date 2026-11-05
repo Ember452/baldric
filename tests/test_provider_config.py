@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 import baldric_coding.provider_config as provider_config
-from baldric_coding.credentials import FileCredentialStore, OAuthCredential
+from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric_coding.paths import BaldricPaths
 from baldric_coding.provider_catalog import ModelCostTier
 from baldric_coding.provider_config import (

@@ -46,6 +46,8 @@ from baldric_agent.tools import AgentTool
 from baldric_agent.types import JSONValue
 from baldric_ai.model_catalog import ModelCatalogProvider, RuntimeModel, RuntimeModelCatalog
 from baldric_ai.model_limits import ModelLimitsProvider, RuntimeModelLimits
+from baldric_coding.auth.credentials import FileCredentialStore, credentials_path
+from baldric_coding.auth.oauth import account_id_from_access_token
 from baldric_coding.branch_summary import summarize_branch_messages_with_model
 from baldric_coding.codex_model_store import (
     cached_codex_model_catalog,
@@ -64,7 +66,6 @@ from baldric_coding.context_window import (
     estimate_message_tokens,
     summarize_messages_for_compaction,
 )
-from baldric_coding.credentials import FileCredentialStore, credentials_path
 from baldric_coding.diagnostics import (
     AgentCallDiagnosticContext,
     AgentCallDiagnosticLogger,
@@ -86,7 +87,6 @@ from baldric_coding.extensions.provider_registry import DynamicProviderRegistry
 from baldric_coding.extensions.providers import DynamicProvider, ProviderModel
 from baldric_coding.extensions.runtime import ExtensionRuntime
 from baldric_coding.models_dev_store import ModelsDevRefreshResult, refresh_models_dev_catalog
-from baldric_coding.oauth import account_id_from_access_token
 from baldric_coding.paths import BaldricPaths
 from baldric_coding.project_trust import (
     CanonicalProjectPath,

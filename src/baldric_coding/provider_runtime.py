@@ -22,8 +22,15 @@ from baldric_ai.openai_codex import (
     OpenAICodexProvider,
 )
 from baldric_ai.openai_compatible import OpenAICompatibleProvider
+from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
+from baldric_coding.auth.oauth import (
+    account_id_from_access_token,
+    oauth_credential_is_expired,
+    refresh_openai_codex_token,
+)
+from baldric_coding.auth.registry import get_oauth_provider
+from baldric_coding.auth.types import OAuthProvider
 from baldric_coding.codex_version import CodexClientVersionResolver
-from baldric_coding.credentials import FileCredentialStore, OAuthCredential
 from baldric_coding.extensions.providers import (
     CredentialReader,
     DynamicProvider,
@@ -37,13 +44,6 @@ from baldric_coding.extensions.providers import (
     json_compatible_mapping,
     resolve_provider_auth,
 )
-from baldric_coding.oauth import (
-    account_id_from_access_token,
-    oauth_credential_is_expired,
-    refresh_openai_codex_token,
-)
-from baldric_coding.oauth_registry import get_oauth_provider
-from baldric_coding.oauth_types import OAuthProvider
 from baldric_coding.paths import BaldricPaths
 from baldric_coding.provider_config import (
     AnthropicProviderConfig,

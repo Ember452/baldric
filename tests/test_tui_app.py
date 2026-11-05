@@ -56,9 +56,9 @@ from baldric_agent import (
 )
 from baldric_agent.messages import assistant_content
 from baldric_agent.provider_events import TextDeltaEvent, ThinkingDeltaEvent, ThinkingEndEvent
+from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric_coding.catalog_loader import user_catalog_path
 from baldric_coding.commands import CommandResult, format_resource_diagnostics
-from baldric_coding.credentials import FileCredentialStore, OAuthCredential
 from baldric_coding.events import (
     AgentSettledEvent,
     CodingSessionEvent,

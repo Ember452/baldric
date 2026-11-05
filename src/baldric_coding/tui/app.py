@@ -74,6 +74,16 @@ from baldric_agent.provider_events import (
 )
 from baldric_agent.tools import AgentTool
 from baldric_agent.types import JSONValue
+from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
+from baldric_coding.auth.oauth import login_openai_codex
+from baldric_coding.auth.registry import get_oauth_provider, oauth_provider_ids
+from baldric_coding.auth.types import (
+    OAuthAuthInfo,
+    OAuthDeviceCodeInfo,
+    OAuthLoginCallbacks,
+    OAuthPrompt,
+    OAuthSelectPrompt,
+)
 from baldric_coding.catalog_loader import save_user_catalog_entries
 from baldric_coding.commands import (
     LOGIN_PROVIDER_ALIASES,
@@ -81,7 +91,6 @@ from baldric_coding.commands import (
     create_default_command_registry,
     format_reload_summary,
 )
-from baldric_coding.credentials import FileCredentialStore, OAuthCredential
 from baldric_coding.events import (
     AgentSettledEvent,
     AutoRetryStartEvent,
@@ -98,15 +107,6 @@ from baldric_coding.extensions.api import (
     SidebarContent,
     SlotWidgetContent,
     SlotWidgetFactory,
-)
-from baldric_coding.oauth import login_openai_codex
-from baldric_coding.oauth_registry import get_oauth_provider, oauth_provider_ids
-from baldric_coding.oauth_types import (
-    OAuthAuthInfo,
-    OAuthDeviceCodeInfo,
-    OAuthLoginCallbacks,
-    OAuthPrompt,
-    OAuthSelectPrompt,
 )
 from baldric_coding.project_trust import ProjectTrustRequest, TrustChoice, TrustOverride
 from baldric_coding.prompt_templates import PromptTemplate

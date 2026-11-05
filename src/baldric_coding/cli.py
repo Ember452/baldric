@@ -21,9 +21,9 @@ from baldric_ai.env import (
     DEFAULT_OPENAI_COMPATIBLE_MAX_RETRY_DELAY_SECONDS,
     DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS,
 )
+from baldric_coding.auth.credentials import FileCredentialStore
 from baldric_coding.catalog_loader import user_catalog_path
 from baldric_coding.commands import format_reload_summary
-from baldric_coding.credentials import FileCredentialStore
 from baldric_coding.extension_installer import ExtensionInstallError, install_extension
 from baldric_coding.extensions import StderrUiBridge
 from baldric_coding.models_dev_store import (

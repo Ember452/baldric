@@ -12,15 +12,15 @@ from urllib.parse import urlencode
 import httpx
 
 from baldric_ai.http import create_async_client
-from baldric_coding.credentials import OAuthCredential
-from baldric_coding.oauth import (
+from baldric_coding.auth.credentials import OAuthCredential
+from baldric_coding.auth.oauth import (
     OAuthError,
     _start_local_oauth_server,
     create_pkce_pair,
     oauth_credential_is_expired,
     parse_authorization_input,
 )
-from baldric_coding.oauth_types import (
+from baldric_coding.auth.types import (
     OAuthAuthInfo,
     OAuthFlowKind,
     OAuthLoginCallbacks,

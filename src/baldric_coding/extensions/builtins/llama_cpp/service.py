@@ -27,7 +27,7 @@ from baldric_agent.types import JSONValue
 from baldric_ai.env import DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, OpenAICompatibleConfig
 from baldric_ai.http import create_async_client
 from baldric_ai.openai_compatible import OpenAICompatibleProvider
-from baldric_coding.credentials import CredentialStore, FileCredentialStore, credentials_path
+from baldric_coding.auth.credentials import CredentialStore, FileCredentialStore, credentials_path
 from baldric_coding.extensions.providers import (
     DynamicProvider,
     OpenAICompatibleTransport,

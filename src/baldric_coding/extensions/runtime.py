@@ -25,6 +25,7 @@ from baldric_agent.tools import (
     ToolUpdateCallback,
 )
 from baldric_agent.types import JSONValue
+from baldric_coding.auth.credentials import CredentialStore, FileCredentialStore, credentials_path
 from baldric_coding.built_in_extensions import BuiltInExtension, BuiltInExtensionContext
 from baldric_coding.commands import (
     CommandContext,
@@ -33,7 +34,6 @@ from baldric_coding.commands import (
     SlashCommand,
     create_default_command_registry,
 )
-from baldric_coding.credentials import CredentialStore, FileCredentialStore, credentials_path
 from baldric_coding.extensions.api import (
     AGENT_EVENT_TYPES,
     AGENT_EVENT_WILDCARD,

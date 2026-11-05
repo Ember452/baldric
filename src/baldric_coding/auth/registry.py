@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from baldric_coding.oauth import OpenAICodexOAuthProvider
-from baldric_coding.oauth_anthropic import AnthropicOAuthProvider
-from baldric_coding.oauth_github_copilot import GitHubCopilotOAuthProvider
-from baldric_coding.oauth_types import OAuthProvider
+from baldric_coding.auth.flows.anthropic import AnthropicOAuthProvider
+from baldric_coding.auth.flows.github_copilot import GitHubCopilotOAuthProvider
+from baldric_coding.auth.oauth import OpenAICodexOAuthProvider
+from baldric_coding.auth.types import OAuthProvider
 
 _BUILTIN_PROVIDERS: tuple[OAuthProvider, ...] = tuple(
     [AnthropicOAuthProvider(), GitHubCopilotOAuthProvider(), OpenAICodexOAuthProvider()]

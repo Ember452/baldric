@@ -4,7 +4,7 @@ import pytest
 
 from baldric_ai import AnthropicProvider, OpenAICodexProvider, OpenAICompatibleProvider
 from baldric_coding import provider_runtime
-from baldric_coding.credentials import FileCredentialStore, OAuthCredential
+from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric_coding.provider_config import (
     AnthropicProviderConfig,
     OpenAICodexProviderConfig,

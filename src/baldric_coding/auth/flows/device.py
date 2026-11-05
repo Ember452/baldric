@@ -9,7 +9,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Literal
 
-from baldric_coding.oauth import OAuthError
+from baldric_coding.auth.oauth import OAuthError
 
 DevicePollStatus = Literal["complete", "pending", "slow_down", "failed"]
 

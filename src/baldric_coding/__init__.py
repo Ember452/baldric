@@ -2,6 +2,27 @@
 
 from __future__ import annotations
 
+from baldric_coding.auth.credentials import (
+    CredentialStoreError,
+    FileCredentialStore,
+    OAuthCredential,
+    credentials_path,
+)
+from baldric_coding.auth.registry import (
+    get_oauth_provider,
+    get_oauth_providers,
+    register_oauth_provider,
+    reset_oauth_providers,
+    unregister_oauth_provider,
+)
+from baldric_coding.auth.types import (
+    OAuthAuthInfo,
+    OAuthDeviceCodeInfo,
+    OAuthLoginCallbacks,
+    OAuthPrompt,
+    OAuthProvider,
+    OAuthRuntimeAuth,
+)
 from baldric_coding.built_in_extensions import BuiltInExtension, BuiltInExtensionSetup
 from baldric_coding.commands import (
     CommandRegistry,
@@ -26,27 +47,6 @@ from baldric_coding.context_window import (
     estimate_tool_tokens,
     serialize_messages_for_compaction,
     summarize_messages_for_compaction,
-)
-from baldric_coding.credentials import (
-    CredentialStoreError,
-    FileCredentialStore,
-    OAuthCredential,
-    credentials_path,
-)
-from baldric_coding.oauth_registry import (
-    get_oauth_provider,
-    get_oauth_providers,
-    register_oauth_provider,
-    reset_oauth_providers,
-    unregister_oauth_provider,
-)
-from baldric_coding.oauth_types import (
-    OAuthAuthInfo,
-    OAuthDeviceCodeInfo,
-    OAuthLoginCallbacks,
-    OAuthPrompt,
-    OAuthProvider,
-    OAuthRuntimeAuth,
 )
 from baldric_coding.paths import BaldricPaths
 from baldric_coding.prompt_templates import (
