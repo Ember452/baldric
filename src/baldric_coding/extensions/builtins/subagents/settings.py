@@ -60,7 +60,7 @@ def load_subagent_settings(
 def _read_file(path: Path) -> dict[str, object]:
     try:
         text = path.read_text(encoding="utf-8")
-    except (OSError, ValueError):
+    except (OSError, UnicodeDecodeError):
         return {}
     try:
         data = json.loads(text)
