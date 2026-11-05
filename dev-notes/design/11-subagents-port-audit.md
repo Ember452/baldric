@@ -168,9 +168,11 @@ in `subagents`, `ruff check` and `ruff format --check` clean, and the suite at
 2238 passed / 119 skipped - the same numbers as before the copy, because none of
 this code was under test yet.
 
-What remains: adding the extension to `BUILT_IN_EXTENSIONS` so it actually
-loads. The original suites for the manager, menu, fleet UI and scheduler are in,
-so the capability now has 236 cases exercising it rather than only its parts.
+What remains: nothing for the capability itself - it is declared in
+`built_in_extensions` and loads with every session, so the assistant can delegate
+on its own and `/agents` opens the fleet. The user-facing documentation pages have
+not been touched, since that is prose for the product rather than a porting
+consequence.
 
 One environment note: a full-suite run blocked once with zero CPU in an existing
 TUI test and had to be killed. Re-runs of that group standalone (672 passed) and
@@ -219,4 +221,14 @@ one full-suite run blocked in an existing TUI test with zero CPU, and one run of
 the ported suites failed `assert False is True` on a viewer-mount check that
 passes standalone, in every pairwise combination, and on two further full runs
 (236 passed twice). Both are recorded rather than chased.
+
+A third incident arrived after the capability started loading by default, and it
+behaves the same way: one Textual case in `test_tui_app.py` failed, then on the
+next full run a *different* case in the same file failed while the first passed.
+Run in isolation the failing case passes five times out of five, and the whole
+file passes twice (457) as does the file plus the two heaviest new suites (540).
+The mechanism that could have mattered was checked in the code rather than
+inferred: the fleet interceptor returns without consuming a key while no run is
+mounted (`if strip is None or not strip.has_agents(): return False`), so ordinary
+arrow-key handling is untouched when nothing is spawned.
 
