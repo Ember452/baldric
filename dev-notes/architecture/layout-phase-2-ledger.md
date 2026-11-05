@@ -177,6 +177,23 @@ Phase 1 ledger: `dev-notes/architecture/layout-migration-log.md`
 - These are state-heavy and are intentionally not being moved in the same commit
   as the turn loop.
 
+## Task 6c — model/thinking selection moved to `session/model_selection.py`
+
+- **Commit:** `84cbe3e` `refactor(layout): move session model selection and thinking`
+- **Moved:** `ModelChoice` / `ModelSelectionResult`, `set_model`,
+  `apply_startup_model_override`, `select_provider_model`, inference-provider
+  selection, scoped models, preview/commit, `set_provider`, thinking level
+  apply/persist/sync/image-support helpers.
+- **Design:** same free-function + thin-delegate pattern; `ModelChoice` remains a
+  public re-export from `session.session`.
+- **Size:** `session.py` 3,538 → 3,014 lines; `model_selection.py` 881 lines.
+- **Checks:** `test_coding_session.py` → `182 passed, 7 skipped`; broad
+  session/CLI/extensions/TUI-adapter group → `613 passed, 25 skipped`; ruff/format
+  pass; mypy `14 errors in 2 files (checked 191 source files)` baseline.
+- **Remaining Task 6 seams:** lifecycle (`reload`, catalogs, `resume`,
+  `new_session`, `_adopt_replacement`, `aclose`) and tree/query surface.
+
+
 
 
 
