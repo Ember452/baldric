@@ -763,7 +763,7 @@ def _theme_command(context: CommandContext) -> CommandResult:
 
     # Imported lazily so importing this module never pulls in `baldric_coding.tui`
     # (whose package __init__ imports Textual) until /theme actually executes.
-    from baldric_coding.tui.themes import available_tui_theme_names
+    from baldric_coding.rendering.themes import available_tui_theme_names
 
     theme_name = context.args.strip()
     available = available_tui_theme_names()

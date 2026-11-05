@@ -446,7 +446,7 @@ def test_theme_command_requests_picker_and_sets_theme(tmp_path: Path) -> None:
 
 
 def test_theme_command_accepts_registered_custom_theme(tmp_path: Path) -> None:
-    from baldric_coding.tui.themes import (
+    from baldric_coding.rendering.themes import (
         THEME_COLOR_FIELDS,
         TRANSCRIPT_ROLES,
         parse_tui_theme_json,

@@ -42,13 +42,13 @@ from baldric_agent.session import (
     path_to_entry,
 )
 from baldric_agent.types import JSONValue
+from baldric_coding.rendering.themes import BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME, TuiTheme
 from baldric_coding.session_usage import (
     USAGE_SCRIPT,
     USAGE_STYLES,
     collect_session_usage,
     render_usage_dashboard,
 )
-from baldric_coding.tui.themes import BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME, TuiTheme
 
 
 class SessionExportError(ValueError):

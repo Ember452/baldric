@@ -17,9 +17,9 @@ from textual.containers import Container
 from textual.widgets import Collapsible, Static
 
 from baldric_coding.extensions import ExtensionRuntime
+from baldric_coding.rendering.themes import get_tui_theme
 from baldric_coding.tui.app import BaldricTuiApp, PromptInput
 from baldric_coding.tui.config import TuiSettings
-from baldric_coding.tui.themes import get_tui_theme
 from baldric_coding.tui.widgets import SessionSidebar, TranscriptView
 from conftest import isolate_home
 from test_tui_app import (  # noqa: E402 - sibling test module (see docstring)

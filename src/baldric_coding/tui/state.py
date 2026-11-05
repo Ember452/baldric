@@ -23,9 +23,9 @@ from baldric_agent.messages import (
 from baldric_agent.tools import AgentToolResult, ToolCall
 from baldric_agent.types import JSONValue
 from baldric_coding.extensions.api import CustomMessageMarkup, ToolCallMarkup, ToolResultMarkup
+from baldric_coding.rendering.themes import TranscriptRole
 from baldric_coding.skills import Skill, parse_skill_invocation
 from baldric_coding.system_prompt import SystemPromptSource
-from baldric_coding.tui.themes import TranscriptRole
 
 ChatItemRole = TranscriptRole
 TOOL_RESULT_PREVIEW_LINES = 8

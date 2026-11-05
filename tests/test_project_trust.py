@@ -30,6 +30,7 @@ from baldric_coding.project_trust import (
     canonicalize_project_path,
     format_trust_diagnostic,
 )
+from baldric_coding.rendering.themes import BALDRIC_DARK_THEME
 from baldric_coding.resources import (
     BaldricResourcePaths,
     resource_paths_with_cwd,
@@ -37,7 +38,6 @@ from baldric_coding.resources import (
 )
 from baldric_coding.session import CodingSession, CodingSessionConfig
 from baldric_coding.tui.project_trust import ProjectTrustScreen, _ProjectTrustApp
-from baldric_coding.tui.themes import BALDRIC_DARK_THEME
 
 
 def _paths(tmp_path: Path) -> BaldricPaths:

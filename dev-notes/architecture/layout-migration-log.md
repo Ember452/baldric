@@ -226,7 +226,7 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 
 | Task | Cluster | Start commit | Closure files | M steps | Rename detection | check_move_only | Facade `__all__` | Commit | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| 3 | `rendering/themes` | _pending_ | | | | | | | |
+| 3 | `rendering/themes` | `3e470cb` | 17 (4 moved + 7 src + 6 tests) | M-1..M-7 | R100 ×4 | see below | empty diff (139) | _pending_ | batch 1 |
 | 4 | `auth/` | _pending_ | | | | | | | |
 | 5 | leaf (`config/`, `update/`, `observability/`, `utils/`) | _pending_ | | | | | | | |
 | 6 | `context/` | _pending_ | | | | | | | |
@@ -235,3 +235,42 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 | 9 | `tools/` `backends/` `trust/` | _pending_ | | | | | | | |
 | 10 | `extensions/` `commands/` | _pending_ | | | | | | | |
 | 11 | facade / O-class review | _pending_ | | | | | | | |
+
+### Task 3 — `tui/themes/` → `rendering/themes/` (batch 1)
+
+- **Start commit:** `3e470cb`. `F_before` = the three entries in the M-1 table above.
+- **Closure:** 17 files = 4 moved (`themes/__init__.py` + 3 `.json`) + 7 src importers
+  (`commands.py`, `session_export.py`, `session_usage.py`, `tui/app.py`, `tui/config.py`,
+  `tui/project_trust.py`, `tui/state.py`) + 6 test files / 8 references
+  (`test_commands`, `test_project_trust`, `test_session_export`, `test_tui_app`,
+  `test_tui_components`, `test_tui_themes`) + **0 facade lines**.
+- **M-2:** 15 references (7 src + 8 test lines); old-path residual after M-4: **0**.
+- **M-3 (intentional red):** test imports switched first → 4 collection errors:
+  `ModuleNotFoundError: No module named 'baldric_coding.rendering.themes'`
+  (`ERROR tests/test_project_trust.py`, `test_session_export.py`, `test_tui_components.py`,
+  `test_tui_themes.py`); the two lazy-import test files failed at runtime. Safety net
+  confirmed connected.
+- **M-4:** `git mv src/baldric_coding/tui/themes src/baldric_coding/rendering/themes`;
+  7 src import lines rewritten; `ruff check --fix --select I001` reordered 8 import
+  blocks (path-order only, no other content).
+- **M-5 evidence (actual output):**
+  - Rename detection before commit (`git diff --find-renames --stat HEAD`):
+    `{tui => rendering}/themes/__init__.py | 0`, `baldric-dark.json | 0`,
+    `baldric-light.json | 0`, `high-contrast.json | 0`; 17 files total, 23 +/23 -.
+  - Real theme load:
+    `names= ('baldric-dark', 'baldric-light', 'high-contrast')`
+    `dark= baldric-dark light= baldric-light contrast= high-contrast` — exit 0.
+  - Cycle check 1 (session side must not import tui): `(empty)`.
+  - Cycle check 2 (tui → session, expected non-empty): `adapter.py:23`,
+    `app.py:136`, `app.py:147`, `app.py:148`, `widgets.py:44`.
+  - Facade `__all__`: `(empty diff)`, 139 names (same as baseline).
+  - `git diff --name-only` = exactly the 17-file closure, no extra files.
+- **M-6:** cluster tests `632 passed, 46 skipped in 193.89s`; mypy
+  `Found 14 errors in 2 files (checked 144 source files)` (identical baseline);
+  `ruff check .` → `All checks passed!`; `ruff format --check .` → `240 files already formatted`.
+- **Full-suite run (batch 1 end):** attempt 1 stopped at 93% after one `F` at ~84%
+  (`test_tui_closing_model_picker_cancels_its_refresh_without_chrome_rebuild[asyncio-/scoped-models]`,
+  passes in isolation) and hung >15 min; killed. Attempt 2 with `--timeout=120`:
+  `2352 passed, 122 skipped in 268.12s` → `F_after = ∅`; `F_after ⊆ F_before` holds.
+- **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/`
+- **Commit:** _pending_ (hash recorded in Task 12 final table).

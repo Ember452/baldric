@@ -132,6 +132,13 @@ from baldric_coding.provider_config import (
     upsert_saved_provider,
 )
 from baldric_coding.provider_runtime import ClosableModelProvider, create_model_provider
+from baldric_coding.rendering.themes import (
+    available_tui_theme_names,
+    load_custom_tui_themes,
+    set_custom_tui_themes,
+    textual_theme_for_tui_theme,
+    theme_css_variables,
+)
 from baldric_coding.resources import BaldricResourcePaths, ResourceDiagnostic
 from baldric_coding.session import (
     TREE_RUNNING_MESSAGE,
@@ -183,13 +190,6 @@ from baldric_coding.tui.state import (
 )
 from baldric_coding.tui.terminal_notification import TerminalNotificationController
 from baldric_coding.tui.terminal_title import TerminalTitleController
-from baldric_coding.tui.themes import (
-    available_tui_theme_names,
-    load_custom_tui_themes,
-    set_custom_tui_themes,
-    textual_theme_for_tui_theme,
-    theme_css_variables,
-)
 from baldric_coding.tui.widgets import (
     CompactSessionInfo,
     SessionSidebar,

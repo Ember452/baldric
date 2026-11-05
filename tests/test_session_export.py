@@ -17,8 +17,8 @@ from baldric_agent import (
     UserMessage,
 )
 from baldric_agent.messages import Usage, assistant_content
+from baldric_coding.rendering.themes import BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME
 from baldric_coding.session_export import export_session_html, render_session_html
-from baldric_coding.tui.themes import BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME
 
 
 def test_render_session_html_preserves_branch_tree() -> None:

@@ -12,7 +12,7 @@ from textual.screen import ModalScreen
 from textual.widgets import Label, ListItem, ListView, Static
 
 from baldric_coding.project_trust import ProjectTrustRequest, TrustChoice
-from baldric_coding.tui.themes import BALDRIC_DARK_THEME, textual_theme_for_tui_theme
+from baldric_coding.rendering.themes import BALDRIC_DARK_THEME, textual_theme_for_tui_theme
 
 _LABELS: tuple[tuple[TrustChoice, str], ...] = (
     ("trust-exact", "Trust this folder"),

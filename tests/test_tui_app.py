@@ -5148,7 +5148,7 @@ def test_tui_app_uses_configured_theme_css_variables() -> None:
 
 
 def test_tui_app_registers_and_applies_custom_theme() -> None:
-    from baldric_coding.tui.themes import (
+    from baldric_coding.rendering.themes import (
         THEME_COLOR_FIELDS,
         TRANSCRIPT_ROLES,
         parse_tui_theme_json,
@@ -5174,7 +5174,7 @@ def test_tui_app_registers_and_applies_custom_theme() -> None:
 async def test_tui_app_removes_source_project_themes_after_resume(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from baldric_coding.tui.themes import (
+    from baldric_coding.rendering.themes import (
         THEME_COLOR_FIELDS,
         TRANSCRIPT_ROLES,
         available_tui_theme_names,
