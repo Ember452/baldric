@@ -44,12 +44,12 @@ type Details = Mapping[str, JSONValue]
 def render_notification(view: CustomMessageView, options: MessageRenderOptions) -> str | None:
     """Render a subagent-notification message; None falls back to raw XML."""
     details = view.details
-    if not isinstance(details, Mapping):
+    if not isinstance(details, dict):
         return None
     expanded = options.expanded
     others = details.get("others")
     blocks = [details, *(others if isinstance(others, list) else [])]
-    rendered = [_render_one(block, expanded) for block in blocks if isinstance(block, Mapping)]
+    rendered = [_render_one(block, expanded) for block in blocks if isinstance(block, dict)]
     return "\n".join(rendered) if rendered else None
 
 
@@ -64,16 +64,16 @@ def render_agent_result(result: AgentToolResult, *, expanded: bool) -> str | Non
     the generic result block.
     """
     details = result.details
-    if not isinstance(details, Mapping):
+    if not isinstance(details, dict):
         return None
-    status = _str_field(details, "status")
+    status = str(details.get("status", ""))
     if status == "background":
         verb = "Queued" if details.get("queued") else "Running"
-        agent_id = _escape(_str_field(details, "agent_id") or "?")
+        agent_id = _escape(str(details.get("agent_id") or "?"))
         line = f"  [dim]⎿  {verb} in background ({agent_id})[/dim]"
-        output_file = _str_field(details, "output_file")
+        output_file = details.get("output_file")
         if expanded and output_file:
-            line += f"\n  [dim]transcript: {_escape(output_file)}[/dim]"
+            line += f"\n  [dim]transcript: {_escape(str(output_file))}[/dim]"
         return line
     if not status:
         return None
@@ -83,9 +83,9 @@ def render_agent_result(result: AgentToolResult, *, expanded: bool) -> str | Non
 
 
 def _render_one(details: Details, expanded: bool) -> str:
-    status = _str_field(details, "status")
+    status = str(details.get("status", ""))
     icon, status_text = _status_glyph(status)
-    description = _escape(_str_field(details, "description"))
+    description = _escape(str(details.get("description", "")))
     line = f"{icon} [bold]{description}[/bold] [dim]{status_text}[/dim]"
 
     stats = stat_parts(details)
@@ -113,8 +113,8 @@ def _result_body(details: Details, expanded: bool) -> str:
     Failure previews (the run's error text) render red rather than dim so a
     failed run doesn't read like routine output.
     """
-    preview = _str_field(details, "result_preview") or "No output."
-    status = _str_field(details, "status")
+    preview = str(details.get("result_preview") or "No output.")
+    status = str(details.get("status", ""))
     is_failure = status in FAILURE_STATUSES and status not in USER_STOP_STATUSES
     style = "red" if is_failure else "dim"
     lines = preview.split("\n")
@@ -127,9 +127,9 @@ def _result_body(details: Details, expanded: bool) -> str:
             body += f"\n  [dim]… {_plural(hidden, 'more line')} — get_subagent_result for full output[/dim]"
         # The transcript path is long and rarely needed at a glance; it only
         # appears here in the expanded view.
-        output_file = _str_field(details, "output_file")
+        output_file = details.get("output_file")
         if output_file:
-            body += f"\n  [dim]transcript: {_escape(output_file)}[/dim]"
+            body += f"\n  [dim]transcript: {_escape(str(output_file))}[/dim]"
     else:
         first = _ellipsize(lines[0], COLLAPSED_PREVIEW_CHARS)
         if len(lines) > 1 and not first.endswith("…"):
@@ -159,11 +159,6 @@ def stat_parts(details: Details) -> list[str]:
     if duration > 0:
         parts.append(_format_duration(duration))
     return parts
-
-
-def _str_field(details: Details, key: str) -> str:
-    value = details.get(key)
-    return value if isinstance(value, str) else ""
 
 
 def _int_field(details: Details, key: str) -> int:
