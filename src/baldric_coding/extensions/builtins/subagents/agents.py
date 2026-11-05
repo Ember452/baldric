@@ -13,9 +13,10 @@ built-in tool names, or `*`), `model`, `thinking` (a Baldric thinking level),
 
 Children discover skills natively through Baldric's own machinery by default.
 `skills: <csv>` additionally preloads the named skills' bodies into the
-system prompt; `skills: true`/`*`/`all` pins resource discovery (skills and
-project context files) to the parent cwd, which only matters under worktree
-isolation; `skills: none`/`false` disables skill discovery entirely.
+system prompt; `skills: true`/`*`/`all` inherits the parent's resource roots
+(the user and global directories plus the trust flag) while the project
+directory still resolves from the child's own working directory; `skills:
+none`/`false` disables skill discovery entirely.
 
 The project directory is read only when its inputs were approved: a definition
 body is the child's system prompt and `tools` is its allow-list.

@@ -305,6 +305,9 @@ class SubagentManager:
                 self._api.context.cwd,
                 self._api.context.session_id,
                 run.agent_id,
+                # Locations come from the injected paths, as everywhere else in
+                # this capability, so an alternate BALDRIC_HOME is honoured.
+                home=self._api.context.paths.home,
                 # transcriptRetentionDays: 0 opts out of durable storage;
                 # an unset value keeps durable transcripts indefinitely.
                 durable=self._get_settings().transcript_retention_days != 0,
@@ -665,13 +668,20 @@ class SubagentManager:
                 provider=provider,
                 model=selection.model,
                 cwd=child_cwd,
+                # Forward the parent's decision: a child resolving trust on its
+                # own has no way to ask, and the default lands on declined, which
+                # silently drops project skills and context files from it.
+                trust_override=("approve" if self._api.context.project_trusted else "decline"),
                 storage=storage,
                 system=prompt_text if append_active else None,
                 custom_system_prompt=None if append_active else prompt_text,
                 # Children always discover skills natively (Baldric defaults
-                # resource paths from the session cwd). skills: true pins
-                # discovery to the PARENT cwd, which matters under worktree
-                # isolation where the default would use the worktree copy.
+                # resource paths from the session cwd). What `skills: true`
+                # adds here is the inherited roots and trust flag: Baldric
+                # treats a resource plan as destination-bound and re-resolves
+                # the project directory from the child's own cwd
+                # (resources.py:292-308), so a worktree child reads the
+                # worktree's copy of the project resources.
                 resource_paths=(
                     inherited_resource_paths(
                         self._api.context.paths,
