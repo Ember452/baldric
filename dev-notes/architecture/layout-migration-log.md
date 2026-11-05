@@ -237,8 +237,8 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 | 3 | `rendering/themes` | `3e470cb` | 17 (4 moved + 7 src + 6 tests) | M-1..M-7 | R100 ×4 | see below | empty diff (139) | `e36eae8` | batch 1 |
 | 4 | `auth/` | `af06dbe` | 28 (7 moved + 10 src + 9 tests + 2 new inits) | M-1..M-7 | R100 ×1, R9x ×6 | see below | empty diff (139) | `b5b1d27` | batch 2 |
 | 5 | leaf (`config/`, `update/`, `observability/`, `utils/`) | `b5b1d27` | 67 (7 moved + 35 src refs + 25 tests + 4 new inits) | M-1..M-7 | R100 ×2, R9x ×5 | see below | empty diff (139) | `dd09e63` | batch 2 |
-| 6 | `context/` | `dd09e63` | 51 (7 moved + 26 src refs + 20 tests + 2 new inits) | M-1..M-7 | R100 ×3, R9x ×4 | see below | empty diff (139) | _pending_ | batch 2 |
-| 7 | `providers/` | _pending_ | | | | | | | |
+| 6 | `context/` | `dd09e63` | 51 (7 moved + 26 src refs + 20 tests + 2 new inits) | M-1..M-7 | R100 ×3, R9x ×4 | see below | empty diff (139) | `6c92452` | batch 2 |
+| 7 | `providers/` | `6c92452` | 37 (8 moved + 17 src refs + 15 tests + 1 script + 2 new inits) | M-1..M-7 | R100 ×2, R9x ×6 | see below | empty diff (139) | _pending_ | batch 2 |
 | 8 | `session/` | _pending_ | | | | | | | |
 | 9 | `tools/` `backends/` `trust/` | _pending_ | | | | | | | |
 | 10 | `extensions/` `commands/` | _pending_ | | | | | | | |
@@ -350,4 +350,30 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
   `Found 14 errors in 2 files (checked 152 source files)` (same baseline errors);
   `ruff check .` → `All checks passed!`; `ruff format --check .` → `248 files already formatted`.
 - **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/`
+- **Commit:** `6c92452` (`refactor(layout): move context modules into context package`).
+
+### Task 7 — `providers/` (batch 2)
+
+- **Start commit:** `6c92452`. `F_before` = `∅`.
+- **Closure:** 37 files = 8 moved + 17 src referencing files + 15 test files + 1 script (`scripts/generate_models.py`) + 2 new package inits.
+- **4.2b:** `tests/test_models_dev.py:8` `from baldric_coding import models_dev` →
+  `from baldric_coding.providers.stores import models_dev`;
+  `tests/test_provider_runtime.py:6` `from baldric_coding import provider_runtime` →
+  `from baldric_coding.providers import runtime as provider_runtime`.
+- **String-form refs:** `tests/test_extension_providers.py:1416-1417`
+  (`monkeypatch.setattr("baldric_coding.provider_config...")`) rewritten to the new
+  `providers.config` dotted path — declared exception for `check_move_only`.
+- **M-3 (intentional red):** 7 collection errors (provider_config/catalog/runtime,
+  models_dev/models_dev_store, codex_model_store/codex_version).
+- **M-4:** 8 `git mv` moves; `providers/__init__.py` + `providers/stores/__init__.py`
+  created with docstring only.
+- **M-5 evidence:** residual old provider paths `(none)`; import smoke `all= 139`;
+  resource real reads: `catalog entries= 28`, `providers=25 models=737`,
+  `baldric --version` → `baldric 0.2.1`; renames: `codex_model_store.py` and
+  `codex_version.py` R100, six R9x; facade `__all__` `(empty diff)` 139.
+- **M-6:** direct tests `168 passed in 2.63s`; mypy
+  `Found 14 errors in 2 files (checked 154 source files)` (same baseline errors);
+  `ruff check .` → `All checks passed!`; `ruff format --check .` → `250 files already formatted`.
+- **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/`
+  `check_move_only: declared exceptions: tests/test_extension_providers.py`
 - **Commit:** _pending_

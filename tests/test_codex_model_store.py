@@ -5,11 +5,11 @@ import pytest
 
 from baldric_ai.model_catalog import RuntimeModel, RuntimeModelCatalog
 from baldric_ai.model_limits import RuntimeModelLimits
-from baldric_coding.codex_model_store import (
+from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.providers.stores.codex_model_store import (
     cached_codex_model_catalog,
     save_codex_model_catalog,
 )
-from baldric_coding.config.paths import BaldricPaths
 
 
 def test_codex_model_catalog_round_trips_with_account_scope(tmp_path: Path) -> None:

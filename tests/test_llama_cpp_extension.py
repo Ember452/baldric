@@ -41,7 +41,7 @@ from baldric_coding.extensions.builtins.llama_cpp.state import (
 )
 from baldric_coding.extensions.providers import ProviderRefreshContext, ResolvedProviderAuth
 from baldric_coding.local_backends import LocalOperationContext, LocalProgress
-from baldric_coding.provider_runtime import create_dynamic_model_provider
+from baldric_coding.providers.runtime import create_dynamic_model_provider
 from conftest import isolate_home
 
 pytestmark = pytest.mark.anyio
@@ -1507,7 +1507,7 @@ async def test_llama_scoped_reference_persists_pair_and_stays_inert_when_unloade
 ) -> None:
     from dataclasses import replace
 
-    from baldric_coding.provider_config import (
+    from baldric_coding.providers.config import (
         OpenAICompatibleProviderConfig,
         ProviderSettings,
         load_provider_settings,

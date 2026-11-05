@@ -94,12 +94,12 @@ from baldric_coding.context_window import (
     serialize_messages_for_compaction,
     summarize_messages_for_compaction,
 )
-from baldric_coding.provider_catalog import (
+from baldric_coding.providers.catalog import (
     BUILTIN_PROVIDER_CATALOG,
     ProviderCatalogEntry,
     builtin_provider_entry,
 )
-from baldric_coding.provider_config import (
+from baldric_coding.providers.config import (
     DEFAULT_MODEL,
     DEFAULT_PROVIDER_NAME,
     AnthropicProviderConfig,

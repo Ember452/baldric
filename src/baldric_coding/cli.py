@@ -22,7 +22,6 @@ from baldric_ai.env import (
     DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS,
 )
 from baldric_coding.auth.credentials import FileCredentialStore
-from baldric_coding.catalog_loader import user_catalog_path
 from baldric_coding.commands import format_reload_summary
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.config.shell_config import load_shell_settings
@@ -30,13 +29,8 @@ from baldric_coding.context.resources import BaldricResourcePaths
 from baldric_coding.context.thinking import THINKING_LEVELS, ThinkingLevel, normalize_thinking_level
 from baldric_coding.extension_installer import ExtensionInstallError, install_extension
 from baldric_coding.extensions import StderrUiBridge
-from baldric_coding.models_dev_store import (
-    ModelsDevRefreshError,
-    ModelsDevRefreshResult,
-    refresh_models_dev_catalog,
-)
 from baldric_coding.project_trust import TrustDefault, TrustOverride
-from baldric_coding.provider_config import (
+from baldric_coding.providers.config import (
     DEFAULT_MODEL,
     DEFAULT_PROVIDER_NAME,
     CredentialReader,
@@ -51,7 +45,13 @@ from baldric_coding.provider_config import (
     save_provider_settings,
     upsert_openai_compatible_provider,
 )
-from baldric_coding.provider_runtime import ClosableModelProvider, create_model_provider
+from baldric_coding.providers.loader import user_catalog_path
+from baldric_coding.providers.runtime import ClosableModelProvider, create_model_provider
+from baldric_coding.providers.stores.models_dev_store import (
+    ModelsDevRefreshError,
+    ModelsDevRefreshResult,
+    refresh_models_dev_catalog,
+)
 from baldric_coding.rendering import PrintOutputMode, create_event_renderer
 from baldric_coding.rpc import RpcServer
 from baldric_coding.session import (

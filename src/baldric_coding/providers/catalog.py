@@ -95,7 +95,7 @@ class ProviderCatalogEntry:
 
 def _load_builtin_catalog() -> tuple[ProviderCatalogEntry, ...]:
     # Imported lazily: catalog_loader imports ProviderCatalogEntry from this module.
-    from baldric_coding.catalog_loader import builtin_catalog
+    from baldric_coding.providers.loader import builtin_catalog
 
     return builtin_catalog()
 

@@ -18,7 +18,7 @@ from baldric_coding.context.system_prompt import (
     format_system_prompt_inspection,
 )
 from baldric_coding.context.thinking import normalize_thinking_level
-from baldric_coding.provider_catalog import BUILTIN_PROVIDER_CATALOG, builtin_provider_entry
+from baldric_coding.providers.catalog import BUILTIN_PROVIDER_CATALOG, builtin_provider_entry
 from baldric_coding.session_manager import (
     CodingSessionRecord,
     SessionManager,

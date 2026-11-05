@@ -19,7 +19,7 @@ from baldric_agent.session.entries import SessionEntry
 from baldric_agent.types import JSONValue
 from baldric_coding.commands import CommandRegistry
 from baldric_coding.events import CodingSessionEvent
-from baldric_coding.provider_config import (
+from baldric_coding.providers.config import (
     AnthropicProviderConfig,
     OpenAICompatibleProviderConfig,
     ProviderConfig,

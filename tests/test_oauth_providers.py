@@ -34,8 +34,8 @@ from baldric_coding.auth.types import (
     OAuthRuntimeAuth,
     OAuthSelectPrompt,
 )
-from baldric_coding.provider_config import provider_config_from_catalog_entry
-from baldric_coding.provider_runtime import OAuthRuntimeCredentialResolver, _refresh_lock
+from baldric_coding.providers.config import provider_config_from_catalog_entry
+from baldric_coding.providers.runtime import OAuthRuntimeCredentialResolver, _refresh_lock
 
 
 def _callbacks(

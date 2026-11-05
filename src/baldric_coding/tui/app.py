@@ -84,7 +84,6 @@ from baldric_coding.auth.types import (
     OAuthPrompt,
     OAuthSelectPrompt,
 )
-from baldric_coding.catalog_loader import save_user_catalog_entries
 from baldric_coding.commands import (
     LOGIN_PROVIDER_ALIASES,
     CommandRegistry,
@@ -115,12 +114,12 @@ from baldric_coding.extensions.api import (
     SlotWidgetFactory,
 )
 from baldric_coding.project_trust import ProjectTrustRequest, TrustChoice, TrustOverride
-from baldric_coding.provider_catalog import (
+from baldric_coding.providers.catalog import (
     BUILTIN_PROVIDER_CATALOG,
     ProviderCatalogEntry,
     builtin_provider_entry,
 )
-from baldric_coding.provider_config import (
+from baldric_coding.providers.config import (
     DEFAULT_MODEL,
     DEFAULT_PROVIDER_NAME,
     OpenAICompatibleProviderConfig,
@@ -136,7 +135,8 @@ from baldric_coding.provider_config import (
     upsert_openai_compatible_provider,
     upsert_saved_provider,
 )
-from baldric_coding.provider_runtime import ClosableModelProvider, create_model_provider
+from baldric_coding.providers.loader import save_user_catalog_entries
+from baldric_coding.providers.runtime import ClosableModelProvider, create_model_provider
 from baldric_coding.rendering.themes import (
     available_tui_theme_names,
     load_custom_tui_themes,

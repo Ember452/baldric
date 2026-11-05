@@ -9,8 +9,8 @@ import time
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-from baldric_coding.catalog_loader import builtin_source_catalog
-from baldric_coding.models_dev import (
+from baldric_coding.providers.loader import builtin_source_catalog
+from baldric_coding.providers.stores.models_dev import (
     MODELS_DEV_URL,
     NVIDIA_MODELS_URL,
     models_dev_catalog_document,

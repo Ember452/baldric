@@ -19,7 +19,7 @@ from baldric_ai.env import (
     DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS,
 )
 from baldric_coding.context.thinking import ThinkingLevel
-from baldric_coding.provider_catalog import ModelInput, ProviderApi
+from baldric_coding.providers.catalog import ModelInput, ProviderApi
 
 _PROVIDER_APIS = frozenset(
     {

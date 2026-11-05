@@ -4,11 +4,11 @@ import httpx
 import pytest
 
 from baldric_ai.openai_codex import DEFAULT_OPENAI_CODEX_CLIENT_VERSION
-from baldric_coding.codex_version import (
+from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.providers.stores.codex_version import (
     CODEX_NPM_LATEST_URL,
     CodexClientVersionResolver,
 )
-from baldric_coding.config.paths import BaldricPaths
 
 
 @pytest.mark.anyio

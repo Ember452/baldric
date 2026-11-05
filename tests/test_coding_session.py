@@ -67,7 +67,6 @@ from baldric_coding import (
     save_provider_settings,
 )
 from baldric_coding import session as coding_session_module
-from baldric_coding.codex_model_store import cached_codex_model_catalog, save_codex_model_catalog
 from baldric_coding.context.prompts import PromptTemplate
 from baldric_coding.context_window import estimate_message_tokens
 from baldric_coding.events import (
@@ -83,7 +82,11 @@ from baldric_coding.extensions import (
     ProviderModel,
 )
 from baldric_coding.extensions.runtime import InputHookOutcome
-from baldric_coding.provider_config import ProviderModelMetadata, provider_thinking_levels
+from baldric_coding.providers.config import ProviderModelMetadata, provider_thinking_levels
+from baldric_coding.providers.stores.codex_model_store import (
+    cached_codex_model_catalog,
+    save_codex_model_catalog,
+)
 from baldric_coding.session import (
     SESSION_NAME_SYSTEM_PROMPT,
     _first_recent_context_index,

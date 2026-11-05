@@ -17,7 +17,7 @@ from baldric_agent.session import (
     SessionEntry,
     ThinkingLevelChangeEntry,
 )
-from baldric_coding.provider_catalog import builtin_provider_entry, model_cost_for_input_tokens
+from baldric_coding.providers.catalog import builtin_provider_entry, model_cost_for_input_tokens
 from baldric_coding.rendering.themes import BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME
 from baldric_coding.session_stats import _response_cost
 

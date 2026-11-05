@@ -3,12 +3,12 @@ from pathlib import Path
 
 import pytest
 
-import baldric_coding.provider_config as provider_config
+import baldric_coding.providers.config as provider_config
 from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.thinking import ThinkingLevel
-from baldric_coding.provider_catalog import ModelCostTier
-from baldric_coding.provider_config import (
+from baldric_coding.providers.catalog import ModelCostTier
+from baldric_coding.providers.config import (
     DEFAULT_MODEL,
     AnthropicProviderConfig,
     OpenAICodexProviderConfig,

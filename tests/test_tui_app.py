@@ -57,7 +57,6 @@ from baldric_agent import (
 from baldric_agent.messages import assistant_content
 from baldric_agent.provider_events import TextDeltaEvent, ThinkingDeltaEvent, ThinkingEndEvent
 from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
-from baldric_coding.catalog_loader import user_catalog_path
 from baldric_coding.commands import CommandResult, format_resource_diagnostics
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.prompts import PromptTemplate
@@ -90,7 +89,7 @@ from baldric_coding.extensions import (
     OpenAICompatibleTransport,
     ProviderModel,
 )
-from baldric_coding.provider_config import (
+from baldric_coding.providers.config import (
     OpenAICodexProviderConfig,
     OpenAICompatibleProviderConfig,
     ProviderSelection,
@@ -98,6 +97,7 @@ from baldric_coding.provider_config import (
     ScopedModelConfig,
     save_provider_settings,
 )
+from baldric_coding.providers.loader import user_catalog_path
 from baldric_coding.session import (
     ModelChoice,
     SessionTreeBranchResult,

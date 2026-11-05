@@ -30,7 +30,6 @@ from baldric_coding.auth.oauth import (
 )
 from baldric_coding.auth.registry import get_oauth_provider
 from baldric_coding.auth.types import OAuthProvider
-from baldric_coding.codex_version import CodexClientVersionResolver
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.thinking import (
     ThinkingLevel,
@@ -50,7 +49,7 @@ from baldric_coding.extensions.providers import (
     json_compatible_mapping,
     resolve_provider_auth,
 )
-from baldric_coding.provider_config import (
+from baldric_coding.providers.config import (
     AnthropicProviderConfig,
     OpenAICodexProviderConfig,
     OpenAICompatibleProviderConfig,
@@ -65,6 +64,7 @@ from baldric_coding.provider_config import (
     validate_huggingface_inference_provider,
     validate_provider_model,
 )
+from baldric_coding.providers.stores.codex_version import CodexClientVersionResolver
 
 
 class ClosableModelProvider(ModelProvider, Protocol):

@@ -21,7 +21,7 @@ from baldric_coding.context.system_prompt import (
     format_system_prompt_inspection,
 )
 from baldric_coding.extensions import ExtensionRuntime
-from baldric_coding.provider_config import (
+from baldric_coding.providers.config import (
     OpenAICompatibleProviderConfig,
     ProviderSettings,
     load_provider_settings,

@@ -29,7 +29,6 @@ from baldric_ai.env import (
 from baldric_ai.openai_codex import DEFAULT_OPENAI_CODEX_BASE_URL
 from baldric_coding.auth.credentials import FileCredentialStore, credentials_path
 from baldric_coding.auth.registry import get_oauth_provider
-from baldric_coding.catalog_loader import effective_catalog, save_user_catalog_entries
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.thinking import (
     DEFAULT_THINKING_LEVEL,
@@ -41,7 +40,7 @@ from baldric_coding.context.thinking import (
     normalize_thinking_levels,
     reasoning_effort_for_level,
 )
-from baldric_coding.provider_catalog import (
+from baldric_coding.providers.catalog import (
     BUILTIN_PROVIDER_CATALOG,
     ModelCatalogMetadata,
     ModelCostTier,
@@ -49,6 +48,7 @@ from baldric_coding.provider_catalog import (
     ProviderCatalogEntry,
     ProviderKind,
 )
+from baldric_coding.providers.loader import effective_catalog, save_user_catalog_entries
 
 DEFAULT_PROVIDER_NAME = "openai"
 DEFAULT_MODEL = "gpt-5.4"

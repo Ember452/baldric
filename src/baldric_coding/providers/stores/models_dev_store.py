@@ -14,7 +14,7 @@ from typing import Any, cast
 import httpx
 
 from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.models_dev import (
+from baldric_coding.providers.stores.models_dev import (
     MODELS_DEV_URL,
     NVIDIA_MODELS_URL,
     bundled_models_dev_catalog_document,
@@ -123,7 +123,7 @@ async def refresh_models_dev_catalog(
         nvidia_source = nvidia_response.json()
 
         # Imported here to avoid a catalog-loader import cycle during package startup.
-        from baldric_coding.catalog_loader import builtin_source_catalog
+        from baldric_coding.providers.loader import builtin_source_catalog
 
         document = models_dev_catalog_document(
             source,

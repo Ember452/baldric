@@ -49,10 +49,6 @@ from baldric_ai.model_limits import ModelLimitsProvider, RuntimeModelLimits
 from baldric_coding.auth.credentials import FileCredentialStore, credentials_path
 from baldric_coding.auth.oauth import account_id_from_access_token
 from baldric_coding.branch_summary import summarize_branch_messages_with_model
-from baldric_coding.codex_model_store import (
-    cached_codex_model_catalog,
-    save_codex_model_catalog,
-)
 from baldric_coding.commands import CommandRegistry, CommandResult, create_default_command_registry
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.project import discover_project_context_with_diagnostics
@@ -112,7 +108,6 @@ from baldric_coding.events import (
 from baldric_coding.extensions.provider_registry import DynamicProviderRegistry
 from baldric_coding.extensions.providers import DynamicProvider, ProviderModel
 from baldric_coding.extensions.runtime import ExtensionRuntime
-from baldric_coding.models_dev_store import ModelsDevRefreshResult, refresh_models_dev_catalog
 from baldric_coding.observability.diagnostics import (
     AgentCallDiagnosticContext,
     AgentCallDiagnosticLogger,
@@ -128,7 +123,7 @@ from baldric_coding.project_trust import (
     TrustPrompt,
     format_trust_diagnostic,
 )
-from baldric_coding.provider_config import (
+from baldric_coding.providers.config import (
     OpenAICodexProviderConfig,
     OpenAICompatibleProviderConfig,
     ProviderConfig,
@@ -150,10 +145,18 @@ from baldric_coding.provider_config import (
     validate_huggingface_inference_provider,
     validate_provider_model,
 )
-from baldric_coding.provider_runtime import (
+from baldric_coding.providers.runtime import (
     ClosableModelProvider,
     create_dynamic_model_provider,
     create_model_provider,
+)
+from baldric_coding.providers.stores.codex_model_store import (
+    cached_codex_model_catalog,
+    save_codex_model_catalog,
+)
+from baldric_coding.providers.stores.models_dev_store import (
+    ModelsDevRefreshResult,
+    refresh_models_dev_catalog,
 )
 from baldric_coding.session_export import (
     default_session_export_artifact_path,

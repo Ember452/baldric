@@ -3,9 +3,9 @@ from dataclasses import replace
 import pytest
 
 from baldric_ai import AnthropicProvider, OpenAICodexProvider, OpenAICompatibleProvider
-from baldric_coding import provider_runtime
 from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
-from baldric_coding.provider_config import (
+from baldric_coding.providers import runtime as provider_runtime
+from baldric_coding.providers.config import (
     AnthropicProviderConfig,
     OpenAICodexProviderConfig,
     OpenAICompatibleProviderConfig,
@@ -14,7 +14,7 @@ from baldric_coding.provider_config import (
     provider_config_from_catalog_entry,
     resolve_startup_thinking_level,
 )
-from baldric_coding.provider_runtime import OpenAICodexCredentialResolver, create_model_provider
+from baldric_coding.providers.runtime import OpenAICodexCredentialResolver, create_model_provider
 
 
 def test_create_model_provider_returns_openai_codex_provider(tmp_path) -> None:

@@ -43,7 +43,7 @@ from baldric_coding.extensions import (
     ExtensionAPI,
     MessageRenderOptions,
 )
-from baldric_coding.provider_runtime import create_model_provider
+from baldric_coding.providers.runtime import create_model_provider
 from baldric_coding.tools import create_coding_tools
 
 from .agents import AgentDefinition, format_agent_type_list, load_agent_definitions

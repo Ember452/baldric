@@ -25,7 +25,7 @@ from pydantic import (
 from baldric_agent.types import JSONValue
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.thinking import ThinkingLevel, ThinkingParameter
-from baldric_coding.provider_catalog import (
+from baldric_coding.providers.catalog import (
     AuthMethod,
     ModelCatalogMetadata,
     ModelCostTier,
@@ -159,7 +159,7 @@ def effective_catalog(paths: BaldricPaths | None = None) -> tuple[ProviderCatalo
     100 ms, and loading provider settings asks for the catalog more than once,
     so the result is reused until either file's stamp changes.
     """
-    from baldric_coding.models_dev_store import models_store_path
+    from baldric_coding.providers.stores.models_dev_store import models_store_path
 
     key = (user_catalog_path(paths), models_store_path(paths))
     stamps = (_file_stamp(key[0]), _file_stamp(key[1]))
@@ -229,7 +229,7 @@ def _builtin_raw() -> dict[str, Any]:
 
 
 def _builtin_raw_with_cached_models(paths: BaldricPaths | None) -> dict[str, Any]:
-    from baldric_coding.models_dev_store import cached_models_dev_catalog_overlay
+    from baldric_coding.providers.stores.models_dev_store import cached_models_dev_catalog_overlay
 
     raw = _builtin_raw_with_generated_models()
     overlay = cached_models_dev_catalog_overlay(paths)
@@ -250,7 +250,7 @@ def _builtin_raw_with_cached_models(paths: BaldricPaths | None) -> dict[str, Any
 def _builtin_raw_with_generated_models() -> dict[str, Any]:
     # Imported lazily because models_dev uses the catalog dataclasses imported by
     # this module. Missing or invalid generated data is deliberately non-fatal.
-    from baldric_coding.models_dev import bundled_models_dev_catalog_overlay
+    from baldric_coding.providers.stores.models_dev import bundled_models_dev_catalog_overlay
 
     raw = _builtin_raw()
     overlay = bundled_models_dev_catalog_overlay()

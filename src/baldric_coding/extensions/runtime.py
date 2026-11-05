@@ -83,7 +83,7 @@ from baldric_coding.project_trust import (
     ProjectTrustEvent,
     ProjectTrustResolution,
 )
-from baldric_coding.provider_config import ProviderConfig
+from baldric_coding.providers.config import ProviderConfig
 
 # Host callback that delivers a message through the frontend's serialized run
 # path when the session is idle. Carries the same presentation metadata as a
