@@ -43,7 +43,7 @@ from baldric_agent.session import (
 )
 from baldric_agent.types import JSONValue
 from baldric_coding.rendering.themes import BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME, TuiTheme
-from baldric_coding.session_usage import (
+from baldric_coding.session.usage import (
     USAGE_SCRIPT,
     USAGE_STYLES,
     collect_session_usage,

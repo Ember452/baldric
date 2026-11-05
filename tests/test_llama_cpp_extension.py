@@ -1512,7 +1512,7 @@ async def test_llama_scoped_reference_persists_pair_and_stays_inert_when_unloade
         ProviderSettings,
         load_provider_settings,
     )
-    from baldric_coding.session import CodingSession, ModelChoice
+    from baldric_coding.session.session import CodingSession, ModelChoice
 
     paths = BaldricPaths(home=tmp_path / "baldric", agents_home=tmp_path / "agents")
     LlamaCppStateStore(paths=paths).save(_state())

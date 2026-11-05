@@ -8,7 +8,7 @@ from baldric_agent.messages import (
     UserMessage,
 )
 from baldric_agent.session import CompactionEntry, CustomMessageEntry, MessageEntry
-from baldric_coding.session_stats import SessionStats, calculate_session_stats
+from baldric_coding.session.stats import SessionStats, calculate_session_stats
 
 
 def test_cache_hit_rate_is_hidden_when_no_provider_reported_cache_usage() -> None:

@@ -25,14 +25,14 @@ from baldric_coding.providers.config import (
     ProviderConfig,
     provider_thinking_levels,
 )
-from baldric_coding.session import (
+from baldric_coding.session.manager import SessionManager
+from baldric_coding.session.session import (
     CodingSession,
     ManualCompactionResult,
     ModelChoice,
     TerminalCommandResult,
 )
-from baldric_coding.session_manager import SessionManager
-from baldric_coding.session_stats import SessionStats
+from baldric_coding.session.stats import SessionStats
 
 _MAX_RECORD_BYTES = 16 * 1024 * 1024
 

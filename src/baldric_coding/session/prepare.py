@@ -6,7 +6,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from baldric_agent.provider import ModelProvider
-from baldric_coding.session import CodingSession, CodingSessionConfig
+from baldric_coding.session.session import CodingSession, CodingSessionConfig
 
 
 @dataclass(frozen=True, slots=True)

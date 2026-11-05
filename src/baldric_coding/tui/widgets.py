@@ -46,8 +46,8 @@ from baldric_coding.context.system_prompt import (
     SystemPromptSource,
     format_skills_for_prompt,
 )
-from baldric_coding.context_window import estimate_text_tokens
-from baldric_coding.session_stats import SessionStats
+from baldric_coding.session.compaction.context_window import estimate_text_tokens
+from baldric_coding.session.stats import SessionStats
 from baldric_coding.tui.autocomplete import CompletionState
 from baldric_coding.tui.config import BALDRIC_DARK_THEME, TuiRoleStyle, TuiTheme
 from baldric_coding.tui.state import (

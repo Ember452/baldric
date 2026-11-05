@@ -48,7 +48,6 @@ from baldric_ai.model_catalog import ModelCatalogProvider, RuntimeModel, Runtime
 from baldric_ai.model_limits import ModelLimitsProvider, RuntimeModelLimits
 from baldric_coding.auth.credentials import FileCredentialStore, credentials_path
 from baldric_coding.auth.oauth import account_id_from_access_token
-from baldric_coding.branch_summary import summarize_branch_messages_with_model
 from baldric_coding.commands import CommandRegistry, CommandResult, create_default_command_registry
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.project import discover_project_context_with_diagnostics
@@ -81,17 +80,6 @@ from baldric_coding.context.thinking import (
     ThinkingLevel,
     next_thinking_level,
     normalize_thinking_level,
-)
-from baldric_coding.context_window import (
-    DEFAULT_COMPACTION_KEEP_RECENT_TOKENS,
-    DEFAULT_CONTEXT_WINDOW_TOKENS,
-    SUMMARIZATION_SYSTEM_PROMPT,
-    ContextUsageEstimate,
-    auto_compaction_threshold_for_context_window,
-    build_compaction_summary_prompt,
-    estimate_context_usage,
-    estimate_message_tokens,
-    summarize_messages_for_compaction,
 )
 from baldric_coding.events import (
     AgentSettledEvent,
@@ -158,17 +146,29 @@ from baldric_coding.providers.stores.models_dev_store import (
     ModelsDevRefreshResult,
     refresh_models_dev_catalog,
 )
-from baldric_coding.session_export import (
+from baldric_coding.session.branch_summary import summarize_branch_messages_with_model
+from baldric_coding.session.compaction.context_window import (
+    DEFAULT_COMPACTION_KEEP_RECENT_TOKENS,
+    DEFAULT_CONTEXT_WINDOW_TOKENS,
+    SUMMARIZATION_SYSTEM_PROMPT,
+    ContextUsageEstimate,
+    auto_compaction_threshold_for_context_window,
+    build_compaction_summary_prompt,
+    estimate_context_usage,
+    estimate_message_tokens,
+    summarize_messages_for_compaction,
+)
+from baldric_coding.session.export import (
     default_session_export_artifact_path,
     export_session_artifact,
     normalize_export_format,
 )
-from baldric_coding.session_manager import (
+from baldric_coding.session.manager import (
     InferenceProviderMode,
     SessionManager,
     normalize_session_name,
 )
-from baldric_coding.session_stats import SessionStats, calculate_session_stats
+from baldric_coding.session.stats import SessionStats, calculate_session_stats
 from baldric_coding.tools import ImageSupportState, create_bash_tool, create_coding_tools
 from baldric_coding.update.reload import CodingReloadSummary, ReloadCategorySummary
 

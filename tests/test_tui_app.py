@@ -98,14 +98,14 @@ from baldric_coding.providers.config import (
     save_provider_settings,
 )
 from baldric_coding.providers.loader import user_catalog_path
-from baldric_coding.session import (
+from baldric_coding.session.manager import CodingSessionRecord
+from baldric_coding.session.session import (
     ModelChoice,
     SessionTreeBranchResult,
     SessionTreeChoice,
     TerminalCommandResult,
 )
-from baldric_coding.session_manager import CodingSessionRecord
-from baldric_coding.session_stats import SessionStats
+from baldric_coding.session.stats import SessionStats
 from baldric_coding.tools import create_coding_tools
 from baldric_coding.tui import app as tui_app
 from baldric_coding.tui.adapter import TuiEventAdapter

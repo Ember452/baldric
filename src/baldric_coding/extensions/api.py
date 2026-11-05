@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from baldric_coding.extensions.runtime import ExtensionRuntime
     from baldric_coding.local_backends import LocalBackend
     from baldric_coding.project_trust import ProjectTrustResolution
-    from baldric_coding.session import ModelChoice
+    from baldric_coding.session.session import ModelChoice
     from baldric_coding.tui.config import TuiTheme
 
 AGENT_EVENT_TYPES: frozenset[str] = frozenset(

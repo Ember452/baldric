@@ -80,20 +80,6 @@ from baldric_coding.context.thinking import (
     normalize_thinking_levels,
     reasoning_effort_for_level,
 )
-from baldric_coding.context_window import (
-    DEFAULT_COMPACTION_KEEP_RECENT_TOKENS,
-    DEFAULT_COMPACTION_RESERVE_TOKENS,
-    DEFAULT_CONTEXT_WINDOW_TOKENS,
-    SUMMARIZATION_SYSTEM_PROMPT,
-    auto_compaction_threshold_for_context_window,
-    build_compaction_summary_prompt,
-    estimate_context_tokens,
-    estimate_message_tokens,
-    estimate_text_tokens,
-    estimate_tool_tokens,
-    serialize_messages_for_compaction,
-    summarize_messages_for_compaction,
-)
 from baldric_coding.providers.catalog import (
     BUILTIN_PROVIDER_CATALOG,
     ProviderCatalogEntry,
@@ -140,7 +126,28 @@ from baldric_coding.rendering import (
     TranscriptRenderer,
     create_event_renderer,
 )
-from baldric_coding.session import (
+from baldric_coding.session.compaction.context_window import (
+    DEFAULT_COMPACTION_KEEP_RECENT_TOKENS,
+    DEFAULT_COMPACTION_RESERVE_TOKENS,
+    DEFAULT_CONTEXT_WINDOW_TOKENS,
+    SUMMARIZATION_SYSTEM_PROMPT,
+    auto_compaction_threshold_for_context_window,
+    build_compaction_summary_prompt,
+    estimate_context_tokens,
+    estimate_message_tokens,
+    estimate_text_tokens,
+    estimate_tool_tokens,
+    serialize_messages_for_compaction,
+    summarize_messages_for_compaction,
+)
+from baldric_coding.session.export import (
+    SessionExportError,
+    default_session_export_path,
+    export_session_html,
+    render_session_html,
+)
+from baldric_coding.session.manager import CodingSessionRecord, SessionManager
+from baldric_coding.session.session import (
     CodingSession,
     CodingSessionConfig,
     ModelChoice,
@@ -149,13 +156,6 @@ from baldric_coding.session import (
     default_session_path,
     jsonl_session_storage,
 )
-from baldric_coding.session_export import (
-    SessionExportError,
-    default_session_export_path,
-    export_session_html,
-    render_session_html,
-)
-from baldric_coding.session_manager import CodingSessionRecord, SessionManager
 from baldric_coding.tools import (
     ImageSupportState,
     ReadOperations,

@@ -36,7 +36,7 @@ from baldric_coding.project_trust import (
     format_trust_diagnostic,
 )
 from baldric_coding.rendering.themes import BALDRIC_DARK_THEME
-from baldric_coding.session import CodingSession, CodingSessionConfig
+from baldric_coding.session.session import CodingSession, CodingSessionConfig
 from baldric_coding.tui.project_trust import ProjectTrustScreen, _ProjectTrustApp
 
 
@@ -910,7 +910,7 @@ async def test_failed_reload_does_not_commit_run_choice_cache(
     )
     (project / "AGENTS.md").write_text("NEW-CONTEXT", encoding="utf-8")
 
-    from baldric_coding import session as session_module
+    from baldric_coding.session import session as session_module
 
     real_load = session_module._load_session_resources
     attempts = 0

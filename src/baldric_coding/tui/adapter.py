@@ -20,7 +20,7 @@ from baldric_coding.events import (
     QueueUpdateEvent,
     SessionAgentEndEvent,
 )
-from baldric_coding.session import is_context_overflow_error
+from baldric_coding.session.session import is_context_overflow_error
 from baldric_coding.tui.state import (
     ChatItem,
     TuiState,

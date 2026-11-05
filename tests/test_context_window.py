@@ -2,7 +2,7 @@ from pathlib import Path
 
 from baldric_agent import AssistantMessage, TextContent, ToolCall, ToolResultMessage, Usage, UserMessage
 from baldric_agent.messages import assistant_content
-from baldric_coding.context_window import (
+from baldric_coding.session.compaction.context_window import (
     ContextUsageEstimate,
     auto_compaction_threshold_for_context_window,
     build_compaction_summary_prompt,

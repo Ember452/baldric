@@ -239,6 +239,7 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 | 5 | leaf (`config/`, `update/`, `observability/`, `utils/`) | `b5b1d27` | 67 (7 moved + 35 src refs + 25 tests + 4 new inits) | M-1..M-7 | R100 ×2, R9x ×5 | see below | empty diff (139) | `dd09e63` | batch 2 |
 | 6 | `context/` | `dd09e63` | 51 (7 moved + 26 src refs + 20 tests + 2 new inits) | M-1..M-7 | R100 ×3, R9x ×4 | see below | empty diff (139) | `6c92452` | batch 2 |
 | 7 | `providers/` | `6c92452` | 37 (8 moved + 17 src refs + 15 tests + 1 script + 2 new inits) | M-1..M-7 | R100 ×2, R9x ×6 | see below | empty diff (139) | `2cccdc9` | batch 2 |
+| 8 | `session/` | `6aec645` | 31 (8 moved + 13 src refs + 12 tests + 2 new inits) | M-1..M-7 | R100 ×4, R9x ×4 | see below | empty diff (139) | _pending_ | batch 3 checkpoint |
 | 8 | `session/` | _pending_ | | | | | | | |
 | 9 | `tools/` `backends/` `trust/` | _pending_ | | | | | | | |
 | 10 | `extensions/` `commands/` | _pending_ | | | | | | | |
@@ -379,3 +380,35 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 - **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/`
   `check_move_only: declared exceptions: tests/test_extension_providers.py`
 - **Commit:** `2cccdc9` (`refactor(layout): move provider modules into providers package`).
+
+### Task 8 — `session/` (batch 3 checkpoint)
+
+- **Start commit:** `6aec645`. `F_before` = `∅` (batch 2 full suite green).
+- **Closure:** 31 files = 8 moved + 13 src referencing files (4 of them are also moved) + 12 test files + 2 new package inits.
+- **4.2b:** 3 package-form session imports rewritten:
+  `tests/test_codex_resume.py:18`, `tests/test_coding_session.py:69`,
+  `tests/test_project_trust.py:913` → `from baldric_coding.session import session as <alias>`.
+- **M-3 (intentional red):** 6 collection errors; representative
+  `ImportError: cannot import name 'session' from 'baldric_coding.session'` — correct
+  pre-move state (module named `session`, no submodule yet).
+- **M-4:** `session.py` moved in three steps (`session.py` → `session_tmp.py` →
+  `session/session.py`) to resolve the module/package collision; seven more
+  `git mv` moves; `session/__init__.py` + `session/compaction/__init__.py` created
+  with docstring only.
+- **M-5 evidence — four entrypoints (all pass):**
+  - `uv run python -c "import baldric_coding.session"` → `package ok`
+  - `uv run python -c "import baldric_coding.session.manager"` → `manager ok`
+  - `uv run python -c "import baldric_coding.cli"` → `cli ok`
+  - `uv run baldric --version` → `baldric 0.2.1`
+  - Renames: `branch_summary.py`, `context_window.py`, `session_manager.py`,
+    `session_stats.py` are R100; `session_export.py → session/export.py`,
+    `session_preparation.py → prepare.py`, `session.py → session/session.py`,
+    `session_usage.py → session/usage.py` are R9x.
+  - Residual old refs: none (the only matches are the three correct new
+    `from baldric_coding.session import session` package-form lines).
+  - Facade `__all__` `(empty diff)` 139.
+- **M-6:** direct tests `314 passed, 9 skipped in 15.46s`; mypy
+  `Found 14 errors in 2 files (checked 156 source files)` (same baseline errors);
+  `ruff check .` → `All checks passed!`; `ruff format --check .` → `252 files already formatted`.
+- **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/`
+- **Commit:** _pending_

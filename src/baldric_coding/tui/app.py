@@ -144,7 +144,9 @@ from baldric_coding.rendering.themes import (
     textual_theme_for_tui_theme,
     theme_css_variables,
 )
-from baldric_coding.session import (
+from baldric_coding.session.manager import CodingSessionRecord, SessionManager
+from baldric_coding.session.prepare import prepare_coding_session
+from baldric_coding.session.session import (
     TREE_RUNNING_MESSAGE,
     CodingSession,
     CodingSessionConfig,
@@ -155,8 +157,6 @@ from baldric_coding.session import (
     jsonl_session_storage,
     parse_terminal_command,
 )
-from baldric_coding.session_manager import CodingSessionRecord, SessionManager
-from baldric_coding.session_preparation import prepare_coding_session
 from baldric_coding.tui.adapter import TuiEventAdapter
 from baldric_coding.tui.autocomplete import (
     CompletionItem,
