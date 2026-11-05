@@ -57,7 +57,7 @@
 - 类型：`mypy` `strict = true`，`packages = ["baldric_ai", "baldric_agent", "baldric_coding"]`
 - 入口点：`baldric = "baldric_coding.cli:app"` —— **本阶段绝不改动**，`cli.py` 留在根
 - `py.typed`：三个包根各一份，**必须留在包根**，不可进任何子目录
-- 包资源：`data/` 随所属模块一起走；主题 `.json` 随 `themes/` 一起走
+- 包资源：**`data/` 永远留在 `src/baldric_coding/data/`，不随任何模块移动**（`catalog_loader.py:124` 与 `models_dev.py:158` 都用绝对锚点 `files("baldric_coding")`，与调用者所在位置无关）；主题 `.json` 随 `tui/themes/` 包一起走
 - 提交信息：英文 Conventional Commits
 - 测试：全程走 `uv run pytest`；**断言一字不动**，只允许改 import 行
 - 每个任务结束时 `uv run pytest`、`uv run mypy`、`uv run ruff check .` 三项全绿才允许进入下一任务
@@ -142,7 +142,7 @@ context.py         → context/project.py        （蓝图目标位置，1:1）
          ∪ baldric_coding/__init__.py 的门面行
 ```
 
-实测跳簇引用是常态不是例外：`paths.py` 有 **30 个**外部引用者，`credentials.py` 与 `resources.py` 各 13 个，`commands.py` 8 个，`session.py` 7 个。**跳簇的引用者只改 import 行，不碰它们的其他内容。**
+实测跳簇引用是常态不是例外（**闭包口径：`src/` ∪ `tests/` ∪ `scripts/` 下的 `.py` 文件，按 distinct file 计，不含定义文件自身**）：`paths.py` 有 **53** 个外部引用者，`credentials.py` **21** 个，`resources.py` **25** 个，`commands.py` **13** 个，`session.py` **13** 个。**跳簇的引用者只改 import 行，不碰它们的其他内容。**
 
 不允许把引用者推迟到“它所属的那个任务”里再改。理由：一旦允许中间提交是红的，`mypy --strict` 与 M-3 的故意红灯同时失效，此后每个失败都无法区分“本次搬坏了”和“上个任务欠的账”——那正是 agent 开始乱改代码的起点。
 - [ ] **M-3 先改测试的 import，不改任何源码。** 只改 `tests/**` 里的路径到新位置。跑测试。
@@ -166,6 +166,8 @@ Get-ChildItem src\baldric_coding -Recurse -Filter *.py |
   ForEach-Object { $_.FullName.Replace("$PWD\", '') } | Sort-Object
 
 # 4.2 谁引用了某个模块（改名/搬移前必查，含字符串形式与文档引用）
+#     闭包口径：src/ ∪ tests/ ∪ scripts/ 下的 .py 文件（distinct files，不含定义文件自身）。
+#     website/ 与 dev-notes/ 只用于 Task 12 文档收口，不进入移动提交的闭包。
 $targets = Get-ChildItem src, tests, scripts, website, dev-notes -Recurse -Include *.py, *.toml, *.md -File -ErrorAction SilentlyContinue
 Select-String -Path $targets.FullName -Pattern 'baldric_coding\.MODULE_NAME' |
   ForEach-Object { "$($_.Path):$($_.LineNumber)  $($_.Line.Trim())" }
@@ -324,7 +326,7 @@ git commit -m "chore(layout): add move-only guard script and migration ledger"
 - Move: `src/baldric_coding/tui/themes/__init__.py` → `src/baldric_coding/rendering/themes/__init__.py`
 - Move: `src/baldric_coding/tui/themes/*.json`（3 个主题文件随 `__init__.py` 一起走）
 - Modify: 所有 `baldric_coding.tui.themes` 引用点。**已测得 src 侧共 7 个引用文件，其中非 UI 侧 3 个**：`commands.py:766`、`session_export.py:51`、`session_usage.py:22`；UI 侧 4 个（`tui/app.py:186` 等）。**以 4.2 扫描结果为准，不要只改这几处**
-- Test: 以 `tests/test_tui_themes.py` 为主，其余按扫描
+- Test: 按 4.2 扫描。实际测试引用面：**6 个测试文件、8 处引用**（`test_tui_themes.py`、`test_commands.py`、`test_project_trust.py`、`test_session_export.py`、`test_tui_app.py`、`test_tui_components.py`）。注：先前汇报的"8 个文件"是"8 处引用"之误，distinct file 为 6。
 
 **为什么是 `rendering/themes/` 而不是顶层 `themes/`：** 已核实两条前提——`tui/themes/` 自身对 `tui` 其他部分**零引用**，`tui/` 对 `rendering/`**零引用**。所以并入渲染层既消了原有环，又不产生新环；主题与 plain/json/transcript 同属输出样式，语义更准，顶层包也少一个。
 
@@ -334,7 +336,7 @@ git commit -m "chore(layout): add move-only guard script and migration ledger"
 - Produces: `baldric_coding.rendering.themes`（路径变化，符号名不变：`BALDRIC_DARK_THEME`、`BALDRIC_LIGHT_THEME`、`TuiTheme`、`available_tui_theme_names` 等）
 
 - [ ] 执行配方 M 的 Step 1-7。本簇特殊注意：
-  - `themes/__init__.py` 若用 `importlib.resources` 或 `__file__` 定位同目录的 `.json`，**移动后这两类定位方式都会失效** → 属于第 2 节禁止清单之外（这是移动导致的必要改动，允许改），但改动范围只能到"路径表达式修正"为止，不得重构加载逻辑
+  - 已核实 `themes/__init__.py:374` 用 `files(__package__)` 定位同目录 `.json`：相对包名随整包移动自动重定向，**本任务预计不需要改任何路径表达式**。仍必须跑一次真实加载验证三个 json 都能读到（作用是证实这个推断，而不是防已预见的故障）。
   - 改完必须跑一次真实加载验证三个 json 都能读到，不要只靠单测通过
   - **消环验收（本任务的核心产出，必须逐条跑并记输出）：**
 
@@ -378,7 +380,7 @@ Select-String -Path src\baldric_coding\tui\*.py -Pattern '^from baldric_coding\.
 - Move: `diagnostics.py` → `observability/diagnostics.py`
 - Move: `self_docs.py` → `utils/self_docs.py`
 - Create: 四个包的**空** `__init__.py`
-- Test: `tests/test_paths.py`、`tests/test_shell_config.py`、`tests/test_update_check.py`、`tests/test_updater.py`、`tests/test_diagnostics.py`（若存在，按扫描）
+- Test: 按 4.2 扫描（`tests/test_paths.py`、`test_shell_config.py`、`test_update_check.py`、`test_updater.py`；**已核实不存在 `test_diagnostics.py`**）
 
 **备注：** `paths.py` 被测试深层引用最多（23 处，按 2026-11-05 扫描），M-3 的失败面会在这里最大 —— 属预期，不要为了让它变绿而改断言。`updater.py` 用 `importlib.metadata`，与包路径无关，可放心搬。
 
@@ -415,7 +417,7 @@ Select-String -Path src\baldric_coding\tui\*.py -Pattern '^from baldric_coding\.
 - Move: `codex_model_store.py` → `providers/stores/codex_model_store.py`
 - Move: `codex_version.py` → `providers/stores/codex_version.py`
 - Create: `providers/__init__.py`、`providers/stores/__init__.py`（空）
-- Test: `tests/test_provider_config.py`、`test_provider_catalog.py`、`test_provider_runtime.py`、`test_catalog_loader.py`、`test_models_dev.py`、`test_models_dev_store.py`、`test_codex_model_store.py`、`test_codex_version.py`
+- Test: 按 4.2 扫描（`tests/test_provider_config.py`、`test_provider_catalog.py`、`test_provider_runtime.py`、`test_models_dev.py`、`test_models_dev_store.py`、`test_codex_model_store.py`、`test_codex_version.py`；**已核实不存在 `test_catalog_loader.py`**）
 
 **硬要求：** `catalog_loader.py` 与 `models_dev.py` 用 `importlib.resources.files` 读 `data/`（`catalog.toml`、`models-dev-catalog.json`）。**这一步必须现场跑一次真实读取**（不只在单测里）：
 

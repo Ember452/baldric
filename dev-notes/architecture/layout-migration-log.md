@@ -93,14 +93,21 @@ Full table: `dev-notes/architecture/layout-mapping.md`.
    one source reference (`session.py`) and one test reference; it is covered indirectly.
 3. **`tests/test_catalog_loader.py` (Task 7) does not exist.** `catalog_loader` is covered
    indirectly by `test_provider_catalog.py` / `test_provider_config.py` / `test_cli.py`.
-4. **Reference-count differences (plan → scan, distinct files):**
-   `paths.py` 30 → 53; `credentials.py` 13 → 21; `resources.py` 13 → 26;
-   `commands.py` 8 → 14; `session.py` 7 → 17. The plan's numbers are stale; this
-   changes closure sizes, not targets. `paths.py` remains the largest closure.
+4. **Reference-count differences (plan → scan, distinct files; closure scope
+   `src/` ∪ `tests/` ∪ `scripts/`, excluding the defining module file itself):**
+   `paths.py` 30 → 53; `credentials.py` 13 → 21; `resources.py` 13 → 25;
+   `commands.py` 8 → 13; `session.py` 7 → 13. The plan's numbers were a src-only
+   snapshot; the full closure is larger because tests/ and scripts/ participate.
+   Docs-only references (`website/`, `dev-notes/`) are counted separately:
+   `resources` has 1 such dev-note reference (26 total across all areas),
+   `commands` 1 (14), `session` 4 (17 across website+dev-notes), etc.
 5. **Task 3 reference surface:** the 7 src-side `tui.themes` importers match the plan
    exactly (3 non-UI: `commands.py:766`, `session_export.py:51`, `session_usage.py:22`;
    4 UI: `tui/app.py:186`, `tui/config.py:11`, `tui/project_trust.py:15`, `tui/state.py:28`).
-   Tests are 8 files, not just `test_tui_themes.py` — the plan said "其余按扫描".
+   Tests are **8 references across 6 files** (`test_tui_themes.py`, `test_commands.py`,
+   `test_project_trust.py`, `test_session_export.py`, `test_tui_app.py` ×2,
+   `test_tui_components.py`) — not 8 files. The earlier "8 files" was a hits-vs-files
+   counting error, corrected here.
 6. **Task 9 reference surface is understated in the plan.** Actual root-contract
    importers: `local_backends` 7 hits / 7 files (adds
    `extensions/builtins/llama_cpp/service.py:41`, `extensions/__init__.py:90`,
@@ -127,9 +134,11 @@ Full table: `dev-notes/architecture/layout-mapping.md`.
   (`monkeypatch.setattr("baldric_coding.provider_config...")`) → rewrite in Task 7.
 - Display-only strings: `src/baldric_coding/system_prompt.py:96`
   (`source="baldric_coding.system_prompt"`) and the matching assertions in
-  `tests/test_tui_app.py:9366,9391` → **left unchanged**: rewriting the label changes
-  rendered prompt output and forces a test-assertion edit, both forbidden in phase 1.
-  Recorded as phase-2 documentation debt.
+  `tests/test_tui_app.py:9366,9391` → **left unchanged (D2)**. `source` is a
+  human-readable provenance label (`str`, rendered only at `system_prompt.py:170`);
+  its sibling values are natural language or a filesystem path, and no import or
+  resource lookup uses it. Classification: **"stale but non-fatal display string"**,
+  phase-2 documentation debt.
 - Non-functional comment: `src/baldric_coding/prompt_templates.py:37` mentions
   `baldric_coding.commands`; left untouched per "do not edit comments".
 
@@ -141,6 +150,36 @@ Full table: `dev-notes/architecture/layout-mapping.md`.
 - `cli.py`: phase 1 O; argv/mode split registered as phase-2 candidate.
 
 Task 2 commit: `2d28e27` (`docs(layout): add authoritative module-to-target mapping for phase 1`)
+
+## Owner rulings and plan corrections (2026-11-05)
+
+The owner independently re-verified four claims and issued two binding decisions.
+
+| ID | Decision | Evidence / consequence |
+|---|---|---|
+| **D1** | `tui/config.py` stays **O** (no move). Task 12 adds `config.py` to the blueprint's `tui/` tree. | Blueprint omission = blueprint gap → fix document (blueprint rule 4). Moving it needs "its own reason" (rule 3); phase 1 has none. |
+| **D2** | `system_prompt.py:96` `source="baldric_coding.system_prompt"` stays unchanged. Classified as **"stale but non-fatal display string"**. | `source` is `str` human-readable provenance, rendered only at `system_prompt.py:170`; siblings are natural language or a filesystem path; no import/resource lookup. Changing it has zero functional benefit and would break the frozen-assertion rule (`test_tui_app.py:9391`). |
+
+Plan corrections landed in `plans/layout-phase-1-moves.md` (commit
+`docs(plans): correct data-anchor rule, closure scope, and stale test paths`):
+
+1. **`data/` never moves.** `catalog_loader.py:124` and `models_dev.py:158` use the
+   absolute anchor `files("baldric_coding")`, independent of the caller's location →
+   `data/` stays at `src/baldric_coding/data/`. Task 7 real-read verification retained
+   (packaging behaviour still must be measured).
+2. **Task 3 path-expression warning removed.** `tui/themes/__init__.py:374` uses
+   `files(__package__)`, which follows the package; real-load verification retained
+   as confirmation.
+3. **Closure scope written into the plan:** `src/` ∪ `tests/` ∪ `scripts/` `.py`
+   files, distinct files, excluding the defining module file itself. Corrected
+   numbers: `paths` 53, `credentials` 21, `resources` 25, `commands` 13, `session` 13.
+4. **Stale test paths removed:** `tests/test_diagnostics.py` (Task 5) and
+   `tests/test_catalog_loader.py` (Task 7) do not exist; their task lines now say
+   "按 4.2 扫描".
+
+Safety rule adopted from this point on: self-test commits are made on a throwaway
+branch (`tmp-guard-selftest`), never on the feature branch, and `git reset --hard`
+is not used.
 
 ## Cluster log
 

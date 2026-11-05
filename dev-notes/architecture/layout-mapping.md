@@ -8,8 +8,10 @@
 
 Scan scope: 98 `.py` files under `src/baldric_coding/` (excluding `data/`), 93 files
 under `tests/`, plus `scripts/`, `website/` and `dev-notes/` for reference scanning.
-Reference counts below are `hits / distinct files`, split as
-`src_py / tests / scripts / website / dev_notes`.
+Reference counts below are `hits / distinct files` over the full scan universe
+(src_py + tests + scripts + website + dev_notes). **Commit-closure counts use the
+narrower `src/` ∪ `tests/` ∪ `scripts/` distinct-file scope defined in the plan's
+M-2.5 section**; docs-only references are Task 12 work and never enter a move commit.
 
 ## Classification key
 
@@ -82,14 +84,14 @@ Reference counts below are `hits / distinct files`, split as
 | `src/baldric_coding/tui/adapter.py` | `src/baldric_coding/tui/adapter.py` | O | 同上 | — |
 | `src/baldric_coding/tui/app.py` | `src/baldric_coding/tui/app.py` | C | 蓝图 `tui/app/` → 1:N；本阶段不建 `tui/app/`，无同名冲突 → 原地不动 | refs `baldric_coding.tui.app` only; 9106 lines; phase 2 |
 | `src/baldric_coding/tui/autocomplete.py` | `src/baldric_coding/tui/autocomplete.py` | O | 已在蓝图位置 | — |
-| `src/baldric_coding/tui/config.py` | `src/baldric_coding/tui/config.py` | O（待确认） | **蓝图 `tui/` 树未列此文件**（211 lines, `TuiSettings`/`TuiKeybindings`） | not referenced by any task list; no move candidate → leave in place; Task 12 should add it to the blueprint tree. Flagged for confirmation. |
+| `src/baldric_coding/tui/config.py` | `src/baldric_coding/tui/config.py` | O（已确认） | **蓝图 `tui/` 树未列此文件**（211 lines, `TuiSettings`/`TuiKeybindings`） | Decision D1 (owner, 2026-11-05): leave in place; Task 12 adds `config.py` to the blueprint `tui/` tree. Blueprint gap, not a move candidate. |
 | `src/baldric_coding/tui/file_drop.py` | `src/baldric_coding/tui/file_drop.py` | O | 已在蓝图位置 | — |
 | `src/baldric_coding/tui/local_backends.py` | `src/baldric_coding/tui/backends.py` | B | 蓝图 `tui/backends.py`（Textual 宿主屏） | refs 3 files (src 1, tests 2); imports root `local_backends` contract at line 26 |
 | `src/baldric_coding/tui/project_trust.py` | `src/baldric_coding/tui/trust.py` | B | 蓝图 `tui/trust.py` | refs 2 files (src `tui/app.py`, test); imports root `project_trust` policy at line 14 |
 | `src/baldric_coding/tui/state.py` | `src/baldric_coding/tui/state.py` | O | 已在蓝图位置 | — |
 | `src/baldric_coding/tui/terminal_notification.py` | `src/baldric_coding/tui/terminal_notification.py` | O | 同上 | — |
 | `src/baldric_coding/tui/terminal_title.py` | `src/baldric_coding/tui/terminal_title.py` | O | 同上 | — |
-| `src/baldric_coding/tui/themes/__init__.py` | `src/baldric_coding/rendering/themes/__init__.py` | A | 蓝图 `rendering/themes/`（包目录整体移动） | refs 15 lines / 15 files (src 7, tests 8); `files(__package__)` moves with the package → no expression change expected; Task 3 real-load check |
+| `src/baldric_coding/tui/themes/__init__.py` | `src/baldric_coding/rendering/themes/__init__.py` | A | 蓝图 `rendering/themes/`（包目录整体移动） | refs 15 hits / 13 files (src 7 files, tests 8 hits across 6 files); `files(__package__)` moves with the package → no expression change expected; Task 3 real-load check |
 | `src/baldric_coding/tui/themes/baldric-dark.json` | `src/baldric_coding/rendering/themes/baldric-dark.json` | A | 主题数据随 `themes/` 包移动 | 3 theme JSONs move with `__init__.py` |
 | `src/baldric_coding/tui/themes/baldric-light.json` | `src/baldric_coding/rendering/themes/baldric-light.json` | A | 同上 | — |
 | `src/baldric_coding/tui/themes/high-contrast.json` | `src/baldric_coding/rendering/themes/high-contrast.json` | A | 同上 | — |
@@ -131,14 +133,14 @@ names, so phase-1 moves do not affect extension discovery.
 |---|---|---|---|
 | `tests/test_extension_providers.py:1416` | `monkeypatch.setattr("baldric_coding.provider_config._write_provider_settings", ...)` | 7 | monkeypatch resolves the dotted path at runtime → breaks if stale |
 | `tests/test_extension_providers.py:1417` | `monkeypatch.setattr("baldric_coding.provider_config.save_user_catalog_entries", ...)` | 7 | same |
-| `src/baldric_coding/system_prompt.py:96` | `source="baldric_coding.system_prompt"` | 6 | displayed source label; rewriting changes rendered output and `tests/test_tui_app.py:9391` expectation → **left unchanged** (see "待决" below) |
+| `src/baldric_coding/system_prompt.py:96` | `source="baldric_coding.system_prompt"` | 6 | **stale but non-fatal display string (D2)**: `source` is a human-readable provenance label, rendered only at `system_prompt.py:170`; no import/resource lookup uses it → left unchanged |
 | `tests/test_tui_app.py:9366` | `source="baldric_coding.system_prompt"` | 6 | mirrors the product label; left unchanged with it |
 | `tests/test_tui_app.py:9391` | `"**Source:** \`baldric_coding.system_prompt\`..."` | 6 | assertion on rendered label; left unchanged |
 
 ## 待决 / phase-2 candidates
 
-1. **`tui/config.py`** — blueprint's `tui/` tree omits it. No task list mentions it. Proposed: leave in place (O) and add to the blueprint tree in Task 12. **Needs owner confirmation.**
+1. **`tui/config.py`** — **resolved by D1**: leave in place (O); Task 12 adds `config.py` to the blueprint's `tui/` tree. Blueprint gap, not a move candidate.
 2. **`context_window.py`** — treated as 1:1 `session/compaction/context_window.py` (not split); phase-2 candidate for the compaction split.
 3. **`skills.py`** — kept at `context/skills/skills.py` (blueprint's package depth); phase-2 candidate if a single-file module inside the package proves unnecessary.
 4. **`cli.py`** — O; argv/mode split deferred to phase 2 (entry point must not change).
-5. **`system_prompt.py:96` source label** — display-only string; changing it would change rendered prompt output and force an assertion edit, both forbidden in phase 1. Recorded as a documentation debt for phase 2.
+5. **`system_prompt.py:96` source label** — **D2: stale but non-fatal display string.** `source` is typed `str` and means human-readable provenance: its sibling values are natural language (`"runtime configuration"`, `"Baldric runtime"`) or a filesystem path (`cwd`); this is the only value shaped like a dotted module path. It is rendered only at `system_prompt.py:170` (`**Source:** {…}`) and never used for import or resource lookup. Fixing it has zero functional benefit and would break the frozen-assertion rule (`test_tui_app.py:9391` pins the literal), so it stays unchanged as phase-2 documentation debt.
