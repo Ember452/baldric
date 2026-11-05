@@ -113,7 +113,12 @@ def _runtime_with(
     *,
     include_project_dir: bool = False,
 ) -> ExtensionRuntime:
-    runtime = ExtensionRuntime()
+    # The cases built on this helper assert how filesystem extensions register
+    # tools, names and diagnostics. Built-ins are declared separately by the
+    # runtime, and each of them is covered by its own test that passes an
+    # explicit list, so an empty one here keeps those assertions about the
+    # mechanism rather than about the shipped bundle.
+    runtime = ExtensionRuntime(built_in_extensions=())
     runtime.load(paths, include_project_dir=include_project_dir)
     return runtime
 
@@ -868,7 +873,10 @@ def setup(baldric):
     runtime.load(paths, extra_paths=(first_path,), include_resource_dirs=False)
     runtime.load(paths, extra_paths=(second_path,), include_resource_dirs=False)
 
-    tool = runtime.compose_tools([])[0]
+    # Select by name: which tool wins is what this case is about, and reading
+    # the first entry of the composed list would also depend on what else the
+    # runtime happens to bundle.
+    tool = next(tool for tool in runtime.compose_tools([]) if tool.name == "shared-tool")
     assert tool.description == "first"
     assert (await tool.execute("call-1", {})).text == "first"
     registry = runtime.build_command_registry()
@@ -941,7 +949,7 @@ def setup(baldric):
     )
     target_b.write_text("def setup(baldric):\n    pass\n", encoding="utf-8")
     entry.symlink_to(target_a)
-    runtime = ExtensionRuntime()
+    runtime = ExtensionRuntime(built_in_extensions=())
 
     runtime.load(paths, extra_paths=(entry,), include_resource_dirs=False)
 
@@ -3125,10 +3133,21 @@ async def test_reload_awaits_shutdown_before_invalidation_and_starts_new_generat
     assert old_module.EVENTS[-1] == ("stop", "reload", "integration")  # type: ignore[attr-defined]
     new_module = _loaded_extension_module("integration")
     assert new_module.EVENTS == [("start", "reload", "integration")]  # type: ignore[attr-defined]
-    assert ui.calls[-2:] == [
-        ("clear_components", (), {}),
-        ("set_slot_widget", ("status",), {"placement": "above_prompt"}),
+    # The bundled capability mounts its own slot on the same event, so check the
+    # order of this extension's calls rather than assuming it is the last one.
+    clears = [index for index, call in enumerate(ui.calls) if call[0] == "clear_components"]
+    status_sets = [
+        index
+        for index, call in enumerate(ui.calls)
+        if call[0] == "set_slot_widget" and call[1] == ("status",)
     ]
+    assert clears and status_sets
+    assert ui.calls[status_sets[-1]] == (
+        "set_slot_widget",
+        ("status",),
+        {"placement": "above_prompt"},
+    )
+    assert status_sets[-1] > clears[-1]
 
 
 async def test_session_replacement_rebuilds_and_invalidates_source_extensions(

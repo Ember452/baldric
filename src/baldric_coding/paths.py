@@ -99,6 +99,26 @@ class BaldricPaths:
         return self.home / "extensions"
 
     @property
+    def user_subagent_types_dir(self) -> Path:
+        """Return the user-level directory holding subagent type definitions."""
+        return self.home / "agents"
+
+    @property
+    def user_subagent_settings_path(self) -> Path:
+        """Return the user-level subagent settings file."""
+        return self.home / "subagents.json"
+
+    @property
+    def subagent_transcripts_dir(self) -> Path:
+        """Return the durable root for subagent conversation transcripts."""
+        return self.home / "subagents"
+
+    @property
+    def user_agent_memory_dir(self) -> Path:
+        """Return the user-level root for per-agent persistent memory."""
+        return self.home / "agent-memory"
+
+    @property
     def user_agents_skills_dir(self) -> Path:
         """Return the user-level `.agents/skills` directory."""
         return self.agents_home / "skills"
@@ -135,6 +155,32 @@ class BaldricPaths:
     def project_agents_prompts_dir(self, cwd: Path) -> Path:
         """Return the project-local `.agents/prompts` directory."""
         return self.project_agents_dir(cwd) / "prompts"
+
+    def project_subagent_types_dir(self, cwd: Path) -> Path:
+        """Return the project-local subagent type definitions directory."""
+        return self.project_baldric_dir(cwd) / "agents"
+
+    def project_subagent_settings_path(self, cwd: Path) -> Path:
+        """Return the project-local subagent settings file."""
+        return self.project_baldric_dir(cwd) / "subagents.json"
+
+    def project_agent_memory_dir(self, cwd: Path) -> Path:
+        """Return the project-scoped root for per-agent persistent memory."""
+        return self.project_baldric_dir(cwd) / "agent-memory"
+
+    def project_local_agent_memory_dir(self, cwd: Path) -> Path:
+        """Return the unshared project root for per-agent persistent memory."""
+        return self.project_baldric_dir(cwd) / "agent-memory-local"
+
+    def project_schedules_dir(self, cwd: Path) -> Path:
+        """Return the directory holding scheduled subagents for one project.
+
+        Schedules live under the Baldric home, mirroring sessions rather than the
+        project working tree: a scheduled job is a stored prompt that runs later,
+        so it must not be committed into a repository, planted by an untrusted
+        checkout, or deleted when a worktree is cleaned up.
+        """
+        return self.home / "schedules" / self.project_session_dir(cwd).name
 
     def project_session_dir(self, cwd: Path) -> Path:
         """Return the user-home session directory for a project cwd."""

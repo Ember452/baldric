@@ -27,6 +27,68 @@ def test_baldric_paths_project_locations(tmp_path: Path) -> None:
     assert paths.project_agents_prompts_dir(cwd) == cwd / ".agents" / "prompts"
 
 
+def test_subagent_type_directories_are_baldric_native(tmp_path: Path) -> None:
+    """Subagent types live beside skills/prompts, not in the `.agents` ecosystem dir."""
+    paths = BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents")
+    cwd = tmp_path / "project"
+
+    assert paths.user_subagent_types_dir == tmp_path / ".baldric" / "agents"
+    assert paths.project_subagent_types_dir(cwd) == cwd / ".baldric" / "agents"
+    assert paths.project_subagent_types_dir(cwd) != paths.project_agents_dir(cwd) / "agents"
+
+
+def test_subagent_settings_files_live_next_to_the_other_settings_files(
+    tmp_path: Path,
+) -> None:
+    paths = BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents")
+    cwd = tmp_path / "project"
+
+    assert paths.user_subagent_settings_path == tmp_path / ".baldric" / "subagents.json"
+    assert paths.project_subagent_settings_path(cwd) == cwd / ".baldric" / "subagents.json"
+
+
+def test_subagent_transcripts_are_kept_outside_the_session_directory(
+    tmp_path: Path,
+) -> None:
+    """Durable child transcripts are separate from resumable parent sessions."""
+    paths = BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents")
+
+    assert paths.subagent_transcripts_dir == tmp_path / ".baldric" / "subagents"
+    assert paths.subagent_transcripts_dir != paths.sessions_dir
+
+
+def test_agent_memory_scopes_are_three_distinct_roots(tmp_path: Path) -> None:
+    """`user`, `project` and `local` memory must never resolve to the same dir."""
+    paths = BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents")
+    cwd = tmp_path / "project"
+
+    user = paths.user_agent_memory_dir
+    project = paths.project_agent_memory_dir(cwd)
+    local = paths.project_local_agent_memory_dir(cwd)
+
+    assert user == tmp_path / ".baldric" / "agent-memory"
+    assert project == cwd / ".baldric" / "agent-memory"
+    assert local == cwd / ".baldric" / "agent-memory-local"
+    assert len({user, project, local}) == 3
+
+
+def test_schedules_are_stored_under_the_home_not_in_the_project(tmp_path: Path) -> None:
+    """A scheduled job is a stored prompt: it must not land in a repository."""
+    paths = BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents")
+    cwd = tmp_path / "repos" / "app"
+    cwd.mkdir(parents=True)
+
+    schedules = paths.project_schedules_dir(cwd)
+
+    assert schedules.parent == tmp_path / ".baldric" / "schedules"
+    assert schedules.name == paths.project_session_dir(cwd).name
+    assert not str(schedules).startswith(str(cwd))
+    # Two projects with the same directory name still get separate stores.
+    other = tmp_path / "other" / "app"
+    other.mkdir(parents=True)
+    assert paths.project_schedules_dir(other) != schedules
+
+
 def test_default_session_path_uses_home_sessions_and_readable_project_path(
     tmp_path: Path,
 ) -> None:
