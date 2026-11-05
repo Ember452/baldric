@@ -43,7 +43,6 @@ from baldric_coding.commands.registry import CommandRegistry, CommandResult, cre
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.prompts import (
     PromptTemplate,
-    expand_prompt_template_command,
 )
 from baldric_coding.context.resources import (
     BaldricResourcePaths,
@@ -51,7 +50,7 @@ from baldric_coding.context.resources import (
     resource_paths_with_cwd,
     resource_paths_with_project_trust,
 )
-from baldric_coding.context.skills.skills import Skill, expand_skill_command
+from baldric_coding.context.skills.skills import Skill
 from baldric_coding.context.system_prompt import (
     BuildSystemPromptOptions,
     ProjectContextFile,
@@ -72,7 +71,6 @@ from baldric_coding.events import (
     CodingSessionEvent,
     QueueUpdateEvent,
     SessionAgentEndEvent,
-    SessionInfoChangedEvent,
 )
 from baldric_coding.extensions.providers import DynamicProvider, ProviderModel
 from baldric_coding.extensions.runtime import ExtensionRuntime
@@ -85,25 +83,27 @@ from baldric_coding.providers.config import (
     ProviderConfig,
     ProviderConfigError,
     ProviderSettings,
-    load_provider_settings,
     provider_thinking_levels,
     provider_thinking_unavailable_reason,
-    resolve_provider_selection,
     validate_huggingface_inference_provider,
     validate_provider_model,
 )
+from baldric_coding.providers.config import (
+    load_provider_settings as load_provider_settings,
+)
 from baldric_coding.providers.runtime import (
     ClosableModelProvider,
-    create_model_provider,
+)
+from baldric_coding.providers.runtime import (
+    create_model_provider as create_model_provider,
 )
 from baldric_coding.providers.stores.codex_model_store import (
     cached_codex_model_catalog,
-    save_codex_model_catalog,
 )
 from baldric_coding.providers.stores.models_dev_store import (
     ModelsDevRefreshResult,
-    refresh_models_dev_catalog,
 )
+from baldric_coding.session import lifecycle as _lifecycle
 from baldric_coding.session import model_selection as _model_selection
 from baldric_coding.session import runtime as _session_runtime
 from baldric_coding.session.compaction.context_window import (
@@ -122,7 +122,6 @@ from baldric_coding.session.export import (
 from baldric_coding.session.manager import (
     InferenceProviderMode,
     SessionManager,
-    normalize_session_name,
 )
 from baldric_coding.session.model_selection import (
     ModelChoice as ModelChoice,
@@ -336,7 +335,7 @@ from baldric_coding.session.tree_helpers import (
 from baldric_coding.session.tree_helpers import (
     is_retryable_huggingface_route_error as is_retryable_huggingface_route_error,
 )
-from baldric_coding.tools.registry import ImageSupportState, create_bash_tool, create_coding_tools
+from baldric_coding.tools.registry import ImageSupportState, create_coding_tools
 from baldric_coding.trust.policy import (
     CanonicalProjectPath,
     ProjectTrustCoordinator,
@@ -1958,274 +1957,13 @@ class CodingSession:
                 self._model_catalog_discovery_errors[self.provider_name] = error
 
     async def reload(self) -> CodingReloadSummary:
-        """Stage and atomically publish a complete replacement snapshot."""
-        self._require_idle("reload")
-        before_skills = _skill_signatures(self._skills)
-        before_prompt_templates = _prompt_template_signatures(self._prompt_templates)
-        before_context_files = _context_file_signatures(self._context_files)
-        before_diagnostics = _diagnostic_signatures(self.resource_diagnostics)
-        before_system_prompt_inputs = _system_prompt_resource_signatures(
-            skills=self._skills,
-            context_files=self._context_files,
-            custom_system_prompt=self._custom_system_prompt,
-            custom_system_prompt_path=self._custom_system_prompt_path,
-            append_system_prompt=self._append_system_prompt,
-            append_system_prompt_paths=self._append_system_prompt_paths,
-        )
-        before_extensions = _extension_signatures(self._extension_runtime)
-        before_tool_names = tuple(tool.name for tool in self._harness.config.tools)
-        before_guidelines = self._extension_runtime.prompt_guidelines
-        before_sections = self._extension_runtime.sourced_prompt_sections
-
-        # Nothing below mutates the live session. Eligible extensions are loaded
-        # first so project code cannot import before the destination decision.
-        unfiltered_paths = resource_paths_with_cwd(self._config.resource_paths, self.cwd)
-        previous_ui = self._extension_runtime.ui
-        staged_runtime = ExtensionRuntime(
-            durable_providers=(self._provider_settings.providers if self._provider_settings else ()),
-            credentials=self._extension_runtime.provider_credentials or self._credential_store,
-            environment=self._extension_runtime.provider_environment,
-            built_in_credentials=self._extension_runtime.built_in_credentials,
-            built_in_http_client=self._extension_runtime.built_in_http_client,
-            paths=(
-                self._resource_paths.paths
-                or BaldricPaths(
-                    home=self._resource_paths.root,
-                    agents_home=self._resource_paths.agents_root or Path.home() / ".agents",
-                )
-            ),
-        )
-        staged_runtime.load(
-            unfiltered_paths,
-            extra_paths=self._config.extension_paths,
-            include_resource_dirs=self._config.extensions_enabled,
-            include_project_dir=False,
-        )
-
-        staged_resolution = self._project_trust_resolution
-        staged_paths = self._resource_paths
-        coordinator = self._config.project_trust_coordinator
-        trust_summary = None
-        if coordinator is not None:
-            trust_summary, staged_resolution = await coordinator.resolve(
-                self.cwd,
-                override=self._config.trust_override,
-                default=self._config.trust_default,
-                interactive=self._config.trust_interactive,
-                prompt=self._config.trust_prompt,
-                extension_deciders=(staged_runtime.decide_project_trust,),
-                refresh=True,
-                cache_result=False,
-            )
-            if staged_resolution.cancelled:
-                raise ValueError("Project trust decision cancelled; keeping current resources")
-            staged_paths = resource_paths_with_project_trust(
-                resource_paths_with_cwd(self._config.resource_paths, trust_summary.cwd.value),
-                trusted=staged_resolution.trusted,
-            )
-
-        resources = _load_session_resources(
-            staged_paths,
-            self._config.context_files,
-            skills_enabled=self._config.skills_enabled,
-            system_prompt_enabled=self._config.system is None,
-            custom_system_prompt_explicit=self._config.custom_system_prompt is not None,
-        )
-        if trust_summary is not None and trust_summary.categories:
-            assert staged_resolution is not None
-            resources = replace(
-                resources,
-                diagnostics=(
-                    *resources.diagnostics,
-                    ResourceDiagnostic(
-                        kind="project-trust",
-                        message=format_trust_diagnostic(trust_summary, staged_resolution),
-                        severity="info" if staged_resolution.trusted else "warning",
-                    ),
-                ),
-            )
-        if (
-            staged_resolution is not None
-            and staged_resolution.trusted
-            and self._config.project_extensions_enabled
-        ):
-            staged_runtime.load(
-                staged_paths,
-                include_resource_dirs=True,
-                include_project_dir=True,
-                include_user_dir=False,
-            )
-
-        base_tools = (
-            self._config.tools
-            if self._config.tools is not None
-            else create_coding_tools(
-                cwd=self._config.cwd,
-                shell_command_prefix=self._config.shell_command_prefix,
-                image_support=self._image_support,
-            )
-        )
-        staged_tools = _filter_tools(
-            staged_runtime.compose_tools(base_tools), self._config.allowed_tool_names
-        )
-        staged_commands = self._config.command_registry or staged_runtime.build_command_registry()
-        after_system_prompt_inputs = _system_prompt_resource_signatures(
-            skills=resources.skills,
-            context_files=resources.context_files,
-            custom_system_prompt=resources.custom_system_prompt,
-            custom_system_prompt_path=resources.custom_system_prompt_path,
-            append_system_prompt=resources.append_system_prompt,
-            append_system_prompt_paths=resources.append_system_prompt_paths,
-        )
-        after_guidelines = staged_runtime.prompt_guidelines
-        after_sections = staged_runtime.sourced_prompt_sections
-        system_prompt_rebuilt = self._config.system is None and (
-            before_system_prompt_inputs != after_system_prompt_inputs
-            or before_tool_names != tuple(tool.name for tool in staged_tools)
-            or before_guidelines != after_guidelines
-            or before_sections != after_sections
-        )
-        staged_system = self._harness.config.system
-        if system_prompt_rebuilt:
-            staged_system = build_system_prompt(
-                BuildSystemPromptOptions(
-                    cwd=self._config.cwd,
-                    tools=staged_tools,
-                    skills=resources.skills,
-                    custom_prompt=(
-                        self._config.custom_system_prompt
-                        if self._config.custom_system_prompt is not None
-                        else resources.custom_system_prompt
-                    ),
-                    append_sections=_append_prompt_sections(
-                        resources.append_system_prompts,
-                        resources.append_system_prompt_paths,
-                        self._config.append_system_prompt,
-                    ),
-                    context_files=resources.context_files,
-                    extra_guidelines=after_guidelines,
-                    extra_sections=after_sections,
-                    custom_prompt_source=_custom_prompt_source(
-                        explicit=self._config.custom_system_prompt is not None,
-                        path=resources.custom_system_prompt_path,
-                    ),
-                )
-            )
-
-        # Cancellable lifecycle work stays before the publication boundary. The
-        # staged runtime may inspect the still-live session during session_start;
-        # cancellation leaves that prior snapshot/runtime/cache untouched.
-        old_runtime = self._extension_runtime
-        await old_runtime.emit_session_shutdown("reload")
-        old_runtime.clear_ui_components()
-        staged_runtime.set_ui_bridge(previous_ui)
-        staged_runtime.bind(self)
-        await staged_runtime.emit_session_start("reload")
-
-        # Publication is synchronous: cancellation can no longer report failure
-        # after only part of the live snapshot or trust cache was adopted.
-        if coordinator is not None and trust_summary is not None:
-            assert staged_resolution is not None
-            coordinator.commit(trust_summary.cwd, staged_resolution)
-        old_runtime.retire()
-        self._resource_paths = staged_paths
-        self._config = replace(
-            self._config,
-            cwd=staged_paths.cwd or self._config.cwd,
-            resource_paths=staged_paths,
-            extension_runtime=staged_runtime,
-        )
-        self._project_trust_resolution = staged_resolution
-        self._skills = resources.skills
-        self._prompt_templates = resources.prompt_templates
-        self._context_files = resources.context_files
-        self._custom_system_prompt = resources.custom_system_prompt
-        self._custom_system_prompt_path = resources.custom_system_prompt_path
-        self._append_system_prompt = resources.append_system_prompt
-        self._append_system_prompts = resources.append_system_prompts
-        self._append_system_prompt_paths = resources.append_system_prompt_paths
-        self._resource_diagnostics = resources.diagnostics
-        self._command_registry = staged_commands
-        self._extension_runtime = staged_runtime
-        self._provider_registry = staged_runtime.provider_registry
-        self._harness.config.tools = staged_tools
-        self._harness.config.system = staged_system
-        if system_prompt_rebuilt:
-            self._invalidate_context_usage_cache()
-        staged_runtime.attach_harness_listener(self._harness.subscribe)
-        # Retirement invalidates publication synchronously; async close then
-        # waits for cooperative provider callback cleanup or reports bounded
-        # containment while the outgoing runtime still owns every task handle.
-        # Caller cancellation at this committed seam is contained so reload
-        # cannot report failure after the fresh snapshot became active.
-        await _finish_adopted_runtime_close(old_runtime)
-
-        return CodingReloadSummary(
-            skills=_category_summary(before_skills, _skill_signatures(resources.skills)),
-            prompt_templates=_category_summary(
-                before_prompt_templates, _prompt_template_signatures(resources.prompt_templates)
-            ),
-            context_files=_category_summary(
-                before_context_files, _context_file_signatures(resources.context_files)
-            ),
-            extensions=_category_summary(before_extensions, _extension_signatures(staged_runtime)),
-            diagnostics=_category_summary(
-                before_diagnostics, _diagnostic_signatures(self.resource_diagnostics)
-            ),
-            system_prompt_rebuilt=system_prompt_rebuilt,
-        )
+        return await _lifecycle.reload(self)
 
     async def refresh_model_catalogs(self, *, force: bool = False) -> ModelsDevRefreshResult:
-        """Refresh public and authenticated catalogs and publish them to this session."""
-        public_error: Exception | None = None
-        result: ModelsDevRefreshResult | None = None
-        try:
-            result = await refresh_models_dev_catalog(
-                paths=self._resource_paths.paths,
-                force=force,
-            )
-            self.reload_provider_settings()
-        except Exception as error:  # noqa: BLE001 - authenticated refresh still runs
-            public_error = error
-        await self._refresh_codex_model_catalog()
-        if public_error is not None:
-            raise public_error
-        assert result is not None
-        return result
+        return await _lifecycle.refresh_model_catalogs(self, force=force)
 
     async def _refresh_codex_model_catalog(self) -> None:
-        """Refresh the account-specific Codex inventory without making it durable."""
-        if environ.get("BALDRIC_OFFLINE") is not None or self._durable_provider_settings is None:
-            return
-        try:
-            provider_config = self._durable_provider_settings.get_provider("openai-codex")
-        except ProviderConfigError:
-            return
-        if not isinstance(provider_config, OpenAICodexProviderConfig):
-            return
-        if not self._provider_is_usable(provider_config):
-            return
-
-        # Use a fresh provider even when Codex is active. The active provider caches
-        # its startup snapshot so reusing it would make `/model` unable to discover
-        # versions or models released during a long-running Baldric process.
-        temporary_provider = create_model_provider(
-            provider_config,
-            credential_store=self._credential_store,
-            model=None,
-            thinking_level=None,
-        )
-        if not isinstance(temporary_provider, ModelCatalogProvider):
-            await temporary_provider.aclose()
-            return
-        try:
-            catalog = await temporary_provider.discover_models()
-            self._publish_runtime_model_catalog(provider_config.name, catalog)
-            self._persist_codex_model_catalog(temporary_provider, catalog, provider_config)
-        except Exception as exc:  # noqa: BLE001 - static catalog remains the safe fallback
-            self._model_catalog_discovery_errors[provider_config.name] = f"{type(exc).__name__}: {exc}"
-        finally:
-            await temporary_provider.aclose()
+        return await _lifecycle._refresh_codex_model_catalog(self)
 
     def _persist_codex_model_catalog(
         self,
@@ -2233,597 +1971,61 @@ class CodingSession:
         catalog: RuntimeModelCatalog,
         provider_config: OpenAICodexProviderConfig | None = None,
     ) -> None:
-        config = provider_config or (
-            self._runtime_provider_config
-            if isinstance(self._runtime_provider_config, OpenAICodexProviderConfig)
-            else None
-        )
-        if config is None:
-            return
-        account_id = getattr(provider, "account_id", None) or _codex_account_id(
-            config,
-            self._credential_store,
-        )
-        if not isinstance(account_id, str) or not account_id:
-            return
-        with suppress(OSError, TypeError, ValueError):
-            save_codex_model_catalog(
-                catalog,
-                account_id=account_id,
-                paths=self._resource_paths.paths,
-            )
+        return _lifecycle._persist_codex_model_catalog(self, provider, catalog, provider_config)
 
-    def _publish_runtime_model_catalog(
-        self,
-        provider_name: str,
-        catalog: RuntimeModelCatalog,
-    ) -> None:
-        if not catalog.models:
-            raise ValueError("provider returned an empty model catalog")
-        self._runtime_model_catalogs[provider_name] = catalog
-        self._model_catalog_discovery_errors.pop(provider_name, None)
-        self._invalidate_runtime_model_limits()
-        self._apply_runtime_model_catalogs()
+    def _publish_runtime_model_catalog(self, provider_name: str, catalog: RuntimeModelCatalog) -> None:
+        return _lifecycle._publish_runtime_model_catalog(self, provider_name, catalog)
 
     def _apply_runtime_model_catalogs(self) -> None:
-        settings = self._durable_provider_settings
-        if settings is None:
-            self._provider_settings = None
-            return
-        providers = tuple(
-            _provider_with_runtime_model_catalog(
-                provider,
-                self._runtime_model_catalogs.get(provider.name),
-            )
-            for provider in settings.providers
-        )
-        self._provider_settings = replace(settings, providers=providers)
+        return _lifecycle._apply_runtime_model_catalogs(self)
 
     def reload_provider_settings(self) -> None:
-        """Reload provider settings for login and model-selection flows."""
-        if self._provider_settings is None:
-            return
-        previous_settings = self._provider_settings
-        previous_durable_settings = self._durable_provider_settings
-        previous_thinking_level = self._thinking_level
-        self._durable_provider_settings = load_provider_settings(self._resource_paths.paths)
-        self._apply_runtime_model_catalogs()
-        active_config = self._active_provider_config()
-        if active_config is None or self._harness.config.model not in active_config.models:
-            # The refreshed picker snapshot is authoritative for new selections,
-            # but cannot invalidate an already constructed, working provider.
-            return
-        try:
-            self._sync_thinking_level_to_active_model()
-            self._refresh_runtime_provider()
-            self._sync_image_support()
-        except ProviderConfigError:
-            self._provider_settings = previous_settings
-            self._durable_provider_settings = previous_durable_settings
-            self._thinking_level = previous_thinking_level
-            raise
+        return _lifecycle.reload_provider_settings(self)
 
     async def resume(self, session_id: str) -> str:
-        """Replace this session's active state with another indexed session."""
-        self._require_idle("resume")
-        await self._flush_pending_message_writes(context=self._diagnostic_context())
-        manager = self._config.session_manager
-        if manager is None:
-            raise ValueError("Session manager is not available")
-        record = manager.get_session(session_id)
-        if record is None:
-            raise ValueError(f"Unknown session: {session_id}")
-
-        provider_name = self._provider_name
-        runtime_provider_config = self._runtime_provider_config
-        model = self.model
-        restore_record_model = False
-        dynamic_resume = False
-        if record.provider_name:
-            effective = self._provider_registry.effective(record.provider_name)
-            if effective is not None and isinstance(effective.definition, DynamicProvider):
-                # Dynamic definitions are generation-local. Re-resolve the
-                # reference in the fresh destination runtime instead of
-                # carrying this runtime's provider object across cwd/trust
-                # boundaries.
-                provider_name = record.provider_name
-                model = record.model
-                runtime_provider_config = None
-                dynamic_resume = True
-                restore_record_model = True
-            else:
-                provider_name = record.provider_name
-                model = record.model
-                restore_record_model = True
-                if self._provider_settings is None:
-                    # The destination runtime may provide a process-local
-                    # definition even when the source session did not.
-                    dynamic_resume = True
-                    runtime_provider_config = None
-                else:
-                    try:
-                        runtime_provider_config = self._provider_settings.get_provider(record.provider_name)
-                    except ProviderConfigError:
-                        # Do not reject a dynamic overlay merely because the
-                        # current cwd has not loaded its destination extension.
-                        dynamic_resume = True
-                        runtime_provider_config = None
-                    else:
-                        if (
-                            isinstance(runtime_provider_config, OpenAICodexProviderConfig)
-                            and model not in runtime_provider_config.models
-                        ):
-                            # Re-discover a live-only destination model before validation.
-                            dynamic_resume = True
-                            runtime_provider_config = None
-                        else:
-                            validate_provider_model(runtime_provider_config, model)
-
-        replacement = await type(self).load(
-            CodingSessionConfig(
-                provider=None if dynamic_resume else self._harness.config.provider,
-                model=model,
-                cwd=record.cwd,
-                storage=jsonl_session_storage(record.path),
-                system=self._config.system,
-                custom_system_prompt=self._config.custom_system_prompt,
-                append_system_prompt=self._config.append_system_prompt,
-                context_files=self._config.context_files,
-                resource_paths=self._config.resource_paths,
-                session_id=record.id,
-                session_manager=manager,
-                command_registry=self._config.command_registry,
-                provider_name=provider_name,
-                inference_provider=None if dynamic_resume else record.inference_provider,
-                inference_provider_mode=record.inference_provider_mode,
-                requested_provider=provider_name if dynamic_resume else None,
-                requested_model=model if dynamic_resume else None,
-                session_provider_name=record.provider_name,
-                provider_settings=self._durable_provider_settings,
-                runtime_provider_config=runtime_provider_config,
-                auto_compact_token_threshold=self._auto_compact_token_threshold,
-                auto_compact_enabled=self._auto_compact_enabled,
-                thinking_level=self._thinking_level,
-                shell_command_prefix=self._config.shell_command_prefix,
-                skills_enabled=self._config.skills_enabled,
-                allowed_tool_names=self._config.allowed_tool_names,
-                extension_paths=self._config.extension_paths,
-                extensions_enabled=self._config.extensions_enabled,
-                project_extensions_enabled=self._config.project_extensions_enabled,
-                extension_runtime=self._extension_runtime,
-                project_trust_coordinator=self._config.project_trust_coordinator,
-                trust_override=self._config.trust_override,
-                trust_default=self._config.trust_default,
-                trust_interactive=self._config.trust_interactive,
-                trust_prompt=self._config.trust_prompt,
-                defer_authoritative_writes=dynamic_resume,
-                owns_initial_provider=dynamic_resume,
-            )
-        )
-        try:
-            if not restore_record_model:
-                # Only provider-less legacy records inherit the source model.
-                # The staged loader has already resolved provider-aware records
-                # against the destination's (possibly freshly discovered) catalog.
-                replacement._harness.config.model = self._harness.config.model
-                replacement._sync_thinking_level_to_active_model()
-                replacement._refresh_runtime_provider()
-                replacement._sync_image_support()
-        except BaseException:
-            # resume owns the loaded candidate until adoption takes ownership.
-            await _finish_aborted_session_close(replacement)
-            raise
-        await self._adopt_replacement(replacement, reason="resume")
-        return f"Resumed session: {record.id}"
+        return await _lifecycle.resume(self, session_id)
 
     async def set_session_name(self, name: str) -> str:
-        """Persist a session name and notify extensions after it changes."""
-        normalized = normalize_session_name(name)
-        persisted = self._persist_session_name(
-            normalized,
-            only_if_unnamed=False,
-            index_if_missing=True,
-        )
-        if persisted is None:
-            return normalized
-        await self._extension_runtime.emit_event(SessionInfoChangedEvent(name=persisted))
-        return persisted
+        return await _lifecycle.set_session_name(self, name)
 
     def _persist_session_name(
-        self,
-        name: str,
-        *,
-        only_if_unnamed: bool,
-        index_if_missing: bool,
+        self, name: str, *, only_if_unnamed: bool, index_if_missing: bool
     ) -> str | None:
-        """Persist and return a changed name; return None for a no-op."""
-        normalized = normalize_session_name(name)
-        manager = self._config.session_manager
-        session_id = self._config.session_id
-        if manager is None or session_id is None:
-            raise ValueError("Session manager is not available")
-        record = manager.get_session(session_id)
-        if record is None and index_if_missing:
-            self.ensure_session_indexed()
-            record = manager.get_session(session_id)
-        if record is None:
-            return None
-        if only_if_unnamed and record.title:
-            return None
-        if record.title == normalized:
-            return None
-        updated = manager.touch_session(
-            session_id,
-            model=self.model,
-            provider_name=self.provider_name,
-            title=normalized,
+        return _lifecycle._persist_session_name(
+            self, name, only_if_unnamed=only_if_unnamed, index_if_missing=index_if_missing
         )
-        if updated is None:
-            if index_if_missing:
-                raise ValueError(f"Unknown session: {session_id}")
-            return None
-        return updated.title or normalized
 
     async def new_session(self) -> str:
-        """Replace this session's active state with a pending unindexed session."""
-        self._require_idle("start a new session")
-        await self._flush_pending_message_writes(context=self._diagnostic_context())
-        manager = self._config.session_manager
-        if manager is None:
-            raise ValueError("Session manager is not available")
-
-        provider_name = self._provider_name
-        model = self._harness.config.model
-        runtime_provider_config = self._runtime_provider_config
-        thinking_level = self._thinking_level
-        if self._provider_settings is not None:
-            selection = resolve_provider_selection(self._provider_settings)
-            provider_name = selection.provider.name
-            model = selection.model
-            runtime_provider_config = selection.provider
-            thinking_level = _coerced_thinking_level(
-                selection.provider,
-                model=model,
-                current=self._thinking_level,
-            )
-
-        effective = self._provider_registry.effective(provider_name)
-        dynamic_provider = (
-            effective.definition
-            if effective is not None and isinstance(effective.definition, DynamicProvider)
-            else None
-        )
-        if dynamic_provider is not None:
-            model = next(
-                (item.id for item in dynamic_provider.models if item.id == model),
-                dynamic_provider.default_model
-                or (dynamic_provider.models[0].id if dynamic_provider.models else model),
-            )
-            runtime_provider_config = None
-        inference_provider = (
-            None
-            if dynamic_provider is not None
-            else _configured_inference_provider(runtime_provider_config, model)
-        )
-        inference_provider_mode: InferenceProviderMode = (
-            "automatic"
-            if dynamic_provider is not None
-            else _configured_inference_provider_mode(runtime_provider_config, model)
-        )
-        record = (
-            manager.prepare_session(
-                cwd=self.cwd,
-                model=model,
-                provider_name=provider_name,
-                inference_provider=inference_provider,
-                inference_provider_mode=inference_provider_mode,
-            )
-            if inference_provider is not None
-            else manager.prepare_session(
-                cwd=self.cwd,
-                model=model,
-                provider_name=provider_name,
-            )
-        )
-        replacement = await type(self).load(
-            replace(
-                self._config,
-                # The old runtime may belong to a different provider. Stage a
-                # fresh runtime for the new session's default provider/model.
-                provider=(self._harness.config.provider if self._provider_settings is None else None),
-                model=record.model or model,
-                cwd=record.cwd,
-                storage=jsonl_session_storage(record.path),
-                session_id=record.id,
-                provider_name=provider_name,
-                inference_provider=inference_provider,
-                inference_provider_mode=inference_provider_mode,
-                requested_provider=provider_name if dynamic_provider is not None else None,
-                requested_model=model if dynamic_provider is not None else None,
-                session_provider_name=provider_name,
-                provider_settings=self._durable_provider_settings,
-                runtime_provider_config=runtime_provider_config,
-                dynamic_provider=dynamic_provider,
-                owns_initial_provider=False,
-                defer_authoritative_writes=dynamic_provider is not None,
-                thinking_level=thinking_level,
-                index_on_first_persist=True,
-                extension_runtime=self._extension_runtime,
-            )
-        )
-        await self._adopt_replacement(replacement, reason="new")
-        return f"Started new session: {record.id}"
+        return await _lifecycle.new_session(self)
 
     async def _adopt_replacement(
-        self,
-        replacement: CodingSession,
-        *,
-        reason: Literal["new", "resume", "branch"],
+        self, replacement: CodingSession, *, reason: Literal["new", "resume", "branch"]
     ) -> None:
-        """Adopt a replacement session's state and re-bind the extension runtime.
-
-        The extension runtime is long-lived and shared with the replacement; it
-        must be re-bound to this outer session object because later state
-        (transcript persistence, parent ids) mutates here, not on the discarded
-        replacement instance.
-        """
-        old_runtime = self._extension_runtime
-        try:
-            if (
-                replacement.project_trust_resolution is not None
-                and replacement.project_trust_resolution.cancelled
-            ):
-                raise ValueError("Project trust decision cancelled; current session unchanged")
-
-            # Destination transcript initialization/repair is the durable
-            # commit point. It must succeed before the outgoing runtime enters
-            # its shutdown path.
-            await replacement._commit_prepared_entries()
-
-            # The replacement remains the explicit owner of its providers
-            # through every cancellable/erroring pre-publication seam.
-            await old_runtime.emit_session_shutdown(reason)
-            old_runtime.clear_ui_components()
-            await replacement._extension_runtime.emit_session_start(reason)
-            replacement._commit_project_trust_resolution()
-            replacement._session_start_pending = False
-        except BaseException:
-            await _finish_aborted_session_close(replacement)
-            raise
-
-        # Every cancellable boundary has completed. Adopt synchronously so a
-        # reported cancellation cannot expose only part of the destination.
-        old_runtime.retire()
-        self._config = replacement._config
-        self._state = replacement._state
-        self._harness = replacement._harness
-        self._preview_model = None
-        self._preview_thinking = None
-        # Detach the replacement's persistence listener so writes advance
-        # this session's parent pointers, not the discarded replacement's.
-        if replacement._persistence_unsubscribe is not None:
-            replacement._persistence_unsubscribe()
-            replacement._persistence_unsubscribe = None
-        self._attach_persistence_listener()
-        self._invalidate_context_usage_cache()
-        self._last_parent_id = replacement._last_parent_id
-        self._skills = replacement._skills
-        self._prompt_templates = replacement._prompt_templates
-        self._context_files = replacement._context_files
-        self._custom_system_prompt = replacement._custom_system_prompt
-        self._custom_system_prompt_path = replacement._custom_system_prompt_path
-        self._append_system_prompt = replacement._append_system_prompt
-        self._append_system_prompts = replacement._append_system_prompts
-        self._append_system_prompt_paths = replacement._append_system_prompt_paths
-        self._resource_diagnostics = replacement._resource_diagnostics
-        self._command_registry = replacement._command_registry
-        self._provider_name = replacement._provider_name
-        self._inference_provider = replacement._inference_provider
-        self._inference_provider_mode = replacement._inference_provider_mode
-        self._provider_settings = replacement._provider_settings
-        self._durable_provider_settings = replacement._durable_provider_settings
-        self._runtime_model_catalogs = replacement._runtime_model_catalogs
-        self._model_catalog_discovery_errors = replacement._model_catalog_discovery_errors
-        self._runtime_provider_config = replacement._runtime_provider_config
-        self._resource_paths = replacement._resource_paths
-        self._auto_compact_token_threshold = replacement._auto_compact_token_threshold
-        self._auto_compact_enabled = replacement._auto_compact_enabled
-        self._thinking_level = replacement._thinking_level
-        self._pending_initial_entries = replacement._pending_initial_entries
-        self._pending_message_writes = replacement._pending_message_writes
-        self._extension_runtime = replacement._extension_runtime
-        self._provider_registry = replacement._provider_registry
-        self._credential_store = replacement._credential_store
-        self._diagnostic_logger = replacement._diagnostic_logger
-        self._runtime_model_limits = replacement._runtime_model_limits
-        self._runtime_model_limits_key = replacement._runtime_model_limits_key
-        self._model_limits_discovery_error = replacement._model_limits_discovery_error
-        self._prepared_entries = replacement._prepared_entries
-        self._owned_providers.extend(replacement._owned_providers)
-        replacement._owned_providers.clear()
-        self._image_support = replacement._image_support
-        self._project_trust_resolution = replacement._project_trust_resolution
-        self._project_trust_commit_pending = False
-        self._session_start_pending = False
-        self._extension_runtime.bind(self)
-        self._extension_runtime.attach_harness_listener(self._harness.subscribe)
-        # Adoption is already committed. Finish outgoing cleanup under a
-        # shielded owner and contain cancellation rather than reporting that
-        # the requested destination failed to replace the source session.
-        await _finish_adopted_runtime_close(old_runtime)
+        return await _lifecycle._adopt_replacement(self, replacement, reason=reason)
 
     async def compact_detailed(self, instructions: str | None = None) -> ManualCompactionResult:
-        """Compact older context while preserving a real recent-entry boundary."""
-        await self._flush_pending_message_writes(context=self._diagnostic_context())
-        plan = self._recent_preserving_compaction_plan()
-        if plan is None:
-            raise ValueError("Not enough context to compact while preserving recent entries")
-        tokens_before = self.context_token_estimate
-        generated = await self._generate_compaction_summary(
-            plan.messages_to_summarize,
-            custom_instructions=instructions,
-        )
-        await self._append_compaction(
-            generated.text,
-            first_kept_entry_id=plan.first_kept_entry_id,
-            tokens_before=tokens_before,
-            usage=generated.usage,
-            provider=generated.provider,
-            model=generated.model,
-            response_provider=generated.response_provider,
-        )
-        return ManualCompactionResult(
-            summary=generated.text,
-            first_kept_entry_id=plan.first_kept_entry_id,
-            tokens_before=tokens_before,
-            estimated_tokens_after=self.context_token_estimate,
-            replaced_entry_count=plan.replaced_entry_count,
-        )
+        return await _lifecycle.compact_detailed(self, instructions)
 
     async def compact(self, instructions: str | None = None) -> str:
-        """Generate a manual compaction summary and rebuild active context."""
-        result = await self.compact_detailed(instructions)
-        return f"Compacted {result.replaced_entry_count} context entries."
+        return await _lifecycle.compact(self, instructions)
 
     async def aclose(self) -> None:
-        """Close every owned extension/provider resource exactly once.
-
-        Caller cancellation is remembered but cannot cancel the durable close
-        task. The first call propagates it only after all ownership ledgers are
-        discharged; later calls observe the same completed task idempotently.
-        """
-        close_task = self._close_task
-        if close_task is None:
-            close_task = asyncio.create_task(
-                self._close_owned_resources(),
-                name="baldric-coding-session-close",
-            )
-            self._close_task = close_task
-
-        cancelled = await _await_cleanup_completion(close_task)
-        error: BaseException | None = None
-        try:
-            close_task.result()
-        except BaseException as exc:  # all resources were attempted before this outcome
-            error = exc
-        if cancelled:
-            raise asyncio.CancelledError
-        if error is not None:
-            raise error
+        return await _lifecycle.aclose(self)
 
     async def _close_owned_resources(self) -> None:
-        """Run the sole close pass, continuing after individual failures."""
-        error: BaseException | None = None
-        try:
-            if self._extension_runtime.active:
-                await self._extension_runtime.emit_session_shutdown("quit")
-        except BaseException as exc:
-            error = exc
-
-        # Final close has no successor sharing the UI bridge. Remove any
-        # source-owned widgets/interceptors before invalidating the API.
-        try:
-            self._extension_runtime.clear_ui_components()
-        except BaseException as exc:
-            if error is None:
-                error = exc
-
-        # A runtime may already be synchronously retired by replacement. Close
-        # still owns the async drain/containment step and must never skip it.
-        try:
-            await self._extension_runtime.aclose()
-        except BaseException as exc:
-            if error is None:
-                error = exc
-
-        # Remove each provider from the ownership ledger before its only close
-        # attempt. One hostile provider cannot prevent later providers closing.
-        providers = tuple(self._owned_providers)
-        self._owned_providers.clear()
-        for provider in providers:
-            try:
-                await provider.aclose()
-            except BaseException as exc:
-                if error is None:
-                    error = exc
-
-        if error is not None:
-            raise error
+        return await _lifecycle._close_owned_resources(self)
 
     def handle_command(self, text: str) -> CommandResult:
-        """Handle coding-session slash commands.
-
-        Prompt-template slash commands are expansion directives, so they remain
-        unhandled here and flow through `prompt()` for on-the-fly replacement.
-        """
-        if expand_prompt_template_command(text, self._prompt_templates) is not None:
-            return CommandResult(handled=False)
-        return self._command_registry.execute(self, text)
+        return _lifecycle.handle_command(self, text)
 
     def ensure_session_indexed(self) -> None:
-        """Persist pending session metadata and add this session to the resume index."""
-        if self._config.session_id is None or self._config.session_manager is None:
-            return
-        if self._config.session_manager.get_session(self._config.session_id) is None:
-            self._config.session_manager.create_session(
-                cwd=self.cwd,
-                model=self.model,
-                provider_name=self.provider_name,
-                inference_provider=self._inference_provider,
-                inference_provider_mode=self._inference_provider_mode,
-                session_id=self._config.session_id,
-            )
-        self._config = replace(self._config, index_on_first_persist=False)
-        self._ensure_session_file_initialized()
+        return _lifecycle.ensure_session_indexed(self)
 
     def expand_prompt_text(self, text: str) -> str:
-        """Expand prompt text using loaded markdown resources."""
-        expanded_prompt = expand_prompt_template_command(text, self._prompt_templates)
-        if expanded_prompt is not None:
-            return expanded_prompt
-        expanded_skill = expand_skill_command(text, self._skills)
-        return expanded_skill if expanded_skill is not None else text
+        return _lifecycle.expand_prompt_text(self, text)
 
-    async def run_terminal_command(
-        self,
-        command: str,
-        *,
-        add_to_context: bool,
-    ) -> TerminalCommandResult:
-        """Run a shell command in the session cwd, optionally adding output to context."""
-        normalized_command = command.strip()
-        if not normalized_command:
-            raise ValueError("Terminal command cannot be empty")
-
-        bash_tool = create_bash_tool(
-            cwd=self.cwd,
-            shell_command_prefix=self._config.shell_command_prefix,
-        )
-        result = await bash_tool.execute("terminal-command", {"command": normalized_command})
-        exit_code = None
-        if isinstance(result.details, dict):
-            raw_exit_code = result.details.get("exit_code")
-            exit_code = raw_exit_code if isinstance(raw_exit_code, int) else None
-
-        if add_to_context:
-            await self._flush_pending_message_writes(context=self._diagnostic_context())
-            context_message = UserMessage(
-                content=_terminal_command_context_message(
-                    normalized_command,
-                    result.text,
-                )
-            )
-            self._harness.append_message(context_message)
-            self._invalidate_context_usage_cache()
-            await self._persist_message(context_message)
-
-        return TerminalCommandResult(
-            command=normalized_command,
-            output=result.text,
-            exit_code=exit_code,
-            ok=exit_code == 0,
-            added_to_context=add_to_context,
-        )
+    async def run_terminal_command(self, command: str, *, add_to_context: bool) -> TerminalCommandResult:
+        return await _lifecycle.run_terminal_command(self, command, add_to_context=add_to_context)
 
     async def prompt(
         self,
