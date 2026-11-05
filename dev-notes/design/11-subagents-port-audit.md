@@ -163,18 +163,60 @@ a comment. Each was reverted to the original form, and the local protocol in
 `group_join.py` and `schedule.py` went away once `extension.py` existed to name
 the real run record.
 
-Checks at this commit: mypy at its 14-error `fcntl` baseline with zero errors in
-`subagents`, `ruff check` and `ruff format --check` clean, and the suite at 2238
-passed / 119 skipped - the same numbers as before the copy, because none of this
-code is under test yet.
+Checks at the copy commit: mypy at its 14-error `fcntl` baseline with zero errors
+in `subagents`, `ruff check` and `ruff format --check` clean, and the suite at
+2238 passed / 119 skipped - the same numbers as before the copy, because none of
+this code was under test yet.
 
-Two things remain, in order: bring in the original test suite for these modules
-(`test_extension.py`, `test_ui.py`, `test_integration_tui.py` and the harness they
-rely on), replacing the hand-written files that duplicate their cases, and only
-then add the extension to `BUILT_IN_EXTENSIONS` so it actually loads.
+What remains: adding the extension to `BUILT_IN_EXTENSIONS` so it actually
+loads. The original suites for the manager, menu, fleet UI and scheduler are in,
+so the capability now has 236 cases exercising it rather than only its parts.
 
 One environment note: a full-suite run blocked once with zero CPU in an existing
 TUI test and had to be killed. Re-runs of that group standalone (672 passed) and
 of the whole suite (2238 passed, 134s) do not reproduce it. Nothing in these
 modules is imported by any test, so this port is not the cause; it is left
 alone rather than chased.
+
+## Full re-comparison, once the suites were in place
+
+Method repeated on the finished tree: every file was normalised back to the
+source naming and diffed against it hunk by hunk - 1867 diff lines, 207 hunks
+across 17 files (`ui/__init__.py` came back identical). Each hunk then got one
+of three verdicts, and the verdict had to be traceable to a declared type, a
+test assertion, or the base tree.
+
+Kept because the host forces it: `BaldricPaths` and the trust flag at every
+loader, the home-based schedule location, `validate_session_id` on the session
+component, `CodingSessionEvent` for observed events, the storage protocol's
+`append_batch`, block-list content for messages and tool results,
+`_int_field` (a `JSONValue` union cannot be handed to `int()`), the typed
+renderer and handler signatures, the must-return-text adapter around
+`render_notification`, `isinstance` in place of a role string test, and the
+thinking level taken from the provider-selection branches.
+
+Reverted after re-checking, in four separate changes: the fork's thinking level
+is optional again (nothing forced it and its absence has a meaning), an unknown
+schedule patch key raises again instead of being filtered,
+the settings read catches a decode error rather than every `ValueError`, and the
+notification card reads text fields with the original conversions instead of a
+helper that blanked non-text values. The suppression comment on the record
+loader is gone too, so this port still adds no exemption.
+
+Kept as a deliberate simplification: `load_available_skills` was dropped because
+it had exactly one caller here and no external consumer, and the many
+line-joining differences are what this project's formatter produces at 110
+columns - no statement changed.
+
+Not a defect but worth recording: comments inherited from the source still name
+the protocol family it follows ("matching pi", "pi parity", "ADR 0003"-style
+references were removed where they pointed at documents that do not exist here).
+Those notes explain why a behaviour looks the way it does, so they stay as they
+are rather than being scrubbed for tidiness.
+
+Two test-side flakiness observations in this environment, neither reproducible:
+one full-suite run blocked in an existing TUI test with zero CPU, and one run of
+the ported suites failed `assert False is True` on a viewer-mount check that
+passes standalone, in every pairwise combination, and on two further full runs
+(236 passed twice). Both are recorded rather than chased.
+
