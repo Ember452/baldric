@@ -238,6 +238,30 @@ from baldric_coding.tui.widgets.core import (
 from baldric_coding.tui.widgets.core import (
     transcript_item_selection_text as transcript_item_selection_text,
 )
+from baldric_coding.tui.widgets.prompt_input import (
+    PASTE_DISPLAY_THRESHOLD as PASTE_DISPLAY_THRESHOLD,
+)
+from baldric_coding.tui.widgets.prompt_input import (
+    CompletionActionTarget as CompletionActionTarget,
+)
+from baldric_coding.tui.widgets.prompt_input import (
+    PromptInput as PromptInput,
+)
+from baldric_coding.tui.widgets.prompt_input import (
+    _hidden_prompt_bindings as _hidden_prompt_bindings,
+)
+from baldric_coding.tui.widgets.prompt_input import (
+    _is_thinking_cycle_key as _is_thinking_cycle_key,
+)
+from baldric_coding.tui.widgets.prompt_input import (
+    _key_hint as _key_hint,
+)
+from baldric_coding.tui.widgets.prompt_input import (
+    _prompt_bindings as _prompt_bindings,
+)
+from baldric_coding.tui.widgets.prompt_input import (
+    _terminal_command_prefix_span as _terminal_command_prefix_span,
+)
 from baldric_coding.tui.widgets.sidebar import (
     BALDRIC_SIDEBAR_LOGO as BALDRIC_SIDEBAR_LOGO,
 )
@@ -393,6 +417,15 @@ from baldric_coding.tui.widgets.sidebar import (
 )
 
 __all__ = [
+    "PASTE_DISPLAY_THRESHOLD",
+    "CompletionActionTarget",
+    "PromptInput",
+    "_hidden_prompt_bindings",
+    "_is_thinking_cycle_key",
+    "_key_hint",
+    "_prompt_bindings",
+    "_terminal_command_prefix_span",
+
     "BALDRIC_SIDEBAR_LOGO",
     "SIDEBAR_BULLET_LIST_LIMIT",
     "SIDEBAR_COMMA_LIST_MAX_LINES",
