@@ -11,7 +11,7 @@ from typing import Any
 from uuid import uuid4
 
 from baldric_agent.messages import AssistantMessage
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 
 
 @dataclass(frozen=True, slots=True)

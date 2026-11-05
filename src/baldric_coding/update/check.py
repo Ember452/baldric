@@ -13,7 +13,7 @@ from typing import Any
 from packaging.version import InvalidVersion, Version
 
 from baldric_ai.http import get_json
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 
 PYPI_PACKAGE_NAME = "baldric"
 PYPI_JSON_URL = f"https://pypi.org/pypi/{PYPI_PACKAGE_NAME}/json"
@@ -22,7 +22,7 @@ UPDATE_CHECK_FAILURE_RETRY_INTERVAL = timedelta(hours=1)
 UPDATE_CHECK_TIMEOUT_SECONDS = 1.5
 UPDATE_CHECK_ENV_DISABLE = "BALDRIC_NO_UPDATE_CHECK"
 RELEASE_NOTES_STATE_FILENAME = "release-notes-state.json"
-RELEASE_NOTES_PATH = Path(__file__).resolve().parent / "data" / "release-notes" / "releases.json"
+RELEASE_NOTES_PATH = Path(__file__).resolve().parent.parent / "data" / "release-notes" / "releases.json"
 
 Fetcher = Callable[[str, float], dict[str, Any]]
 Clock = Callable[[], datetime]

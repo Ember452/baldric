@@ -22,7 +22,7 @@ import asyncio
 import re
 from pathlib import Path
 
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 
 MEMORY_SCOPES = ("user", "project", "local")
 MAX_MEMORY_LINES = 200

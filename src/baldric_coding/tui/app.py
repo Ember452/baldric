@@ -91,6 +91,7 @@ from baldric_coding.commands import (
     create_default_command_registry,
     format_reload_summary,
 )
+from baldric_coding.config.shell_config import load_shell_settings
 from baldric_coding.events import (
     AgentSettledEvent,
     AutoRetryStartEvent,
@@ -153,7 +154,6 @@ from baldric_coding.session import (
 )
 from baldric_coding.session_manager import CodingSessionRecord, SessionManager
 from baldric_coding.session_preparation import prepare_coding_session
-from baldric_coding.shell_config import load_shell_settings
 from baldric_coding.skills import Skill
 from baldric_coding.system_prompt import SystemPromptInspection
 from baldric_coding.thinking import ThinkingLevel

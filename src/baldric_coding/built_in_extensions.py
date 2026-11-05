@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import httpx
 
 from baldric_coding.auth.credentials import CredentialStore
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 
 if TYPE_CHECKING:
     from baldric_coding.extensions.api import ExtensionAPI

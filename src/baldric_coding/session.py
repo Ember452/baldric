@@ -54,6 +54,7 @@ from baldric_coding.codex_model_store import (
     save_codex_model_catalog,
 )
 from baldric_coding.commands import CommandRegistry, CommandResult, create_default_command_registry
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context import discover_project_context_with_diagnostics
 from baldric_coding.context_window import (
     DEFAULT_COMPACTION_KEEP_RECENT_TOKENS,
@@ -65,11 +66,6 @@ from baldric_coding.context_window import (
     estimate_context_usage,
     estimate_message_tokens,
     summarize_messages_for_compaction,
-)
-from baldric_coding.diagnostics import (
-    AgentCallDiagnosticContext,
-    AgentCallDiagnosticLogger,
-    new_agent_call_run_id,
 )
 from baldric_coding.events import (
     AgentSettledEvent,
@@ -87,7 +83,11 @@ from baldric_coding.extensions.provider_registry import DynamicProviderRegistry
 from baldric_coding.extensions.providers import DynamicProvider, ProviderModel
 from baldric_coding.extensions.runtime import ExtensionRuntime
 from baldric_coding.models_dev_store import ModelsDevRefreshResult, refresh_models_dev_catalog
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.observability.diagnostics import (
+    AgentCallDiagnosticContext,
+    AgentCallDiagnosticLogger,
+    new_agent_call_run_id,
+)
 from baldric_coding.project_trust import (
     CanonicalProjectPath,
     ProjectTrustCoordinator,
@@ -130,7 +130,6 @@ from baldric_coding.provider_runtime import (
     create_dynamic_model_provider,
     create_model_provider,
 )
-from baldric_coding.reload import CodingReloadSummary, ReloadCategorySummary
 from baldric_coding.resources import (
     BaldricResourcePaths,
     ResourceDiagnostic,
@@ -168,6 +167,7 @@ from baldric_coding.thinking import (
     normalize_thinking_level,
 )
 from baldric_coding.tools import ImageSupportState, create_bash_tool, create_coding_tools
+from baldric_coding.update.reload import CodingReloadSummary, ReloadCategorySummary
 
 StreamingBehavior = Literal["steer", "follow_up"]
 SESSION_NAME_SYSTEM_PROMPT = (

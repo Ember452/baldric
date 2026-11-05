@@ -13,6 +13,7 @@ import pytest
 from baldric_agent.harness import SimpleCancellationToken
 from baldric_ai.env import DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS
 from baldric_coding.auth.credentials import FileCredentialStore
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.extensions import ExtensionRuntime
 from baldric_coding.extensions.builtins.llama_cpp import service as llama_service
 from baldric_coding.extensions.builtins.llama_cpp.huggingface import discover_hf_token
@@ -39,7 +40,6 @@ from baldric_coding.extensions.builtins.llama_cpp.state import (
 )
 from baldric_coding.extensions.providers import ProviderRefreshContext, ResolvedProviderAuth
 from baldric_coding.local_backends import LocalOperationContext, LocalProgress
-from baldric_coding.paths import BaldricPaths
 from baldric_coding.provider_runtime import create_dynamic_model_provider
 from baldric_coding.resources import BaldricResourcePaths
 from conftest import isolate_home

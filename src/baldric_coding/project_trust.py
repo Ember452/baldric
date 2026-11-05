@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Literal
 
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.prompt_templates import is_prompt_template_candidate
 from baldric_coding.skills import is_skill_candidate
 

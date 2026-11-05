@@ -17,7 +17,7 @@ from pathlib import Path
 from subprocess import CompletedProcess, run
 from typing import Literal
 
-from baldric_coding.update_check import PYPI_PACKAGE_NAME, fetch_latest_pypi_version
+from baldric_coding.update.check import PYPI_PACKAGE_NAME, fetch_latest_pypi_version
 
 CommandRunner = Callable[..., CompletedProcess[str]]
 DetachedLauncher = Callable[..., object]

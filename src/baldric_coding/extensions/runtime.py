@@ -34,6 +34,7 @@ from baldric_coding.commands import (
     SlashCommand,
     create_default_command_registry,
 )
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.extensions.api import (
     AGENT_EVENT_TYPES,
     AGENT_EVENT_WILDCARD,
@@ -75,7 +76,6 @@ from baldric_coding.extensions.provider_registry import (
 )
 from baldric_coding.extensions.providers import CredentialReader, DynamicProvider
 from baldric_coding.local_backends import LocalBackend, LocalBackendRegistry
-from baldric_coding.paths import BaldricPaths
 from baldric_coding.project_trust import (
     ExtensionTrustResult,
     ProjectTrustEvent,

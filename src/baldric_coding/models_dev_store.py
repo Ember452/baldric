@@ -13,6 +13,7 @@ from typing import Any, cast
 
 import httpx
 
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.models_dev import (
     MODELS_DEV_URL,
     NVIDIA_MODELS_URL,
@@ -21,7 +22,6 @@ from baldric_coding.models_dev import (
     models_dev_catalog_overlay,
     nvidia_model_filter,
 )
-from baldric_coding.paths import BaldricPaths
 
 MODELS_STORE_SCHEMA_VERSION = 1
 MODELS_REFRESH_INTERVAL_SECONDS = 4 * 60 * 60

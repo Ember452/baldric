@@ -1,14 +1,14 @@
 from pathlib import Path
 
 from baldric_coding.commands import CommandRegistry, SlashCommand, create_default_command_registry
-from baldric_coding.paths import BaldricPaths
-from baldric_coding.reload import CodingReloadSummary, ReloadCategorySummary
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.resources import ResourceDiagnostic
 from baldric_coding.session import ModelChoice
 from baldric_coding.session_manager import SessionManager
 from baldric_coding.skills import Skill
 from baldric_coding.system_prompt import ProjectContextFile
 from baldric_coding.tools import create_coding_tools
+from baldric_coding.update.reload import CodingReloadSummary, ReloadCategorySummary
 
 
 class FakeSession:

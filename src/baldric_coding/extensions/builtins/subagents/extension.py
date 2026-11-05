@@ -36,12 +36,12 @@ from baldric_coding import (
     load_provider_settings,
     resolve_provider_selection,
 )
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.extensions import (
     CustomMessageView,
     ExtensionAPI,
     MessageRenderOptions,
 )
-from baldric_coding.paths import BaldricPaths
 from baldric_coding.provider_runtime import create_model_provider
 from baldric_coding.thinking import THINKING_LEVELS, ThinkingLevel
 from baldric_coding.tools import create_coding_tools

@@ -1,7 +1,7 @@
 from pathlib import Path
 
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context import discover_project_context
-from baldric_coding.paths import BaldricPaths
 from baldric_coding.resources import BaldricResourcePaths
 
 

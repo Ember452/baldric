@@ -11,6 +11,7 @@ import pytest
 
 from baldric_agent.harness import SimpleCancellationToken
 from baldric_coding.auth.credentials import FileCredentialStore
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.extensions import (
     DynamicProvider,
     DynamicProviderRegistry,
@@ -41,7 +42,6 @@ from baldric_coding.local_backends import (
     LOCAL_OPERATION_CANCELLATION_TIMEOUT_SECONDS,
     LocalOperationResult,
 )
-from baldric_coding.paths import BaldricPaths
 
 pytestmark = pytest.mark.anyio
 

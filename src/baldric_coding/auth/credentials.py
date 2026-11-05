@@ -9,7 +9,7 @@ from tempfile import NamedTemporaryFile
 from typing import Any, Literal, Protocol
 
 from baldric_agent.types import JSONValue
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 
 
 class CredentialStoreError(ValueError):

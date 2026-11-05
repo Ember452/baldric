@@ -17,7 +17,7 @@ from baldric_ai.model_catalog import (
     RuntimeThinkingLevel,
 )
 from baldric_ai.model_limits import RuntimeModelLimits
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 
 CODEX_MODEL_STORE_SCHEMA_VERSION = 1
 

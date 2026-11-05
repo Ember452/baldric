@@ -31,6 +31,7 @@ from baldric_coding.auth.oauth import (
 from baldric_coding.auth.registry import get_oauth_provider
 from baldric_coding.auth.types import OAuthProvider
 from baldric_coding.codex_version import CodexClientVersionResolver
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.extensions.providers import (
     CredentialReader,
     DynamicProvider,
@@ -44,7 +45,6 @@ from baldric_coding.extensions.providers import (
     json_compatible_mapping,
     resolve_provider_auth,
 )
-from baldric_coding.paths import BaldricPaths
 from baldric_coding.provider_config import (
     AnthropicProviderConfig,
     OpenAICodexProviderConfig,

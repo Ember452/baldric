@@ -8,7 +8,7 @@ from baldric_coding.codex_version import (
     CODEX_NPM_LATEST_URL,
     CodexClientVersionResolver,
 )
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 
 
 @pytest.mark.anyio

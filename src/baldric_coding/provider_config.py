@@ -30,7 +30,7 @@ from baldric_ai.openai_codex import DEFAULT_OPENAI_CODEX_BASE_URL
 from baldric_coding.auth.credentials import FileCredentialStore, credentials_path
 from baldric_coding.auth.registry import get_oauth_provider
 from baldric_coding.catalog_loader import effective_catalog, save_user_catalog_entries
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.provider_catalog import (
     BUILTIN_PROVIDER_CATALOG,
     ModelCatalogMetadata,

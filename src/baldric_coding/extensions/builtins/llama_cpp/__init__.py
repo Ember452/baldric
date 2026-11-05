@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from baldric_coding.auth.credentials import FileCredentialStore, credentials_path
 from baldric_coding.built_in_extensions import BuiltInExtensionContext
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 
 from .router import LLAMA_CPP_ROUTER_MAX_BUILD, LLAMA_CPP_ROUTER_MIN_BUILD
 from .service import (

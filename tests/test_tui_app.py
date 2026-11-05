@@ -59,6 +59,7 @@ from baldric_agent.provider_events import TextDeltaEvent, ThinkingDeltaEvent, Th
 from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric_coding.catalog_loader import user_catalog_path
 from baldric_coding.commands import CommandResult, format_resource_diagnostics
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.events import (
     AgentSettledEvent,
     CodingSessionEvent,
@@ -80,7 +81,6 @@ from baldric_coding.extensions import (
     OpenAICompatibleTransport,
     ProviderModel,
 )
-from baldric_coding.paths import BaldricPaths
 from baldric_coding.prompt_templates import PromptTemplate
 from baldric_coding.provider_config import (
     OpenAICodexProviderConfig,

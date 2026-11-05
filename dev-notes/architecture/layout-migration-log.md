@@ -235,8 +235,8 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 | Task | Cluster | Start commit | Closure files | M steps | Rename detection | check_move_only | Facade `__all__` | Commit | Notes |
 |---|---|---|---|---|---|---|---|---|---|
 | 3 | `rendering/themes` | `3e470cb` | 17 (4 moved + 7 src + 6 tests) | M-1..M-7 | R100 ×4 | see below | empty diff (139) | `e36eae8` | batch 1 |
-| 4 | `auth/` | `af06dbe` | 28 (7 moved + 10 src + 9 tests + 2 new inits) | M-1..M-7 | R100 ×1, R9x ×6 | see below | empty diff (139) | _pending_ | batch 2 |
-| 5 | leaf (`config/`, `update/`, `observability/`, `utils/`) | _pending_ | | | | | | | |
+| 4 | `auth/` | `af06dbe` | 28 (7 moved + 10 src + 9 tests + 2 new inits) | M-1..M-7 | R100 ×1, R9x ×6 | see below | empty diff (139) | `b5b1d27` | batch 2 |
+| 5 | leaf (`config/`, `update/`, `observability/`, `utils/`) | `b5b1d27` | 67 (7 moved + 35 src refs + 25 tests + 4 new inits) | M-1..M-7 | R100 ×2, R9x ×5 | see below | empty diff (139) | _pending_ | batch 2 |
 | 6 | `context/` | _pending_ | | | | | | | |
 | 7 | `providers/` | _pending_ | | | | | | | |
 | 8 | `session/` | _pending_ | | | | | | | |
@@ -302,4 +302,27 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
   `Found 14 errors in 2 files (checked 146 source files)` (same baseline errors);
   `ruff check .` → `All checks passed!`; `ruff format --check .` → `242 files already formatted`.
 - **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/`
+- **Commit:** `b5b1d27` (`refactor(layout): move auth modules into auth package`).
+
+### Task 5 — leaf cluster `config/` `update/` `observability/` `utils/` (batch 2)
+
+- **Start commit:** `b5b1d27`. `F_before` = `∅`.
+- **Closure:** 67 files = 7 moved + 35 src referencing files (5 of them are also moved) + 25 test files + 4 new package inits.
+- **4.2b:** `tests/test_updater.py:13` `from baldric_coding import updater` → `from baldric_coding.update import updater`.
+- **M-2:** 31 test rewrite sites / 25 test files; 35 src files.
+- **M-3 (intentional red):** `tests/test_paths.py`, `tests/test_update_check.py`,
+  `tests/test_updater.py` → `ERROR ... ModuleNotFoundError: No module named 'baldric_coding.update'`
+  (3 collection errors; `test_shell_config.py` imports only facade symbols, stays green — expected).
+- **M-4:** 7 `git mv` moves; four package inits created with docstring only.
+  **Two allowed move-caused path-expression fixes (declared):**
+  - `src/baldric_coding/update/check.py:25` — `Path(__file__).resolve().parent` → `.parent.parent` so the release-notes resource stays at `src/baldric_coding/data/release-notes/releases.json`.
+  - `src/baldric_coding/utils/self_docs.py:7` — `_PACKAGE_ROOT = Path(__file__).resolve().parent` → `.parent.parent` so `data/docs` still resolves to the package root.
+  No logic changes; the first is caught by `test_load_release_notes_resolves_default_path`.
+- **M-5 evidence:** residual old leaf paths `(none)`; self_docs real read
+  `...\src\baldric_coding\data\docs\README.md`, `exists= True docs_exists= True`;
+  rename detection: `paths.py | 0` (R100), `reload.py | 0` (R100), other five R9x.
+- **M-6:** direct tests `61 passed, 2 skipped in 1.61s`; mypy
+  `Found 14 errors in 2 files (checked 150 source files)` (same baseline errors);
+  `ruff check .` → `All checks passed!`; `ruff format --check .` → `246 files already formatted`.
+- **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/ -- declared exceptions: src/baldric_coding/update/check.py, src/baldric_coding/utils/self_docs.py`
 - **Commit:** _pending_

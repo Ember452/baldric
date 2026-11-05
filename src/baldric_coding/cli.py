@@ -24,6 +24,8 @@ from baldric_ai.env import (
 from baldric_coding.auth.credentials import FileCredentialStore
 from baldric_coding.catalog_loader import user_catalog_path
 from baldric_coding.commands import format_reload_summary
+from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.config.shell_config import load_shell_settings
 from baldric_coding.extension_installer import ExtensionInstallError, install_extension
 from baldric_coding.extensions import StderrUiBridge
 from baldric_coding.models_dev_store import (
@@ -31,7 +33,6 @@ from baldric_coding.models_dev_store import (
     ModelsDevRefreshResult,
     refresh_models_dev_catalog,
 )
-from baldric_coding.paths import BaldricPaths
 from baldric_coding.project_trust import TrustDefault, TrustOverride
 from baldric_coding.provider_config import (
     DEFAULT_MODEL,
@@ -66,16 +67,15 @@ from baldric_coding.session_export import (
 )
 from baldric_coding.session_manager import CodingSessionRecord, SessionManager, validate_session_id
 from baldric_coding.session_preparation import prepare_coding_session
-from baldric_coding.shell_config import load_shell_settings
 from baldric_coding.thinking import THINKING_LEVELS, ThinkingLevel, normalize_thinking_level
 from baldric_coding.tui import run_tui_app
-from baldric_coding.update_check import (
+from baldric_coding.update.check import (
     UpdateNotice,
     cached_update_notice,
     startup_release_notes_notice,
     startup_update_notice,
 )
-from baldric_coding.updater import update_baldric
+from baldric_coding.update.updater import update_baldric
 from baldric_coding.version import current_version as _current_version
 
 

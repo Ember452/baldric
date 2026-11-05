@@ -11,8 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from tempfile import mkdtemp
 
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.extensions import discover_extensions
-from baldric_coding.paths import BaldricPaths
 from baldric_coding.resources import BaldricResourcePaths
 
 CommandRunner = Callable[..., subprocess.CompletedProcess[str]]

@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 
 LLAMA_CPP_STATE_SCHEMA_VERSION = 1
 LLAMA_CPP_CREDENTIAL_PREFIX = "llama.cpp:"

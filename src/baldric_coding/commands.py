@@ -10,7 +10,6 @@ from typing import Protocol
 from baldric_agent.tools import AgentTool
 from baldric_coding.prompt_templates import PromptTemplate
 from baldric_coding.provider_catalog import BUILTIN_PROVIDER_CATALOG, builtin_provider_entry
-from baldric_coding.reload import CodingReloadSummary, ReloadCategorySummary
 from baldric_coding.resources import ResourceDiagnostic
 from baldric_coding.session_manager import (
     CodingSessionRecord,
@@ -25,6 +24,7 @@ from baldric_coding.system_prompt import (
     format_system_prompt_inspection,
 )
 from baldric_coding.thinking import normalize_thinking_level
+from baldric_coding.update.reload import CodingReloadSummary, ReloadCategorySummary
 
 LOGIN_PROVIDER_ALIASES = {
     "anthropic-api": ("anthropic", "api-key"),

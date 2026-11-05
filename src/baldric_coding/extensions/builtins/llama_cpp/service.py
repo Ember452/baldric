@@ -28,6 +28,7 @@ from baldric_ai.env import DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, OpenAIComp
 from baldric_ai.http import create_async_client
 from baldric_ai.openai_compatible import OpenAICompatibleProvider
 from baldric_coding.auth.credentials import CredentialStore, FileCredentialStore, credentials_path
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.extensions.providers import (
     DynamicProvider,
     OpenAICompatibleTransport,
@@ -55,7 +56,6 @@ from baldric_coding.local_backends import (
     LocalProgress,
     LocalSearchResult,
 )
-from baldric_coding.paths import BaldricPaths
 
 from .huggingface import (
     HuggingFaceSearchError,

@@ -14,7 +14,7 @@ from baldric_coding.catalog_loader import (
     save_user_catalog_entries,
     user_catalog_path,
 )
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.provider_catalog import (
     BUILTIN_PROVIDER_CATALOG,
     builtin_provider_entry,

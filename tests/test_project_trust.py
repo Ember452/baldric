@@ -19,7 +19,7 @@ from baldric_agent.session import SessionEntry
 from baldric_coding import SessionManager, jsonl_session_storage
 from baldric_coding import project_trust as project_trust_module
 from baldric_coding.cli import app
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.project_trust import (
     ExtensionTrustResult,
     ProjectTrustCoordinator,

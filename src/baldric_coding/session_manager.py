@@ -13,7 +13,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict
 
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 
 _MAX_SESSION_ID_BYTES = 128
 _RESERVED_SESSION_IDS = frozenset({"default", "index"})

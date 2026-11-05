@@ -22,8 +22,8 @@ from baldric_ai import (
     FakeProvider,
 )
 from baldric_coding import BaldricResourcePaths
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.extensions import ExtensionRuntime
-from baldric_coding.paths import BaldricPaths
 
 pytestmark = pytest.mark.anyio
 

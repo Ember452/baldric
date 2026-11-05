@@ -16,6 +16,7 @@ from baldric_agent.messages import (
     ToolResultMessage,
     UserMessage,
 )
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.extensions.builtins.subagents import prompts as prompts_module
 from baldric_coding.extensions.builtins.subagents.agents import AgentDefinition
 from baldric_coding.extensions.builtins.subagents.prompts import (
@@ -28,7 +29,6 @@ from baldric_coding.extensions.builtins.subagents.prompts import (
     inherited_resource_paths,
     resolve_skill_blocks,
 )
-from baldric_coding.paths import BaldricPaths
 
 pytestmark = pytest.mark.anyio
 

@@ -12,12 +12,12 @@ from pathlib import Path
 
 import pytest
 
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.extensions.builtins.subagents.agents import (
     DEFAULT_AGENT_TYPES,
     format_agent_type_list,
     load_agent_definitions,
 )
-from baldric_coding.paths import BaldricPaths
 
 
 @pytest.fixture

@@ -30,6 +30,14 @@ from baldric_coding.commands import (
     SlashCommand,
     create_default_command_registry,
 )
+from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.config.shell_config import (
+    ShellConfigError,
+    ShellSettings,
+    load_shell_settings,
+    shell_settings_from_json,
+    shell_settings_path,
+)
 from baldric_coding.context import (
     discover_project_context,
     discover_project_context_with_diagnostics,
@@ -48,7 +56,6 @@ from baldric_coding.context_window import (
     serialize_messages_for_compaction,
     summarize_messages_for_compaction,
 )
-from baldric_coding.paths import BaldricPaths
 from baldric_coding.prompt_templates import (
     PromptTemplate,
     expand_prompt_template_command,
@@ -121,13 +128,6 @@ from baldric_coding.session_export import (
     render_session_html,
 )
 from baldric_coding.session_manager import CodingSessionRecord, SessionManager
-from baldric_coding.shell_config import (
-    ShellConfigError,
-    ShellSettings,
-    load_shell_settings,
-    shell_settings_from_json,
-    shell_settings_path,
-)
 from baldric_coding.skills import (
     Skill,
     build_skill_index,

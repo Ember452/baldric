@@ -9,11 +9,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.extensions.builtins.subagents.settings import (
     SubagentSettings,
     load_subagent_settings,
 )
-from baldric_coding.paths import BaldricPaths
 
 
 def _paths(tmp_path: Path) -> BaldricPaths:

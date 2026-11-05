@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 
 
 def test_baldric_paths_user_locations(tmp_path: Path) -> None:

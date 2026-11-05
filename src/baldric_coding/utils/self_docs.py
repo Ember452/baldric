@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-_PACKAGE_ROOT = Path(__file__).resolve().parent
+_PACKAGE_ROOT = Path(__file__).resolve().parent.parent
 _DATA_ROOT = _PACKAGE_ROOT / "data"
 
 

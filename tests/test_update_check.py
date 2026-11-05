@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
-from baldric_coding.update_check import (
+from baldric_coding.update.check import (
     PYPI_JSON_URL,
     UPDATE_CHECK_TIMEOUT_SECONDS,
     ReleaseNoteSection,
@@ -275,7 +275,7 @@ def test_startup_release_notes_notice_reports_upgrade_once(tmp_path) -> None:
 def test_startup_release_notes_notice_survives_missing_release_notes_file(tmp_path, monkeypatch) -> None:
     # Regression test for issue #313: a wheel missing releases.json crashed
     # startup with FileNotFoundError instead of skipping the notice.
-    import baldric_coding.update_check as update_check_module
+    import baldric_coding.update.check as update_check_module
 
     monkeypatch.setattr(update_check_module, "RELEASE_NOTES_PATH", tmp_path / "missing" / "releases.json")
     state_path = tmp_path / "release-notes-state.json"
@@ -288,7 +288,7 @@ def test_startup_release_notes_notice_survives_missing_release_notes_file(tmp_pa
 
 
 def test_startup_release_notes_notice_survives_malformed_release_notes_file(tmp_path, monkeypatch) -> None:
-    import baldric_coding.update_check as update_check_module
+    import baldric_coding.update.check as update_check_module
 
     broken_path = tmp_path / "releases.json"
     broken_path.write_text("{not json", encoding="utf-8")

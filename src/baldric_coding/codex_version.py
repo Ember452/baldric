@@ -15,7 +15,7 @@ from typing import Any
 import httpx
 
 from baldric_ai.openai_codex import DEFAULT_OPENAI_CODEX_CLIENT_VERSION
-from baldric_coding.paths import BaldricPaths
+from baldric_coding.config.paths import BaldricPaths
 
 CODEX_NPM_LATEST_URL = "https://registry.npmjs.org/@openai%2Fcodex/latest"
 CODEX_VERSION_STORE_SCHEMA_VERSION = 1
