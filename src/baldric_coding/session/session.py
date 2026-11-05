@@ -19,17 +19,13 @@ from baldric_agent.messages import (
     Usage,
     UserMessage,
     message_text,
-    sum_usage,
 )
 from baldric_agent.provider import ModelProvider
-from baldric_agent.provider_events import AssistantDoneEvent, AssistantErrorEvent, TextDeltaEvent
 from baldric_agent.session import (
     BranchSummaryEntry,
     CompactionEntry,
     CustomEntry,
-    CustomMessageEntry,
     LabelEntry,
-    MessageEntry,
     ModelChangeEntry,
     SessionInfoEntry,
     SessionState,
@@ -52,7 +48,6 @@ from baldric_coding.context.prompts import (
 from baldric_coding.context.resources import (
     BaldricResourcePaths,
     ResourceDiagnostic,
-    ResourceError,
     resource_paths_with_cwd,
     resource_paths_with_project_trust,
 )
@@ -77,8 +72,6 @@ from baldric_coding.events import (
     AutoRetryEndEvent,
     AutoRetryStartEvent,
     CodingSessionEvent,
-    CompactionEndEvent,
-    CompactionStartEvent,
     QueueUpdateEvent,
     SessionAgentEndEvent,
     SessionInfoChangedEvent,
@@ -89,7 +82,6 @@ from baldric_coding.extensions.runtime import ExtensionRuntime
 from baldric_coding.observability.diagnostics import (
     AgentCallDiagnosticContext,
     AgentCallDiagnosticLogger,
-    new_agent_call_run_id,
 )
 from baldric_coding.providers.config import (
     OpenAICodexProviderConfig,
@@ -97,7 +89,6 @@ from baldric_coding.providers.config import (
     ProviderConfigError,
     ProviderSettings,
     load_provider_settings,
-    provider_has_usable_credentials,
     provider_model_supports_images,
     provider_thinking_levels,
     provider_thinking_unavailable_reason,
@@ -123,16 +114,15 @@ from baldric_coding.providers.stores.models_dev_store import (
     ModelsDevRefreshResult,
     refresh_models_dev_catalog,
 )
-from baldric_coding.session.branch_summary import summarize_branch_messages_with_model
+from baldric_coding.session import runtime as _session_runtime
 from baldric_coding.session.compaction.context_window import (
-    DEFAULT_COMPACTION_KEEP_RECENT_TOKENS,
+    DEFAULT_COMPACTION_KEEP_RECENT_TOKENS as DEFAULT_COMPACTION_KEEP_RECENT_TOKENS,
+)
+from baldric_coding.session.compaction.context_window import (
     DEFAULT_CONTEXT_WINDOW_TOKENS,
-    SUMMARIZATION_SYSTEM_PROMPT,
     ContextUsageEstimate,
     auto_compaction_threshold_for_context_window,
-    build_compaction_summary_prompt,
     estimate_context_usage,
-    summarize_messages_for_compaction,
 )
 from baldric_coding.session.export import (
     export_session_artifact,
@@ -275,6 +265,7 @@ from baldric_coding.session.resource_helpers import (
 from baldric_coding.session.resource_helpers import (
     parse_terminal_command as parse_terminal_command,
 )
+from baldric_coding.session.runtime import CompactionPlan, _GeneratedSummary, _PendingMessageWrite
 from baldric_coding.session.stats import SessionStats, calculate_session_stats
 from baldric_coding.session.tree_helpers import (  # noqa: F401
     _active_branchable_entry_id as _active_branchable_entry_id,
@@ -465,26 +456,6 @@ class SessionTreeBranchResult:
 
 
 @dataclass(frozen=True, slots=True)
-class CompactionPlan:
-    """Prepared active-context entries for a compaction run."""
-
-    first_kept_entry_id: str
-    replaced_entry_count: int
-    messages_to_summarize: tuple[AgentMessage, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class _GeneratedSummary:
-    """Summary text paired with the provider usage spent producing it."""
-
-    text: str
-    usage: Usage | None
-    provider: str | None = None
-    model: str | None = None
-    response_provider: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
 class ManualCompactionResult:
     """Structured result from one manual compaction."""
 
@@ -493,14 +464,6 @@ class ManualCompactionResult:
     tokens_before: int
     estimated_tokens_after: int
     replaced_entry_count: int
-
-
-@dataclass(frozen=True, slots=True)
-class _PendingMessageWrite:
-    """Stable entry retained while a message persistence attempt is retried."""
-
-    message: AgentMessage
-    entry: MessageEntry | CustomMessageEntry
 
 
 @dataclass(frozen=True, slots=True)
@@ -3395,507 +3358,74 @@ class CodingSession:
         custom_type: str | None = None,
         details: dict[str, JSONValue] | None = None,
     ) -> AsyncIterator[CodingSessionEvent]:
-        """Append a user prompt, run the agent, and persist new messages.
-
-        ``custom_type``/``details`` attach custom-message render metadata to the
-        appended ``UserMessage`` (used when an extension delivers a custom
-        message that starts an idle session's turn). ``source`` marks who
-        initiated the turn for the `input` hook (``"extension"`` when an
-        extension started it, ``"interactive"`` otherwise).
-        """
-        context = self._diagnostic_context()
-        input_outcome = await self._extension_runtime.run_input_hooks(
-            content, source=source, streaming_behavior=streaming_behavior
+        stream = _session_runtime.prompt(
+            self,
+            content,
+            streaming_behavior=streaming_behavior,
+            source=source,
+            custom_type=custom_type,
+            details=details,
         )
-        if input_outcome.handled:
-            if input_outcome.message:
-                self._extension_runtime.ui.notify(input_outcome.message)
-            return
-        content = input_outcome.text
         try:
-            expanded_content = self.expand_prompt_text(content)
-        except ResourceError:
-            raise
-        except Exception as exc:
-            self._last_diagnostic_log_path = self._diagnostic_logger.log_exception(
-                context=context,
-                phase="expand_prompt",
-                exc=exc,
-            )
-            raise
-
-        if self._harness.is_running:
-            if streaming_behavior == "steer":
-                self._harness.steer(expanded_content)
-                session_event_0 = self.queue_update_event()
-                await self._extension_runtime.emit_event(session_event_0)
-                yield session_event_0
-                return
-            if streaming_behavior == "follow_up":
-                self._harness.follow_up(expanded_content)
-                session_event_0 = self.queue_update_event()
-                await self._extension_runtime.emit_event(session_event_0)
-                yield session_event_0
-                return
-            raise RuntimeError(
-                "CodingSession is already running; pass streaming_behavior to queue a message."
-            )
-
-        await self._flush_pending_message_writes(context=context)
-        await self._commit_preview()
-        await self._refresh_runtime_model_limits()
-        async for compaction_event in self._try_auto_compact(
-            context=context, phase="auto_compact_before_prompt"
-        ):
-            yield compaction_event
-        # id() values can be reused once earlier message objects are freed.
-        self._ended_message_ids.clear()
-        self._persisted_message_ids.clear()
-        events: AsyncIterator[AgentEvent] | None = None
-        settled_event: AgentSettledEvent | None = None
-        auto_name_attempted = False
-        auto_name_task: asyncio.Task[None] | None = None
-        overflow_message: AssistantMessage | None = None
-        route_failure_message: AssistantMessage | None = None
-        try:
-            prompt_message: AgentMessage
-            if custom_type is not None:
-                prompt_message = CustomMessage(
-                    custom_type=custom_type,
-                    content=expanded_content,
-                    display=True,
-                    details=details,
-                )
-            else:
-                prompt_message = UserMessage(content=expanded_content)
-            events = self._harness.prompt_message(prompt_message)
-            self._invalidate_context_usage_cache()
-            async for event in events:
-                auto_name_message: str | None = None
-                if (
-                    isinstance(event, MessageEndEvent)
-                    and not auto_name_attempted
-                    and isinstance(event.message, UserMessage)
-                ):
-                    auto_name_attempted = True
-                    auto_name_message = event.message.text
-                if isinstance(event, ToolExecutionEndEvent):
-                    self._invalidate_context_usage_cache()
-                if (
-                    isinstance(event, MessageEndEvent)
-                    and isinstance(event.message, AssistantMessage)
-                    and event.message.stop_reason == "error"
-                ):
-                    self._last_diagnostic_log_path = self._diagnostic_logger.log_assistant_error(
-                        context=context,
-                        phase="agent_loop",
-                        message=event.message,
-                    )
-                    if is_context_overflow_error(event.message):
-                        overflow_message = event.message
-                    elif self._should_auto_failover_huggingface_route(event.message):
-                        route_failure_message = event.message
-                if isinstance(event, AgentEndEvent):
-                    yield SessionAgentEndEvent(
-                        messages=event.messages,
-                        will_retry=(overflow_message is not None or route_failure_message is not None),
-                    )
-                else:
-                    yield event
-                # Frontends have rendered the confirmed, expanded prompt. Name
-                # the session alongside the agent's reply instead of delaying
-                # the reply's request behind the naming request.
-                if auto_name_message is not None:
-                    auto_name_task = asyncio.create_task(
-                        self._try_auto_name_session(auto_name_message, context=context),
-                        name="baldric-auto-name-session",
-                    )
-                    # Let the naming request start first so provider calls keep
-                    # a deterministic order.
-                    await asyncio.sleep(0)
-            if overflow_message is not None:
-                session_event_1 = CompactionStartEvent(reason="overflow")
-                await self._extension_runtime.emit_event(session_event_1)
-                yield session_event_1
-                compacted = await self._try_overflow_compact(context=context)
-                compaction_end = CompactionEndEvent(
-                    reason="overflow",
-                    result=None,
-                    aborted=not compacted,
-                    will_retry=compacted,
-                    error_message=None if compacted else "Overflow compaction failed",
-                )
-                await self._extension_runtime.emit_event(compaction_end)
-                yield compaction_end
-                if compacted:
-                    retry_start = AutoRetryStartEvent(
-                        attempt=1,
-                        max_attempts=1,
-                        delay_ms=0,
-                        error_message=overflow_message.error_message or "Context overflow",
-                    )
-                    await self._extension_runtime.emit_event(retry_start)
-                    yield retry_start
-                    events = self._harness.continue_()
-                    self._invalidate_context_usage_cache()
-                    overflow_retry_error: str | None = None
-                    async for retry_event in events:
-                        if isinstance(retry_event, ToolExecutionEndEvent):
-                            self._invalidate_context_usage_cache()
-                        if (
-                            isinstance(retry_event, MessageEndEvent)
-                            and isinstance(retry_event.message, AssistantMessage)
-                            and retry_event.message.stop_reason in {"error", "aborted"}
-                        ):
-                            overflow_retry_error = (
-                                retry_event.message.error_message or "Provider request aborted"
-                            )
-                            if retry_event.message.stop_reason == "error":
-                                self._last_diagnostic_log_path = self._diagnostic_logger.log_assistant_error(
-                                    context=context,
-                                    phase="agent_loop_retry",
-                                    message=retry_event.message,
-                                )
-                        if isinstance(retry_event, AgentEndEvent):
-                            yield SessionAgentEndEvent(
-                                messages=retry_event.messages,
-                                will_retry=False,
-                            )
-                        else:
-                            yield retry_event
-                    session_event_4 = AutoRetryEndEvent(
-                        success=overflow_retry_error is None,
-                        attempt=1,
-                        final_error=overflow_retry_error,
-                    )
-                    await self._extension_runtime.emit_event(session_event_4)
-                    yield session_event_4
-            elif route_failure_message is not None:
-                async for failover_event in self._run_huggingface_route_failover(context=context):
-                    yield failover_event
-            else:
-                async for compaction_event in self._try_auto_compact(
-                    context=context, phase="auto_compact_after_prompt"
-                ):
-                    yield compaction_event
-            if auto_name_task is not None:
-                await auto_name_task
-        except Exception as exc:
-            self._last_diagnostic_log_path = self._diagnostic_logger.log_exception(
-                context=context,
-                phase="agent_loop",
-                exc=exc,
-            )
-            raise
+            async for item in stream:
+                yield item
         finally:
-            if auto_name_task is not None and not auto_name_task.done():
-                auto_name_task.cancel()
-            try:
-                await self._reconcile_run_persistence(events, context=context)
-            finally:
-                if events is not None:
-                    settled_event = await self._dispatch_agent_settled()
-        if settled_event is not None:
-            yield settled_event
+            await stream.aclose()
 
     async def continue_(self) -> AsyncIterator[CodingSessionEvent]:
-        """Continue the agent from restored state and persist new messages."""
-        context = self._diagnostic_context()
-        await self._flush_pending_message_writes(context=context)
-        await self._refresh_runtime_model_limits()
-        # id() values can be reused once earlier message objects are freed.
-        self._ended_message_ids.clear()
-        self._persisted_message_ids.clear()
-        events: AsyncIterator[AgentEvent] | None = None
-        settled_event: AgentSettledEvent | None = None
-        route_failure_message: AssistantMessage | None = None
+        stream = _session_runtime.continue_(self)
         try:
-            events = self._harness.continue_()
-            self._invalidate_context_usage_cache()
-            async for event in events:
-                if isinstance(event, ToolExecutionEndEvent):
-                    self._invalidate_context_usage_cache()
-                if (
-                    isinstance(event, MessageEndEvent)
-                    and isinstance(event.message, AssistantMessage)
-                    and event.message.stop_reason == "error"
-                ):
-                    self._last_diagnostic_log_path = self._diagnostic_logger.log_assistant_error(
-                        context=context,
-                        phase="agent_loop",
-                        message=event.message,
-                    )
-                    if self._should_auto_failover_huggingface_route(event.message):
-                        route_failure_message = event.message
-                if isinstance(event, AgentEndEvent):
-                    yield SessionAgentEndEvent(
-                        messages=event.messages,
-                        will_retry=route_failure_message is not None,
-                    )
-                else:
-                    yield event
-            if route_failure_message is not None:
-                async for failover_event in self._run_huggingface_route_failover(context=context):
-                    yield failover_event
-            async for compaction_event in self._try_auto_compact(
-                context=context, phase="auto_compact_after_continue"
-            ):
-                yield compaction_event
-        except Exception as exc:
-            self._last_diagnostic_log_path = self._diagnostic_logger.log_exception(
-                context=context,
-                phase="agent_loop",
-                exc=exc,
-            )
-            raise
+            async for item in stream:
+                yield item
         finally:
-            try:
-                await self._reconcile_run_persistence(events, context=context)
-            finally:
-                if events is not None:
-                    settled_event = await self._dispatch_agent_settled()
-        if settled_event is not None:
-            yield settled_event
+            await stream.aclose()
 
     async def _dispatch_agent_settled(self) -> AgentSettledEvent:
-        """Dispatch and return the final session event for one started run."""
-        event = AgentSettledEvent()
-        await self._extension_runtime.emit_event(event)
-        return event
+        return await _session_runtime._dispatch_agent_settled(self)
 
     def _diagnostic_context(self) -> AgentCallDiagnosticContext:
-        return AgentCallDiagnosticContext(
-            provider_name=self._provider_name,
-            model=self.model,
-            cwd=self.cwd,
-            session_id=self.session_id,
-            run_id=new_agent_call_run_id(),
-        )
+        return _session_runtime._diagnostic_context(self)
 
     async def _persist_active_tool_history_repairs(self) -> ToolHistoryRepair | None:
-        """Stage or append one complete repair branch for malformed history."""
-        plan = _tool_history_repair_plan(
-            self._state.messages,
-            context_entry_ids=self._state.context_entry_ids,
-            entries=self._state.entries,
-        )
-        if plan is None:
-            return None
-
-        parent_id, suffix, repair = plan
-        active_model = self._state.model
-        active_thinking_level = self._state.thinking_level
-        active_entries = self._state.entries
-        parent_index = next(
-            (index for index, entry in enumerate(active_entries) if entry.id == parent_id),
-            -1,
-        )
-        custom_entries = [
-            entry
-            for entry in active_entries[parent_index + 1 :]
-            if isinstance(entry, CustomEntry) and entry.namespace != "baldric.session-history-repair"
-        ]
-        staged: list[SessionEntry] = [
-            CustomEntry(
-                parent_id=parent_id,
-                namespace="baldric.session-history-repair",
-                data={"version": 1, **repair.diagnostic_data()},
-            )
-        ]
-        parent_id = staged[-1].id
-        for message in suffix:
-            entry = _session_entry_for_message(parent_id=parent_id, message=message)
-            staged.append(entry)
-            parent_id = entry.id
-        if active_model is not None:
-            model_entry = ModelChangeEntry(
-                parent_id=parent_id,
-                model=active_model,
-                provider=self.provider_name,
-            )
-            staged.append(model_entry)
-            parent_id = model_entry.id
-        thinking_entry = ThinkingLevelChangeEntry(
-            parent_id=parent_id,
-            thinking_level=active_thinking_level,
-        )
-        staged.append(thinking_entry)
-        parent_id = thinking_entry.id
-        for custom_entry in custom_entries:
-            copied_entry = CustomEntry(
-                parent_id=parent_id,
-                namespace=custom_entry.namespace,
-                data=custom_entry.data,
-            )
-            staged.append(copied_entry)
-            parent_id = copied_entry.id
-        if self._config.defer_authoritative_writes:
-            self._prepared_entries.extend(staged)
-            self._last_parent_id = parent_id
-            replay_entries = [*self._state.entries, *staged]
-            self._state = SessionState.from_entries(replay_entries, leaf_id=parent_id)
-        else:
-            await self._append_session_batch(staged)
-            self._last_parent_id = parent_id
-            await self._refresh_persisted_state(leaf_id=parent_id)
-        self._harness.replace_messages(self._state.messages)
-        self._invalidate_context_usage_cache()
-        return repair
+        return await _session_runtime._persist_active_tool_history_repairs(self)
 
     def _attach_persistence_listener(self) -> None:
-        """(Re-)attach push persistence to the current harness.
-
-        Persistence subscribes to harness events rather than running in the
-        event consumer, which the TUI tears down on interrupt.
-        """
-        if self._persistence_unsubscribe is not None:
-            self._persistence_unsubscribe()
-            self._persistence_unsubscribe = None
-        # Command-only tests construct sessions with stub harnesses.
-        subscribe = getattr(self._harness, "subscribe", None)
-        if subscribe is not None:
-            self._persistence_unsubscribe = subscribe(self._persist_on_message_end)
+        return _session_runtime._attach_persistence_listener(self)
 
     async def _persist_on_message_end(self, event: AgentEvent) -> None:
-        if isinstance(event, MessageEndEvent):
-            self._ended_message_ids.add(id(event.message))
-            await self._persist_message(event.message)
+        return await _session_runtime._persist_on_message_end(self, event)
 
     async def _persist_message(self, message: AgentMessage) -> None:
-        """Persist one completed message at the active branch tip, idempotently.
-
-        Message lifecycle events are the durable-message boundary. A stable entry
-        id lets a retry recognize an append that reached disk before raising.
-        Only retries pay for a full-file read.
-        """
-        message_id = id(message)
-        pending = self._pending_message_writes.get(message_id)
-        is_retry = pending is not None
-        if pending is None:
-            entry = _session_entry_for_message(parent_id=self._last_parent_id, message=message)
-            pending = _PendingMessageWrite(message=message, entry=entry)
-            self._pending_message_writes[message_id] = pending
-
-        durable_ids = {entry.id for entry in await self._read_session_entries()} if is_retry else frozenset()
-        if pending.entry.id not in durable_ids:
-            await self._append_session_entry(pending.entry)
-        self._last_parent_id = pending.entry.id
-
-        await self._refresh_persisted_state(leaf_id=self._last_parent_id)
-        self._persisted_message_ids.add(message_id)
-        self._pending_message_writes.pop(message_id, None)
-        self._invalidate_context_usage_cache()
+        return await _session_runtime._persist_message(self, message)
 
     async def _reconcile_run_persistence(
-        self,
-        events: AsyncIterator[AgentEvent] | None,
-        *,
-        context: AgentCallDiagnosticContext,
+        self, events: AsyncIterator[AgentEvent] | None, *, context: AgentCallDiagnosticContext
     ) -> None:
-        """Close a run and retry failed persists still present in the transcript.
-
-        Keyed on message identity, not counts: the loop emits an assistant's
-        ``message_end`` before appending it to the transcript. A message whose
-        persist and append both failed cannot be retried here; the repair at
-        the next run start re-synthesizes and persists its tool result.
-        """
-        if events is not None:
-            aclose = getattr(events, "aclose", None)
-            if aclose is not None:
-                with suppress(Exception):
-                    await aclose()
-        for message in self._harness.messages:
-            message_id = id(message)
-            if message_id in self._ended_message_ids and message_id not in self._persisted_message_ids:
-                # Runs in a finally: a repeat failure must not mask cancellation.
-                try:
-                    await self._persist_message(message)
-                except Exception as exc:  # noqa: BLE001 - preserve cancellation
-                    self._log_persistence_failure(context=context, exc=exc)
-        self._ended_message_ids.clear()
-        self._persisted_message_ids.clear()
+        return await _session_runtime._reconcile_run_persistence(self, events, context=context)
 
     async def _flush_pending_message_writes(self, *, context: AgentCallDiagnosticContext) -> None:
-        """Finish earlier partial writes before another storage-dependent action."""
-        harness_message_ids = {id(message) for message in self._harness.messages}
-        for pending in tuple(self._pending_message_writes.values()):
-            if id(pending.message) not in harness_message_ids:
-                self._harness.append_message(pending.message)
-                harness_message_ids.add(id(pending.message))
-            try:
-                await self._persist_message(pending.message)
-            except Exception as exc:
-                self._log_persistence_failure(context=context, exc=exc)
-                raise
+        return await _session_runtime._flush_pending_message_writes(self, context=context)
 
     def _log_persistence_failure(self, *, context: AgentCallDiagnosticContext, exc: BaseException) -> None:
-        with suppress(Exception):
-            self._last_diagnostic_log_path = self._diagnostic_logger.log_exception(
-                context=context,
-                phase="session_persistence_reconcile",
-                exc=exc,
-            )
+        return _session_runtime._log_persistence_failure(self, context=context, exc=exc)
 
     def _invalidate_context_usage_cache(self) -> None:
-        """Mark context accounting dirty after transcript/system/tool changes."""
-        self._context_usage_cache = None
+        return _session_runtime._invalidate_context_usage_cache(self)
 
     async def _refresh_persisted_state(self, *, leaf_id: str | None) -> None:
-        entries = await self._read_session_entries()
-        self._state = SessionState.from_entries(entries, leaf_id=leaf_id)
-        if self._config.session_id is not None and self._config.session_manager is not None:
-            self._config.session_manager.touch_session(
-                self._config.session_id,
-                model=self.model,
-                provider_name=self.provider_name,
-                inference_provider=self._inference_provider,
-                inference_provider_mode=self._inference_provider_mode,
-                preserve_inference_provider=False,
-                cwd=self.cwd,
-            )
+        return await _session_runtime._refresh_persisted_state(self, leaf_id=leaf_id)
 
     async def _read_session_entries(self) -> list[SessionEntry]:
-        """Read stored entries, detaching roots imported from external history."""
-        return _detach_missing_parents(await self._config.storage.read_all())
+        return await _session_runtime._read_session_entries(self)
 
     async def _commit_prepared_entries(self) -> None:
-        """Durably commit the staged startup/repair batch exactly once."""
-        if not self._config.defer_authoritative_writes:
-            return
-        durable_ids = {entry.id for entry in await self._config.storage.read_all()}
-        missing = tuple(entry for entry in self._prepared_entries if entry.id not in durable_ids)
-        if missing:
-            append_batch = getattr(self._config.storage, "append_batch", None)
-            if append_batch is None:
-                # Compatibility storage implementations predate the atomic
-                # batch contract.  Production storage always takes this path.
-                for entry in missing:
-                    await self._config.storage.append(entry)
-            else:
-                await append_batch(missing)
-        self._pending_initial_entries = ()
-        self._prepared_entries.clear()
-        self._config = replace(self._config, defer_authoritative_writes=False)
-        try:
-            if self._config.index_on_first_persist:
-                self._index_current_session()
-        except Exception as exc:  # index is a rebuildable cache, not authority
-            self._record_session_index_diagnostic(exc)
+        return await _session_runtime._commit_prepared_entries(self)
 
     async def _append_session_entry(self, entry: SessionEntry) -> None:
-        """Append one durable entry after flushing deferred session metadata."""
-        await self._ensure_session_initialized()
-        await self._config.storage.append(entry)
+        return await _session_runtime._append_session_entry(self, entry)
 
     async def _append_session_batch(self, entries: Sequence[SessionEntry]) -> None:
-        """Append entries as one storage transaction, with legacy fallback."""
-        await self._ensure_session_initialized()
-        append_batch = getattr(self._config.storage, "append_batch", None)
-        if append_batch is None:
-            for entry in entries:
-                await self._config.storage.append(entry)
-            return
-        await append_batch(tuple(entries))
+        return await _session_runtime._append_session_batch(self, entries)
 
     async def _close_replaced_provider(self, provider: ModelProvider) -> None:
         """Close a Baldric-owned provider once after a committed publication."""
@@ -3907,282 +3437,65 @@ class CodingSession:
             await close()
 
     async def _ensure_session_initialized(self) -> None:
-        if self._config.defer_authoritative_writes and self._prepared_entries:
-            await self._commit_prepared_entries()
-            return
-        if not self._pending_initial_entries:
-            return
-        await self._write_pending_initial_entries()
-        if self._config.index_on_first_persist:
-            try:
-                self._index_current_session()
-            except Exception as exc:
-                self._record_session_index_diagnostic(exc)
+        return await _session_runtime._ensure_session_initialized(self)
 
     async def _write_pending_initial_entries(self) -> None:
-        durable_ids = {entry.id for entry in await self._config.storage.read_all()}
-        missing = tuple(entry for entry in self._pending_initial_entries if entry.id not in durable_ids)
-        if missing:
-            append_batch = getattr(self._config.storage, "append_batch", None)
-            if append_batch is not None:
-                await append_batch(missing)
-            else:
-                for entry in missing:
-                    await self._config.storage.append(entry)
-        self._pending_initial_entries = ()
+        return await _session_runtime._write_pending_initial_entries(self)
 
     def _ensure_session_file_initialized(self) -> None:
-        if not self._pending_initial_entries:
-            return
-        for entry in self._pending_initial_entries:
-            _append_session_entry_sync(self._config.storage, entry)
-        self._pending_initial_entries = ()
+        return _session_runtime._ensure_session_file_initialized(self)
 
     def _record_session_index_diagnostic(self, exc: BaseException) -> None:
-        self._resource_diagnostics = (
-            *self._resource_diagnostics,
-            ResourceDiagnostic(
-                kind="session-index",
-                message=f"Session index needs repair: {type(exc).__name__}",
-                severity="warning",
-            ),
-        )
+        return _session_runtime._record_session_index_diagnostic(self, exc)
 
     def _index_current_session(self) -> None:
-        if self._config.session_id is None or self._config.session_manager is None:
-            return
-        existing = self._config.session_manager.get_session(self._config.session_id)
-        if existing is not None:
-            return
-        self._config.session_manager.create_session(
-            cwd=self.cwd,
-            model=self.model,
-            provider_name=self.provider_name,
-            inference_provider=self._inference_provider,
-            session_id=self._config.session_id,
-        )
+        return _session_runtime._index_current_session(self)
 
     async def _try_auto_compact(
-        self,
-        *,
-        context: AgentCallDiagnosticContext,
-        phase: str,
+        self, *, context: AgentCallDiagnosticContext, phase: str
     ) -> AsyncIterator[CodingSessionEvent]:
+        stream = _session_runtime._try_auto_compact(self, context=context, phase=phase)
         try:
-            plan = self._auto_compaction_plan()
-        except Exception as exc:  # noqa: BLE001 - automatic compaction must not lose a turn
-            self._last_diagnostic_log_path = self._diagnostic_logger.log_exception(
-                context=context,
-                phase=phase,
-                exc=exc,
-            )
-            return
-        if plan is None:
-            return
-        start_event = CompactionStartEvent(reason="threshold")
-        await self._extension_runtime.emit_event(start_event)
-        yield start_event
-        try:
-            await self._run_compaction_plan(plan)
-        except Exception as exc:  # noqa: BLE001 - automatic compaction must not lose a turn
-            self._last_diagnostic_log_path = self._diagnostic_logger.log_exception(
-                context=context,
-                phase=phase,
-                exc=exc,
-            )
-            end_event = CompactionEndEvent(
-                reason="threshold",
-                result=None,
-                aborted=True,
-                will_retry=False,
-                error_message=str(exc) or type(exc).__name__,
-            )
-        else:
-            end_event = CompactionEndEvent(
-                reason="threshold",
-                result=None,
-                aborted=False,
-                will_retry=False,
-                error_message=None,
-            )
-        await self._extension_runtime.emit_event(end_event)
-        yield end_event
+            async for item in stream:
+                yield item
+        finally:
+            await stream.aclose()
 
-    async def _try_overflow_compact(
-        self,
-        *,
-        context: AgentCallDiagnosticContext,
-    ) -> bool:
-        try:
-            plan = self._recent_preserving_compaction_plan()
-            if plan is None:
-                return False
-            await self._run_compaction_plan(plan)
-            return True
-        except Exception as exc:  # noqa: BLE001 - the original overflow remains visible
-            self._last_diagnostic_log_path = self._diagnostic_logger.log_exception(
-                context=context,
-                phase="overflow_compact",
-                exc=exc,
-            )
-            return False
+    async def _try_overflow_compact(self, *, context: AgentCallDiagnosticContext) -> bool:
+        return await _session_runtime._try_overflow_compact(self, context=context)
 
     async def _try_auto_name_session(
-        self,
-        first_message: str,
-        *,
-        context: AgentCallDiagnosticContext,
+        self, first_message: str, *, context: AgentCallDiagnosticContext
     ) -> None:
-        # Bind the naming result to the session that requested it: a concurrent
-        # resume/new adopts a different config and harness on this object while
-        # the naming request is in flight, and a late result must not rename the
-        # adopted session.
-        bound_session_id = self._config.session_id
-        bound_manager = self._config.session_manager
-        bound_provider = self._harness.config.provider
-        bound_model = self.model
-        if not self._should_auto_name_session():
-            return
-        try:
-            title = await self._generate_session_name(
-                first_message, provider=bound_provider, model=bound_model
-            )
-        except Exception as exc:  # noqa: BLE001 - naming must not interrupt the agent turn
-            self._last_diagnostic_log_path = self._diagnostic_logger.log_exception(
-                context=context,
-                phase="auto_name_session",
-                exc=exc,
-            )
-            title = _fallback_session_name(first_message)
-        if title is None:
-            title = _fallback_session_name(first_message)
-        if title is None:
-            return
-        if self._config.session_id != bound_session_id or self._config.session_manager is not bound_manager:
-            # The session was replaced while naming ran; drop the stale result
-            # instead of retitling the adopted session.
-            return
-        persisted = self._persist_session_name(
-            title,
-            only_if_unnamed=True,
-            index_if_missing=False,
-        )
-        if persisted is not None:
-            await self._extension_runtime.emit_event(SessionInfoChangedEvent(name=persisted))
+        return await _session_runtime._try_auto_name_session(self, first_message, context=context)
 
     def _should_auto_name_session(self) -> bool:
-        if self._config.session_id is None or self._config.session_manager is None:
-            return False
-        record = self._config.session_manager.get_session(self._config.session_id, cwd=self.cwd)
-        if record is not None and record.title:
-            return False
-        return sum(isinstance(message, UserMessage) for message in self._harness.messages) == 1
+        return _session_runtime._should_auto_name_session(self)
 
     async def _generate_session_name(
-        self,
-        first_message: str,
-        *,
-        provider: ModelProvider,
-        model: str,
+        self, first_message: str, *, provider: ModelProvider, model: str
     ) -> str | None:
-        prompt = (
-            "Create a concise session name for this first user message. "
-            "Use at most four words.\n\n"
-            f"User message:\n{first_message}"
+        return await _session_runtime._generate_session_name(
+            self, first_message, provider=provider, model=model
         )
-        text_parts: list[str] = []
-        final_text: str | None = None
-        async for event in provider.stream_response(
-            model=model,
-            system=SESSION_NAME_SYSTEM_PROMPT,
-            messages=[UserMessage(content=prompt)],
-            tools=[],
-        ):
-            if isinstance(event, TextDeltaEvent):
-                text_parts.append(event.delta)
-            elif isinstance(event, AssistantDoneEvent):
-                final_text = event.message.text
-            elif isinstance(event, AssistantErrorEvent):
-                raise RuntimeError(f"Session naming failed: {event.error.error_message or event.reason}")
-        return _sanitize_session_name(final_text if final_text is not None else "".join(text_parts))
 
     def _provider_is_usable(self, provider: ProviderConfig) -> bool:
-        return provider_has_usable_credentials(
-            provider,
-            credential_reader=self._credential_store,
-        )
+        return _session_runtime._provider_is_usable(self, provider)
 
     def _usable_provider_configs(self) -> tuple[ProviderConfig, ...]:
-        if self._provider_settings is None:
-            return ()
-        return tuple(
-            provider for provider in self._provider_settings.providers if self._provider_is_usable(provider)
-        )
+        return _session_runtime._usable_provider_configs(self)
 
     def _auto_compaction_plan(self) -> CompactionPlan | None:
-        threshold = self.auto_compact_token_threshold
-        if threshold is None or threshold <= 0:
-            return None
-        if len(self._state.context_entry_ids) < 2:
-            return None
-        if self.context_token_estimate <= threshold:
-            return None
-        return self._recent_preserving_compaction_plan()
+        return _session_runtime._auto_compaction_plan(self)
 
     async def _run_compaction_plan(self, plan: CompactionPlan) -> None:
-        tokens_before = self.context_token_estimate
-        generated = await self._generate_compaction_summary(plan.messages_to_summarize)
-        await self._append_compaction(
-            generated.text,
-            first_kept_entry_id=plan.first_kept_entry_id,
-            tokens_before=tokens_before,
-            usage=generated.usage,
-            provider=generated.provider,
-            model=generated.model,
-            response_provider=generated.response_provider,
-        )
+        return await _session_runtime._run_compaction_plan(self, plan)
 
     async def _generate_compaction_summary(
-        self,
-        messages: tuple[AgentMessage, ...],
-        *,
-        custom_instructions: str | None = None,
+        self, messages: tuple[AgentMessage, ...], *, custom_instructions: str | None = None
     ) -> _GeneratedSummary:
-        prompt = build_compaction_summary_prompt(
-            messages,
-            custom_instructions=custom_instructions,
-        )
-        text_parts: list[str] = []
-        final_text: str | None = None
-        response_usages: list[Usage] = []
-        response_provider: str | None = None
-        summary_messages: list[AgentMessage] = [UserMessage(content=prompt)]
-        async for event in self._harness.config.provider.stream_response(
-            model=self.model,
-            system=SUMMARIZATION_SYSTEM_PROMPT,
-            messages=summary_messages,
-            tools=[],
-        ):
-            if isinstance(event, TextDeltaEvent):
-                text_parts.append(event.delta)
-            elif isinstance(event, AssistantDoneEvent):
-                final_text = event.message.text
-                response_usages.append(event.message.usage)
-                response_provider = event.message.response_provider
-            elif isinstance(event, AssistantErrorEvent):
-                raise RuntimeError(
-                    f"Compaction summarization failed: {event.error.error_message or event.reason}"
-                )
-
-        summary = (final_text if final_text is not None else "".join(text_parts)).strip()
-        if not summary:
-            raise RuntimeError("Compaction summarization returned an empty summary")
-        return _GeneratedSummary(
-            text=summary,
-            usage=sum_usage(response_usages) if response_usages else None,
-            provider=self.provider_name,
-            model=self.model,
-            response_provider=response_provider,
+        return await _session_runtime._generate_compaction_summary(
+            self, messages, custom_instructions=custom_instructions
         )
 
     async def _summarize_branch_messages(
@@ -4192,54 +3505,15 @@ class CodingSession:
         custom_instructions: str | None = None,
         replace_instructions: bool = False,
     ) -> _GeneratedSummary:
-        try:
-            result = await summarize_branch_messages_with_model(
-                provider=self._harness.config.provider,
-                model=self.model,
-                messages=messages,
-                custom_instructions=custom_instructions,
-                replace_instructions=replace_instructions,
-            )
-        except Exception:
-            result = None
-        if result is not None:
-            summary, usage, response_provider = result
-            return _GeneratedSummary(
-                text=summary,
-                usage=usage,
-                provider=self.provider_name,
-                model=self.model,
-                response_provider=response_provider,
-            )
-        return _GeneratedSummary(
-            text=summarize_messages_for_compaction(messages),
-            usage=None,
+        return await _session_runtime._summarize_branch_messages(
+            self, messages, custom_instructions=custom_instructions, replace_instructions=replace_instructions
         )
 
     def _recent_preserving_compaction_plan(self) -> CompactionPlan | None:
-        rows = self._active_context_rows()
-        if len(rows) < 2:
-            return None
-
-        first_kept_index = _first_recent_context_index(
-            rows,
-            keep_recent_tokens=DEFAULT_COMPACTION_KEEP_RECENT_TOKENS,
-        )
-        if first_kept_index <= 0:
-            return None
-
-        if first_kept_index >= len(rows):
-            return None
-
-        replaced = rows[:first_kept_index]
-        return CompactionPlan(
-            first_kept_entry_id=rows[first_kept_index][0],
-            replaced_entry_count=len(replaced),
-            messages_to_summarize=tuple(message for _entry_id, message in replaced),
-        )
+        return _session_runtime._recent_preserving_compaction_plan(self)
 
     def _active_context_rows(self) -> tuple[tuple[str, AgentMessage], ...]:
-        return tuple(zip(self._state.context_entry_ids, self._state.messages, strict=True))
+        return _session_runtime._active_context_rows(self)
 
     async def _append_compaction(
         self,
@@ -4252,12 +3526,9 @@ class CodingSession:
         model: str | None = None,
         response_provider: str | None = None,
     ) -> CompactionEntry:
-        if first_kept_entry_id not in self._state.context_entry_ids:
-            raise ValueError("First kept entry is not in the active context")
-
-        compaction = CompactionEntry(
-            parent_id=self._last_parent_id,
-            summary=summary,
+        return await _session_runtime._append_compaction(
+            self,
+            summary,
             first_kept_entry_id=first_kept_entry_id,
             tokens_before=tokens_before,
             usage=usage,
@@ -4265,10 +3536,3 @@ class CodingSession:
             model=model,
             response_provider=response_provider,
         )
-        await self._append_session_entry(compaction)
-        self._last_parent_id = compaction.id
-
-        await self._refresh_persisted_state(leaf_id=compaction.id)
-        self._harness.replace_messages(self._state.messages)
-        self._invalidate_context_usage_cache()
-        return compaction
