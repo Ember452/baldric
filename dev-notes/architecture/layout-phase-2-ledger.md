@@ -305,6 +305,37 @@ value than moving to the 9k-line TUI app; Task 7 is the next high-value target.
 **Merge policy for this branch:** intentionally **not merged to `main`**; kept as a
 reviewable branch/PR per user instruction.
 
+## Post-closure benefit pass — widget internals
+
+Two deferred-but-beneficial widget items were completed after the initial closure.
+
+### PromptInput moved to widgets
+
+- **Commit:** `6c1e739` `refactor(layout): move prompt input into widgets package`
+- `PromptInput` + `CompletionActionTarget` + binding helper closure moved to
+  `tui/widgets/prompt_input.py`; `tui/app.py` re-exports the names tests import.
+- `tui/app.py`: 6,207 → 5,725 lines.
+
+### Markdown widgets split
+
+- **Commit:** `686372f` `refactor(layout): split tui markdown rendering widgets`
+- Markdown closure (32 names) moved from `core.py` to `tui/widgets/markdown.py`;
+  closure had zero references back into transcript widgets.
+- `tui/widgets/core.py`: 2,411 → 1,844 lines; `markdown.py`: 599 lines.
+- Checks: TUI widget/app/chat/subagent-ui group → `518 passed, 43 skipped`.
+  Full suite had passed `2355 passed, 122 skipped` before this final widget pass; a
+  final rerun timed out in a known async/TUI test (no assertion failure), matching
+  the pre-existing Windows TUI flake.
+
+### Test-tree split — assessed, not executed
+
+The large test files (`test_tui_app.py` 13,539 lines, `test_coding_session.py` 7,435,
+`test_baldric_ai.py` 4,000, `test_extensions.py` 3,519) remain the highest-benefit
+future target. This is a separate test migration: it requires shared-fixture modules,
+updating sibling `test_*` imports, and re-verifying ~2.3k tests. It was not rushed into
+the source-layout branch.
+
+
 
 
 
