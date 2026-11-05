@@ -246,6 +246,29 @@ value than moving to the 9k-line TUI app; Task 7 is the next high-value target.
   remains in `app.py`; both are state-heavy. The next candidates are widgets
   (`tui/widgets.py`, 3,351 lines) and `cli.py`/`modes`, not another screen split.
 
+## Task 8 — sidebar widgets split out of `tui/widgets.py`
+
+- **Commit:** `6f4fadf` `refactor(layout): split tui widgets sidebar family`
+- **Structure:** `tui/widgets/` package:
+  - `core.py`: transcript/markdown widgets and helpers (2,411 lines)
+  - `sidebar.py`: sidebar widget family + 4 constants (981 lines)
+  - `__init__.py`: full original import surface re-export (130 names)
+- **Boundary evidence:** sidebar dependency closure was 47 names + 4 constants and
+  had zero references to transcript/markdown names; this is why it was safe to move
+  without touching the transcript core.
+- **Compatibility fixes:**
+  - package-level `TRANSCRIPT_WINDOW_*` constants and `run` are read dynamically
+    from `tui.widgets` because tests monkeypatch the package attributes;
+  - `_GIT_BRANCH_CACHE` moved with `_GitBranchLookup`/`_git_branch`;
+  - package `__init__.py` re-exports every original widget name, including private
+    names imported by tests.
+- **Checks:** `test_tui_app.py` + `test_tui_components.py` + `test_tui_chat_channels.py`
+  + `test_subagents_ui.py` → `518 passed, 43 skipped`; ruff/format pass; mypy
+  `14 errors in 2 files (checked 207 source files)` baseline.
+- **Remaining:** transcript/markdown `core.py` still 2.4k lines; further split would
+  need cross-cutting helpers and is deferred.
+
+
 
 
 
