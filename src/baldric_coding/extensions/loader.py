@@ -11,7 +11,7 @@ from inspect import iscoroutinefunction
 from pathlib import Path
 from typing import Literal
 
-from baldric_coding.resources import BaldricResourcePaths, ResourceDiagnostic
+from baldric_coding.context.resources import BaldricResourcePaths, ResourceDiagnostic
 
 EXTENSION_ENTRY_ATTRIBUTE = "setup"
 _MODULE_NAME_PREFIX = "baldric_extension"

@@ -55,7 +55,37 @@ from baldric_coding.codex_model_store import (
 )
 from baldric_coding.commands import CommandRegistry, CommandResult, create_default_command_registry
 from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.context import discover_project_context_with_diagnostics
+from baldric_coding.context.project import discover_project_context_with_diagnostics
+from baldric_coding.context.prompts import (
+    PromptTemplate,
+    expand_prompt_template_command,
+    load_prompt_templates_with_diagnostics,
+)
+from baldric_coding.context.resources import (
+    BaldricResourcePaths,
+    ResourceDiagnostic,
+    ResourceError,
+    discover_system_prompt_resources,
+    resource_paths_with_cwd,
+    resource_paths_with_project_trust,
+)
+from baldric_coding.context.skills.skills import Skill, expand_skill_command, load_skills_with_diagnostics
+from baldric_coding.context.system_prompt import (
+    BuildSystemPromptOptions,
+    ProjectContextFile,
+    PromptSection,
+    SystemPromptInspection,
+    SystemPromptSource,
+    build_system_prompt,
+    build_system_prompt_inspection,
+)
+from baldric_coding.context.thinking import (
+    DEFAULT_THINKING_LEVEL,
+    THINKING_LEVELS,
+    ThinkingLevel,
+    next_thinking_level,
+    normalize_thinking_level,
+)
 from baldric_coding.context_window import (
     DEFAULT_COMPACTION_KEEP_RECENT_TOKENS,
     DEFAULT_CONTEXT_WINDOW_TOKENS,
@@ -98,11 +128,6 @@ from baldric_coding.project_trust import (
     TrustPrompt,
     format_trust_diagnostic,
 )
-from baldric_coding.prompt_templates import (
-    PromptTemplate,
-    expand_prompt_template_command,
-    load_prompt_templates_with_diagnostics,
-)
 from baldric_coding.provider_config import (
     OpenAICodexProviderConfig,
     OpenAICompatibleProviderConfig,
@@ -130,14 +155,6 @@ from baldric_coding.provider_runtime import (
     create_dynamic_model_provider,
     create_model_provider,
 )
-from baldric_coding.resources import (
-    BaldricResourcePaths,
-    ResourceDiagnostic,
-    ResourceError,
-    discover_system_prompt_resources,
-    resource_paths_with_cwd,
-    resource_paths_with_project_trust,
-)
 from baldric_coding.session_export import (
     default_session_export_artifact_path,
     export_session_artifact,
@@ -149,23 +166,6 @@ from baldric_coding.session_manager import (
     normalize_session_name,
 )
 from baldric_coding.session_stats import SessionStats, calculate_session_stats
-from baldric_coding.skills import Skill, expand_skill_command, load_skills_with_diagnostics
-from baldric_coding.system_prompt import (
-    BuildSystemPromptOptions,
-    ProjectContextFile,
-    PromptSection,
-    SystemPromptInspection,
-    SystemPromptSource,
-    build_system_prompt,
-    build_system_prompt_inspection,
-)
-from baldric_coding.thinking import (
-    DEFAULT_THINKING_LEVEL,
-    THINKING_LEVELS,
-    ThinkingLevel,
-    next_thinking_level,
-    normalize_thinking_level,
-)
 from baldric_coding.tools import ImageSupportState, create_bash_tool, create_coding_tools
 from baldric_coding.update.reload import CodingReloadSummary, ReloadCategorySummary
 

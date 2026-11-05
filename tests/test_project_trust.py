@@ -20,6 +20,11 @@ from baldric_coding import SessionManager, jsonl_session_storage
 from baldric_coding import project_trust as project_trust_module
 from baldric_coding.cli import app
 from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.context.resources import (
+    BaldricResourcePaths,
+    resource_paths_with_cwd,
+    resource_paths_with_project_trust,
+)
 from baldric_coding.project_trust import (
     ExtensionTrustResult,
     ProjectTrustCoordinator,
@@ -31,11 +36,6 @@ from baldric_coding.project_trust import (
     format_trust_diagnostic,
 )
 from baldric_coding.rendering.themes import BALDRIC_DARK_THEME
-from baldric_coding.resources import (
-    BaldricResourcePaths,
-    resource_paths_with_cwd,
-    resource_paths_with_project_trust,
-)
 from baldric_coding.session import CodingSession, CodingSessionConfig
 from baldric_coding.tui.project_trust import ProjectTrustScreen, _ProjectTrustApp
 

@@ -9,7 +9,7 @@ from functools import cache
 from pathlib import Path
 from types import MappingProxyType
 
-from baldric_coding.resources import (
+from baldric_coding.context.resources import (
     BaldricResourcePaths,
     ResourceDiagnostic,
     ResourceError,

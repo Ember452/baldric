@@ -35,6 +35,8 @@ from baldric_coding.commands import (
     create_default_command_registry,
 )
 from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.context.resources import BaldricResourcePaths, ResourceDiagnostic
+from baldric_coding.context.system_prompt import PromptSection
 from baldric_coding.extensions.api import (
     AGENT_EVENT_TYPES,
     AGENT_EVENT_WILDCARD,
@@ -82,8 +84,6 @@ from baldric_coding.project_trust import (
     ProjectTrustResolution,
 )
 from baldric_coding.provider_config import ProviderConfig
-from baldric_coding.resources import BaldricResourcePaths, ResourceDiagnostic
-from baldric_coding.system_prompt import PromptSection
 
 # Host callback that delivers a message through the frontend's serialized run
 # path when the session is idle. Carries the same presentation metadata as a

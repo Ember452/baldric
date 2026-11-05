@@ -5,6 +5,7 @@ from typing import Any
 
 import pytest
 
+from baldric_coding.context.resources import BaldricResourcePaths
 from baldric_coding.rendering.themes import (
     BALDRIC_DARK_THEME,
     BALDRIC_LIGHT_THEME,
@@ -19,7 +20,6 @@ from baldric_coding.rendering.themes import (
     set_custom_tui_themes,
     theme_css_variables,
 )
-from baldric_coding.resources import BaldricResourcePaths
 from baldric_coding.tui.config import TuiSettings
 
 

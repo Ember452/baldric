@@ -31,15 +31,7 @@ from baldric_coding.auth.credentials import FileCredentialStore, credentials_pat
 from baldric_coding.auth.registry import get_oauth_provider
 from baldric_coding.catalog_loader import effective_catalog, save_user_catalog_entries
 from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.provider_catalog import (
-    BUILTIN_PROVIDER_CATALOG,
-    ModelCatalogMetadata,
-    ModelCostTier,
-    ProviderApi,
-    ProviderCatalogEntry,
-    ProviderKind,
-)
-from baldric_coding.thinking import (
+from baldric_coding.context.thinking import (
     DEFAULT_THINKING_LEVEL,
     THINKING_LEVELS,
     ThinkingLevel,
@@ -48,6 +40,14 @@ from baldric_coding.thinking import (
     normalize_thinking_level,
     normalize_thinking_levels,
     reasoning_effort_for_level,
+)
+from baldric_coding.provider_catalog import (
+    BUILTIN_PROVIDER_CATALOG,
+    ModelCatalogMetadata,
+    ModelCostTier,
+    ProviderApi,
+    ProviderCatalogEntry,
+    ProviderKind,
 )
 
 DEFAULT_PROVIDER_NAME = "openai"

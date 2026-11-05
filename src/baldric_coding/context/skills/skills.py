@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from baldric_coding.resources import (
+from baldric_coding.context.resources import (
     BaldricResourcePaths,
     ResourceDiagnostic,
     ResourceError,

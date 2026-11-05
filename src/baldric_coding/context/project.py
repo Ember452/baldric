@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from baldric_coding.resources import BaldricResourcePaths, ResourceDiagnostic
-from baldric_coding.system_prompt import ProjectContextFile
+from baldric_coding.context.resources import BaldricResourcePaths, ResourceDiagnostic
+from baldric_coding.context.system_prompt import ProjectContextFile
 
 PROJECT_MARKERS = (".git", "pyproject.toml", "uv.lock", "setup.py", "package.json")
 

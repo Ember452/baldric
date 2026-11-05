@@ -8,22 +8,22 @@ from pathlib import Path
 from typing import Protocol
 
 from baldric_agent.tools import AgentTool
-from baldric_coding.prompt_templates import PromptTemplate
-from baldric_coding.provider_catalog import BUILTIN_PROVIDER_CATALOG, builtin_provider_entry
-from baldric_coding.resources import ResourceDiagnostic
-from baldric_coding.session_manager import (
-    CodingSessionRecord,
-    SessionManager,
-    normalize_session_name,
-)
-from baldric_coding.skills import Skill
-from baldric_coding.system_prompt import (
+from baldric_coding.context.prompts import PromptTemplate
+from baldric_coding.context.resources import ResourceDiagnostic
+from baldric_coding.context.skills.skills import Skill
+from baldric_coding.context.system_prompt import (
     ProjectContextFile,
     SystemPromptInspection,
     SystemPromptSource,
     format_system_prompt_inspection,
 )
-from baldric_coding.thinking import normalize_thinking_level
+from baldric_coding.context.thinking import normalize_thinking_level
+from baldric_coding.provider_catalog import BUILTIN_PROVIDER_CATALOG, builtin_provider_entry
+from baldric_coding.session_manager import (
+    CodingSessionRecord,
+    SessionManager,
+    normalize_session_name,
+)
 from baldric_coding.update.reload import CodingReloadSummary, ReloadCategorySummary
 
 LOGIN_PROVIDER_ALIASES = {

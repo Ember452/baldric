@@ -20,6 +20,7 @@ from baldric_agent import (
     UserMessage,
 )
 from baldric_agent.provider_events import TextDeltaEvent, ThinkingDeltaEvent
+from baldric_coding.context.skills.skills import Skill, format_skill_invocation
 from baldric_coding.events import (
     AgentSettledEvent,
     AutoRetryStartEvent,
@@ -28,7 +29,6 @@ from baldric_coding.events import (
     QueueUpdateEvent,
     SessionAgentEndEvent,
 )
-from baldric_coding.skills import Skill, format_skill_invocation
 from baldric_coding.tui import TuiEventAdapter, TuiState
 from baldric_coding.tui.state import (
     format_tool_call_block,

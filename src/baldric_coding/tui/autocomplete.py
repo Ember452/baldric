@@ -9,9 +9,9 @@ from pathlib import Path
 from time import monotonic
 
 from baldric_coding.commands import CommandRegistry, SlashCommand
-from baldric_coding.gitignore import gitignore_rules_for
-from baldric_coding.prompt_templates import PromptTemplate
-from baldric_coding.skills import Skill
+from baldric_coding.context.gitignore import gitignore_rules_for
+from baldric_coding.context.prompts import PromptTemplate
+from baldric_coding.context.skills.skills import Skill
 
 IGNORED_FILE_COMPLETION_DIRS = frozenset(
     {

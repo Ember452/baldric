@@ -3,7 +3,7 @@ from pathlib import Path
 
 from baldric_agent import AgentTool, AgentToolResult
 from baldric_coding import Skill
-from baldric_coding.system_prompt import (
+from baldric_coding.context.system_prompt import (
     BuildSystemPromptOptions,
     ProjectContextFile,
     PromptSection,

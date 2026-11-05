@@ -7,8 +7,8 @@ from collections.abc import Iterable, Mapping
 from importlib.resources import files
 from typing import Any
 
+from baldric_coding.context.thinking import THINKING_LEVELS, ThinkingLevel
 from baldric_coding.provider_catalog import ProviderCatalogEntry
-from baldric_coding.thinking import THINKING_LEVELS, ThinkingLevel
 
 MODELS_DEV_URL = "https://models.dev/api.json"
 NVIDIA_MODELS_URL = "https://integrate.api.nvidia.com/v1/models"

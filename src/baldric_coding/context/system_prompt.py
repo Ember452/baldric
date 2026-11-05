@@ -10,7 +10,7 @@ from typing import Literal
 from xml.sax.saxutils import escape
 
 from baldric_agent.tools import AgentTool
-from baldric_coding.skills import Skill
+from baldric_coding.context.skills.skills import Skill
 from baldric_coding.utils.self_docs import baldric_docs_path, baldric_examples_path, baldric_readme_path
 
 PromptSourceKind = Literal["default", "system", "append", "extension", "context", "skill", "runtime"]

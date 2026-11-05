@@ -22,7 +22,7 @@ from textual.color import Color as TextualColor
 from textual.color import ColorParseError as TextualColorParseError
 from textual.theme import Theme
 
-from baldric_coding.resources import ResourceDiagnostic
+from baldric_coding.context.resources import ResourceDiagnostic
 
 
 class TuiThemeError(ValueError):

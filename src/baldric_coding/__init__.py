@@ -38,9 +38,47 @@ from baldric_coding.config.shell_config import (
     shell_settings_from_json,
     shell_settings_path,
 )
-from baldric_coding.context import (
+from baldric_coding.context.project import (
     discover_project_context,
     discover_project_context_with_diagnostics,
+)
+from baldric_coding.context.prompts import (
+    PromptTemplate,
+    expand_prompt_template_command,
+    load_prompt_templates,
+    load_prompt_templates_with_diagnostics,
+    parse_prompt_template_arguments,
+    render_prompt_template,
+    substitute_prompt_template_args,
+)
+from baldric_coding.context.resources import BaldricResourcePaths, ResourceDiagnostic, ResourceError
+from baldric_coding.context.skills.skills import (
+    Skill,
+    build_skill_index,
+    expand_skill_command,
+    format_skill_invocation,
+    load_skills,
+    load_skills_with_diagnostics,
+    parse_skill_invocation,
+)
+from baldric_coding.context.system_prompt import (
+    BuildSystemPromptOptions,
+    ProjectContextFile,
+    build_system_prompt,
+    collect_prompt_guidelines,
+    format_available_tools,
+    format_guidelines,
+    format_project_context,
+    format_skills_for_prompt,
+)
+from baldric_coding.context.thinking import (
+    DEFAULT_THINKING_LEVEL,
+    THINKING_LEVELS,
+    ReasoningEffort,
+    ThinkingLevel,
+    ThinkingParameter,
+    normalize_thinking_levels,
+    reasoning_effort_for_level,
 )
 from baldric_coding.context_window import (
     DEFAULT_COMPACTION_KEEP_RECENT_TOKENS,
@@ -55,15 +93,6 @@ from baldric_coding.context_window import (
     estimate_tool_tokens,
     serialize_messages_for_compaction,
     summarize_messages_for_compaction,
-)
-from baldric_coding.prompt_templates import (
-    PromptTemplate,
-    expand_prompt_template_command,
-    load_prompt_templates,
-    load_prompt_templates_with_diagnostics,
-    parse_prompt_template_arguments,
-    render_prompt_template,
-    substitute_prompt_template_args,
 )
 from baldric_coding.provider_catalog import (
     BUILTIN_PROVIDER_CATALOG,
@@ -111,7 +140,6 @@ from baldric_coding.rendering import (
     TranscriptRenderer,
     create_event_renderer,
 )
-from baldric_coding.resources import BaldricResourcePaths, ResourceDiagnostic, ResourceError
 from baldric_coding.session import (
     CodingSession,
     CodingSessionConfig,
@@ -128,34 +156,6 @@ from baldric_coding.session_export import (
     render_session_html,
 )
 from baldric_coding.session_manager import CodingSessionRecord, SessionManager
-from baldric_coding.skills import (
-    Skill,
-    build_skill_index,
-    expand_skill_command,
-    format_skill_invocation,
-    load_skills,
-    load_skills_with_diagnostics,
-    parse_skill_invocation,
-)
-from baldric_coding.system_prompt import (
-    BuildSystemPromptOptions,
-    ProjectContextFile,
-    build_system_prompt,
-    collect_prompt_guidelines,
-    format_available_tools,
-    format_guidelines,
-    format_project_context,
-    format_skills_for_prompt,
-)
-from baldric_coding.thinking import (
-    DEFAULT_THINKING_LEVEL,
-    THINKING_LEVELS,
-    ReasoningEffort,
-    ThinkingLevel,
-    ThinkingParameter,
-    normalize_thinking_levels,
-    reasoning_effort_for_level,
-)
 from baldric_coding.tools import (
     ImageSupportState,
     ReadOperations,

@@ -92,6 +92,11 @@ from baldric_coding.commands import (
     format_reload_summary,
 )
 from baldric_coding.config.shell_config import load_shell_settings
+from baldric_coding.context.prompts import PromptTemplate
+from baldric_coding.context.resources import BaldricResourcePaths, ResourceDiagnostic
+from baldric_coding.context.skills.skills import Skill
+from baldric_coding.context.system_prompt import SystemPromptInspection
+from baldric_coding.context.thinking import ThinkingLevel
 from baldric_coding.events import (
     AgentSettledEvent,
     AutoRetryStartEvent,
@@ -110,7 +115,6 @@ from baldric_coding.extensions.api import (
     SlotWidgetFactory,
 )
 from baldric_coding.project_trust import ProjectTrustRequest, TrustChoice, TrustOverride
-from baldric_coding.prompt_templates import PromptTemplate
 from baldric_coding.provider_catalog import (
     BUILTIN_PROVIDER_CATALOG,
     ProviderCatalogEntry,
@@ -140,7 +144,6 @@ from baldric_coding.rendering.themes import (
     textual_theme_for_tui_theme,
     theme_css_variables,
 )
-from baldric_coding.resources import BaldricResourcePaths, ResourceDiagnostic
 from baldric_coding.session import (
     TREE_RUNNING_MESSAGE,
     CodingSession,
@@ -154,9 +157,6 @@ from baldric_coding.session import (
 )
 from baldric_coding.session_manager import CodingSessionRecord, SessionManager
 from baldric_coding.session_preparation import prepare_coding_session
-from baldric_coding.skills import Skill
-from baldric_coding.system_prompt import SystemPromptInspection
-from baldric_coding.thinking import ThinkingLevel
 from baldric_coding.tui.adapter import TuiEventAdapter
 from baldric_coding.tui.autocomplete import (
     CompletionItem,

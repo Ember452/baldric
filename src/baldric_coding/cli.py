@@ -26,6 +26,8 @@ from baldric_coding.catalog_loader import user_catalog_path
 from baldric_coding.commands import format_reload_summary
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.config.shell_config import load_shell_settings
+from baldric_coding.context.resources import BaldricResourcePaths
+from baldric_coding.context.thinking import THINKING_LEVELS, ThinkingLevel, normalize_thinking_level
 from baldric_coding.extension_installer import ExtensionInstallError, install_extension
 from baldric_coding.extensions import StderrUiBridge
 from baldric_coding.models_dev_store import (
@@ -51,7 +53,6 @@ from baldric_coding.provider_config import (
 )
 from baldric_coding.provider_runtime import ClosableModelProvider, create_model_provider
 from baldric_coding.rendering import PrintOutputMode, create_event_renderer
-from baldric_coding.resources import BaldricResourcePaths
 from baldric_coding.rpc import RpcServer
 from baldric_coding.session import (
     CodingSession,
@@ -67,7 +68,6 @@ from baldric_coding.session_export import (
 )
 from baldric_coding.session_manager import CodingSessionRecord, SessionManager, validate_session_id
 from baldric_coding.session_preparation import prepare_coding_session
-from baldric_coding.thinking import THINKING_LEVELS, ThinkingLevel, normalize_thinking_level
 from baldric_coding.tui import run_tui_app
 from baldric_coding.update.check import (
     UpdateNotice,

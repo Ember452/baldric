@@ -31,6 +31,7 @@ from baldric_coding import (
     ResourceError,
     SessionManager,
 )
+from baldric_coding.context.system_prompt import PromptSection
 from baldric_coding.extensions import (
     CustomMessageView,
     DynamicProvider,
@@ -51,7 +52,6 @@ from baldric_coding.extensions import (
     load_extensions,
 )
 from baldric_coding.project_trust import ProjectTrustRequest, ProjectTrustResolution, TrustChoice
-from baldric_coding.system_prompt import PromptSection
 from pi_event_helpers import assistant_done, assistant_start
 
 pytestmark = pytest.mark.anyio

@@ -32,6 +32,11 @@ from baldric_coding.auth.registry import get_oauth_provider
 from baldric_coding.auth.types import OAuthProvider
 from baldric_coding.codex_version import CodexClientVersionResolver
 from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.context.thinking import (
+    ThinkingLevel,
+    normalize_thinking_level,
+    reasoning_effort_for_level,
+)
 from baldric_coding.extensions.providers import (
     CredentialReader,
     DynamicProvider,
@@ -60,7 +65,6 @@ from baldric_coding.provider_config import (
     validate_huggingface_inference_provider,
     validate_provider_model,
 )
-from baldric_coding.thinking import ThinkingLevel, normalize_thinking_level, reasoning_effort_for_level
 
 
 class ClosableModelProvider(ModelProvider, Protocol):

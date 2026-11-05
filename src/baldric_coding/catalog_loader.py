@@ -24,6 +24,7 @@ from pydantic import (
 
 from baldric_agent.types import JSONValue
 from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.context.thinking import ThinkingLevel, ThinkingParameter
 from baldric_coding.provider_catalog import (
     AuthMethod,
     ModelCatalogMetadata,
@@ -33,7 +34,6 @@ from baldric_coding.provider_catalog import (
     ProviderCatalogEntry,
     ProviderKind,
 )
-from baldric_coding.thinking import ThinkingLevel, ThinkingParameter
 
 CATALOG_SCHEMA_VERSION = 1
 USER_CATALOG_FILENAME = "catalog.toml"

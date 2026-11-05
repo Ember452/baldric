@@ -236,8 +236,8 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 |---|---|---|---|---|---|---|---|---|---|
 | 3 | `rendering/themes` | `3e470cb` | 17 (4 moved + 7 src + 6 tests) | M-1..M-7 | R100 ×4 | see below | empty diff (139) | `e36eae8` | batch 1 |
 | 4 | `auth/` | `af06dbe` | 28 (7 moved + 10 src + 9 tests + 2 new inits) | M-1..M-7 | R100 ×1, R9x ×6 | see below | empty diff (139) | `b5b1d27` | batch 2 |
-| 5 | leaf (`config/`, `update/`, `observability/`, `utils/`) | `b5b1d27` | 67 (7 moved + 35 src refs + 25 tests + 4 new inits) | M-1..M-7 | R100 ×2, R9x ×5 | see below | empty diff (139) | _pending_ | batch 2 |
-| 6 | `context/` | _pending_ | | | | | | | |
+| 5 | leaf (`config/`, `update/`, `observability/`, `utils/`) | `b5b1d27` | 67 (7 moved + 35 src refs + 25 tests + 4 new inits) | M-1..M-7 | R100 ×2, R9x ×5 | see below | empty diff (139) | `dd09e63` | batch 2 |
+| 6 | `context/` | `dd09e63` | 51 (7 moved + 26 src refs + 20 tests + 2 new inits) | M-1..M-7 | R100 ×3, R9x ×4 | see below | empty diff (139) | _pending_ | batch 2 |
 | 7 | `providers/` | _pending_ | | | | | | | |
 | 8 | `session/` | _pending_ | | | | | | | |
 | 9 | `tools/` `backends/` `trust/` | _pending_ | | | | | | | |
@@ -324,5 +324,30 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 - **M-6:** direct tests `61 passed, 2 skipped in 1.61s`; mypy
   `Found 14 errors in 2 files (checked 150 source files)` (same baseline errors);
   `ruff check .` → `All checks passed!`; `ruff format --check .` → `246 files already formatted`.
-- **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/ -- declared exceptions: src/baldric_coding/update/check.py, src/baldric_coding/utils/self_docs.py`
+- **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/`
+  `check_move_only: declared exceptions: src/baldric_coding/update/check.py, src/baldric_coding/utils/self_docs.py`
+- **Commit:** `dd09e63` (`refactor(layout): move leaf modules into config update observability utils`).
+
+### Task 6 — `context/` (batch 2)
+
+- **Start commit:** `dd09e63`. `F_before` = `∅`.
+- **Closure:** 51 files = 7 moved + 26 src referencing files (4 of them are also moved) + 20 test files + 2 new package inits.
+- **4.2b:** none.
+- **M-2:** 31 test rewrite sites / 20 test files; 55 src rewrite sites.
+- **M-3 (intentional red):** 7 collection errors (`test_context.py`, `test_gitignore.py`,
+  `test_resources.py`, `test_system_prompt.py`, `test_thinking.py`,
+  `test_prompt_templates.py`, `test_skills.py`) → `ModuleNotFoundError` on the new
+  `baldric_coding.context.*` paths.
+- **M-4:** `context.py` moved in three steps (`context.py` → `context_tmp.py` → `context/project.py`)
+  to avoid the module/package name collision; other six `git mv` moves; `context/__init__.py`
+  and `context/skills/__init__.py` created with docstring only.
+- **M-5 evidence:** true residual old refs = only the three D2 display strings
+  (`context/system_prompt.py:96`, `tests/test_tui_app.py:9366,9391`) — intentionally
+  unchanged. Import smoke `all= 139`. Renames: `gitignore.py`, `resources.py`,
+  `thinking.py` are R100; `context.py → context/project.py`, `prompt_templates.py → prompts.py`,
+  `skills.py → skills.py`, `system_prompt.py` are R9x. Facade `__all__` `(empty diff)` 139.
+- **M-6:** direct tests `72 passed, 2 skipped in 1.65s`; mypy
+  `Found 14 errors in 2 files (checked 152 source files)` (same baseline errors);
+  `ruff check .` → `All checks passed!`; `ruff format --check .` → `248 files already formatted`.
+- **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/`
 - **Commit:** _pending_

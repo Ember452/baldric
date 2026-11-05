@@ -60,6 +60,15 @@ from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric_coding.catalog_loader import user_catalog_path
 from baldric_coding.commands import CommandResult, format_resource_diagnostics
 from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.context.prompts import PromptTemplate
+from baldric_coding.context.resources import ResourceDiagnostic
+from baldric_coding.context.skills.skills import Skill, format_skill_invocation
+from baldric_coding.context.system_prompt import (
+    ProjectContextFile,
+    SystemPromptInspection,
+    SystemPromptSource,
+    format_system_prompt_inspection,
+)
 from baldric_coding.events import (
     AgentSettledEvent,
     CodingSessionEvent,
@@ -81,7 +90,6 @@ from baldric_coding.extensions import (
     OpenAICompatibleTransport,
     ProviderModel,
 )
-from baldric_coding.prompt_templates import PromptTemplate
 from baldric_coding.provider_config import (
     OpenAICodexProviderConfig,
     OpenAICompatibleProviderConfig,
@@ -90,7 +98,6 @@ from baldric_coding.provider_config import (
     ScopedModelConfig,
     save_provider_settings,
 )
-from baldric_coding.resources import ResourceDiagnostic
 from baldric_coding.session import (
     ModelChoice,
     SessionTreeBranchResult,
@@ -99,13 +106,6 @@ from baldric_coding.session import (
 )
 from baldric_coding.session_manager import CodingSessionRecord
 from baldric_coding.session_stats import SessionStats
-from baldric_coding.skills import Skill, format_skill_invocation
-from baldric_coding.system_prompt import (
-    ProjectContextFile,
-    SystemPromptInspection,
-    SystemPromptSource,
-    format_system_prompt_inspection,
-)
 from baldric_coding.tools import create_coding_tools
 from baldric_coding.tui import app as tui_app
 from baldric_coding.tui.adapter import TuiEventAdapter
