@@ -127,6 +127,14 @@ Full table: `dev-notes/architecture/layout-mapping.md`.
 9. **Task 3 theme loader:** `tui/themes/__init__.py:374` uses `files(__package__)`,
    which follows the package to `rendering/themes/`; no path-expression edit is
    expected. Real-load verification still mandatory.
+10. **4.2 scan gap found during Batch 2 preflight:** `from baldric_coding import <module>`
+    forms are invisible to the dotted-path regex. AST scan found 7 instances:
+    `tests/test_updater.py:13` (`updater`, Task 5), `tests/test_models_dev.py:8`
+    (`models_dev`, Task 7), `tests/test_provider_runtime.py:6` (`provider_runtime`,
+    Task 7), `tests/test_codex_resume.py:18`, `tests/test_coding_session.py:69`,
+    `tests/test_project_trust.py:913` (`session`, Task 8), `tests/test_project_trust.py:20`
+    (`project_trust`, Task 9). All are included in their cluster's closure; plan §4.2b
+    added as a permanent scan step.
 
 ### String-reference findings (must be handled in the owning task)
 

@@ -243,6 +243,13 @@ $targets = Get-ChildItem src, tests, scripts, website, dev-notes -Recurse -Inclu
 Select-String -Path $targets.FullName -Pattern 'baldric_coding\.MODULE_NAME' |
   ForEach-Object { "$($_.Path):$($_.LineNumber)  $($_.Line.Trim())" }
 
+# 4.2b from-import 模块形式（4.2 的 dotted 正则抓不到，必须用 AST 或逐条核对）：
+#     from baldric_coding import <module> [as alias]
+#     → 若 <module> 属于本簇，改写为 from baldric_coding.<新包> import <新模块> [as 原别名]
+#     已知实例：models_dev、provider_runtime、updater、session（×3）、project_trust
+#     扫描方式：临时 Python AST 脚本写 $env:TEMP（不要写进仓库），列出
+#     ast.ImportFrom(module == "baldric_coding") 且 alias.name 属于本簇的条目。
+
 # 4.3 动态 import 与资源路径（搬移的隐形雷，每簇必查）
 Select-String -Path (Get-ChildItem src -Recurse -Filter *.py).FullName `
   -Pattern 'importlib|spec_from_file_location|files\(' |
