@@ -11,6 +11,7 @@ from baldric_ai import (
 )
 from baldric_coding import CodingSessionRecord, SessionManager, cli
 from baldric_coding.cli import app, run_print_mode
+from baldric_coding.extensions import ExtensionRuntime
 from baldric_coding.paths import BaldricPaths
 from baldric_coding.provider_config import (
     OpenAICompatibleProviderConfig,
@@ -745,14 +746,27 @@ async def test_run_print_mode_prints_final_assistant_text(
     assert captured.err == ""
     assert provider.calls[0][0] == "fake"
     resource_paths = BaldricResourcePaths(root=tmp_path / "resources", agents_root=None)
+    sent_tools = provider.calls[0][3]
+    # The prompt is asserted against the tools the session actually offered, and
+    # that set is pinned separately: print mode now carries the bundled
+    # subagent tools as well, and an expectation rebuilt from the core four
+    # alone would silently describe a different session.
     assert provider.calls[0][1] == build_system_prompt(
         BuildSystemPromptOptions(
             cwd=tmp_path,
-            tools=create_coding_tools(cwd=tmp_path),
+            tools=sent_tools,
             skills=load_skills(resource_paths),
         )
     )
-    assert [tool.name for tool in provider.calls[0][3]] == ["read", "write", "edit", "bash"]
+    assert [tool.name for tool in sent_tools] == [
+        "read",
+        "write",
+        "edit",
+        "bash",
+        "agent",
+        "get_subagent_result",
+        "steer_subagent",
+    ]
 
 
 @pytest.mark.anyio
@@ -810,10 +824,17 @@ async def test_run_print_mode_system_command_prints_prompt_without_provider_call
     )
 
     captured = capsys.readouterr()
+    # Same composition the session used: core coding tools, then whatever the
+    # bundled capabilities register.
+    bundled_runtime = ExtensionRuntime()
+    bundled_runtime.load(
+        BaldricResourcePaths(root=tmp_path / "resources", agents_root=None),
+        include_resource_dirs=False,
+    )
     inspection = build_system_prompt_inspection(
         BuildSystemPromptOptions(
             cwd=tmp_path,
-            tools=create_coding_tools(cwd=tmp_path),
+            tools=[*create_coding_tools(cwd=tmp_path), *bundled_runtime.extension_tools],
             skills=load_skills(BaldricResourcePaths(root=tmp_path / "resources", agents_root=None)),
         )
     )

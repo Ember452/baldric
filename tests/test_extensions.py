@@ -949,7 +949,7 @@ def setup(baldric):
     )
     target_b.write_text("def setup(baldric):\n    pass\n", encoding="utf-8")
     entry.symlink_to(target_a)
-    runtime = ExtensionRuntime()
+    runtime = ExtensionRuntime(built_in_extensions=())
 
     runtime.load(paths, extra_paths=(entry,), include_resource_dirs=False)
 

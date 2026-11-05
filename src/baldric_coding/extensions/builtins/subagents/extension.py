@@ -44,6 +44,7 @@ from baldric_coding.extensions import (
 from baldric_coding.paths import BaldricPaths
 from baldric_coding.provider_runtime import create_model_provider
 from baldric_coding.thinking import THINKING_LEVELS, ThinkingLevel
+from baldric_coding.tools import create_coding_tools
 
 from .agents import AgentDefinition, format_agent_type_list, load_agent_definitions
 from .agents_menu import (
@@ -714,7 +715,9 @@ class SubagentManager:
                 # Children load extensions natively (pi parity), so subagents
                 # can spawn subagents and a fork's tool pool matches the
                 # parent's (shared prompt cache). `isolated: true` opts a
-                # child out, restoring a core-tools-only session.
+                # child out, restoring a core-tools-only session - see the
+                # filter below, because a switch that only covers filesystem
+                # extensions cannot remove a capability that ships built in.
                 extensions_enabled=not run.requested_isolated,
                 **extra_config,
             )
@@ -727,6 +730,17 @@ class SubagentManager:
             definition.max_turns, run.requested_max_turns, settings.default_max_turns
         )
         run.grace_turns = settings.grace_turns
+        if run.requested_isolated:
+            # `extensions_enabled=False` covers filesystem extensions; bundled
+            # capabilities load whatever that switch says, so an isolated child
+            # would otherwise still see the agent tools it asked not to have.
+            # Restricting the pool to the core coding tools is what keeps the
+            # promise, and it is the same post-load narrowing the per-type
+            # `tools:` gate below already uses.
+            core_names = {tool.name for tool in create_coding_tools(cwd=child_cwd)}
+            session._harness.config.tools = [  # noqa: SLF001 - scoped tool gating
+                tool for tool in session._harness.config.tools if tool.name in core_names
+            ]
         if definition.tools is not None:
             allowed = set(definition.tools)
             if memory_block is not None:
