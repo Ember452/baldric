@@ -142,5 +142,41 @@ Phase 1 ledger: `dev-notes/architecture/layout-migration-log.md`
   public contract pass; ruff/format pass; mypy
   `14 errors in 2 files (checked 189 source files)` (same Windows `fcntl` baseline).
 
+## Task 6b — turn loop, persistence, and compaction moved to `session/runtime.py`
+
+- **Commit:** `ac40933` `refactor(layout): move session turn loop and compaction runtime`
+- **Structure:** `session/runtime.py` owns `prompt`, `continue_`, persistence
+  (`_persist_*`, `_append_*`, `_ensure_session_*`), auto-naming, auto-compaction,
+  compaction planning/summary, and the `_PendingMessageWrite` / `CompactionPlan` /
+  `_GeneratedSummary` dataclasses.
+- **Design decision:** free functions taking `session: CodingSession` + thin
+  method delegates, not mixins. This keeps mypy strict usable: every moved function
+  is checked against the real `CodingSession` type instead of an under-annotated mixin.
+- **Size:** `session.py` 4,171 → 3,538 lines; 36 methods delegated.
+- **Compatibility risks found and fixed:**
+  - keyword-only arguments had to be passed as keywords in wrappers;
+  - async-generator wrappers must explicitly `aclose()` the inner runtime stream,
+    otherwise closing `session.prompt(...)` does not run the original cleanup
+    (auto-naming cancellation test caught this);
+  - `DEFAULT_COMPACTION_KEEP_RECENT_TOKENS` is read through `session.session`
+    dynamically so existing monkeypatch tests still affect compaction;
+  - runtime generator return types use `AsyncGenerator[..., None]` so `.aclose()` is
+    typed.
+- **Checks:** `test_coding_session.py` → `182 passed, 7 skipped`; broad group
+  (session/CLI/extensions/TUI adapter/full-output/chat/subagent integration) →
+  `639 passed, 25 skipped`; one TUI subagent test failed in the batch but passed in
+  isolation (known flake, not a deterministic regression); ruff/format pass; mypy
+  `14 errors in 2 files (checked 190 source files)` (same Windows `fcntl` baseline).
+
+### Remaining Task 6 work
+
+- `session.py` is 3,538 lines / 133 methods after 6b. Remaining seams:
+  model/thinking selection (`set_model`, `select_provider_model`, preview/commit),
+  lifecycle (`reload`, `resume`, `new_session`, `_adopt_replacement`),
+  session-tree/query surface.
+- These are state-heavy and are intentionally not being moved in the same commit
+  as the turn loop.
+
+
 
 
