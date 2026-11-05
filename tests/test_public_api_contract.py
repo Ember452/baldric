@@ -1,15 +1,11 @@
 """Contract tests for the public API surface of ``baldric_ai`` and ``baldric_agent``.
 
-Both portable packages currently derive ``__all__`` from ``globals()``, which
-silently turns every public name bound during package initialisation — including
-submodule objects — into exported API. This test pins the *current* surface so
-any future internal reorganisation that changes the exported name set is caught
-immediately.
+Public API policy: the package-root ``__all__`` list is the supported surface;
+submodule objects are implementation details and must not appear in ``__all__``.
+The definitions must stay static list literals so an internal reorganisation
+cannot silently change the exported names.
 
-Scope note: this first step records content only. The AST assertion that the
-definition must be a static list literal lands together with the Step 2 change
-that replaces the ``globals()`` comprehensions, so each step keeps this test
-green.
+See ``dev-notes/architecture/public-api-policy.md``.
 """
 
 from __future__ import annotations
@@ -58,46 +54,7 @@ EXPECTED_BALDRIC_AI = (
     "ToolCallDeltaEvent",
     "ToolCallEndEvent",
     "ToolCallStartEvent",
-    "anthropic",
-    "content",
-    "env",
-    "events",
-    "fake",
-    "google",
-    "http",
-    "http_errors",
-    "mistral",
-    "model_catalog",
-    "model_limits",
-    "openai_cache",
-    "openai_codex",
-    "openai_compatible",
     "openai_compatible_config_from_env",
-    "provider",
-    "retry",
-    "stream",
-    "tool_call_ids",
-)
-
-MODULE_EXPORTS_BALDRIC_AI = (
-    "anthropic",
-    "content",
-    "env",
-    "events",
-    "fake",
-    "google",
-    "http",
-    "http_errors",
-    "mistral",
-    "model_catalog",
-    "model_limits",
-    "openai_cache",
-    "openai_codex",
-    "openai_compatible",
-    "provider",
-    "retry",
-    "stream",
-    "tool_call_ids",
 )
 
 EXPECTED_BALDRIC_AGENT = (
@@ -155,46 +112,17 @@ EXPECTED_BALDRIC_AGENT = (
     "UsageCost",
     "UserMessage",
     "content_text",
-    "events",
-    "harness",
-    "loop",
     "message_text",
-    "messages",
-    "provider",
-    "provider_events",
     "run_agent_loop",
-    "session",
-    "tool_arguments",
-    "tool_history",
-    "tools",
-    "types",
-)
-
-MODULE_EXPORTS_BALDRIC_AGENT = (
-    "events",
-    "harness",
-    "loop",
-    "messages",
-    "provider",
-    "provider_events",
-    "session",
-    "tool_arguments",
-    "tool_history",
-    "tools",
-    "types",
 )
 
 
-def _assert_public_surface(
-    package: types.ModuleType,
-    expected: tuple[str, ...],
-    module_exports: tuple[str, ...],
-) -> None:
+def _assert_public_surface(package: types.ModuleType, expected: tuple[str, ...]) -> None:
     assert tuple(sorted(package.__all__)) == expected, f"{package.__name__}.__all__ changed"
-    actual_modules = tuple(
-        sorted(name for name in expected if isinstance(getattr(package, name), types.ModuleType))
+    module_names = sorted(
+        name for name in package.__all__ if isinstance(getattr(package, name), types.ModuleType)
     )
-    assert actual_modules == module_exports, f"{package.__name__} module exports changed"
+    assert module_names == [], f"{package.__name__} exports module objects: {module_names}"
 
 
 def _assert_static_all_literal(relative_path: str) -> None:
@@ -217,12 +145,12 @@ def _assert_static_all_literal(relative_path: str) -> None:
 
 
 def test_baldric_ai_public_api_is_frozen() -> None:
-    """Pin ``baldric_ai.__all__`` before any internal directory reorganisation."""
-    _assert_public_surface(baldric_ai, EXPECTED_BALDRIC_AI, MODULE_EXPORTS_BALDRIC_AI)
+    """Pin the supported ``baldric_ai`` public symbols."""
+    _assert_public_surface(baldric_ai, EXPECTED_BALDRIC_AI)
     _assert_static_all_literal("src/baldric_ai/__init__.py")
 
 
 def test_baldric_agent_public_api_is_frozen() -> None:
-    """Pin ``baldric_agent.__all__`` before any internal directory reorganisation."""
-    _assert_public_surface(baldric_agent, EXPECTED_BALDRIC_AGENT, MODULE_EXPORTS_BALDRIC_AGENT)
+    """Pin the supported ``baldric_agent`` public symbols."""
+    _assert_public_surface(baldric_agent, EXPECTED_BALDRIC_AGENT)
     _assert_static_all_literal("src/baldric_agent/__init__.py")
