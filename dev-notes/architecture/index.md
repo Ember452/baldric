@@ -22,6 +22,11 @@ The most important boundary is that `baldric_agent` should stay portable. It can
 
 For the practical frontend contract, see [Building a Custom TUI](../custom-tui.md).
 
+For where new code is expected to go as the project grows, see
+[Target project layout](./target-project-layout.md). That note is a blueprint, not
+a description of the current tree, and code that does not match it is not thereby
+wrong.
+
 ## Phase notes
 
 - [Phase 1: Core Types and Events](./phase-1-core-types-and-events.md)
