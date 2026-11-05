@@ -460,3 +460,38 @@ class _FakeSessionManager:
 def _component_bridge(app: BaldricTuiApp) -> _TuiExtensionUiBridge:
     """Return a host component bridge bound to a running app."""
     return _TuiExtensionUiBridge(app)
+
+
+
+class _RenderCallRuntime:
+    """Minimal extension-runtime stub for ``_connect_extension_runtime``."""
+
+    def set_ui_bridge(self, bridge) -> None:  # noqa: ANN001
+        del bridge
+
+    def set_turn_requested_callback(self, callback) -> None:  # noqa: ANN001
+        del callback
+
+    def render_custom_message(self, custom_type, content, details, expanded):  # noqa: ANN001
+        return None
+
+    def render_tool_call(self, name, arguments):  # noqa: ANN001
+        if name == "agent":
+            return f"▸ agent · {arguments.get('description')}"
+        return None
+
+    def render_tool_result(self, tool_name, result, expanded):  # noqa: ANN001
+        if tool_name == "agent" and result.details:
+            suffix = " · expanded" if expanded else ""
+            return f"[green]✓[/green] {result.details.get('description')} completed{suffix}"
+        return None
+
+
+class _CustomMessageRuntime(_RenderCallRuntime):
+    """Runtime stub whose custom renderer produces a card for notifications."""
+
+    def render_custom_message(self, custom_type, content, details, expanded):  # noqa: ANN001
+        del content, expanded
+        if custom_type != "subagent-notification" or not details:
+            return None
+        return f"[green]✓[/green] {details.get('description')} completed"
