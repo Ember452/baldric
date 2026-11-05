@@ -87,6 +87,9 @@ class RecordingSession:
         self.cwd = tmp_path
         self.model = "fake"
         self.provider_name = "fake"
+        # Deliberately not the level a hardcoded default would have picked, so a
+        # child continuing at the parent's level is observable, not coincidental.
+        self.thinking_level = "high"
         self.session_id = "session-1"
         self.system_prompt = "You are Baldric."
         self.is_running = running
@@ -1330,7 +1333,7 @@ async def test_model_and_thinking_param_precedence(tmp_path: Path) -> None:
     await agent_tool.execute("call-1", {"prompt": "x", "description": "x"})
     assert provider_names[-1] == "fake"  # inherited from parent session
     assert models[-1] == "fake"  # inherited from parent session
-    assert thinking_levels[-1] == "medium"  # DEFAULT_THINKING_LEVEL
+    assert thinking_levels[-1] == "high"  # the parent's live level
 
     await agent_tool.execute(
         "call-1",
@@ -1344,6 +1347,60 @@ async def test_model_and_thinking_param_precedence(tmp_path: Path) -> None:
     )
     assert models[-1] == "pinned-model"  # frontmatter beats the param
     assert thinking_levels[-1] == "low"
+
+
+async def test_a_child_on_another_model_sends_no_thinking_level(tmp_path: Path) -> None:
+    """A model switch leaves the parent's level behind rather than sending it on.
+
+    The host reads no level as "use this model's own default" and rejects a level
+    the model does not offer, so carrying the parent's across a switch would be
+    both wrong and fatal.
+    """
+    runtime = _load_runtime(tmp_path)
+    runtime.bind(RecordingSession(tmp_path))
+    module = _extension_module()
+    _names, _models, thinking_levels = _patch_recording_provider(
+        module, [FakeProvider([_text_stream("done")])]
+    )
+    resolutions: list[SimpleNamespace] = []
+
+    def resolve(settings, provider_name=None, model=None):  # noqa: ANN001, ANN202
+        selection = SimpleNamespace(provider=SimpleNamespace(name="fake"), model="other-model")
+        resolutions.append(selection)
+        return selection
+
+    module.resolve_provider_selection = resolve  # type: ignore[attr-defined]
+
+    await _agent_tool(runtime).execute("call-1", {"prompt": "x", "description": "x"})
+
+    assert resolutions[-1].model == "other-model"
+    assert thinking_levels[-1] is None
+
+
+async def test_a_child_on_a_different_provider_sends_no_thinking_level(
+    tmp_path: Path,
+) -> None:
+    """Same rule on the provider axis: support is a provider and model pair."""
+    runtime = _load_runtime(tmp_path)
+    runtime.bind(RecordingSession(tmp_path))
+    module = _extension_module()
+    names, _models, thinking_levels = _patch_recording_provider(
+        module, [FakeProvider([_text_stream("done")])]
+    )
+    resolutions: list[SimpleNamespace] = []
+
+    def resolve(settings, provider_name=None, model=None):  # noqa: ANN001, ANN202
+        selection = SimpleNamespace(provider=SimpleNamespace(name="other-provider"), model="fake")
+        resolutions.append(selection)
+        names.append(provider_name)
+        return selection
+
+    module.resolve_provider_selection = resolve  # type: ignore[attr-defined]
+
+    await _agent_tool(runtime).execute("call-1", {"prompt": "x", "description": "x"})
+
+    assert resolutions[-1].provider.name == "other-provider"
+    assert thinking_levels[-1] is None
 
 
 async def test_invalid_thinking_rejected(tmp_path: Path) -> None:
@@ -2275,11 +2332,10 @@ async def test_fork_inherits_history_prompt_and_model(tmp_path: Path) -> None:
         },
     )
     assert "fork done" in result.text
-    # Parent's provider and model. The pinned baldric-ai (< 0.4.0) does not
-    # expose the live thinking level, so the capture is None and the
-    # provider's persisted per-model level applies; see
-    # test_fork_passes_captured_thinking_level for the >= 0.4.0 path.
-    assert resolutions == [["fake", "fake", None]]
+    # Parent's provider, model and live thinking level: a fork is the parent
+    # conversation continued, so anything else would change the request shape
+    # that the shared prompt cache depends on.
+    assert resolutions == [["fake", "fake", "high"]]
     call = provider.calls[0]
     # System prompt is the parent's, byte-identical.
     assert call["system"] == "You are Baldric."

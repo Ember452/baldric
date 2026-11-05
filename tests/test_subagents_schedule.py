@@ -239,6 +239,7 @@ class _FakeApi:
             model="fake",
             paths=BaldricPaths(),
             project_trusted=True,
+            thinking_level="medium",
         )
         self.followed_up: list[str] = []
         self.notifications: list[str] = []

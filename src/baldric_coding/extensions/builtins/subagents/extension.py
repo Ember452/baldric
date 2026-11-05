@@ -43,7 +43,7 @@ from baldric_coding.extensions import (
 )
 from baldric_coding.paths import BaldricPaths
 from baldric_coding.provider_runtime import create_model_provider
-from baldric_coding.thinking import DEFAULT_THINKING_LEVEL, THINKING_LEVELS, ThinkingLevel
+from baldric_coding.thinking import THINKING_LEVELS, ThinkingLevel
 
 from .agents import AgentDefinition, format_agent_type_list, load_agent_definitions
 from .agents_menu import (
@@ -581,16 +581,34 @@ class SubagentManager:
                 provider_name=run.requested_provider or parent_provider,
                 model=definition.model or run.requested_model or parent_model,
             )
-            thinking_level = definition.thinking or run.requested_thinking or DEFAULT_THINKING_LEVEL
+            # An explicit level (frontmatter or parameter) passes through
+            # untouched: it is a stated intent, and the provider reports it when
+            # the model cannot honour it.
+            #
+            # With no explicit level, a child on the parent's own provider and
+            # model continues at the parent's live level. The hardcoded default
+            # this replaces failed outright on models that do not offer it, and
+            # made a child think less than the conversation that spawned it.
+            #
+            # A child on a different model gets nothing, which is the host's "no
+            # thinking parameter" case - the model's own default then applies
+            # (provider_config.py:1775, 1809 return early on None). The parent's
+            # level says nothing about that model's supported set.
+            explicit = definition.thinking or run.requested_thinking
+            if explicit:
+                thinking_level = explicit
+            elif selection.provider.name == parent_provider and selection.model == parent_model:
+                thinking_level = self._api.context.thinking_level
+            else:
+                thinking_level = None
         provider = create_model_provider(
             selection.provider,
             model=selection.model,
             # Forks run the parent's live thinking level (captured at
             # tool-call time). Any other level would put a different thinking
             # config in the fork's request and cost (part of) the shared
-            # prompt cache. When Baldric does not expose the level (pre-0.4.0)
-            # the capture is None and the provider's persisted per-model
-            # level applies instead.
+            # prompt cache. A capture without the level leaves the model's own
+            # default in place.
             thinking_level=cast("ThinkingLevel | None", thinking_level),
         )
         run.provider = provider
@@ -1590,7 +1608,11 @@ def setup(baldric: ExtensionAPI) -> None:
                     "thinking": {
                         "type": "string",
                         "enum": list(THINKING_LEVELS),
-                        "description": "Reasoning effort for the subagent (default: medium).",
+                        "description": (
+                            "Reasoning effort for the subagent. Omit it to keep this"
+                            " session's level when the subagent runs the same model;"
+                            " another model then uses its own default."
+                        ),
                     },
                     "max_turns": {
                         "type": "number",
