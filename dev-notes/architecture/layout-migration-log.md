@@ -241,7 +241,7 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 | 7 | `providers/` | `6c92452` | 37 (8 moved + 17 src refs + 15 tests + 1 script + 2 new inits) | M-1..M-7 | R100 ×2, R9x ×6 | see below | empty diff (139) | `2cccdc9` | batch 2 |
 | 8 | `session/` | `6aec645` | 31 (8 moved + 13 src refs + 12 tests + 2 new inits) | M-1..M-7 | R100 ×4, R9x ×4 | see below | empty diff (139) | `8ca814d` | batch 3 checkpoint |
 | 9 | `tools/` `backends/` `trust/` | `6e8a2fb` | 32 (6 moved + 10 non-moved src + 13 tests + 3 new inits) | M-1..M-7 | R100 ×3, R9x ×3 | see below | empty diff (139) | `a62ebec` | batch 3 |
-| 10 | `extensions/` `commands/` | `a62ebec` | 20 (3 moved + 9 src refs + 7 tests + 1 new init) | M-1..M-7 | R100 ×3 | see below | empty diff (139) | _pending_ | batch 3 |
+| 10 | `extensions/` `commands/` | `a62ebec` | 20 (3 moved + 9 src refs + 7 tests + 1 new init) | M-1..M-7 | R100 ×3 | see below | empty diff (139) | `9954257` | batch 3 |
 | 11 | facade / O-class review | _pending_ | | | | | | | |
 
 ### Task 3 — `tui/themes/` → `rendering/themes/` (batch 1)
@@ -460,5 +460,7 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 - **M-6:** direct tests `223 passed, 1 skipped in 5.30s`; mypy
   `Found 14 errors in 2 files (checked 160 source files)` (same baseline errors);
   `ruff check .` → `All checks passed!`; `ruff format --check .` → `256 files already formatted`.
+- **Batch 3 end full suite:** `2352 passed, 122 skipped in 223.10s` → `F_after = ∅`;
+  `F_after ⊆ F_before` holds. No new flake entries needed.
 - **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/`
-- **Commit:** _pending_
+- **Commit:** `9954257` (`refactor(layout): move commands and extension registries into packages`).
