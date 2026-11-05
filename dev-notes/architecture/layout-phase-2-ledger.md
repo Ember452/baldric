@@ -118,4 +118,29 @@ Phase 1 ledger: `dev-notes/architecture/layout-migration-log.md`
   re-verified. A subsequent full run timed out inside a known async/TUI test
   (no assertion failure); targeted provider and command tests remain green.
 
+## Task 6a — `session/session.py` top-level helpers extracted
+
+- **Commit:** `8e4a45d` `refactor(layout): extract session helper modules`
+- **Structure:** `session/tree_helpers.py` (message/tree/export helpers),
+  `session/provider_helpers.py` (`_PreparedProvider`, provider/thinking setup),
+  `session/resource_helpers.py` (`SessionResources`, `TerminalCommandRequest`,
+  terminal parsing, resource signatures/loading, prompt/history helpers).
+  `CodingSession`, `CodingSessionConfig`, and the dataclass definitions that are
+  part of the session object model remain in `session.py`.
+- **Staging decision:** only top-level helpers moved in 6a; the 169-method
+  `CodingSession` class is unchanged. `session.py` shrinks from 5,224 to 4,171 lines;
+  class/state splitting is deliberately deferred to 6b/6c.
+- **Compatibility found and fixed during split:**
+  - dataclass decorators for `_PreparedProvider`, `SessionResources`,
+    `TerminalCommandRequest` had to move with their classes;
+  - `create_model_provider` is resolved through `session.session` dynamically
+    because tests monkeypatch that module attribute;
+  - helper imports in `session.py` use explicit `name as name` re-exports so both
+    mypy and external imports keep working.
+- **Checks:** `test_coding_session.py` → `182 passed, 7 skipped`; broader session/CLI/
+  extension/TUI-adapter group → `613 passed, 25 skipped`; `test_public_surface` and
+  public contract pass; ruff/format pass; mypy
+  `14 errors in 2 files (checked 189 source files)` (same Windows `fcntl` baseline).
+
+
 
