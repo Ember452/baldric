@@ -140,7 +140,7 @@ Full table: `dev-notes/architecture/layout-mapping.md`.
 - `skills.py`: phase 1 keeps package depth `context/skills/skills.py`.
 - `cli.py`: phase 1 O; argv/mode split registered as phase-2 candidate.
 
-Task 2 commit: _pending_
+Task 2 commit: `2d28e27` (`docs(layout): add authoritative module-to-target mapping for phase 1`)
 
 ## Cluster log
 
