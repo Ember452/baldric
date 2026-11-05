@@ -49,6 +49,77 @@
 
 ---
 
+## 执行与评审形态（替代逐任务停下）
+
+**目标：** 把"每簇停下等确认"降为"按风险分批停下"，同时不放松每个提交的机器校验。
+首个关卡（Task 1+2）的目的——验证安全网可拒绝坏提交、闭包口径正确、基线可信——已经完成，
+此后按批次推进。
+
+| 批次 | 任务 | 停点 |
+|---|---|---|
+| **批 1** | Task 3（themes 消环） | 停：交两条 grep 结果 + 真实加载 3 个 json 证据 |
+| **批 2** | Task 4、5、6、7（auth / 叶子 / context / providers） | 停：每簇闭包数 + 各校验输出摘要 |
+| **批 3** | Task 8、9、10（session / tools-backends-trust / extensions-commands） | Task 8 完成后停一次；批末再停一次 |
+| **批 4** | Task 11、12（门面冻结复核 + 文档收口） | 终报 |
+
+**每簇的轻量校验（批内）：**
+- `uv run pytest -q <本簇相关测试文件>`（几十秒）
+- `uv run mypy`、`uv run ruff check .`、`uv run ruff format --check .`
+- `uv run python scripts/check_move_only.py HEAD`
+- `git diff --find-renames --stat HEAD~1`（被搬文件须为 R100 / R9x）
+- 门面 `__all__` 快照 `Compare-Object`（快照见 §4.4）
+- **旧路径残留扫描必须为空**：对本簇每个被搬模块，扫 `src/` ∪ `tests/` ∪ `scripts/`
+  里是否还存在 `baldric_coding.<旧模块名>`（`§4.2` 口径）。这是"遗漏的测试 import"
+  在批内唯一能替代全量的机械证据。
+- **变更文件集审计**：`git diff --name-only HEAD~1` 必须等于本簇声明的闭包集合
+  （额外只允许 `dev-notes/architecture/layout-migration-log.md`）。集合外出现任何文件 → 停下。
+
+只有**批次末尾**跑全量 `uv run pytest -q`（外加全量 mypy / ruff / format）。
+批内不跑全量的取舍：一次"只搬不改"的提交能引入的故障集中在导入与路径上
+（`ImportError`、`cannot import name`、门面少导出），mypy + `__all__` diff + 相关测试
++ 旧路径残留扫描覆盖这三种形态；逻辑回归由逐簇运行的 `check_move_only.py` 守住。
+
+### 失败集合差分（M-1 / M-5）
+
+每簇：
+- M-1 全量 → `F_before`：失败用例全 ID 集合（记录断言原文）。
+- M-4 后全量（批内以相关测试代替）→ `F_after`。
+- `F_after ⊆ F_before` → 允许继续；把两个集合写进台账。
+- 出现 `F_before` 之外的新失败 → 走"单一例外路径"，否则按 C 类停下。
+
+**单一例外路径（三证必须齐全）：**
+1. `pytest -k "<该用例全 ID>"` 单跑 3 次全通过；
+2. 本簇相关测试全绿；
+3. 该用例与被搬闭包无引用关系（用 4.2 扫描证明）。
+
+**三条防名单腐化硬约束：**
+1. `F_before` allowlist 上限 **5 个用例**；第 6 个出现时停下报告。
+2. 同一用例连续 **3 个簇**都失败 → 不是 flake，按 C 类升级。
+3. 只允许精确匹配用例全 ID（含 `[asyncio]` 等参数化后缀）+ 断言原文；
+   禁止按文件、前缀、"某个 TUI 断言"这类模糊类别豁免。
+
+### 永远优先于批次表的停止条件
+
+1. 出现 `F_before` 之外的新失败且三证不齐 → 停下。
+2. 任何 C 类失败（§5.1）→ 停下。
+3. flake allowlist 触到第 6 个用例 → 停下。
+4. 同一用例连续 3 个簇失败 → 停下。
+5. 某文件落位在蓝图/映射表里找不到对应位置 → 停下问，不许自己发明目录。
+
+### 部分移动的依赖规则（防"为了让测试过而改文件"）
+
+- **闭包是单向的**：搬模块 M 时，改所有**引用 M** 的文件；M 自己引用的模块即使尚未搬，
+  旧路径仍然有效，**不需要提前改**。因此"依赖的模块还没搬"本身不会导致失败。
+- 若 M-4 后出现"依赖的模块还没搬"式的错误，它只能是 **M-2 闭包漏算**（含字符串 /
+  动态引用）：修法是补改**当前提交**里那个引用者的 import 行；
+  **禁止**去改那个尚未搬的模块或其测试来绕过。
+- 若错误指向一个尚未到它自己任务的文件内部逻辑或测试断言：**停下报告（C 类）**，
+  不要顺手修。
+- 每簇 M-2 额外列出"被搬文件的外部 import 目标"：目标是更早批次且仍指向旧路径 → 停下；
+  目标是更晚批次 → 正常（旧路径仍有效）。
+
+---
+
 ## Global Constraints
 
 - 目标包名：`baldric_ai`、`baldric_agent`、`baldric_coding`（三层划分不变）
@@ -60,7 +131,7 @@
 - 包资源：**`data/` 永远留在 `src/baldric_coding/data/`，不随任何模块移动**（`catalog_loader.py:124` 与 `models_dev.py:158` 都用绝对锚点 `files("baldric_coding")`，与调用者所在位置无关）；主题 `.json` 随 `tui/themes/` 包一起走
 - 提交信息：英文 Conventional Commits
 - 测试：全程走 `uv run pytest`；**断言一字不动**，只允许改 import 行
-- 每个任务结束时 `uv run pytest`、`uv run mypy`、`uv run ruff check .` 三项全绿才允许进入下一任务
+- 每个任务结束时 `uv run mypy`、`uv run ruff check .`、`uv run ruff format --check .` 与本簇相关测试全绿；每个批次结束时全量 `uv run pytest` 全绿（详见「执行与评审形态」）
 - 禁止 `git add -A` / `git add .`；只显式 `git add <path>`
 
 ---
@@ -131,7 +202,7 @@ context.py         → context/project.py        （蓝图目标位置，1:1）
 
 对每个簇执行以下 7 步。**步骤顺序不可调换**，第 3 步的"先失败"是本计划最重要的单一措施。
 
-- [ ] **M-1 记录起点。** `git rev-parse HEAD` 记入台账；确认 `uv run pytest -q` 全绿。若已红，停下报告，不要带着红灯搬。
+- [ ] **M-1 记录起点与失败集合。** `git rev-parse HEAD` 记入台账；跑 `uv run pytest -q`，记录失败用例全 ID 集合 `F_before` 与断言原文（允许非空，按「失败集合差分」判定）。若 M-1 出现 `F_before` 之外的新增模式且三证不齐，停下报告。
 - [ ] **M-2 生成该簇的 import 改写清单。** 用第 4 节的扫描命令得到"谁引用了本簇的模块"，输出用 `Set-Content` 写入 `$env:TEMP` 下的临时文件，**不要写进仓库**。
 - [ ] **M-2.5 把引用闭包算全（本阶段最重要的批次规则）。** 一个提交的单位**不是目标包，而是引用闭包**：
 
@@ -152,7 +223,7 @@ context.py         → context/project.py        （蓝图目标位置，1:1）
       - 该簇只经门面被间接使用（如 `observability`、`utils` 这类低覆盖簇）→ 全绿是**正常状态**，记台账后继续，不要停下等人。
 - [ ] **M-4 执行 `git mv` + 源码 import 改写。** 一次完成本簇全部文件的移动与路径修正，同时更新 `baldric_coding/__init__.py` 的 re-export 路径与新包的空 `__init__.py`。
 - [ ] **M-5 证明零行为变化。** 见第 5 节三条校验，逐条跑。
-- [ ] **M-6 三件套全绿。** `uv run pytest`、`uv run mypy`、`uv run ruff check .`，外加 `uv run ruff format --check .`。
+- [ ] **M-6 校验。** 批内：本簇相关测试 + `uv run mypy` + `uv run ruff check .` + `uv run ruff format --check .`；批次末另跑全量 `uv run pytest`，并按「失败集合差分」比较 `F_after ⊆ F_before`。
 - [ ] **M-7 提交。** 一个簇一个 commit。Windows 改名（`local_backends.py → backends.py` 这类）走两步：`git mv a.py tmp_rename.py; git mv tmp_rename.py b.py`，避免 NTFS 大小写不敏感导致静默半成功。
 
 ---
@@ -198,17 +269,18 @@ Task 2 的产出格式（写成 `dev-notes/architecture/layout-mapping.md`，供
 
 ---
 
-## 5. 零行为变化的三条校验
+## 5. 零行为变化的校验
 
 - [ ] **重命名检测。** `git diff --find-renames --stat HEAD~1` 中被搬文件应显示 `R100`（内容完全未变）；带 import 修正的会是 `R9x`。
 - [ ] **变化范围。** 跑 `uv run python scripts/check_move_only.py HEAD`（其规格见 Task 1 Step 3）。出现任何一个非 import 块的增删行即为配方违例，回退重做。手工核对时用 `git diff --find-renames -U0 HEAD~1`。
 - [ ] **导出集不变。** 重跑 4.4 得 `facade_after.txt`，再跑
       `Compare-Object (Get-Content $facadeBefore) (Get-Content $facadeAfter)`，**输出必须为空**。
       这条守住"门面 `__all__` 冻结"。**不得用 `dir(m)` 做此检查**（理由见 4.4 注释）。
+- [ ] **失败集合差分（M-1 vs M-4）。** `F_after ⊆ F_before`；新增失败只有走完「单一例外路径」三证才能进 `F_before`，否则按 C 类停下。详见「执行与评审形态」。
 
 ## 5.1 失败分诊（M-4 之后出现任何失败时）
 
-前提：**M-1 已确认基线全绿，所以 M-4 之后的任何新失败必然是本次搬移造成的。** 不存在“是因为别的文件还没搬”这种原因——那只能说明闭包没算全。把每个失败归入三类之一：
+前提：**M-1 记录了失败集合 `F_before`；M-4 之后的任何失败先做集合差分。** `F_before` 之外的失败才可能是本次搬移造成的；`F_before` 之内的失败按既有 flake 处理但仍要记录。把所有失败归入三类之一：
 
 | 类型 | 特征 | 允许的处置 |
 |---|---|---|

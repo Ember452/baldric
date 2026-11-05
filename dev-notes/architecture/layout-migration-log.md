@@ -181,6 +181,47 @@ Safety rule adopted from this point on: self-test commits are made on a throwawa
 branch (`tmp-guard-selftest`), never on the feature branch, and `git reset --hard`
 is not used.
 
+## M-1 failure-set record (Task 3 baseline, 2026-11-05)
+
+Three consecutive full-suite runs on the same tree (`src/` and `tests/` byte-identical
+to `main`; `git diff --stat main..HEAD -- src tests` empty). Each run failed exactly
+one different TUI test; every run: `1 failed, 2351 passed, 122 skipped`.
+
+| Run | Failing test full ID | Assertion text | Isolated rerun |
+|---|---|---|---|
+| A (18:31–18:35) | `tests/test_tui_app.py::test_tui_app_skills_picker_filters_and_inserts_without_submitting[asyncio]` | `tests/test_tui_app.py:5841: AssertionError: assert not <DOMQuery query='ListItem'>` (after setting search to "missing") | 3/3 passed (3.66 / 3.45 / 3.41 s) |
+| B (18:36–18:40) | `tests/test_tui_app.py::test_streaming_code_block_hides_horizontal_scrollbar_until_finalized[asyncio]` | `tests/test_tui_app.py:5099: AssertionError: assert 0 > 0` (`BaldricMarkdownFence.max_scroll_x`) | 3/3 passed (0.91 / 0.84 / 2.08 s) |
+| C (18:41–18:45) | `tests/test_subagents_integration_tui.py::test_real_app_mounts_extension_strip_and_viewer` | `tests/test_subagents_integration_tui.py:228: AssertionError: assert not <DOMQuery query='#subagents-conversation-viewer'>` | 2/3 passed; **1/3 failed under normal load** |
+
+`F_before` (initial allowlist, 3 entries) = the three full IDs above.
+
+### Concurrency investigation
+
+- No `python.exe` / `pytest.exe` / `uv.exe` test process running during inspection;
+  `Get-CimInstance Win32_Process` showed only two autopep8 language-server Python
+  processes (started 08:38, unrelated) and the harness's own PowerShell runner.
+- No `.git/index.lock`; the only worktrees are this checkout
+  (`D:/DEVELOP/Solis/baldric` @ `fbaca0f [refactor/layout-phase-1]`) and a dormant
+  `C:/Users/7/AppData/Local/Temp/opencode/prtriage/base` (detached `3cc0bdc`), with
+  no process tied to it.
+- CPU load sampled at 2%.
+- `.pytest_cache/v/cache/lastfailed` contains stale entries from unrelated tests,
+  indicating prior partial runs in this checkout at some earlier point; no active
+  runner now.
+- Run C's third case **reproduced 1/3 in isolation under normal load** → record
+  "load normal yet reproduces"; this raises the weight that it may be a real
+  test-side defect. Per owner ruling it belongs to phase 2, not this phase, and is
+  not fixed here.
+
+### Adopted protocol
+
+Failure-set diffing replaces "baseline must be completely green": every cluster
+records `F_before`/`F_after`; `F_after ⊆ F_before` may continue; a new failure needs
+the three-evidence single-exception path (isolated 3× pass + cluster tests green +
+no reference relation via 4.2). Hard limits: allowlist ≤ 5 cases; same case failing
+in 3 consecutive clusters is a real defect (C-class); exact full-ID matching only.
+Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and §5/§5.1.
+
 ## Cluster log
 
 | Task | Cluster | Start commit | Closure files | M steps | Rename detection | check_move_only | Facade `__all__` | Commit | Notes |
