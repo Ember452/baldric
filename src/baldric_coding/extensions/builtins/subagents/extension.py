@@ -44,7 +44,7 @@ from baldric_coding.extensions import (
     MessageRenderOptions,
 )
 from baldric_coding.providers.runtime import create_model_provider
-from baldric_coding.tools import create_coding_tools
+from baldric_coding.tools.registry import create_coding_tools
 
 from .agents import AgentDefinition, format_agent_type_list, load_agent_definitions
 from .agents_menu import (

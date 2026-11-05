@@ -101,16 +101,6 @@ from baldric_coding.observability.diagnostics import (
     AgentCallDiagnosticLogger,
     new_agent_call_run_id,
 )
-from baldric_coding.project_trust import (
-    CanonicalProjectPath,
-    ProjectTrustCoordinator,
-    ProjectTrustResolution,
-    ProjectTrustStore,
-    TrustDefault,
-    TrustOverride,
-    TrustPrompt,
-    format_trust_diagnostic,
-)
 from baldric_coding.providers.config import (
     OpenAICodexProviderConfig,
     OpenAICompatibleProviderConfig,
@@ -169,7 +159,17 @@ from baldric_coding.session.manager import (
     normalize_session_name,
 )
 from baldric_coding.session.stats import SessionStats, calculate_session_stats
-from baldric_coding.tools import ImageSupportState, create_bash_tool, create_coding_tools
+from baldric_coding.tools.registry import ImageSupportState, create_bash_tool, create_coding_tools
+from baldric_coding.trust.policy import (
+    CanonicalProjectPath,
+    ProjectTrustCoordinator,
+    ProjectTrustResolution,
+    ProjectTrustStore,
+    TrustDefault,
+    TrustOverride,
+    TrustPrompt,
+    format_trust_diagnostic,
+)
 from baldric_coding.update.reload import CodingReloadSummary, ReloadCategorySummary
 
 StreamingBehavior = Literal["steer", "follow_up"]

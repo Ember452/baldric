@@ -28,8 +28,7 @@ from baldric_coding.extensions import (
     OpenAICompatibleTransport,
     ProviderModel,
 )
-from baldric_coding.tui.config import BALDRIC_DARK_THEME
-from baldric_coding.tui.local_backends import (
+from baldric_coding.tui.backends import (
     LocalBackendPickerScreen,
     LocalBackendScreen,
     LocalChoiceConfirmScreen,
@@ -37,6 +36,7 @@ from baldric_coding.tui.local_backends import (
     LocalConfirmScreen,
     LocalSearchResultsScreen,
 )
+from baldric_coding.tui.config import BALDRIC_DARK_THEME
 
 pytestmark = pytest.mark.anyio
 

@@ -13,7 +13,7 @@ from baldric_coding.session.compaction.context_window import (
     serialize_messages_for_compaction,
     summarize_messages_for_compaction,
 )
-from baldric_coding.tools import create_coding_tools
+from baldric_coding.tools.registry import create_coding_tools
 
 
 def test_text_token_estimate_is_deterministic() -> None:

@@ -30,7 +30,7 @@ from baldric_agent.tools import (
     ToolUpdateCallback,
 )
 from baldric_agent.types import JSONValue
-from baldric_coding.image_processing import (
+from baldric_coding.tools.image_processing import (
     DEFAULT_MAX_SOURCE_IMAGE_BYTES,
     ImageProcessingFailure,
     detect_image_family_mime_type,

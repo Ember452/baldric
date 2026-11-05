@@ -13,7 +13,7 @@ from baldric_coding.context.system_prompt import (
     format_available_tools,
     format_skills_for_prompt,
 )
-from baldric_coding.tools import create_coding_tools
+from baldric_coding.tools.registry import create_coding_tools
 
 
 async def _unused_executor(

@@ -21,8 +21,8 @@ from baldric_coding import (
     create_read_tool_definition,
     create_write_tool,
 )
-from baldric_coding.image_processing import DEFAULT_MAX_SOURCE_IMAGE_BYTES
-from baldric_coding.tools import ToolInputError
+from baldric_coding.tools.image_processing import DEFAULT_MAX_SOURCE_IMAGE_BYTES
+from baldric_coding.tools.registry import ToolInputError
 
 
 def image_bytes(format_name: str = "PNG", *, size: tuple[int, int] = (8, 6)) -> bytes:
@@ -113,8 +113,8 @@ async def test_file_tools_offload_blocking_io_to_threads(
     # froze the TUI); they run the bytes/text calls on a worker thread.
     import asyncio
 
-    import baldric_coding.tools as tools_module
-    from baldric_coding.tools import create_read_tool, create_write_tool
+    import baldric_coding.tools.registry as tools_module
+    from baldric_coding.tools.registry import create_read_tool, create_write_tool
 
     real = asyncio.to_thread
     seen: list[str] = []

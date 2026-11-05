@@ -29,7 +29,6 @@ from baldric_coding.context.resources import BaldricResourcePaths
 from baldric_coding.context.thinking import THINKING_LEVELS, ThinkingLevel, normalize_thinking_level
 from baldric_coding.extension_installer import ExtensionInstallError, install_extension
 from baldric_coding.extensions import StderrUiBridge
-from baldric_coding.project_trust import TrustDefault, TrustOverride
 from baldric_coding.providers.config import (
     DEFAULT_MODEL,
     DEFAULT_PROVIDER_NAME,
@@ -68,6 +67,7 @@ from baldric_coding.session.session import (
     jsonl_session_storage,
     parse_terminal_command,
 )
+from baldric_coding.trust.policy import TrustDefault, TrustOverride
 from baldric_coding.tui import run_tui_app
 from baldric_coding.update.check import (
     UpdateNotice,

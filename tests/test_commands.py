@@ -7,7 +7,7 @@ from baldric_coding.context.skills.skills import Skill
 from baldric_coding.context.system_prompt import ProjectContextFile
 from baldric_coding.session.manager import SessionManager
 from baldric_coding.session.session import ModelChoice
-from baldric_coding.tools import create_coding_tools
+from baldric_coding.tools.registry import create_coding_tools
 from baldric_coding.update.reload import CodingReloadSummary, ReloadCategorySummary
 
 

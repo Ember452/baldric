@@ -240,8 +240,7 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 | 6 | `context/` | `dd09e63` | 51 (7 moved + 26 src refs + 20 tests + 2 new inits) | M-1..M-7 | R100 ×3, R9x ×4 | see below | empty diff (139) | `6c92452` | batch 2 |
 | 7 | `providers/` | `6c92452` | 37 (8 moved + 17 src refs + 15 tests + 1 script + 2 new inits) | M-1..M-7 | R100 ×2, R9x ×6 | see below | empty diff (139) | `2cccdc9` | batch 2 |
 | 8 | `session/` | `6aec645` | 31 (8 moved + 13 src refs + 12 tests + 2 new inits) | M-1..M-7 | R100 ×4, R9x ×4 | see below | empty diff (139) | `8ca814d` | batch 3 checkpoint |
-| 8 | `session/` | _pending_ | | | | | | | |
-| 9 | `tools/` `backends/` `trust/` | _pending_ | | | | | | | |
+| 9 | `tools/` `backends/` `trust/` | `6e8a2fb` | 32 (6 moved + 10 non-moved src + 13 tests + 3 new inits) | M-1..M-7 | R100 ×3, R9x ×3 | see below | empty diff (139) | _pending_ | batch 3 |
 | 10 | `extensions/` `commands/` | _pending_ | | | | | | | |
 | 11 | facade / O-class review | _pending_ | | | | | | | |
 
@@ -412,3 +411,30 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
   `ruff check .` → `All checks passed!`; `ruff format --check .` → `252 files already formatted`.
 - **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/`
 - **Commit:** `8ca814d` (`refactor(layout): move session modules into session package`).
+
+### Task 9 — `tools/` `backends/` `trust/` (batch 3)
+
+- **Start commit:** `6e8a2fb`. `F_before` = `∅`.
+- **Closure:** 32 files = 6 moved + 10 non-moved src importers + 13 test files + 3 new package inits.
+- **4.2b:** `tests/test_project_trust.py:20` `from baldric_coding import project_trust as project_trust_module`
+  → `from baldric_coding.trust import policy as project_trust_module`.
+- **M-3 (intentional red):** 4 collection errors — `test_coding_tools.py`,
+  `test_tui_local_backends.py`, `test_project_trust.py`, `test_image_processing.py`;
+  representative `ModuleNotFoundError: No module named 'baldric_coding.tools.image_processing'`.
+- **M-4:** `tools.py` moved via `tools_tmp.py` into `tools/registry.py` (module/package
+  collision); `local_backends.py`, `tui/local_backends.py`, `project_trust.py`,
+  `tui/project_trust.py` moved with two-step renames; `tools/__init__.py`,
+  `backends/__init__.py`, `trust/__init__.py` created with docstring only.
+- **M-5 evidence:** residual old refs `(none)`; direction check
+  `backends/ → tui` → `(empty)` (correct); import smoke `all= 139`;
+  renames: `local_backends.py → backends/contracts.py` R100,
+  `image_processing.py` R100, `project_trust.py → trust/policy.py` R100;
+  `tools.py → tools/registry.py`, `tui/local_backends.py → tui/backends.py`,
+  `tui/project_trust.py → tui/trust.py` R9x. Facade `__all__` `(empty diff)` 139.
+- **M-6:** direct tests `135 passed, 15 skipped in 13.92s`; mypy
+  `Found 14 errors in 2 files (checked 159 source files)` — same 14 baseline errors,
+  with the `project_trust` group now reported at `src\baldric_coding\trust\policy.py`
+  (path rename only, identical messages/line numbers); `ruff check .` → `All checks passed!`;
+  `ruff format --check .` → `255 files already formatted`.
+- **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/`
+- **Commit:** _pending_

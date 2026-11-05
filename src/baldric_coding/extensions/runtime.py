@@ -26,6 +26,7 @@ from baldric_agent.tools import (
 )
 from baldric_agent.types import JSONValue
 from baldric_coding.auth.credentials import CredentialStore, FileCredentialStore, credentials_path
+from baldric_coding.backends.contracts import LocalBackend, LocalBackendRegistry
 from baldric_coding.built_in_extensions import BuiltInExtension, BuiltInExtensionContext
 from baldric_coding.commands import (
     CommandContext,
@@ -77,13 +78,12 @@ from baldric_coding.extensions.provider_registry import (
     ProviderRegistryCloseResult,
 )
 from baldric_coding.extensions.providers import CredentialReader, DynamicProvider
-from baldric_coding.local_backends import LocalBackend, LocalBackendRegistry
-from baldric_coding.project_trust import (
+from baldric_coding.providers.config import ProviderConfig
+from baldric_coding.trust.policy import (
     ExtensionTrustResult,
     ProjectTrustEvent,
     ProjectTrustResolution,
 )
-from baldric_coding.providers.config import ProviderConfig
 
 # Host callback that delivers a message through the frontend's serialized run
 # path when the session is idle. Carries the same presentation metadata as a

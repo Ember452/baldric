@@ -23,7 +23,7 @@ from textual.renderables.bar import Bar as BarRenderable
 from textual.screen import ModalScreen
 from textual.widgets import Input, Label, ListItem, ListView, ProgressBar, Select, Static
 
-from baldric_coding.local_backends import (
+from baldric_coding.backends.contracts import (
     LocalAction,
     LocalBackendRegistry,
     LocalBackendStatus,

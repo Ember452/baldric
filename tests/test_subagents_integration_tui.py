@@ -33,10 +33,10 @@ from baldric_coding.context.system_prompt import ProjectContextFile
 from baldric_coding.events import QueueUpdateEvent
 from baldric_coding.extensions.builtins.subagents.ui.strip import AgentStripWidget
 from baldric_coding.extensions.builtins.subagents.ui.viewer import ConversationViewer
-from baldric_coding.project_trust import ProjectTrustResolution
 from baldric_coding.session.session import ModelChoice, TerminalCommandResult
 from baldric_coding.session.stats import SessionStats
-from baldric_coding.tools import create_coding_tools
+from baldric_coding.tools.registry import create_coding_tools
+from baldric_coding.trust.policy import ProjectTrustResolution
 from baldric_coding.tui.app import BaldricTuiApp, PromptInput
 from baldric_coding.tui.widgets import TranscriptMessageWidget, TranscriptView
 

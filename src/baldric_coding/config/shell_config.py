@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.project_trust import TrustDefault
+from baldric_coding.trust.policy import TrustDefault
 
 
 class ShellConfigError(ValueError):

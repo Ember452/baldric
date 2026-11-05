@@ -113,7 +113,6 @@ from baldric_coding.extensions.api import (
     SlotWidgetContent,
     SlotWidgetFactory,
 )
-from baldric_coding.project_trust import ProjectTrustRequest, TrustChoice, TrustOverride
 from baldric_coding.providers.catalog import (
     BUILTIN_PROVIDER_CATALOG,
     ProviderCatalogEntry,
@@ -157,6 +156,7 @@ from baldric_coding.session.session import (
     jsonl_session_storage,
     parse_terminal_command,
 )
+from baldric_coding.trust.policy import ProjectTrustRequest, TrustChoice, TrustOverride
 from baldric_coding.tui.adapter import TuiEventAdapter
 from baldric_coding.tui.autocomplete import (
     CompletionItem,
@@ -164,6 +164,13 @@ from baldric_coding.tui.autocomplete import (
     CompletionOption,
     CompletionState,
     build_completion_state,
+)
+from baldric_coding.tui.backends import (
+    LocalBackendPickerScreen,
+    LocalBackendScreen,
+    LocalChoiceConfirmScreen,
+    LocalConfirmScreen,
+    LocalSearchResultsScreen,
 )
 from baldric_coding.tui.config import (
     BALDRIC_DARK_THEME,
@@ -175,14 +182,6 @@ from baldric_coding.tui.config import (
     save_tui_settings,
 )
 from baldric_coding.tui.file_drop import normalize_dropped_paths
-from baldric_coding.tui.local_backends import (
-    LocalBackendPickerScreen,
-    LocalBackendScreen,
-    LocalChoiceConfirmScreen,
-    LocalConfirmScreen,
-    LocalSearchResultsScreen,
-)
-from baldric_coding.tui.project_trust import ProjectTrustScreen, prompt_project_trust
 from baldric_coding.tui.state import (
     TuiState,
     assistant_block_is_visible,
@@ -190,6 +189,7 @@ from baldric_coding.tui.state import (
 )
 from baldric_coding.tui.terminal_notification import TerminalNotificationController
 from baldric_coding.tui.terminal_title import TerminalTitleController
+from baldric_coding.tui.trust import ProjectTrustScreen, prompt_project_trust
 from baldric_coding.tui.widgets import (
     CompactSessionInfo,
     SessionSidebar,

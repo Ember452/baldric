@@ -27,7 +27,7 @@ from baldric_coding.providers.config import (
     load_provider_settings,
 )
 from baldric_coding.rendering import PrintOutputMode
-from baldric_coding.tools import create_coding_tools
+from baldric_coding.tools.registry import create_coding_tools
 from baldric_coding.update.check import (
     ReleaseNoteSection,
     ReleaseNotesEntry,

@@ -156,7 +156,7 @@ from baldric_coding.session.session import (
     default_session_path,
     jsonl_session_storage,
 )
-from baldric_coding.tools import (
+from baldric_coding.tools.registry import (
     ImageSupportState,
     ReadOperations,
     ToolDefinition,

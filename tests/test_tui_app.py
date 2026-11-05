@@ -106,7 +106,7 @@ from baldric_coding.session.session import (
     TerminalCommandResult,
 )
 from baldric_coding.session.stats import SessionStats
-from baldric_coding.tools import create_coding_tools
+from baldric_coding.tools.registry import create_coding_tools
 from baldric_coding.tui import app as tui_app
 from baldric_coding.tui.adapter import TuiEventAdapter
 from baldric_coding.tui.app import (
@@ -149,6 +149,7 @@ from baldric_coding.tui.app import (
     _visible_completion_state,
 )
 from baldric_coding.tui.autocomplete import CompletionItem, CompletionKind, CompletionState
+from baldric_coding.tui.backends import LocalBackendScreen, LocalConfirmScreen
 from baldric_coding.tui.config import (
     BALDRIC_DARK_THEME,
     BALDRIC_LIGHT_THEME,
@@ -158,7 +159,6 @@ from baldric_coding.tui.config import (
     TuiTheme,
     tui_settings_path,
 )
-from baldric_coding.tui.local_backends import LocalBackendScreen, LocalConfirmScreen
 from baldric_coding.tui.state import ChatItem, TuiState
 from baldric_coding.tui.terminal_notification import TerminalNotificationController
 from baldric_coding.tui.terminal_title import RUNNING_TITLE_FRAMES, TerminalTitleController
