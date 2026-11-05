@@ -242,8 +242,8 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 | 8 | `session/` | `6aec645` | 31 (8 moved + 13 src refs + 12 tests + 2 new inits) | M-1..M-7 | R100 ×4, R9x ×4 | see below | empty diff (139) | `8ca814d` | batch 3 checkpoint |
 | 9 | `tools/` `backends/` `trust/` | `6e8a2fb` | 32 (6 moved + 10 non-moved src + 13 tests + 3 new inits) | M-1..M-7 | R100 ×3, R9x ×3 | see below | empty diff (139) | `a62ebec` | batch 3 |
 | 10 | `extensions/` `commands/` | `a62ebec` | 20 (3 moved + 9 src refs + 7 tests + 1 new init) | M-1..M-7 | R100 ×3 | see below | empty diff (139) | `9954257` | batch 3 |
-| 11 | facade / O-class review | `07ff10a` | 0 moved | M-11 | — | see below | `(empty diff)` 139 | _pending_ | batch 4 |
-| 12 | docs close-out | `07ff10a` | 22 doc path updates | M-12 | — | `(empty diff)` 139 | `(empty diff)` 139 | _pending_ | batch 4 |
+| 11 | facade / O-class review | `07ff10a` | 0 moved | M-11 | — | see below | `(empty diff)` 139 | `07ff10a` | batch 4 |
+| 12 | docs close-out | `07ff10a` | 22 doc path updates | M-12 | — | `(empty diff)` 139 | `(empty diff)` 139 | `2578cf4` | batch 4 |
 
 ### Task 3 — `tui/themes/` → `rendering/themes/` (batch 1)
 
@@ -473,7 +473,7 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 - O-class review: the only files touched among `rendering/` own files and `tui/` untouched
   files are import-line updates from other clusters' closures; `rendering/base.py`,
   `plain.py`, `json.py`, `transcript.py` remain byte-identical to `main`.
-- No O-class file was moved.
+- No O-class file was moved. Verified at `07ff10a` (no code commit needed).
 
 ### Task 12 — docs close-out and phase-2 entry conditions (batch 4)
 
@@ -499,6 +499,7 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
   plus the actual phase-1 state section, `config/`, `auth/oauth.py`, and `tui/config.py`
   added to the tree.
 - **`tests/test_package_metadata.py`:** `3 passed in 1.59s`.
+- **Commit:** `2578cf4` (`docs(layout): record phase 1 move results and phase 2 entry conditions`).
 
 ## Phase 2 entry conditions
 
