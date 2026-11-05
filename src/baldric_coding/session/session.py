@@ -64,8 +64,6 @@ from baldric_coding.context.thinking import (
     DEFAULT_THINKING_LEVEL,
     THINKING_LEVELS,
     ThinkingLevel,
-    next_thinking_level,
-    normalize_thinking_level,
 )
 from baldric_coding.events import (
     AgentSettledEvent,
@@ -75,7 +73,6 @@ from baldric_coding.events import (
     QueueUpdateEvent,
     SessionAgentEndEvent,
     SessionInfoChangedEvent,
-    ThinkingLevelChangedEvent,
 )
 from baldric_coding.extensions.providers import DynamicProvider, ProviderModel
 from baldric_coding.extensions.runtime import ExtensionRuntime
@@ -89,21 +86,14 @@ from baldric_coding.providers.config import (
     ProviderConfigError,
     ProviderSettings,
     load_provider_settings,
-    provider_model_supports_images,
     provider_thinking_levels,
     provider_thinking_unavailable_reason,
     resolve_provider_selection,
-    resolve_startup_thinking_level,
-    save_default_provider_model,
-    save_provider_thinking_level,
-    toggle_saved_scoped_model,
-    toggle_saved_stable_scoped_model,
     validate_huggingface_inference_provider,
     validate_provider_model,
 )
 from baldric_coding.providers.runtime import (
     ClosableModelProvider,
-    create_dynamic_model_provider,
     create_model_provider,
 )
 from baldric_coding.providers.stores.codex_model_store import (
@@ -114,6 +104,7 @@ from baldric_coding.providers.stores.models_dev_store import (
     ModelsDevRefreshResult,
     refresh_models_dev_catalog,
 )
+from baldric_coding.session import model_selection as _model_selection
 from baldric_coding.session import runtime as _session_runtime
 from baldric_coding.session.compaction.context_window import (
     DEFAULT_COMPACTION_KEEP_RECENT_TOKENS as DEFAULT_COMPACTION_KEEP_RECENT_TOKENS,
@@ -132,6 +123,12 @@ from baldric_coding.session.manager import (
     InferenceProviderMode,
     SessionManager,
     normalize_session_name,
+)
+from baldric_coding.session.model_selection import (
+    ModelChoice as ModelChoice,
+)
+from baldric_coding.session.model_selection import (
+    ModelSelectionResult as ModelSelectionResult,
 )
 from baldric_coding.session.provider_helpers import (  # noqa: F401
     _coerced_thinking_level as _coerced_thinking_level,
@@ -406,22 +403,6 @@ async def _finish_aborted_session_close(session: CodingSession) -> None:
     # attempted by CodingSession's durable, idempotent close task.
     with suppress(BaseException):
         task.result()
-
-
-@dataclass(frozen=True, slots=True)
-class ModelChoice:
-    """A selectable model and the provider that serves it."""
-
-    provider_name: str
-    model: str
-
-
-@dataclass(frozen=True, slots=True)
-class ModelSelectionResult:
-    """Result of a candidate-first provider/model selection."""
-
-    choice: ModelChoice
-    changed: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -1673,589 +1654,84 @@ class CodingSession:
         return None if message is None else message_text(message)
 
     def set_model(self, model: str) -> None:
-        """Switch the active model for future turns and make it the default."""
-        provider = self._active_provider_config()
-        if provider is not None:
-            validate_provider_model(provider, model)
-        self._harness.config.model = model
-        self._inference_provider = _configured_inference_provider(provider, model)
-        self._inference_provider_mode = _configured_inference_provider_mode(provider, model)
-        self._sync_thinking_level_to_active_model()
-        self._refresh_runtime_provider()
-        self._sync_image_support()
-        self._persist_default_model_choice()
-        if self._config.session_id is not None and self._config.session_manager is not None:
-            self._config.session_manager.touch_session(
-                self._config.session_id,
-                model=model,
-                provider_name=self.provider_name,
-                inference_provider=self._inference_provider,
-                inference_provider_mode=self._inference_provider_mode,
-                preserve_inference_provider=False,
-            )
+        return _model_selection.set_model(self, model)
 
     async def apply_startup_model_override(self, model: str) -> None:
-        """Activate and persist an explicit startup model before the next turn."""
-        provider = self._active_provider_config()
-        if provider is not None:
-            validate_provider_model(provider, model)
-        if self.model == model:
-            return
-
-        self._harness.config.model = model
-        self._inference_provider = _configured_inference_provider(provider, model)
-        self._inference_provider_mode = _configured_inference_provider_mode(provider, model)
-        self._sync_thinking_level_to_active_model()
-        self._refresh_runtime_provider()
-        self._sync_image_support()
-        entry = ModelChangeEntry(
-            parent_id=self._last_parent_id,
-            model=model,
-            provider=self.provider_name,
-        )
-        await self._append_session_entry(entry)
-        self._last_parent_id = entry.id
-        await self._refresh_persisted_state(leaf_id=entry.id)
+        return await _model_selection.apply_startup_model_override(self, model)
 
     async def select_provider_model(
         self, choice: ModelChoice, *, persist_default: bool = True
     ) -> ModelSelectionResult:
-        """Switch provider/model with candidate-first durable publication.
-
-        No active state changes until the candidate runtime exists and the
-        provider-aware model entry is committed.
-        """
-        if self._harness.is_running:
-            raise RuntimeError("Baldric is still working. Press Escape to interrupt before switching models.")
-        if choice.provider_name == self.provider_name and choice.model == self.model:
-            return ModelSelectionResult(choice, changed=False)
-
-        candidate: ClosableModelProvider | None = None
-        selected_dynamic: DynamicProvider | None = None
-        selected_config: ProviderConfig | None = None
-        selected_inference: str | None = None
-        selected_inference_mode: InferenceProviderMode = "automatic"
-        selected_thinking = self._thinking_level
-        selected_image_support: bool | None = None
-        try:
-            effective = self._provider_registry.effective(choice.provider_name)
-            if effective is not None and isinstance(effective.definition, DynamicProvider):
-                selected_dynamic = effective.definition
-                selected_model = next(
-                    (item for item in selected_dynamic.models if item.id == choice.model), None
-                )
-                if selected_model is None:
-                    raise ProviderConfigError(
-                        f"Model is not available for provider {choice.provider_name}: {choice.model}"
-                    )
-                candidate = await create_dynamic_model_provider(
-                    selected_dynamic,
-                    model=choice.model,
-                    credential_store=self._credential_store,
-                )
-                if (
-                    selected_model.thinking_levels is not None
-                    and selected_thinking not in selected_model.thinking_levels
-                ):
-                    selected_thinking = (
-                        selected_model.thinking_levels[0]
-                        if selected_model.thinking_levels
-                        else DEFAULT_THINKING_LEVEL
-                    )
-                selected_image_support = (
-                    "image" in selected_model.input_modalities
-                    if selected_model.input_modalities is not None
-                    else None
-                )
-            else:
-                if self._provider_settings is None:
-                    raise ProviderConfigError(f"Provider is not available: {choice.provider_name}")
-                selected_config = self._provider_settings.get_provider(choice.provider_name)
-                validate_provider_model(selected_config, choice.model)
-                selected_inference = _configured_inference_provider(selected_config, choice.model)
-                selected_inference_mode = _configured_inference_provider_mode(selected_config, choice.model)
-                selected_thinking = _coerced_thinking_level(
-                    selected_config,
-                    model=choice.model,
-                    current=self._thinking_level,
-                )
-                candidate = _create_runtime_provider(
-                    selected_config,
-                    credential_store=self._credential_store,
-                    model=choice.model,
-                    thinking_level=selected_thinking,
-                    inference_provider=selected_inference,
-                    response_headers_observer=(
-                        self._observe_response_headers if selected_config.name == "huggingface" else None
-                    ),
-                )
-                selected_image_support = provider_model_supports_images(selected_config, choice.model)
-
-            entry = ModelChangeEntry(
-                parent_id=self._last_parent_id,
-                model=choice.model,
-                provider=choice.provider_name,
-            )
-            await self._append_session_entry(entry)
-        except BaseException:
-            if candidate is not None:
-                await candidate.aclose()
-            raise
-
-        # From this point the transcript is authoritative. Only synchronous
-        # assignments happen before control returns to the frontend.
-        old_provider = self._harness.config.provider
-        assert candidate is not None
-        self._owned_providers.append(candidate)
-        self._harness.config.provider = candidate
-        self._harness.config.model = choice.model
-        self._provider_name = choice.provider_name
-        self._inference_provider = selected_inference
-        self._inference_provider_mode = selected_inference_mode
-        self._runtime_provider_config = selected_config
-        self._config = replace(
-            self._config,
-            provider=candidate,
-            model=choice.model,
-            provider_name=choice.provider_name,
-            inference_provider=selected_inference,
-            inference_provider_mode=selected_inference_mode,
-            runtime_provider_config=selected_config,
-            dynamic_provider=selected_dynamic,
-        )
-        self._thinking_level = selected_thinking
-        self._image_support.supported = selected_image_support
-        self._last_parent_id = entry.id
-        self._invalidate_runtime_model_limits()
-        self._invalidate_context_usage_cache()
-        try:
-            await self._refresh_persisted_state(leaf_id=entry.id)
-        except Exception as exc:  # committed history wins over repairable index failure
-            self._resource_diagnostics = (
-                *self._resource_diagnostics,
-                ResourceDiagnostic(
-                    kind="session-index",
-                    message=f"Committed model switch requires index repair: {type(exc).__name__}",
-                    severity="warning",
-                ),
-            )
-        if old_provider is not candidate:
-            with suppress(Exception):
-                await self._close_replaced_provider(old_provider)
-        if selected_config is not None and persist_default:
-            self._persist_default_model_choice()
-        return ModelSelectionResult(choice, changed=True)
+        return await _model_selection.select_provider_model(self, choice, persist_default=persist_default)
 
     def set_inference_provider(self, route: str | None) -> str:
-        """Select or reset the active Hugging Face session route."""
-        if self.provider_name != "huggingface":
-            raise ProviderConfigError("Inference-provider routing requires the huggingface provider")
-        normalized = validate_huggingface_inference_provider(route) if route is not None else None
-        mode: InferenceProviderMode = "fixed" if normalized is not None else "automatic"
-        provider, provider_config = self._build_runtime_provider(
-            inference_provider=normalized,
-        )
-        self._owned_providers.append(provider)
-        if self._config.session_manager is not None and self._config.session_id is not None:
-            self._config.session_manager.touch_session(
-                self._config.session_id,
-                model=self.model,
-                provider_name=self.provider_name,
-                inference_provider=normalized,
-                inference_provider_mode=mode,
-                preserve_inference_provider=False,
-            )
-        self._inference_provider = normalized
-        self._inference_provider_mode = mode
-        self._config = replace(
-            self._config,
-            inference_provider=normalized,
-            inference_provider_mode=mode,
-        )
-        self._activate_runtime_provider(provider, provider_config)
-        return normalized or "automatic (will pin after the next successful response)"
+        return _model_selection.set_inference_provider(self, route)
 
     def set_model_choice(self, choice: ModelChoice) -> None:
-        """Switch provider/model as one operation."""
-        if choice.provider_name == self.provider_name:
-            self.set_model(choice.model)
-            return
-        self._set_provider_model(choice.provider_name, choice.model)
+        return _model_selection.set_model_choice(self, choice)
 
     def is_scoped_model(self, choice: ModelChoice) -> bool:
-        """Return whether a provider/model pair is in the scoped model list."""
-        return choice in self.scoped_model_choices
+        return _model_selection.is_scoped_model(self, choice)
 
     def toggle_scoped_model(self, choice: ModelChoice) -> tuple[ModelChoice, ...]:
-        """Add or remove a model from the persisted scoped model list."""
-        if self._provider_settings is None:
-            raise ProviderConfigError("Provider settings are not available for this session")
-        available = set(self.available_model_choices)
-        existing = choice in self.scoped_model_choices
-        durable_settings = getattr(self, "_durable_provider_settings", self._provider_settings)
-        effective = self._provider_registry.effective(choice.provider_name)
-        if effective is not None and isinstance(effective.definition, DynamicProvider):
-            if not (
-                self._effective_stable_dynamic_scoped_provider(choice.provider_name)
-                or (existing and self._stable_dynamic_scoped_provider(choice.provider_name))
-            ):
-                raise ProviderConfigError(
-                    "Only effective trusted built-in dynamic providers support scoped references"
-                )
-            if choice not in available and not existing:
-                raise ProviderConfigError(f"Model is unavailable: {choice.provider_name}:{choice.model}")
-            toggle = toggle_saved_stable_scoped_model
-        else:
-            if choice not in available:
-                raise ProviderConfigError(f"Model is not available: {choice.provider_name}:{choice.model}")
-            durable_provider = (
-                durable_settings.get_provider(choice.provider_name) if durable_settings is not None else None
-            )
-            toggle = (
-                toggle_saved_scoped_model
-                if durable_provider is not None and choice.model in durable_provider.models
-                else toggle_saved_stable_scoped_model
-            )
-
-        updated_settings = toggle(
-            provider_name=choice.provider_name,
-            model=choice.model,
-            paths=self._resource_paths.paths,
-            fallback_settings=durable_settings,
-        )
-        if hasattr(self, "_durable_provider_settings"):
-            self._durable_provider_settings = updated_settings
-            self._apply_runtime_model_catalogs()
-        else:  # narrowly supports lightweight host/test session doubles
-            self._provider_settings = updated_settings
-        self._sync_thinking_level_to_active_model()
-        return self.scoped_model_choices
+        return _model_selection.toggle_scoped_model(self, choice)
 
     @property
     def has_pending_selection(self) -> bool:
-        """Whether a TUI selection has not yet been committed to history."""
-        return self._preview_model is not None or self._preview_thinking is not None
+        return _model_selection.has_pending_selection(self)
 
     def preview_model_choice(self, choice: ModelChoice) -> None:
-        """Select a model for the next turn without constructing or persisting a provider."""
-        if self._harness.is_running:
-            raise RuntimeError("Cannot switch models while Baldric is working")
-        if choice not in self.available_model_choices:
-            raise ProviderConfigError(f"Model is not available: {choice.provider_name}:{choice.model}")
-        self._preview_model = choice
-        levels = self.available_thinking_levels
-        if not levels:
-            self._preview_thinking = "off"
-        elif self.thinking_level not in levels:
-            self._preview_thinking = levels[0]
-        self._invalidate_runtime_model_limits()
+        return _model_selection.preview_model_choice(self, choice)
 
     def preview_thinking_level(self, level: str) -> str:
-        """Select a thinking level for the next turn without touching durable settings."""
-        normalized = normalize_thinking_level(level)
-        levels = self.available_thinking_levels
-        if not levels:
-            raise ValueError(_unavailable_thinking_message(self))
-        if normalized not in levels:
-            raise ValueError(f"Thinking mode {normalized} is not available. Available: {', '.join(levels)}")
-        self._preview_thinking = normalized
-        return f"Thinking mode: {normalized}"
+        return _model_selection.preview_thinking_level(self, level)
 
     def preview_cycle_thinking_level(self) -> str:
-        return self.preview_thinking_level(
-            next_thinking_level(self.thinking_level, available=self.available_thinking_levels)
-        )
+        return _model_selection.preview_cycle_thinking_level(self)
 
     def preview_cycle_scoped_model(self, *, reverse: bool = False) -> ModelChoice:
-        """Cycle through available scoped choices without changing durable state."""
-        available = set(self.available_model_choices)
-        scoped = tuple(choice for choice in self.scoped_model_choices if choice in available)
-        if not scoped:
-            raise ProviderConfigError("No scoped models configured.")
-        current = ModelChoice(self.provider_name, self.model)
-        try:
-            index = scoped.index(current)
-        except ValueError:
-            index = 0 if reverse else -1
-        choice = scoped[(index + (-1 if reverse else 1)) % len(scoped)]
-        self.preview_model_choice(choice)
-        return choice
+        return _model_selection.preview_cycle_scoped_model(self, reverse=reverse)
 
     async def _commit_preview(self) -> None:
-        """Commit the final pending selection before the next accepted user turn."""
-        choice, thinking = self._preview_model, self._preview_thinking
-        if choice is None and thinking is None:
-            return
-        self._preview_model = None
-        self._preview_thinking = None
-        try:
-            if choice is not None:
-                await self.select_provider_model(choice, persist_default=False)
-            if thinking is not None and thinking != self._state.thinking_level:
-                if thinking == "off" and not self.available_thinking_levels:
-                    # A non-reasoning model has no effort control to rebuild.
-                    self._thinking_level = "off"
-                if thinking != self._thinking_level and self.available_thinking_levels:
-                    await self.set_thinking_level(thinking, persist_preference=False)
-                elif thinking == self._thinking_level:
-                    # A model switch can clamp thinking before set_thinking_level
-                    # runs. Record that effective change on the same branch.
-                    entry = ThinkingLevelChangeEntry(parent_id=self._last_parent_id, thinking_level=thinking)
-                    await self._append_session_entry(entry)
-                    self._last_parent_id = entry.id
-                    await self._refresh_persisted_state(leaf_id=entry.id)
-                    await self._extension_runtime.emit_event(ThinkingLevelChangedEvent(level=thinking))
-        except Exception:
-            self._preview_model = choice
-            self._preview_thinking = thinking
-            raise
+        return await _model_selection._commit_preview(self)
 
     def cycle_scoped_model(self, *, reverse: bool = False) -> ModelChoice:
-        """Switch to the next currently available configured scoped model."""
-        available = set(self.available_model_choices)
-        scoped = tuple(choice for choice in self.scoped_model_choices if choice in available)
-        if not scoped:
-            raise ProviderConfigError("No scoped models configured.")
-        current = ModelChoice(provider_name=self.provider_name, model=self.model)
-        try:
-            current_index = scoped.index(current)
-        except ValueError:
-            current_index = -1 if not reverse else 0
-        delta = -1 if reverse else 1
-        choice = scoped[(current_index + delta) % len(scoped)]
-        self.set_model_choice(choice)
-        return choice
+        return _model_selection.cycle_scoped_model(self, reverse=reverse)
 
     def set_provider(self, provider_name: str, *, persist_default: bool = True) -> None:
-        """Switch the active provider and reset to that provider's default model."""
-        if self._provider_settings is None:
-            raise ProviderConfigError("Provider settings are not available for this session")
-        provider_config = self._provider_settings.get_provider(provider_name)
-        self._set_provider_model(
-            provider_name,
-            provider_config.default_model,
-            persist_default=persist_default,
-        )
+        return _model_selection.set_provider(self, provider_name, persist_default=persist_default)
 
-    def _set_provider_model(
-        self,
-        provider_name: str,
-        model: str,
-        *,
-        persist_default: bool = True,
-    ) -> None:
-        """Switch active provider/model without constructing an intermediate provider."""
-        if self._provider_settings is None:
-            raise ProviderConfigError("Provider settings are not available for this session")
-
-        provider_config = self._provider_settings.get_provider(provider_name)
-        if model not in provider_config.models:
-            raise ProviderConfigError(f"Model is not configured: {provider_name}:{model}")
-        thinking_level = _coerced_thinking_level(
-            provider_config,
-            model=model,
-            current=self._thinking_level,
+    def _set_provider_model(self, provider_name: str, model: str, *, persist_default: bool = True) -> None:
+        return _model_selection._set_provider_model(
+            self, provider_name, model, persist_default=persist_default
         )
-        try:
-            provider = _create_runtime_provider(
-                provider_config,
-                credential_store=self._credential_store,
-                model=model,
-                thinking_level=thinking_level,
-                inference_provider=_configured_inference_provider(provider_config, model),
-                response_headers_observer=(
-                    self._observe_response_headers if provider_config.name == "huggingface" else None
-                ),
-            )
-        except RuntimeError as exc:
-            raise ProviderConfigError(str(exc)) from exc
-        self._owned_providers.append(provider)
-        self._harness.config.provider = provider
-        self._provider_name = provider_config.name
-        self._inference_provider = _configured_inference_provider(provider_config, model)
-        self._inference_provider_mode = _configured_inference_provider_mode(provider_config, model)
-        self._runtime_provider_config = provider_config
-        self._invalidate_runtime_model_limits()
-        self._harness.config.model = model
-        self._thinking_level = thinking_level
-        self._sync_image_support()
-        if persist_default:
-            self._persist_default_model_choice()
-        if self._config.session_id is not None and self._config.session_manager is not None:
-            self._config.session_manager.touch_session(
-                self._config.session_id,
-                model=model,
-                provider_name=self.provider_name,
-                inference_provider=self._inference_provider,
-                inference_provider_mode=self._inference_provider_mode,
-                preserve_inference_provider=False,
-            )
 
     async def set_thinking_level(self, level: str, *, persist_preference: bool = True) -> str:
-        """Persist and activate a thinking mode for future turns."""
-        normalized = normalize_thinking_level(level)
-        available = self.available_thinking_levels
-        if not available:
-            raise ValueError(_unavailable_thinking_message(self))
-        if normalized not in available:
-            modes = ", ".join(available)
-            raise ValueError(
-                f"Thinking mode {normalized} is not available for "
-                f"{self._provider_name}:{self.model}. Available modes: {modes}"
-            )
-        if normalized == self._thinking_level:
-            return f"Thinking mode: {normalized}"
-
-        previous = self._thinking_level
-        self._thinking_level = normalized
-        try:
-            self._refresh_runtime_provider()
-        except ProviderConfigError:
-            self._thinking_level = previous
-            raise
-
-        entry = ThinkingLevelChangeEntry(
-            parent_id=self._last_parent_id,
-            thinking_level=normalized,
-        )
-        await self._append_session_entry(entry)
-        self._last_parent_id = entry.id
-
-        if persist_preference:
-            self._persist_thinking_level_choice()
-        await self._refresh_persisted_state(leaf_id=entry.id)
-        await self._extension_runtime.emit_event(ThinkingLevelChangedEvent(level=normalized))
-        return f"Thinking mode: {normalized}"
+        return await _model_selection.set_thinking_level(self, level, persist_preference=persist_preference)
 
     async def cycle_thinking_level(self) -> str:
-        """Cycle to the next supported thinking mode and persist it."""
-        return await self.set_thinking_level(
-            next_thinking_level(
-                self._thinking_level,
-                available=self.available_thinking_levels,
-            )
-        )
+        return await _model_selection.cycle_thinking_level(self)
 
     def _selected_provider_config(self) -> ProviderConfig | None:
-        """Resolve displayed capabilities without changing the committed runtime."""
-        if self._preview_model is None:
-            return self._active_provider_config()
-        if self._provider_settings is None:
-            return None
-        try:
-            return self._provider_settings.get_provider(self.provider_name)
-        except ProviderConfigError:
-            return None
+        return _model_selection._selected_provider_config(self)
 
     def _active_provider_config(self) -> ProviderConfig | None:
-        if self._provider_settings is None:
-            return None
-        try:
-            provider = self._provider_settings.get_provider(self._provider_name)
-        except ProviderConfigError:
-            return None
-        runtime = self._runtime_provider_config
-        if (
-            isinstance(provider, OpenAICodexProviderConfig)
-            and self._harness.config.model not in provider.models
-            and runtime is not None
-            and runtime.name == provider.name
-            and self._harness.config.model in runtime.models
-        ):
-            # Picker visibility must not invalidate an already selected runtime.
-            return runtime
-        return provider
+        return _model_selection._active_provider_config(self)
 
     def _apply_thinking_level_override(self) -> None:
-        """Apply the one-shot startup thinking override to the loaded session.
-
-        Runs once during :meth:`load`, after session state is replayed and
-        before the level is synced to the active model, so the override wins
-        over both remembered defaults and the resumed transcript state. The
-        override is validated strictly against either the active dynamic model
-        or the durable provider configuration when its capabilities are known.
-        """
-        override = self._config.thinking_level_override
-        if override is None:
-            return
-        dynamic = self._active_dynamic_provider
-        if dynamic is not None:
-            model = self._active_dynamic_model
-            levels = model.thinking_levels if model is not None else None
-            if not levels:
-                raise ProviderConfigError(f"Thinking modes are unavailable for {dynamic.id}:{self.model}")
-            if override not in levels:
-                allowed = ", ".join(levels)
-                raise ProviderConfigError(
-                    f'Thinking mode "{override}" is not available for '
-                    f"{dynamic.id}:{self.model}. Available modes: {allowed}"
-                )
-            self._thinking_level = override
-            return
-        provider = self._active_provider_config()
-        if provider is None:
-            self._thinking_level = override
-            return
-        resolved = resolve_startup_thinking_level(provider, self.model, cli_override=override)
-        if resolved is not None:
-            self._thinking_level = resolved
+        return _model_selection._apply_thinking_level_override(self)
 
     def _sync_thinking_level_to_active_model(self) -> None:
-        provider = self._active_provider_config()
-        if provider is None:
-            return
-        committed_model = self._harness.config.model
-        self._thinking_level = _coerced_thinking_level(
-            provider,
-            model=committed_model,
-            current=self._thinking_level,
-            preferred=provider.thinking_defaults.get(committed_model),
-        )
+        return _model_selection._sync_thinking_level_to_active_model(self)
 
     def _sync_image_support(self) -> None:
-        provider = self._active_provider_config() or self._runtime_provider_config
-        self._image_support.supported = (
-            provider_model_supports_images(provider, self._harness.config.model)
-            if provider is not None
-            else None
-        )
+        return _model_selection._sync_image_support(self)
 
     def _persist_default_model_choice(self) -> None:
-        if self._durable_provider_settings is None:
-            return
-        durable_provider = self._durable_provider_settings.get_provider(self.provider_name)
-        if self.model not in durable_provider.models:
-            # Account-specific inventory is deliberately not written into catalog.toml.
-            return
-        self._durable_provider_settings = save_default_provider_model(
-            provider_name=self.provider_name,
-            model=self.model,
-            paths=self._resource_paths.paths,
-            fallback_settings=self._durable_provider_settings,
-        )
-        self._apply_runtime_model_catalogs()
-        self._sync_thinking_level_to_active_model()
+        return _model_selection._persist_default_model_choice(self)
 
     def _persist_thinking_level_choice(self) -> None:
-        if self._provider_settings is None:
-            return
-        provider = self._active_provider_config()
-        if provider is None or self._thinking_level not in provider_thinking_levels(
-            provider,
-            model=self.model,
-        ):
-            return
-        try:
-            self._durable_provider_settings = save_provider_thinking_level(
-                provider_name=self.provider_name,
-                model=self.model,
-                thinking_level=self._thinking_level,
-                paths=self._resource_paths.paths,
-                fallback_settings=self._durable_provider_settings,
-            )
-            self._apply_runtime_model_catalogs()
-        except ProviderConfigError:
-            return
+        return _model_selection._persist_thinking_level_choice(self)
 
     def _observe_response_headers(self, headers: Mapping[str, str]) -> None:
         if (
