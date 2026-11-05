@@ -495,3 +495,22 @@ class _CustomMessageRuntime(_RenderCallRuntime):
         if custom_type != "subagent-notification" or not details:
             return None
         return f"[green]✓[/green] {details.get('description')} completed"
+
+
+
+def _strip_ansi(text: str) -> str:
+    import re
+    pattern = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+    return pattern.sub("", text)
+
+
+def _style_color_escape(color: str) -> str:
+    stripped = color.lstrip("#")
+    red, green, blue = (int(stripped[index : index + 2], 16) for index in (0, 2, 4))
+    return f"38;2;{red};{green};{blue}"
+
+
+def _style_rgb(color: str) -> str:
+    stripped = color.lstrip("#")
+    red, green, blue = (int(stripped[index : index + 2], 16) for index in (0, 2, 4))
+    return f"rgb({red},{green},{blue})"

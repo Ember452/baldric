@@ -192,9 +192,10 @@ from tui_helpers import (
     _CustomMessageRuntime,
     _FakeSessionManager,
     _RenderCallRuntime,
+    _strip_ansi,
+    _style_color_escape,
+    _style_rgb,
 )
-
-ANSI_PATTERN = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
 def test_herdr_uses_textual_cell_mouse_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -230,25 +231,6 @@ def test_non_herdr_terminal_keeps_textual_defaults(monkeypatch: pytest.MonkeyPat
 
     assert "TEXTUAL_SMOOTH_SCROLL" not in tui_app.os.environ
     assert tui_app.textual_constants.SMOOTH_SCROLL is True
-
-
-def _strip_ansi(text: str) -> str:
-    return ANSI_PATTERN.sub("", text)
-
-
-def _style_color_escape(color: str) -> str:
-    stripped = color.lstrip("#")
-    red, green, blue = (int(stripped[index : index + 2], 16) for index in (0, 2, 4))
-    return f"38;2;{red};{green};{blue}"
-
-
-def _style_rgb(color: str) -> str:
-    stripped = color.lstrip("#")
-    red, green, blue = (int(stripped[index : index + 2], 16) for index in (0, 2, 4))
-    return f"rgb({red},{green},{blue})"
-
-
-
 
 def _visible_footer_bindings(app: BaldricTuiApp) -> dict[str, str]:
     """Return active bindings that a Textual Footer would render if mounted."""
