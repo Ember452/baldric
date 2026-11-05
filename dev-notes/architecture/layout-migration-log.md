@@ -238,7 +238,7 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 | 4 | `auth/` | `af06dbe` | 28 (7 moved + 10 src + 9 tests + 2 new inits) | M-1..M-7 | R100 ×1, R9x ×6 | see below | empty diff (139) | `b5b1d27` | batch 2 |
 | 5 | leaf (`config/`, `update/`, `observability/`, `utils/`) | `b5b1d27` | 67 (7 moved + 35 src refs + 25 tests + 4 new inits) | M-1..M-7 | R100 ×2, R9x ×5 | see below | empty diff (139) | `dd09e63` | batch 2 |
 | 6 | `context/` | `dd09e63` | 51 (7 moved + 26 src refs + 20 tests + 2 new inits) | M-1..M-7 | R100 ×3, R9x ×4 | see below | empty diff (139) | `6c92452` | batch 2 |
-| 7 | `providers/` | `6c92452` | 37 (8 moved + 17 src refs + 15 tests + 1 script + 2 new inits) | M-1..M-7 | R100 ×2, R9x ×6 | see below | empty diff (139) | _pending_ | batch 2 |
+| 7 | `providers/` | `6c92452` | 37 (8 moved + 17 src refs + 15 tests + 1 script + 2 new inits) | M-1..M-7 | R100 ×2, R9x ×6 | see below | empty diff (139) | `2cccdc9` | batch 2 |
 | 8 | `session/` | _pending_ | | | | | | | |
 | 9 | `tools/` `backends/` `trust/` | _pending_ | | | | | | | |
 | 10 | `extensions/` `commands/` | _pending_ | | | | | | | |
@@ -374,6 +374,8 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 - **M-6:** direct tests `168 passed in 2.63s`; mypy
   `Found 14 errors in 2 files (checked 154 source files)` (same baseline errors);
   `ruff check .` → `All checks passed!`; `ruff format --check .` → `250 files already formatted`.
+- **Batch 2 end full suite:** `2352 passed, 122 skipped in 231.26s` → `F_after = ∅`;
+  `F_after ⊆ F_before` holds. No new flake entries needed.
 - **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/`
   `check_move_only: declared exceptions: tests/test_extension_providers.py`
-- **Commit:** _pending_
+- **Commit:** `2cccdc9` (`refactor(layout): move provider modules into providers package`).
