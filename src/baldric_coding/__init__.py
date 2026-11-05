@@ -23,8 +23,7 @@ from baldric_coding.auth.types import (
     OAuthProvider,
     OAuthRuntimeAuth,
 )
-from baldric_coding.built_in_extensions import BuiltInExtension, BuiltInExtensionSetup
-from baldric_coding.commands import (
+from baldric_coding.commands.registry import (
     CommandRegistry,
     CommandResult,
     SlashCommand,
@@ -80,6 +79,7 @@ from baldric_coding.context.thinking import (
     normalize_thinking_levels,
     reasoning_effort_for_level,
 )
+from baldric_coding.extensions.builtin_registry import BuiltInExtension, BuiltInExtensionSetup
 from baldric_coding.providers.catalog import (
     BUILTIN_PROVIDER_CATALOG,
     ProviderCatalogEntry,

@@ -13,7 +13,7 @@ from typing import Literal, Protocol, cast
 
 import httpx
 
-import baldric_coding.built_in_extensions as built_in_extension_registry
+import baldric_coding.extensions.builtin_registry as built_in_extension_registry
 from baldric_agent.events import AgentEvent, AgentStartEvent
 from baldric_agent.events import TurnEndEvent as AgentTurnEndEvent
 from baldric_agent.events import TurnStartEvent as AgentTurnStartEvent
@@ -27,8 +27,7 @@ from baldric_agent.tools import (
 from baldric_agent.types import JSONValue
 from baldric_coding.auth.credentials import CredentialStore, FileCredentialStore, credentials_path
 from baldric_coding.backends.contracts import LocalBackend, LocalBackendRegistry
-from baldric_coding.built_in_extensions import BuiltInExtension, BuiltInExtensionContext
-from baldric_coding.commands import (
+from baldric_coding.commands.registry import (
     CommandContext,
     CommandRegistry,
     CommandResult,
@@ -67,6 +66,7 @@ from baldric_coding.extensions.api import (
     TurnStartEvent,
     UiBridge,
 )
+from baldric_coding.extensions.builtin_registry import BuiltInExtension, BuiltInExtensionContext
 from baldric_coding.extensions.loader import (
     ExtensionSourceMetadata,
     LoadedExtension,

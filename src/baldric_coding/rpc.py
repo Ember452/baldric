@@ -17,7 +17,7 @@ from baldric_agent.messages import AssistantMessage, UserMessage
 from baldric_agent.session import JsonlSessionStorage
 from baldric_agent.session.entries import SessionEntry
 from baldric_agent.types import JSONValue
-from baldric_coding.commands import CommandRegistry
+from baldric_coding.commands.registry import CommandRegistry
 from baldric_coding.events import CodingSessionEvent
 from baldric_coding.providers.config import (
     AnthropicProviderConfig,

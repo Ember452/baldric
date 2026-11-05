@@ -22,13 +22,13 @@ from baldric_ai.env import (
     DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS,
 )
 from baldric_coding.auth.credentials import FileCredentialStore
-from baldric_coding.commands import format_reload_summary
+from baldric_coding.commands.registry import format_reload_summary
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.config.shell_config import load_shell_settings
 from baldric_coding.context.resources import BaldricResourcePaths
 from baldric_coding.context.thinking import THINKING_LEVELS, ThinkingLevel, normalize_thinking_level
-from baldric_coding.extension_installer import ExtensionInstallError, install_extension
 from baldric_coding.extensions import StderrUiBridge
+from baldric_coding.extensions.installer import ExtensionInstallError, install_extension
 from baldric_coding.providers.config import (
     DEFAULT_MODEL,
     DEFAULT_PROVIDER_NAME,

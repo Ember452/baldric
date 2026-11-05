@@ -35,7 +35,7 @@ def builtin_prompt_template_reservations() -> Mapping[str, str]:
     and deliberately not reserved here.
     """
     # Imported lazily: baldric_coding.commands imports PromptTemplate from this module.
-    from baldric_coding.commands import create_default_command_registry
+    from baldric_coding.commands.registry import create_default_command_registry
 
     reservations: dict[str, str] = {}
     for command in create_default_command_registry().list_commands():

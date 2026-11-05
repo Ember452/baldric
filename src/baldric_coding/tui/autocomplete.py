@@ -8,7 +8,7 @@ from enum import StrEnum
 from pathlib import Path
 from time import monotonic
 
-from baldric_coding.commands import CommandRegistry, SlashCommand
+from baldric_coding.commands.registry import CommandRegistry, SlashCommand
 from baldric_coding.context.gitignore import gitignore_rules_for
 from baldric_coding.context.prompts import PromptTemplate
 from baldric_coding.context.skills.skills import Skill

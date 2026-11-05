@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from baldric_coding.commands import CommandRegistry, SlashCommand, create_default_command_registry
+from baldric_coding.commands.registry import CommandRegistry, SlashCommand, create_default_command_registry
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.resources import ResourceDiagnostic
 from baldric_coding.context.skills.skills import Skill

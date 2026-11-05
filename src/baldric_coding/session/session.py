@@ -48,7 +48,7 @@ from baldric_ai.model_catalog import ModelCatalogProvider, RuntimeModel, Runtime
 from baldric_ai.model_limits import ModelLimitsProvider, RuntimeModelLimits
 from baldric_coding.auth.credentials import FileCredentialStore, credentials_path
 from baldric_coding.auth.oauth import account_id_from_access_token
-from baldric_coding.commands import CommandRegistry, CommandResult, create_default_command_registry
+from baldric_coding.commands.registry import CommandRegistry, CommandResult, create_default_command_registry
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.project import discover_project_context_with_diagnostics
 from baldric_coding.context.prompts import (

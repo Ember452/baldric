@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from rich.console import Console
 
-from baldric_coding.commands import create_default_command_registry
+from baldric_coding.commands.registry import create_default_command_registry
 from baldric_coding.context.prompts import PromptTemplate
 from baldric_coding.context.skills.skills import Skill
 from baldric_coding.tui import autocomplete as autocomplete_module

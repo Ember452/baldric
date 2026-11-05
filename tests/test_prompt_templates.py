@@ -9,7 +9,7 @@ from baldric_coding import (
     load_prompt_templates_with_diagnostics,
     render_prompt_template,
 )
-from baldric_coding.commands import create_default_command_registry
+from baldric_coding.commands.registry import create_default_command_registry
 from baldric_coding.context.prompts import PromptTemplate, builtin_prompt_template_reservations
 from baldric_coding.context.resources import ResourceError
 

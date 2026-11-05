@@ -2570,7 +2570,7 @@ def test_loads_as_a_bundled_extension(tmp_path: Path) -> None:
     half: the declaration in the shipped list registers the surfaces, reports no
     load error, and stays out of the listing the user sees while doing so.
     """
-    from baldric_coding.built_in_extensions import BUILT_IN_EXTENSIONS
+    from baldric_coding.extensions.builtin_registry import BUILT_IN_EXTENSIONS
 
     declaration = next(item for item in BUILT_IN_EXTENSIONS if item.name == "subagents")
     assert declaration.hidden is True

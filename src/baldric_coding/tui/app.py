@@ -84,7 +84,7 @@ from baldric_coding.auth.types import (
     OAuthPrompt,
     OAuthSelectPrompt,
 )
-from baldric_coding.commands import (
+from baldric_coding.commands.registry import (
     LOGIN_PROVIDER_ALIASES,
     CommandRegistry,
     create_default_command_registry,

@@ -1033,7 +1033,7 @@ def test_extension_command_errors_are_contained(tmp_path: Path) -> None:
 
 
 def _command_context(registry: object, text: str, name: str, args: str) -> object:
-    from baldric_coding.commands import CommandContext
+    from baldric_coding.commands.registry import CommandContext
 
     return CommandContext(session=None, registry=registry, text=text, name=name, args=args)  # type: ignore[arg-type]
 
@@ -2059,7 +2059,7 @@ async def test_session_loads_built_in_without_extension_discovery_or_project_tru
 ) -> None:
     from dataclasses import replace as dataclass_replace
 
-    import baldric_coding.built_in_extensions as declarations
+    import baldric_coding.extensions.builtin_registry as declarations
 
     setup_apis: list[ExtensionAPI] = []
     monkeypatch.setattr(
@@ -2108,7 +2108,7 @@ async def test_session_lifecycle_recreates_built_in_in_a_fresh_generation(
 ) -> None:
     from dataclasses import replace as dataclass_replace
 
-    import baldric_coding.built_in_extensions as declarations
+    import baldric_coding.extensions.builtin_registry as declarations
     from baldric_coding import BaldricPaths, SessionManager
 
     setup_apis: list[ExtensionAPI] = []

@@ -240,8 +240,8 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 | 6 | `context/` | `dd09e63` | 51 (7 moved + 26 src refs + 20 tests + 2 new inits) | M-1..M-7 | R100 ×3, R9x ×4 | see below | empty diff (139) | `6c92452` | batch 2 |
 | 7 | `providers/` | `6c92452` | 37 (8 moved + 17 src refs + 15 tests + 1 script + 2 new inits) | M-1..M-7 | R100 ×2, R9x ×6 | see below | empty diff (139) | `2cccdc9` | batch 2 |
 | 8 | `session/` | `6aec645` | 31 (8 moved + 13 src refs + 12 tests + 2 new inits) | M-1..M-7 | R100 ×4, R9x ×4 | see below | empty diff (139) | `8ca814d` | batch 3 checkpoint |
-| 9 | `tools/` `backends/` `trust/` | `6e8a2fb` | 32 (6 moved + 10 non-moved src + 13 tests + 3 new inits) | M-1..M-7 | R100 ×3, R9x ×3 | see below | empty diff (139) | _pending_ | batch 3 |
-| 10 | `extensions/` `commands/` | _pending_ | | | | | | | |
+| 9 | `tools/` `backends/` `trust/` | `6e8a2fb` | 32 (6 moved + 10 non-moved src + 13 tests + 3 new inits) | M-1..M-7 | R100 ×3, R9x ×3 | see below | empty diff (139) | `a62ebec` | batch 3 |
+| 10 | `extensions/` `commands/` | `a62ebec` | 20 (3 moved + 9 src refs + 7 tests + 1 new init) | M-1..M-7 | R100 ×3 | see below | empty diff (139) | _pending_ | batch 3 |
 | 11 | facade / O-class review | _pending_ | | | | | | | |
 
 ### Task 3 — `tui/themes/` → `rendering/themes/` (batch 1)
@@ -436,5 +436,29 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
   with the `project_trust` group now reported at `src\baldric_coding\trust\policy.py`
   (path rename only, identical messages/line numbers); `ruff check .` → `All checks passed!`;
   `ruff format --check .` → `255 files already formatted`.
+- **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/`
+- **Commit:** `a62ebec` (`refactor(layout): move tools backends and trust packages`).
+
+### Task 10 — `extensions/` `commands/` (batch 3)
+
+- **Start commit:** `a62ebec`. `F_before` = `∅`.
+- **Closure:** 20 files = 3 moved + 9 src referencing files + 7 test files + 1 new package init.
+- **4.2b:** none.
+- **M-3 (intentional red):** 2 collection errors — `test_extension_installer.py`,
+  `test_commands.py`; representative
+  `ModuleNotFoundError: No module named 'baldric_coding.commands.registry'; 'baldric_coding.commands' is not a package`.
+- **M-4:** `commands.py` moved via `commands_tmp.py` into `commands/registry.py`
+  (module/package collision); `built_in_extensions.py` and `extension_installer.py`
+  moved with two-step renames to `extensions/builtin_registry.py` and
+  `extensions/installer.py`; `commands/__init__.py` docstring only.
+  `rpc.py` untouched (C-class, no `modes/` directory in phase 1).
+- **M-5 evidence:** residual old refs = one non-functional comment
+  `context/prompts.py:37` (left untouched); import smoke `all= 139`;
+  all three moved files are R100 (`commands.py → commands/registry.py`,
+  `built_in_extensions.py → extensions/builtin_registry.py`,
+  `extension_installer.py → extensions/installer.py`); facade `__all__` `(empty diff)` 139.
+- **M-6:** direct tests `223 passed, 1 skipped in 5.30s`; mypy
+  `Found 14 errors in 2 files (checked 160 source files)` (same baseline errors);
+  `ruff check .` → `All checks passed!`; `ruff format --check .` → `256 files already formatted`.
 - **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/`
 - **Commit:** _pending_
