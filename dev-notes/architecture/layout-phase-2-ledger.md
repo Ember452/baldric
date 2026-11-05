@@ -219,6 +219,34 @@ selection, lifecycle, providers, resources, and tree helpers are separate module
 A further split of the remaining tree/branch query surface is possible but lower
 value than moving to the 9k-line TUI app; Task 7 is the next high-value target.
 
+## Task 7 — TUI screens extracted from `tui/app.py`
+
+- **Commit:** `f9cc9ae` `refactor(layout): extract tui screens package`
+- **Result:** `tui/app.py` 9,106 → **6,207 lines**; new `tui/screens/` package:
+  `extension`, `tools_reference`, `prompt_templates`, `sidebar`, `session_picker`,
+  `skill_picker`, `tree_picker`, `command_output`, `login`, `theme`, `model_picker`,
+  plus `support.py` for the shared `SessionCompletionRecord` and 12 picker helpers.
+- **Boundary:** extracted the contiguous screen block (33 screen classes) and the
+  13-name support closure. `PromptInput` and the `BaldricTuiApp` core remain in
+  `app.py`; `tui/screens/__init__.py` exports 36 screen names.
+- **Compatibility fixes:**
+  - `app.py` keeps explicit re-exports for all screen/support names imported by
+    tests (`name as name`), including private picker helpers and `BindingEntry`;
+  - screens resolve `BaldricTuiApp` only under `TYPE_CHECKING` and use
+    `cast("BaldricTuiApp", ...)`, avoiding a runtime import cycle;
+  - `get_oauth_provider` (login) and `_atomic_write_sidebar_file` /
+    `_write_staged_utf8` (sidebar) resolve through `tui.app` dynamically because
+    existing tests monkeypatch those module attributes.
+- **Checks:** `test_tui_app.py` → `457 passed, 40 skipped`; all TUI test files
+  except the known slow subagent integration → `671 passed, 75 skipped`, with one
+  model-picker test failing in batch and passing in isolation (known flake);
+  public-surface contract passed; ruff/format pass; mypy
+  `14 errors in 2 files (checked 205 source files)` baseline.
+- **Known residual:** `BaldricTuiApp` itself is still ~4.2k lines and `PromptInput`
+  remains in `app.py`; both are state-heavy. The next candidates are widgets
+  (`tui/widgets.py`, 3,351 lines) and `cli.py`/`modes`, not another screen split.
+
+
 
 
 
