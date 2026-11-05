@@ -12451,8 +12451,3 @@ async def test_run_tui_app_ignores_uncredentialed_provider_when_matching_resume_
 # (the transcript-source seam and host agent UI left core).
 
 
-def _component_bridge(app: BaldricTuiApp) -> _TuiExtensionUiBridge:
-    """Return a host component bridge bound to a running app."""
-    return _TuiExtensionUiBridge(app)
-
-
