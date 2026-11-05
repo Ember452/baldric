@@ -9,7 +9,7 @@ wheels/
 .pytest_cache/
 
 # Virtual environments
-.venv
+.venv*/
 
 # Website build output and dependencies
 website/public/
