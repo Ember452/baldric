@@ -226,7 +226,7 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
 
 | Task | Cluster | Start commit | Closure files | M steps | Rename detection | check_move_only | Facade `__all__` | Commit | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| 3 | `rendering/themes` | `3e470cb` | 17 (4 moved + 7 src + 6 tests) | M-1..M-7 | R100 ×4 | see below | empty diff (139) | _pending_ | batch 1 |
+| 3 | `rendering/themes` | `3e470cb` | 17 (4 moved + 7 src + 6 tests) | M-1..M-7 | R100 ×4 | see below | empty diff (139) | `e36eae8` | batch 1 |
 | 4 | `auth/` | _pending_ | | | | | | | |
 | 5 | leaf (`config/`, `update/`, `observability/`, `utils/`) | _pending_ | | | | | | | |
 | 6 | `context/` | _pending_ | | | | | | | |
@@ -273,4 +273,4 @@ Written into `plans/layout-phase-1-moves.md` §「执行与评审形态」 and �
   passes in isolation) and hung >15 min; killed. Attempt 2 with `--timeout=120`:
   `2352 passed, 122 skipped in 268.12s` → `F_after = ∅`; `F_after ⊆ F_before` holds.
 - **`check_move_only.py HEAD` actual output:** `check_move_only: OK -- HEAD contains no non-import changes under src/ or tests/`
-- **Commit:** _pending_ (hash recorded in Task 12 final table).
+- **Commit:** `e36eae8` (`refactor(layout): move tui themes into rendering`).
