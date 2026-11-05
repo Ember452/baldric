@@ -525,3 +525,37 @@ Also still second phase: `modes/` subtree (`interactive/`, `print.py`, `json.py`
 `extensions/package_manager.py`, `mcp/`, `security/`, `providers/virtual_models.py` /
 `providers/compose/`, `tools/base.py`/`truncate.py`/`output_accumulator.py`, and the
 `examples/` duplicate cleanup (separate small PR, explicitly out of phase 1).
+
+## Independent phase-1 review closure (2026-11-05)
+
+Review method: exhaustive, not sampled. Functional checks used over regex where
+regex was structurally unable to distinguish old and new paths. Final verdict:
+mergeable; 0 blocking findings.
+
+**Flake-protocol positive evidence (requested by reviewer):**
+- `F_before` allowlist at phase start: 3 exact TUI test IDs (recorded above).
+- Additions during all of phase 1: **0** (allowlist stayed 3/5; no sixth case, no
+  repeat offender across clusters).
+- Every batch-end full suite produced `F_after = ∅`: batch 2 `2352 passed, 122 skipped`,
+  batch 3 `2352 passed, 122 skipped`, final `2352 passed, 122 skipped` — identical to the
+  `main` baseline count, so no test was lost or silently skipped by the refactor.
+
+**Review-statement corrections (do not affect the merge verdict):**
+- The source-tree diff has **92 name-status entries**, not 98: `R100 = 12`, `R9x = 38`,
+  `A = 16`, `M = 26`, `D = 0`. The "98" figure is the pre-move count of
+  `src/baldric_coding/*.py`; after the 16 new package inits it is **114**.
+- New package `__init__.py` files are **16/16** with zero import lines (not 12/12).
+  This matches the reviewer's own `checked 160 = 144 + 16` observation.
+
+**Phase-2 watch list added from the review:**
+1. New same-name module pairs are intentional but visible in stack traces:
+   `providers/loader.py` vs `extensions/loader.py`, `providers/runtime.py` vs
+   `extensions/runtime.py`, `providers/config.py` vs `tui/config.py`,
+   `extensions/providers.py` vs the `providers/` package.
+2. `context/skills/skills.py` double name should be reviewed with `context/prompts.py`.
+3. `dev-notes/design/project-trust.md:326` is a historical design proposal; consider a
+   current-state annotation rather than a rewrite.
+4. `dev-notes/design/component-seam-experiment.md:134` `baldric_coding.tui.theme`
+   (singular) typo predates phase 1; not phase-1 debt.
+5. `session/export.py` (parked file) vs the blueprint's future `session/export/` directory
+   must be resolved when phase 2 splits it.
