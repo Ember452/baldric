@@ -29,6 +29,7 @@ from baldric_coding.context.resources import BaldricResourcePaths
 from baldric_coding.context.thinking import THINKING_LEVELS, ThinkingLevel, normalize_thinking_level
 from baldric_coding.extensions import StderrUiBridge
 from baldric_coding.extensions.installer import ExtensionInstallError, install_extension
+from baldric_coding.modes.rpc import RpcServer
 from baldric_coding.providers.config import (
     DEFAULT_MODEL,
     DEFAULT_PROVIDER_NAME,
@@ -52,7 +53,6 @@ from baldric_coding.providers.stores.models_dev_store import (
     refresh_models_dev_catalog,
 )
 from baldric_coding.rendering import PrintOutputMode, create_event_renderer
-from baldric_coding.rpc import RpcServer
 from baldric_coding.session.export import (
     default_session_export_artifact_path,
     export_session_artifact,
