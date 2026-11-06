@@ -15,10 +15,13 @@ concurrency:
 permissions: {}
 
 jobs:
-  python:
+  # Static checks are fast (~90s) and independent of the test suite, so they run
+  # in their own job: a lint or type error is reported in well under two minutes
+  # instead of waiting behind a five-minute pytest run.
+  static:
     permissions:
       contents: read
-    name: Python checks
+    name: Static checks
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -36,9 +39,6 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --dev --locked
-
-      - name: Run tests with coverage
-        run: uv run pytest --cov
 
       - name: Run Ruff lint
         run: uv run ruff check .
@@ -67,6 +67,40 @@ jobs:
       # A passing check that silently left files behind is not a passing check:
       # generated artifacts, formatter drift, or an edited baseline must be
       # committed (or reverted) before the run is meaningful.
+      - name: Assert a clean worktree
+        if: ${{ always() }}
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::The worktree changed during CI; commit generated files or revert unintended edits."
+            git status --porcelain
+            exit 1
+          fi
+
+  tests:
+    permissions:
+      contents: read
+    name: Tests with coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version-file: .python-version
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --dev --locked
+
+      - name: Run tests with coverage
+        run: uv run pytest --cov
+
       - name: Assert a clean worktree
         if: ${{ always() }}
         run: |
@@ -176,6 +210,42 @@ jobs:
       - name: Test website
         run: npm test
 
+  # Windows-only regressions cannot be seen from a Linux runner: text-mode
+  # stdout writes CRLF, stdin decodes through the system code page, and path
+  # handling differs. This job runs the deterministic core domains on Windows so
+  # those regressions surface in CI instead of on the maintainer's machine.
+  #
+  # The Textual TUI is deliberately excluded. TUI tests hang intermittently in
+  # the Windows asyncio backend (a known limitation documented in AGENTS.md);
+  # including them would make this job flaky and end up ignored.
+  windows-smoke:
+    permissions:
+      contents: read
+    name: Tests on Windows
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version-file: .python-version
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --dev --locked
+
+      - name: Run core domains
+        run: >
+          uv run pytest
+          tests/agent tests/ai tests/guards tests/invariants
+          tests/coding/commands tests/coding/cli tests/coding/providers
+
   # One required check instead of enumerating jobs in branch protection.
   #
   # `always()` is load-bearing: without it GitHub skips this job after a failed
@@ -186,15 +256,17 @@ jobs:
     permissions: {}
     name: All checks passed
     runs-on: ubuntu-latest
-    needs: [python, pytest-matrix, collection-gate, docs]
+    needs: [static, tests, pytest-matrix, collection-gate, docs, windows-smoke]
     if: ${{ always() }}
     steps:
       - name: Report dependency results
         run: |
-          echo "python:        ${{ needs.python.result }}"
-          echo "pytest-matrix: ${{ needs.pytest-matrix.result }}"
+          echo "static:          ${{ needs.static.result }}"
+          echo "tests:           ${{ needs.tests.result }}"
+          echo "pytest-matrix:   ${{ needs.pytest-matrix.result }}"
           echo "collection-gate: ${{ needs.collection-gate.result }}"
-          echo "docs:          ${{ needs.docs.result }}"
+          echo "docs:            ${{ needs.docs.result }}"
+          echo "windows-smoke:   ${{ needs.windows-smoke.result }}"
 
       - name: Fail when any required job did not succeed
         if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
