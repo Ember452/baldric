@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import suppress
-from json import JSONDecodeError, dumps, loads
+from json import dumps, loads
 from typing import Any, Protocol
 
 import httpx
@@ -42,6 +42,7 @@ from baldric_ai._provider_events import (
     ProviderToolCallEvent,
     ProviderToolCallStartEvent,
 )
+from baldric_ai._sse import loads_object as _loads_object
 from baldric_ai.content import (
     NON_VISION_TOOL_IMAGE_PLACEHOLDER,
     NON_VISION_USER_IMAGE_PLACEHOLDER,
@@ -1335,16 +1336,6 @@ def _parse_sse_line(line: str) -> str | None:
         return None
     data = line.removeprefix("data:").strip()
     return data or None
-
-
-def _loads_object(value: str) -> dict[str, JSONValue] | None:
-    try:
-        loaded = loads(value)
-    except JSONDecodeError:
-        return None
-    if isinstance(loaded, dict):
-        return loaded
-    return None
 
 
 def _first_choice(chunk: Mapping[str, Any]) -> Mapping[str, Any] | None:

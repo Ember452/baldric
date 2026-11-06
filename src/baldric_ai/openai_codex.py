@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from dataclasses import dataclass
-from json import JSONDecodeError, dumps, loads
+from json import dumps, loads
 from platform import machine, release, system
 from typing import Any, Literal, cast
 
@@ -34,6 +34,7 @@ from baldric_ai._provider_events import (
     ProviderToolCallEvent,
     ProviderToolCallStartEvent,
 )
+from baldric_ai._sse import loads_object as _loads_object
 from baldric_ai.content import (
     NON_VISION_TOOL_IMAGE_PLACEHOLDER,
     NON_VISION_USER_IMAGE_PLACEHOLDER,
@@ -1177,16 +1178,6 @@ def _split_tool_call_id(value: str) -> tuple[str, str | None]:
         return value, None
     call_id, item_id = value.split("|", 1)
     return call_id, item_id or None
-
-
-def _loads_object(value: str) -> dict[str, JSONValue] | None:
-    try:
-        loaded = loads(value)
-    except JSONDecodeError:
-        return None
-    if isinstance(loaded, dict):
-        return loaded
-    return None
 
 
 def _is_terminal_rate_limit(body: str) -> bool:

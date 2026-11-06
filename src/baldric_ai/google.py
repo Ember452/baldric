@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Mapping
-from json import JSONDecodeError, loads
 
 import httpx
 
@@ -29,6 +28,7 @@ from baldric_ai._provider_events import (
     ProviderThinkingDeltaEvent,
     ProviderToolCallEvent,
 )
+from baldric_ai._sse import loads_object as _loads_object
 from baldric_ai.content import (
     NON_VISION_TOOL_IMAGE_PLACEHOLDER,
     NON_VISION_USER_IMAGE_PLACEHOLDER,
@@ -542,14 +542,6 @@ def _parse_sse_line(line: str) -> str | None:
         return None
     data = line.removeprefix("data:").strip()
     return data or None
-
-
-def _loads_object(value: str) -> dict[str, JSONValue] | None:
-    try:
-        loaded = loads(value)
-    except JSONDecodeError:
-        return None
-    return loaded if isinstance(loaded, dict) else None
 
 
 def _string_or_default(value: object, default: str) -> str:
