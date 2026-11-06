@@ -13,8 +13,8 @@
       "max_function_stmts": 7
     },
     "src/baldric_agent/loop.py": {
-      "lines": 534,
-      "max_function_stmts": 16
+      "lines": 601,
+      "max_function_stmts": 17
     },
     "src/baldric_agent/messages.py": {
       "lines": 320,

@@ -71,6 +71,7 @@ wrong.
 - [Bounded TUI Transcript Rendering](./tui-long-transcript-performance.md)
 - [Phase 24: Session Tree Branching](./phase-24-session-tree-branching.md)
 - [Wire contract baselines](./wire-contract-baselines.md)
+- [Truncated responses never execute tool calls](./truncated-tool-calls.md)
 
 Phase 21 extensions are implemented; see the phase note and the user guide at
 `website/content/guides/extensions.md`.

@@ -22,7 +22,7 @@ from baldric_agent import (
     UserMessage,
 )
 from baldric_agent.loop import _execute_tool_call, run_agent_loop
-from baldric_agent.provider_events import ThinkingDeltaEvent
+from baldric_agent.provider_events import AssistantDoneEvent, ThinkingDeltaEvent
 from baldric_agent.types import JSONValue
 from baldric_ai import CancellationToken, FakeProvider
 from tests.helpers.pi_event_helpers import (
@@ -232,6 +232,190 @@ async def test_agent_loop_executes_tool_and_emits_tool_result_message_lifecycle(
     assert result_lifecycle == ["message_end"]
     assert [event.type for event in events].count("message_start") == 3
     assert provider.calls[1][2] == messages[:3]
+
+
+@pytest.mark.anyio
+async def test_length_truncated_tool_calls_are_not_executed() -> None:
+    executed: list[str] = []
+
+    async def execute(
+        tool_call_id: str,
+        arguments: Mapping[str, JSONValue],
+        signal: CancellationToken | None = None,
+        on_update=None,  # noqa: ANN001
+    ) -> AgentToolResult:
+        executed.append(tool_call_id)
+        raise AssertionError("a truncated tool call must not run")
+
+    first_call = ToolCall(id="call-1", name="read", arguments={"path": "READ"})
+    second_call = ToolCall(id="call-2", name="read", arguments={"path": "ME"})
+    truncated = AssistantMessage(content=[first_call, second_call], model="fake")
+    truncated.stop_reason = "length"
+    final = AssistantMessage(content="Re-issued.", model="fake")
+    provider = FakeProvider(
+        [
+            [
+                assistant_start(),
+                tool_call_end(first_call),
+                tool_call_end(second_call),
+                # Built directly: the shared helper treats any tool call as
+                # toolUse, which would hide the truncation this test covers.
+                AssistantDoneEvent(reason="length", message=truncated),
+            ],
+            [assistant_start(), text_delta("Re-issued."), assistant_done(final)],
+        ]
+    )
+    messages: list[AgentMessage] = [UserMessage(content="Read both files")]
+
+    events = await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=messages,
+            tools=[_tool("read", execute)],
+        )
+    )
+
+    assert executed == []
+    assert len(provider.calls) == 2
+    results = [message for message in messages if isinstance(message, ToolResultMessage)]
+    assert [result.tool_call_id for result in results] == ["call-1", "call-2"]
+    assert all(result.is_error for result in results)
+    assert all("output token limit" in result.text for result in results)
+    ends = [event for event in events if isinstance(event, ToolExecutionEndEvent)]
+    assert [event.tool_call_id for event in ends] == ["call-1", "call-2"]
+    assert all(event.is_error for event in ends)
+    assert events[-1].type == "agent_end"
+
+
+@pytest.mark.anyio
+async def test_length_without_tool_calls_ends_normally() -> None:
+    truncated = AssistantMessage(content="cut off", model="fake")
+    truncated.stop_reason = "length"
+    provider = FakeProvider(
+        [
+            [
+                assistant_start(),
+                text_delta("cut off"),
+                AssistantDoneEvent(reason="length", message=truncated),
+            ]
+        ]
+    )
+    messages: list[AgentMessage] = [UserMessage(content="Say something")]
+
+    events = await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=messages,
+            tools=[],
+        )
+    )
+
+    assert len(provider.calls) == 1
+    assert not any(isinstance(event, ToolExecutionEndEvent) for event in events)
+    assert events[-1].type == "agent_end"
+
+
+@pytest.mark.anyio
+async def test_repeated_truncated_tool_turns_stop_the_run() -> None:
+    executed: list[str] = []
+
+    async def execute(
+        tool_call_id: str,
+        arguments: Mapping[str, JSONValue],
+        signal: CancellationToken | None = None,
+        on_update=None,  # noqa: ANN001
+    ) -> AgentToolResult:
+        executed.append(tool_call_id)
+        raise AssertionError("a truncated tool call must not run")
+
+    streams = []
+    for index in range(3):
+        call = ToolCall(id=f"call-{index}", name="read", arguments={"path": "README.md"})
+        truncated = AssistantMessage(content=[call], model="fake")
+        truncated.stop_reason = "length"
+        streams.append(
+            [
+                assistant_start(),
+                tool_call_end(call),
+                AssistantDoneEvent(reason="length", message=truncated),
+            ]
+        )
+    provider = FakeProvider(streams)
+    messages: list[AgentMessage] = [UserMessage(content="Read README.md")]
+
+    events = await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=messages,
+            tools=[_tool("read", execute)],
+        )
+    )
+
+    assert executed == []
+    assert len(provider.calls) == 3
+    assert len([message for message in messages if isinstance(message, ToolResultMessage)]) == 3
+    assert events[-1].type == "agent_end"
+
+
+@pytest.mark.anyio
+async def test_a_normal_tool_turn_resets_the_truncation_budget() -> None:
+    async def execute(
+        tool_call_id: str,
+        arguments: Mapping[str, JSONValue],
+        signal: CancellationToken | None = None,
+        on_update=None,  # noqa: ANN001
+    ) -> AgentToolResult:
+        del tool_call_id, arguments, signal, on_update
+        return AgentToolResult(content=[TextContent(text="contents")])
+
+    def truncated_stream(index: int) -> list[object]:
+        call = ToolCall(id=f"cut-{index}", name="read", arguments={"path": "README.md"})
+        truncated = AssistantMessage(content=[call], model="fake")
+        truncated.stop_reason = "length"
+        return [
+            assistant_start(),
+            tool_call_end(call),
+            AssistantDoneEvent(reason="length", message=truncated),
+        ]
+
+    executed_call = ToolCall(id="call-run", name="read", arguments={"path": "README.md"})
+    executed_message = AssistantMessage(content=[executed_call], model="fake")
+    final = AssistantMessage(content="Done.", model="fake")
+    provider = FakeProvider(
+        [
+            truncated_stream(1),
+            [
+                assistant_start(),
+                tool_call_end(executed_call),
+                assistant_done(executed_message, "toolUse"),
+            ],
+            truncated_stream(2),
+            truncated_stream(3),
+            [assistant_start(), text_delta("Done."), assistant_done(final)],
+        ]
+    )
+    messages: list[AgentMessage] = [UserMessage(content="Read README.md")]
+
+    events = await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=messages,
+            tools=[_tool("read", execute)],
+        )
+    )
+
+    # Two truncations before the successful turn and two after must not reach the
+    # budget of three consecutive truncated turns.
+    assert len(provider.calls) == 5
+    assert events[-1].type == "agent_end"
 
 
 @pytest.mark.anyio

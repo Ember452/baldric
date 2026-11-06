@@ -52,6 +52,11 @@ AfterToolCall = Callable[
     Awaitable[tuple[AgentToolResult, bool]],
 ]
 
+# A model that keeps hitting the output limit on tool calls would otherwise loop
+# forever: a truncated turn executes nothing, so the provider-failure counter
+# never advances.
+MAX_TRUNCATED_TURNS = 3
+
 
 async def run_agent_loop(
     *,
@@ -98,6 +103,7 @@ async def run_agent_loop(
     turn = 1
     first_turn = True
     consecutive_errors = 0
+    truncated_turns = 0
     pending = tuple(get_steering_messages() if get_steering_messages else ())
     # Error text of the tool call that cancelled the run, e.g. a hook's reason.
     stop_note: str | None = None
@@ -193,6 +199,26 @@ async def run_agent_loop(
             tool_results: list[ToolResultMessage] = []
             final_tool_results: list[AgentToolResult] = []
             calls = list(assistant.tool_calls)
+            if assistant.stop_reason == "length" and calls:
+                # A response cut off by the output limit can carry arguments that
+                # parse and validate but are silently incomplete, so none of them
+                # may run. Report each call as a recoverable error and give the
+                # model a bounded number of chances to re-issue complete ones.
+                truncated_turns += 1
+                async for event in _fail_truncated_tool_calls(assistant, tool_results):
+                    yield event
+                messages.extend(tool_results)
+                new_messages.extend(tool_results)
+                yield TurnEndEvent(message=assistant, tool_results=tool_results)
+                turn += 1
+                if truncated_turns >= MAX_TRUNCATED_TURNS:
+                    yield AgentEndEvent(messages=new_messages)
+                    return
+                has_more_tools = True
+                pending = tuple(get_steering_messages() if get_steering_messages else ())
+                continue
+
+            truncated_turns = 0
             for call in calls:
                 cancelled_before = signal is not None and signal.is_cancelled()
                 async for event in _execute_tool_call(
@@ -441,6 +467,47 @@ async def _execute_tool_call(
     )
     yield MessageStartEvent(message=message)
     yield MessageEndEvent(message=message)
+
+
+async def _fail_truncated_tool_calls(
+    assistant: AssistantMessage,
+    tool_results: list[ToolResultMessage],
+) -> AsyncIterator[AgentEvent]:
+    """Report every call of a length-truncated turn without executing it.
+
+    Streamed tool arguments are finalized with a best-effort JSON salvage, so a
+    response cut off by the output limit can carry arguments that parse and
+    validate but are silently incomplete. None of them are safe to run, and a
+    schema check cannot catch the difference, so each call becomes a recoverable
+    error the model can re-issue.
+    """
+    for call in assistant.tool_calls:
+        yield ToolExecutionStartEvent(
+            tool_call_id=call.id,
+            tool_name=call.name,
+            args=call.arguments,
+        )
+        result = _error_result(
+            f'Tool call "{call.name}" was not executed: the response hit the output token '
+            "limit, so its arguments may be truncated. Re-issue the call with complete "
+            "arguments."
+        )
+        yield ToolExecutionEndEvent(
+            tool_call_id=call.id,
+            tool_name=call.name,
+            result=result,
+            is_error=True,
+        )
+        message = ToolResultMessage(
+            tool_call_id=call.id,
+            tool_name=call.name,
+            content=result.content,
+            details=result.details,
+            is_error=True,
+        )
+        yield MessageStartEvent(message=message)
+        yield MessageEndEvent(message=message)
+        tool_results.append(message)
 
 
 def _checked_arguments(tool: AgentTool, call: ToolCall) -> tuple[Mapping[str, JSONValue], list[str]]:
