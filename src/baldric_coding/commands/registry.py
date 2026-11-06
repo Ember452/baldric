@@ -32,6 +32,7 @@ from baldric_coding.commands.core import (
 from baldric_coding.commands.formatting import format_reload_summary, format_resource_diagnostics
 from baldric_coding.commands.resources import (
     _diagnostics_command,
+    _extensions_command,
     _prompts_command,
     _reload_command,
     _skill_command,
@@ -90,6 +91,15 @@ def create_default_command_registry() -> CommandRegistry:
             description="Show resource loading diagnostics.",
             handler=_diagnostics_command,
             search_terms=("errors", "warnings", "loading"),
+        )
+    )
+    registry.register(
+        SlashCommand(
+            name="extensions",
+            usage="/extensions",
+            description="Browse loaded extensions and diagnostics.",
+            handler=_extensions_command,
+            search_terms=("plugins", "addons"),
         )
     )
     registry.register(

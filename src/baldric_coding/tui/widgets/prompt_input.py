@@ -154,6 +154,12 @@ def _prompt_bindings(
             "Copy/Clear",
             priority=True,
         ),
+        Binding(
+            keybindings.external_editor,
+            "open_external_editor",
+            "Editor",
+            priority=True,
+        ),
         Binding(keybindings.quit, "quit", "Quit", priority=True),
     ]
     return bindings + _hidden_prompt_bindings(keybindings, visible_bindings=bindings)
@@ -532,6 +538,10 @@ class PromptInput(TextArea):
         elif event.key == keybindings.quit:
             event.stop()
             await self.action_quit()
+        elif event.key == keybindings.external_editor:
+            event.stop()
+            event.prevent_default()
+            await self._completion_target().action_open_external_editor()
 
     def _has_completion_options(self) -> bool:
         completion_state = getattr(self.app, "_completion_state", None)
@@ -567,6 +577,8 @@ class CompletionActionTarget(Protocol):
     def action_toggle_thinking(self) -> None: ...
 
     def action_edit_queued_message(self) -> bool: ...
+
+    async def action_open_external_editor(self) -> None: ...
 
     async def action_submit_prompt(self) -> None: ...
 

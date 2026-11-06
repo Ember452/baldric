@@ -7,6 +7,7 @@ from shutil import copy2  # noqa: F401 - tests monkeypatch this module's copy2
 
 from baldric_coding.providers.config.credentials import provider_has_usable_credentials
 from baldric_coding.providers.config.models import (
+    DEFAULT_HUGGINGFACE_INFERENCE_PROVIDER,
     DEFAULT_MODEL,
     DEFAULT_PROVIDER_NAME,
     PROVIDER_SETTINGS_SCHEMA_VERSION,
@@ -59,6 +60,7 @@ from baldric_coding.providers.config.validation import provider_settings_from_js
 from baldric_coding.providers.loader import save_user_catalog_entries  # noqa: F401
 
 __all__ = [
+    "DEFAULT_HUGGINGFACE_INFERENCE_PROVIDER",
     "DEFAULT_MODEL",
     "DEFAULT_PROVIDER_NAME",
     "PROVIDER_SETTINGS_SCHEMA_VERSION",

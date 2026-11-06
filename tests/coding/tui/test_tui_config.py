@@ -241,3 +241,45 @@ def test_tui_sidebar_position_rejects_invalid() -> None:
 
     with pytest.raises(TuiConfigError, match="sidebar_position"):
         tui_settings_from_json({"sidebar_position": 123})
+
+
+def test_tui_external_editor_keybinding_defaults_and_roundtrips() -> None:
+    assert TuiKeybindings().external_editor == "ctrl+e"
+    settings = tui_settings_from_json({"keybindings": {"external_editor": "ctrl+shift+e"}})
+    assert settings.keybindings.external_editor == "ctrl+shift+e"
+    assert settings.to_json()["keybindings"]["external_editor"] == "ctrl+shift+e"
+
+
+def test_tui_external_editor_keybinding_rejects_duplicates() -> None:
+    with pytest.raises(TuiConfigError, match="assigned to both"):
+        tui_settings_from_json(
+            {
+                "keybindings": {
+                    "quit": "ctrl+e",
+                    "external_editor": "ctrl+e",
+                }
+            }
+        )
+
+
+def test_tui_editor_command_defaults_to_none() -> None:
+    assert TuiSettings().editor_command is None
+    assert tui_settings_from_json({}).editor_command is None
+    assert "editor_command" in TuiSettings().to_json()
+
+
+def test_tui_editor_command_roundtrips_and_blank_clears() -> None:
+    settings = tui_settings_from_json({"editor_command": "code -w"})
+    assert settings.editor_command == "code -w"
+    assert settings.to_json()["editor_command"] == "code -w"
+
+    cleared = tui_settings_from_json({"editor_command": "   "})
+    assert cleared.editor_command is None
+
+    explicit_null = tui_settings_from_json({"editor_command": None})
+    assert explicit_null.editor_command is None
+
+
+def test_tui_editor_command_rejects_non_string() -> None:
+    with pytest.raises(TuiConfigError, match="editor_command"):
+        tui_settings_from_json({"editor_command": 7})

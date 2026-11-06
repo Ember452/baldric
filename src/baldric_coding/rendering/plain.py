@@ -20,6 +20,8 @@ class FinalTextRenderer:
             return
         if not isinstance(event, MessageEndEvent) or not isinstance(event.message, AssistantMessage):
             return
+        if event.message.is_tool_result_recovery:
+            return
         self._last_assistant_text = event.message.text
         if event.message.stop_reason in {"error", "aborted"}:
             self._failed = event.message.stop_reason == "error"

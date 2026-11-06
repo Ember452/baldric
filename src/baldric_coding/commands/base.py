@@ -115,6 +115,7 @@ class CommandResult:
     scoped_models_picker_requested: bool = False
     skills_picker_requested: bool = False
     theme_picker_requested: bool = False
+    extensions_picker_requested: bool = False
     thinking_level: str | None = None
     theme: str | None = None
     message: str | None = None

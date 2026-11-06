@@ -32,6 +32,9 @@ from baldric_coding.providers.catalog import (
 DEFAULT_PROVIDER_NAME = "openai"
 DEFAULT_MODEL = "gpt-5.4"
 PROVIDER_SETTINGS_SCHEMA_VERSION = 2
+# Hugging Face choices default to a fixed OpenRouter route so a newly selected
+# model does not silently fall back to automatic routing.
+DEFAULT_HUGGINGFACE_INFERENCE_PROVIDER = "openrouter"
 
 
 class ProviderConfigError(ValueError):
@@ -113,6 +116,7 @@ class OpenAICompatibleProviderConfig:
     thinking_parameter: ThinkingParameter | None = None
     thinking_defaults: dict[str, ThinkingLevel] = field(default_factory=dict)
     inference_providers: dict[str, str] = field(default_factory=dict)
+    default_inference_provider: str | None = None
 
     def __post_init__(self) -> None:
         _validate_provider_numbers(
@@ -131,6 +135,7 @@ class OpenAICompatibleProviderConfig:
         )
         _validate_thinking_defaults(self.thinking_defaults)
         _validate_inference_providers(self.name, self.models, self.inference_providers)
+        _validate_default_inference_provider(self.name, self.default_inference_provider)
 
     def to_json(self) -> dict[str, Any]:
         """Serialize this provider config to JSON-compatible data."""
@@ -156,6 +161,7 @@ class OpenAICompatibleProviderConfig:
             "thinking_parameter": self.thinking_parameter,
             "thinking_defaults": dict(self.thinking_defaults),
             "inference_providers": dict(self.inference_providers),
+            "default_inference_provider": self.default_inference_provider,
         }
 
 
@@ -416,6 +422,9 @@ def provider_config_from_entry(entry: ProviderCatalogEntry) -> ProviderConfig:
         thinking_default=entry.thinking_default,
         thinking_parameter=entry.thinking_parameter,
         thinking_defaults={},
+        default_inference_provider=(
+            DEFAULT_HUGGINGFACE_INFERENCE_PROVIDER if entry.name == "huggingface" else None
+        ),
     )
 
 
@@ -473,6 +482,11 @@ def _provider_preference_to_json(provider: ProviderConfig) -> dict[str, Any]:
     }
     if isinstance(provider, OpenAICompatibleProviderConfig) and provider.inference_providers:
         preference["inference_providers"] = dict(provider.inference_providers)
+    if (
+        isinstance(provider, OpenAICompatibleProviderConfig)
+        and provider.default_inference_provider is not None
+    ):
+        preference["default_inference_provider"] = provider.default_inference_provider
     return preference
 
 
@@ -623,6 +637,14 @@ def _validate_inference_providers(
         if model not in models:
             raise ProviderConfigError(f"Inference-provider preference references unknown model: {model}")
         validate_huggingface_inference_provider(route)
+
+
+def _validate_default_inference_provider(provider_name: str, default: str | None) -> None:
+    if default is None:
+        return
+    if provider_name != "huggingface":
+        raise ProviderConfigError("default_inference_provider is only supported for the huggingface provider")
+    validate_huggingface_inference_provider(default)
 
 
 def _validate_thinking_defaults(thinking_defaults: dict[str, ThinkingLevel]) -> None:

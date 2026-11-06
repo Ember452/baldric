@@ -11,6 +11,10 @@ from baldric_coding.extensions.installer import (
     ExtensionInstallError,
     install_extension,
     parse_git_extension_source,
+    read_extension_registry,
+    registry_path,
+    remove_extension,
+    update_extension,
 )
 
 
@@ -179,3 +183,148 @@ def test_install_git_source_clones_and_checks_out_ref(tmp_path: Path) -> None:
     assert calls[1][0:2] == ["git", "-C"]
     assert Path(calls[1][2]).name == destination.name
     assert calls[1][3:] == ["checkout", "--detach", "v1"]
+
+
+def _git_fake_run(
+    commit: str = "abc123def4567890",
+) -> tuple[object, list[list[str]]]:
+    calls: list[list[str]] = []
+
+    def fake_run(
+        command: list[str], *, capture_output: bool, text: bool, check: bool
+    ) -> subprocess.CompletedProcess[str]:
+        del capture_output, text, check
+        calls.append(command)
+        if command[1] == "clone":
+            destination = Path(command[-1])
+            destination.mkdir(parents=True)
+            (destination / "extension.py").write_text("def setup(baldric):\n    pass\n", encoding="utf-8")
+        if command[-1:] == ["HEAD"]:
+            return subprocess.CompletedProcess(command, 0, commit, "")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    return fake_run, calls
+
+
+def test_install_records_managed_provenance(tmp_path: Path) -> None:
+    fake_run, _ = _git_fake_run()
+    extensions_dir = tmp_path / "extensions"
+
+    install_extension(
+        "git:github.com/example/baldric-demo@v1",
+        extensions_dir=extensions_dir,
+        command_runner=fake_run,
+    )
+
+    records = read_extension_registry(extensions_dir)
+    record = records["baldric-demo"]
+    assert record.kind == "git"
+    assert record.source == "https://github.com/example/baldric-demo"
+    assert record.ref == "v1"
+    assert record.commit == "abc123def4567890"
+
+
+def test_local_install_records_source_path(tmp_path: Path) -> None:
+    source = tmp_path / "hello.py"
+    source.write_text("def setup(baldric):\n    pass\n", encoding="utf-8")
+    extensions_dir = tmp_path / "extensions"
+
+    install_extension(str(source), extensions_dir=extensions_dir)
+
+    record = read_extension_registry(extensions_dir)["hello.py"]
+    assert record.kind == "local-file"
+    assert record.source == str(source.resolve())
+
+
+def test_update_refreshes_managed_git_extension(tmp_path: Path) -> None:
+    fake_run, calls = _git_fake_run(commit="fedcba0987654321")
+    extensions_dir = tmp_path / "extensions"
+
+    install_extension(
+        "git:github.com/example/baldric-demo@v1",
+        extensions_dir=extensions_dir,
+        command_runner=fake_run,
+    )
+    destination = update_extension("baldric-demo", extensions_dir=extensions_dir, command_runner=fake_run)
+
+    assert destination == extensions_dir / "baldric-demo"
+    record = read_extension_registry(extensions_dir)["baldric-demo"]
+    assert record.commit == "fedcba0987654321"
+    clone_calls = [command for command in calls if command[1] == "clone"]
+    assert len(clone_calls) == 2, "update re-clones from the recorded source"
+
+
+def test_update_rejects_unmanaged_extension(tmp_path: Path) -> None:
+    extensions_dir = tmp_path / "extensions"
+    extensions_dir.mkdir()
+    (extensions_dir / "manual").mkdir()
+
+    with pytest.raises(ExtensionInstallError, match="not managed by Baldric"):
+        update_extension("manual", extensions_dir=extensions_dir)
+
+
+def test_update_rejects_local_source_extension(tmp_path: Path) -> None:
+    source = tmp_path / "hello.py"
+    source.write_text("def setup(baldric):\n    pass\n", encoding="utf-8")
+    extensions_dir = tmp_path / "extensions"
+
+    install_extension(str(source), extensions_dir=extensions_dir)
+
+    with pytest.raises(ExtensionInstallError, match="installed from a local source"):
+        update_extension("hello.py", extensions_dir=extensions_dir)
+
+
+def test_update_requires_force_when_local_modifications_exist(tmp_path: Path) -> None:
+    state = {"head": "abc123def4567890"}
+    fake_run, _ = _git_fake_run(commit="fedcba0987654321")
+
+    def runner(
+        command: list[str], *, capture_output: bool, text: bool, check: bool
+    ) -> subprocess.CompletedProcess[str]:
+        if command[-1:] == ["HEAD"]:
+            return subprocess.CompletedProcess(command, 0, state["head"], "")
+        return fake_run(command, capture_output=capture_output, text=text, check=check)
+
+    extensions_dir = tmp_path / "extensions"
+    install_extension(
+        "git:github.com/example/baldric-demo",
+        extensions_dir=extensions_dir,
+        command_runner=runner,
+    )
+
+    # The installed checkout moved to a different commit than the recorded one:
+    # a user local modification that update must not silently discard.
+    state["head"] = "9999998888887777"
+
+    with pytest.raises(ExtensionInstallError, match="local modifications"):
+        update_extension("baldric-demo", extensions_dir=extensions_dir, command_runner=runner)
+
+    state["head"] = "fedcba0987654321"
+    update_extension("baldric-demo", extensions_dir=extensions_dir, force=True, command_runner=runner)
+    assert read_extension_registry(extensions_dir)["baldric-demo"].commit == "fedcba0987654321"
+
+
+def test_remove_deletes_managed_extension_and_record(tmp_path: Path) -> None:
+    source = tmp_path / "hello.py"
+    source.write_text("def setup(baldric):\n    pass\n", encoding="utf-8")
+    extensions_dir = tmp_path / "extensions"
+
+    destination = install_extension(str(source), extensions_dir=extensions_dir)
+    removed = remove_extension("hello.py", extensions_dir=extensions_dir)
+
+    assert removed == destination
+    assert not destination.exists()
+    assert read_extension_registry(extensions_dir) == {}
+
+
+def test_remove_never_touches_unmanaged_extensions(tmp_path: Path) -> None:
+    extensions_dir = tmp_path / "extensions"
+    extensions_dir.mkdir()
+    manual = extensions_dir / "manual"
+    manual.mkdir()
+
+    with pytest.raises(ExtensionInstallError, match="not managed by Baldric"):
+        remove_extension("manual", extensions_dir=extensions_dir)
+
+    assert manual.exists()
+    assert registry_path(extensions_dir).exists() is False

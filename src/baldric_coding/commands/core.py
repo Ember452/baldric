@@ -99,6 +99,7 @@ def _hotkeys_command(context: CommandContext) -> CommandResult:
         "Common keyboard shortcuts:",
         "- Enter: submit prompt",
         "- Shift+Enter: insert newline",
+        "- Ctrl+E: edit prompt in external editor ($VISUAL/$EDITOR)",
         "- Alt+Enter: queue follow-up while running",
         "- Esc: cancel active run",
         "- Ctrl+K: open slash-command completions",

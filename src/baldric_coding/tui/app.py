@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import gc
 import os
+import signal
+import sys
 import threading
 import traceback
 from collections.abc import AsyncIterator, Callable, Coroutine, Sequence
@@ -162,12 +164,14 @@ from baldric_coding.tui.config import (
     load_tui_settings,
     save_tui_settings,
 )
+from baldric_coding.tui.editor import EditorError, run_external_editor
 from baldric_coding.tui.screens.command_output import CommandOutputScreen
 from baldric_coding.tui.screens.extension import (
     ExtensionConfirmScreen,
     ExtensionInputScreen,
     ExtensionSelectScreen,
 )
+from baldric_coding.tui.screens.extensions import ExtensionsScreen
 from baldric_coding.tui.screens.login import (
     CustomProviderLoginResult,
     CustomProviderLoginScreen,
@@ -917,7 +921,8 @@ class BaldricTuiApp(App[None]):
     SkillPickerScreen,
     TreePickerScreen,
     ToolsReferenceScreen,
-    CommandOutputScreen {
+    CommandOutputScreen,
+    ExtensionsScreen {
         align: center middle;
     }
 
@@ -926,7 +931,8 @@ class BaldricTuiApp(App[None]):
     #prompt-template-editor,
     #skill-picker,
     #tree-picker,
-    #tools-reference {
+    #tools-reference,
+    #extensions-screen {
         width: 76;
         max-width: 90%;
         height: auto;
@@ -941,13 +947,15 @@ class BaldricTuiApp(App[None]):
     #prompt-template-editor-title,
     #skill-picker-title,
     #tree-picker-title,
-    #tools-reference-title {
+    #tools-reference-title,
+    #extensions-title {
         height: 1;
         color: $baldric-chrome-text;
         text-style: bold;
         margin-bottom: 1;
     }
 
+    #extensions-search,
     #session-picker-search,
     #prompt-template-picker-search,
     #skill-picker-search,
@@ -982,6 +990,7 @@ class BaldricTuiApp(App[None]):
         border: tall $baldric-prompt-border;
     }
 
+    #extensions-list,
     #session-picker-list,
     #prompt-template-picker-list,
     #skill-picker-list,
@@ -1037,6 +1046,7 @@ class BaldricTuiApp(App[None]):
         color: $baldric-highlight-text;
     }
 
+    #extensions-help,
     #session-picker-help,
     #prompt-template-picker-help,
     #prompt-template-editor-help,
@@ -2086,6 +2096,13 @@ class BaldricTuiApp(App[None]):
                 self._open_skills_picker()
             if command.theme_picker_requested:
                 self._open_theme_picker()
+            if command.extensions_picker_requested:
+                self.push_screen(
+                    ExtensionsScreen(
+                        self.session.extension_runtime,
+                        theme=self.tui_settings.resolved_theme,
+                    )
+                )
             if command.session_name is not None:
                 try:
                     await self.session.set_session_name(command.session_name)
@@ -3190,6 +3207,7 @@ class BaldricTuiApp(App[None]):
                     isinstance(event, MessageEndEvent)
                     and isinstance(event.message, AssistantMessage)
                     and event.message.stop_reason == "error"
+                    and not event.message.is_tool_result_recovery
                 ):
                     _attach_diagnostic_log_path_to_error(self.state, self.session)
                     will_auto_retry = getattr(self.session, "will_auto_retry", None)
@@ -3643,6 +3661,44 @@ class BaldricTuiApp(App[None]):
         )
         self.push_screen(picker, callback=self._handle_session_picker_result)
         self.run_worker(self._refresh_open_session_picker(picker), exclusive=False)
+
+    async def action_open_external_editor(self) -> None:
+        """Edit the current prompt text in the user's external editor.
+
+        Suspends the Textual app so the editor gets the real terminal, then
+        writes the saved text back into the prompt on a clean exit. Leaves
+        the prompt untouched on cancellation or failure.
+        """
+        if self._is_agent_or_queue_active():
+            self._notify("Baldric is already working. Press Escape to cancel.")
+            return
+        prompt = self.query_one("#prompt", PromptInput)
+        original_text = prompt.text
+        was_read_only = prompt.read_only
+        prompt.read_only = True
+        try:
+            result = await run_external_editor(
+                self,
+                original_text,
+                settings_command=self.tui_settings.editor_command,
+            )
+        except EditorError as exc:
+            self._notify(str(exc), severity="error")
+            return
+        finally:
+            prompt.read_only = was_read_only
+        if result.changed:
+            prompt.load_text(result.text)
+            end_location = _text_end_location(result.text)
+            prompt.cursor_position = end_location[1] if end_location else len(result.text)
+            self._notify("Prompt updated in external editor")
+        prompt.focus()
+
+    def action_suspend_process(self) -> None:
+        """Suspend Baldric with SIGTSTP (POSIX ``Ctrl+Z``)."""
+        if sys.platform == "win32":
+            return
+        os.killpg(os.getpgrp(), signal.SIGTSTP)
 
     async def _refresh_open_session_picker(self, picker: SessionPickerScreen) -> None:
         """Load session indexes without blocking Textual's event loop."""
@@ -5481,7 +5537,7 @@ def _startup_inference_provider(
         return None
     if record is not None and record.model == selection.model:
         return record.inference_provider
-    return provider.inference_providers.get(selection.model)
+    return provider.inference_providers.get(selection.model) or provider.default_inference_provider
 
 
 def _startup_inference_provider_mode(

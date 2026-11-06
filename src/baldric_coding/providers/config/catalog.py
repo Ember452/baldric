@@ -158,6 +158,7 @@ def _merge_openai_compatible_provider(
         ),
         thinking_defaults=existing.thinking_defaults,
         inference_providers=existing.inference_providers,
+        default_inference_provider=existing.default_inference_provider,
     )
 
 

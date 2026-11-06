@@ -28,3 +28,7 @@ website/.astro/
 .firecrawl/
 # Local scratch tooling
 scripts/analyze_session.py
+cov-output.txt
+
+.coverage
+

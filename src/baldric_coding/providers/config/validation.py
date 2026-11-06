@@ -37,6 +37,7 @@ from baldric_coding.providers.config.models import (
     _validate_inference_providers,
     _validate_json_value,
     _validate_runtime_cost_tiers,
+    validate_huggingface_inference_provider,
 )
 
 
@@ -180,6 +181,15 @@ def _apply_provider_preference(
             if "inference_providers" in value
             else provider.inference_providers
         )
+        default_inference_provider = (
+            _default_inference_provider(
+                value.get("default_inference_provider"),
+                provider,
+                f"provider_preferences.{provider.name}.default_inference_provider",
+            )
+            if "default_inference_provider" in value
+            else provider.default_inference_provider
+        )
         return replace(
             provider,
             default_model=default_model,
@@ -189,6 +199,7 @@ def _apply_provider_preference(
             max_retry_delay_seconds=max_retry_delay_seconds,
             thinking_defaults=thinking_defaults,
             inference_providers=inference_providers,
+            default_inference_provider=default_inference_provider,
         )
     return replace(
         provider,
@@ -210,6 +221,21 @@ def _inference_providers_dict(
     routes = {model: route.strip() for model, route in routes.items() if model in provider.models}
     _validate_inference_providers(provider.name, provider.models, routes)
     return routes
+
+
+def _default_inference_provider(
+    value: object,
+    provider: OpenAICompatibleProviderConfig,
+    field_name: str,
+) -> str | None:
+    """Parse a provider-wide Hugging Face route; an explicit null opts out."""
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip():
+        raise ProviderConfigError(f"{field_name} must be a non-empty string or null")
+    if provider.name != "huggingface":
+        raise ProviderConfigError("default_inference_provider is only supported for the huggingface provider")
+    return validate_huggingface_inference_provider(value)
 
 
 def _thinking_defaults_dict(

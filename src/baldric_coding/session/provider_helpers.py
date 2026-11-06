@@ -228,7 +228,7 @@ def _session_inference_provider(
         return config.inference_provider
     provider = config.provider_settings.get_provider(provider_name) if config.provider_settings else None
     if isinstance(provider, OpenAICompatibleProviderConfig):
-        return provider.inference_providers.get(model)
+        return provider.inference_providers.get(model) or provider.default_inference_provider
     return None
 
 
@@ -401,7 +401,7 @@ def _configured_inference_provider(
 ) -> str | None:
     if not isinstance(provider, OpenAICompatibleProviderConfig) or provider.name != "huggingface":
         return None
-    return provider.inference_providers.get(model)
+    return provider.inference_providers.get(model) or provider.default_inference_provider
 
 
 def _configured_inference_provider_mode(

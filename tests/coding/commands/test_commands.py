@@ -129,6 +129,7 @@ def test_registered_commands_are_expected(tmp_path: Path) -> None:
         "compact",
         "diagnostics",
         "export",
+        "extensions",
         "hotkeys",
         "local",
         "login",
@@ -160,6 +161,17 @@ def test_diagnostics_command_shows_empty_state(tmp_path: Path) -> None:
     assert (
         create_default_command_registry().execute(FakeSession(tmp_path), "/diagnostics extra").message
         == "Usage: /diagnostics"
+    )
+
+
+def test_extensions_command_requests_inventory_modal(tmp_path: Path) -> None:
+    result = create_default_command_registry().execute(FakeSession(tmp_path), "/extensions")
+
+    assert result.handled is True
+    assert result.extensions_picker_requested is True
+    assert (
+        create_default_command_registry().execute(FakeSession(tmp_path), "/extensions extra").message
+        == "Usage: /extensions"
     )
 
 
@@ -378,6 +390,7 @@ def test_hotkeys_command_lists_common_tui_shortcuts(tmp_path: Path) -> None:
 
     assert result.message is not None
     assert "Common keyboard shortcuts:" in result.message
+    assert "Ctrl+E: edit prompt in external editor ($VISUAL/$EDITOR)" in result.message
     assert "Ctrl+K: open slash-command completions" in result.message
     assert "Ctrl+R: open session picker" in result.message
     assert "Ctrl+P / Shift+Ctrl+P: cycle scoped models forward / backward" in result.message
