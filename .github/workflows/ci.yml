@@ -55,6 +55,21 @@ jobs:
       - name: Check structure ratchet
         run: uv run python scripts/check_structure.py
 
+      - name: Check suppression ratchet
+        run: uv run python scripts/check_suppressions.py
+
+      # A passing check that silently left files behind is not a passing check:
+      # generated artifacts, formatter drift, or an edited baseline must be
+      # committed (or reverted) before the run is meaningful.
+      - name: Assert a clean worktree
+        if: ${{ always() }}
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::The worktree changed during CI; commit generated files or revert unintended edits."
+            git status --porcelain
+            exit 1
+          fi
+
   # The package claims `requires-python = ">=3.12"`, so the range has to be
   # tested rather than assumed. Lint, format and mypy stay on the pinned version
   # above: they are tooling checks, and running them per interpreter would only
@@ -126,3 +141,31 @@ jobs:
 
       - name: Test website
         run: npm test
+
+  # One required check instead of enumerating jobs in branch protection.
+  #
+  # `always()` is load-bearing: without it GitHub skips this job after a failed
+  # dependency, and a required check can then appear successful instead of
+  # reporting the failure. `skipped` counts as failure here for the same reason:
+  # a skipped job is not a green job.
+  all-checks-passed:
+    permissions: {}
+    name: All checks passed
+    runs-on: ubuntu-latest
+    needs: [python, pytest-matrix, docs]
+    if: ${{ always() }}
+    steps:
+      - name: Report dependency results
+        run: |
+          echo "python:        ${{ needs.python.result }}"
+          echo "pytest-matrix: ${{ needs.pytest-matrix.result }}"
+          echo "docs:          ${{ needs.docs.result }}"
+
+      - name: Fail when any required job did not succeed
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+        run: |
+          echo "::error::A required job failed, was cancelled, or was skipped."
+          exit 1
+
+      - name: Confirm success
+        run: echo "All required jobs succeeded."
