@@ -95,8 +95,22 @@ repository's history.
 
 ## Quality Gates
 
-Everything below runs in CI and blocks a merge. Run the cheap ones locally before
-pushing; run the full suite before claiming completion.
+CI runs all of these and blocks a merge. Locally you do not need the full suite
+for every small edit - CI owns exhaustive verification. Pick the cheapest tier
+that can still falsify your change; escalate when the change is cross-cutting.
+
+| Tier | Command | Cost (Windows, local) | When |
+| --- | --- | --- | --- |
+| Static | `uv run ruff check . && uv run ruff format --check . && uv run mypy` | ~20 s | Every edit; catches most mistakes |
+| Fast suite | `uv run pytest -q --ignore=tests/coding/tui` | ~75 s | Before every commit; 1,700+ tests, everything except the TUI |
+| TUI only | `uv run pytest -q tests/coding/tui` | ~190 s | When changing `tui/` or the rendering layer |
+| Full | `uv run pytest` | ~4 min | Cross-package refactors, releases, or when CI disagrees with you |
+
+Why the fast suite is enough for most work: the TUI is a frontend adapter and
+accounts for roughly 75% of local suite time while covering the least
+type-checked surface. The agent loop, providers, session orchestration, tools,
+commands, and guards - the parts where a logic error is expensive - all live
+outside it and run in under a minute.
 
 | Gate | Command | Guards |
 | --- | --- | --- |
