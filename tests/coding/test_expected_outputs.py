@@ -6,19 +6,13 @@ someone deliberately reruns with ``UPDATE_EXPECTED=1`` and reviews the diff.
 
 from __future__ import annotations
 
-from typer.testing import CliRunner
-
 from baldric_agent.messages import AssistantMessage, TextContent, ToolCall, Usage
-from baldric_coding.cli import app
 from tests.helpers.golden import assert_matches_expected
 
-
-def test_cli_help_is_stable() -> None:
-    result = CliRunner().invoke(app, ["--help"])
-
-    assert result.exit_code == 0
-    assert_matches_expected("cli_help.txt", result.output)
-
+# Only wire-format output is locked here. Rendered terminal output (``--help``,
+# rich panels) is intentionally excluded: its wrapping and Unicode width differ
+# between platforms, so a committed golden file would fail on the other OS
+# without any behavior having changed.
 
 def test_assistant_message_wire_format_is_stable() -> None:
     message = AssistantMessage(

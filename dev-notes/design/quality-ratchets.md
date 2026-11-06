@@ -97,10 +97,16 @@ relaxation.
 
 ### Golden files
 
-`tests/helpers/golden.py` compares observable output against committed files in
-`tests/expected/` (currently CLI `--help`, assistant-message JSON, and
-tool-result JSON). Tests only read those files; updating them requires
-`UPDATE_EXPECTED=1`, which prints the diff it accepts.
+`tests/helpers/golden.py` compares wire-format output against committed files in
+`tests/expected/` (assistant-message JSON and tool-result JSON). Tests only read
+those files; updating them requires `UPDATE_EXPECTED=1`, which prints the diff
+it accepts.
+
+Rendered terminal output is deliberately excluded. A `--help` golden file was
+tried and reverted: rich wraps and measures Unicode differently across
+platforms, so the file generated on Windows failed on Linux with a 162-line
+diff while no behavior had changed. Golden files only make sense for output
+that is byte-identical everywhere.
 
 ### Code invariants
 
