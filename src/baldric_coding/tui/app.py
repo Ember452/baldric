@@ -165,6 +165,7 @@ from baldric_coding.tui.config import (
     save_tui_settings,
 )
 from baldric_coding.tui.editor import EditorError, run_external_editor
+from baldric_coding.tui.pickers import PickerMixin
 from baldric_coding.tui.screens.command_output import CommandOutputScreen
 from baldric_coding.tui.screens.extension import (
     ExtensionConfirmScreen,
@@ -635,7 +636,7 @@ def _collect_garbage_while_idle() -> None:
     gc.freeze()
 
 
-class BaldricTuiApp(App[None]):
+class BaldricTuiApp(PickerMixin, App[None]):
     """Interactive Textual frontend for a ``CodingSession``."""
 
     TITLE = "Baldric"
@@ -4435,71 +4436,6 @@ class BaldricTuiApp(App[None]):
             )
         )
 
-    def _open_model_picker(self) -> None:
-        choices = self._available_model_choices()
-        scoped = tuple(getattr(self.session, "scoped_model_choices", ()))
-        if not choices and not scoped and not getattr(self.session, "has_stale_active_model", False):
-            self._notify(
-                "No configured providers are usable. Run /login to set up a provider.",
-                severity="warning",
-            )
-            return
-        picker = ModelPickerScreen(
-            choices,
-            scoped_choices=scoped,
-            current_model=self.session.model,
-            provider_name=self.session.provider_name,
-            theme=self.tui_settings.resolved_theme,
-            on_toggle_scoped=None,
-            picker_kind="model",
-        )
-        picker.on_first_refresh = lambda: self._start_model_picker_refresh(picker)
-        self.push_screen(picker, callback=lambda choice: self._handle_model_picker_result(picker, choice))
-
-    def _start_model_picker_refresh(self, picker: ModelPickerScreen) -> None:
-        if self.screen is picker:
-            picker.refresh_worker = self.run_worker(self._refresh_open_model_picker(picker), exclusive=False)
-
-    async def _refresh_open_model_picker(self, picker: ModelPickerScreen) -> None:
-        refresh = getattr(self.session, "refresh_model_catalogs", None)
-        if not callable(refresh):
-            return
-        try:
-            await refresh()
-        except Exception as error:
-            if self.screen is picker:
-                self._notify(f"Could not refresh model catalogs: {error}", severity="warning")
-            return
-        if self.screen is picker and picker.is_mounted:
-            picker.update_choices(
-                self._available_model_choices(),
-                tuple(getattr(self.session, "scoped_model_choices", ())),
-            )
-
-    def _open_scoped_models_picker(self) -> None:
-        choices = self._available_model_choices()
-        scoped = tuple(getattr(self.session, "scoped_model_choices", ()))
-        if not choices and not scoped and not getattr(self.session, "has_stale_active_model", False):
-            self._notify(
-                "No configured providers are usable. Run /login to set up a provider.",
-                severity="warning",
-            )
-            return
-        picker = ModelPickerScreen(
-            choices,
-            scoped_choices=scoped,
-            current_model=self.session.model,
-            provider_name=self.session.provider_name,
-            theme=self.tui_settings.resolved_theme,
-            on_toggle_scoped=self._toggle_scoped_model,
-            picker_kind="scoped",
-            initial_thinking_level=self.session.thinking_level,
-        )
-        picker.on_first_refresh = lambda: self._start_model_picker_refresh(picker)
-        self.push_screen(
-            picker, callback=lambda choice: self._handle_scoped_models_picker_result(picker, choice)
-        )
-
     def _toggle_scoped_model(self, choice: ModelChoice) -> Sequence[ModelChoice]:
         toggle_scoped_model = getattr(self.session, "toggle_scoped_model", None)
         if toggle_scoped_model is None:
@@ -4510,22 +4446,6 @@ class BaldricTuiApp(App[None]):
         except Exception as exc:  # noqa: BLE001 - surface session state failures in the TUI
             self._notify(f"Could not update scoped models: {exc}", severity="error")
             return tuple(getattr(self.session, "scoped_model_choices", ()))
-
-    def _handle_scoped_models_picker_result(
-        self, picker: ModelPickerScreen, choice: ModelChoice | None
-    ) -> None:
-        del choice
-        picker.cancel_refresh()
-        if (
-            picker.initial_thinking_level is not None
-            and picker.initial_thinking_level != self.session.thinking_level
-        ):
-            self.call_after_refresh(self._refresh_chrome)
-
-    def _handle_model_picker_result(self, picker: ModelPickerScreen, choice: ModelChoice | None) -> None:
-        picker.cancel_refresh()
-        if choice is not None:
-            self.call_after_refresh(self._start_selected_model_switch, choice)
 
     def _start_selected_model_switch(self, choice: ModelChoice) -> None:
         self.run_worker(self._switch_model(choice), exclusive=False)
@@ -4551,21 +4471,6 @@ class BaldricTuiApp(App[None]):
             self._notify(f"Could not switch model: {exc}", severity="error")
             return
         self._refresh_chrome()
-
-    def _open_theme_picker(self) -> None:
-        self.push_screen(
-            ThemePickerScreen(
-                current_theme=self.tui_settings.theme,
-                theme=self.tui_settings.resolved_theme,
-                theme_names=available_tui_theme_names(),
-            ),
-            callback=self._handle_theme_picker_result,
-        )
-
-    def _handle_theme_picker_result(self, theme: TuiThemeName | None) -> None:
-        if theme is None:
-            return
-        self._set_tui_theme(theme)
 
     async def _set_thinking_level(self, level: str) -> None:
         setter = getattr(self.session, "preview_thinking_level", None)
