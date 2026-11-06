@@ -14,6 +14,7 @@ from tests.helpers.golden import assert_matches_expected
 # between platforms, so a committed golden file would fail on the other OS
 # without any behavior having changed.
 
+
 def test_assistant_message_wire_format_is_stable() -> None:
     message = AssistantMessage(
         content=[
