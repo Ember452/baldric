@@ -2,6 +2,8 @@ import base64
 import re
 from pathlib import Path
 
+import pytest
+
 from baldric_agent import (
     AssistantMessage,
     CompactionEntry,
@@ -484,3 +486,26 @@ def test_render_session_html_uses_baldric_theme_palette() -> None:
     assert "baldric-themechange" in html
     assert f'data-dark="{BALDRIC_DARK_THEME.error}"' in html
     assert f'data-light="{BALDRIC_LIGHT_THEME.error}"' in html
+
+
+def test_export_session_html_keeps_the_previous_file_when_replace_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_path = tmp_path / "session.html"
+    output_path.write_text("previous export", encoding="utf-8")
+
+    def fail_replace(source: object, destination: object) -> None:
+        del source, destination
+        raise OSError("replace failed")
+
+    monkeypatch.setattr("baldric_coding.utils.atomic.os.replace", fail_replace)
+
+    with pytest.raises(OSError, match="replace failed"):
+        export_session_html(
+            [MessageEntry(id="one", message=UserMessage(content="Hi"))],
+            output_path,
+        )
+
+    assert output_path.read_text(encoding="utf-8") == "previous export"
+    assert list(output_path.parent.glob("*.tmp")) == []

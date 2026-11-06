@@ -103,6 +103,14 @@ provider-safe branch while preserving the original JSONL entries. A durable
 session diagnostic records what changed. Repeating resume is idempotent and does
 not append another repair when history is already valid.
 
+A crash can also leave a partial final line in a transcript, which used to make
+the session unreadable. Baldric now drops only that incomplete line and keeps
+every complete record before it; corruption anywhere else still fails loudly.
+Reads never rewrite a transcript: the torn tail is repaired the next time
+something is appended. The session index behaves the same way — a damaged record
+is skipped, reported, and the index is rewritten from the surviving entries, so
+one bad line cannot hide every session in that project.
+
 ## Renaming
 
 New sessions are automatically given a short name from the first message when

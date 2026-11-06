@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from contextlib import suppress
@@ -14,6 +15,9 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict
 
 from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.utils.atomic import atomic_write_text
+
+logger = logging.getLogger(__name__)
 
 _MAX_SESSION_ID_BYTES = 128
 _RESERVED_SESSION_IDS = frozenset({"default", "index"})
@@ -430,14 +434,29 @@ class SessionManager:
             return list(cached.records)
 
         records: list[CodingSessionRecord] = []
+        damaged = 0
         # Split on newlines only: str.splitlines() would also split on characters
         # like U+2028 that appear unescaped inside JSON string values.
         for line in path.read_text(encoding="utf-8").split("\n"):
             stripped = line.strip()
             if not stripped:
                 continue
-            model = SessionRecordModel.model_validate_json(stripped)
+            try:
+                model = SessionRecordModel.model_validate_json(stripped)
+            except ValueError:
+                damaged += 1
+                continue
             records.append(CodingSessionRecord.from_model(model))
+        if damaged:
+            # One damaged line must not hide every other session. Drop it, say
+            # so, and rewrite the index so the next read is clean.
+            logger.warning("Dropped %d damaged record(s) from the session index %s", damaged, path)
+            try:
+                self._write_index(path, records)
+            except OSError:
+                logger.warning("Could not rewrite the damaged session index %s", path)
+            else:
+                return records
         _INDEX_CACHE[path] = _IndexSnapshot(stamp=stamp, records=tuple(records))
         return records
 
@@ -463,11 +482,10 @@ class SessionManager:
         return [Path(entry.path) / "index.jsonl" for entry in entries if entry.is_dir()]
 
     def _write_index(self, path: Path, records: list[CodingSessionRecord]) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
         content = "\n".join(record.to_model().model_dump_json() for record in records)
         if content:
             content += "\n"
-        path.write_text(content, encoding="utf-8")
+        atomic_write_text(path, content)
         # Seed the cache with what was just written: two writes inside one
         # filesystem timestamp tick can leave the stamp unchanged.
         stamp = _index_stamp(path)

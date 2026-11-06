@@ -56,19 +56,29 @@ def _managed_files() -> list[Path]:
     return files
 
 
+def _normalized_bytes(path: Path) -> int:
+    """Byte size independent of the checkout's line endings.
+
+    ``read_text`` uses universal newlines, so a CRLF checkout (git
+    ``core.autocrlf=true`` on Windows CI) measures the same as the LF blob.
+    Without this, every LF-recorded baseline fails on CRLF checkouts.
+    """
+    return len(path.read_text(encoding="utf-8").encode("utf-8"))
+
+
 def _chain_bytes(module_file: Path) -> int:
     """Return the root instructions plus every ancestor scoped file."""
     total = 0
     for name in GUIDANCE_NAMES:
         root_file = ROOT / name
         if root_file.exists():
-            total += len(root_file.read_bytes())
+            total += _normalized_bytes(root_file)
             break
     package_dir = module_file.parent
     if package_dir != ROOT:
         candidate = package_dir / module_file.name
         if candidate.exists():
-            total += len(candidate.read_bytes())
+            total += _normalized_bytes(candidate)
     return total
 
 
@@ -77,7 +87,7 @@ def build_report() -> dict[str, object]:
     shims: list[str] = []
     deepest = 0
     for path in _managed_files():
-        size = len(path.read_bytes())
+        size = _normalized_bytes(path)
         relative = path.relative_to(ROOT).as_posix()
         files[relative] = size
         if path.name == "CLAUDE.md":

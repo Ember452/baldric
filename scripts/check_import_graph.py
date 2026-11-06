@@ -8,7 +8,7 @@ The script parses absolute imports with ast. It intentionally does not try to
 resolve every runtime import; it is a guard for layer direction, not a complete
 import checker. A violation prints the source file, line, and imported module.
 
-The same rules are exercised by ``tests/architecture/test_import_boundaries.py``
+The same rules are exercised by ``tests/guards/test_import_boundaries.py``
 so an ordinary ``pytest`` run enforces the layers too; this script stays as the
 fast standalone/CI entry point and the tests import :func:`scan_violations`.
 """
@@ -33,6 +33,20 @@ RULES: tuple[tuple[str, str], ...] = (
     ("baldric_coding.trust", "baldric_coding.tui"),
     ("baldric_coding.context", "baldric_coding.tui"),
     ("baldric_coding.providers", "baldric_coding.tui"),
+    ("baldric_coding.rendering", "baldric_coding.tui"),
+)
+
+# The provider layer may use the harness's provider-neutral wire contract and
+# nothing else. This records today's surface so it cannot deepen while the
+# contract's home is still being settled: an adapter that imports the loop, the
+# harness, or the session would tie the provider layer to the harness runtime and
+# make the declared direction of the two packages untrue in a second way.
+AI_AGENT_SURFACE: tuple[str, ...] = (
+    "baldric_agent.messages",
+    "baldric_agent.provider",
+    "baldric_agent.provider_events",
+    "baldric_agent.tools",
+    "baldric_agent.types",
 )
 
 
@@ -83,12 +97,44 @@ def scan_violations(root: Path = ROOT) -> list[ImportViolation]:
     return violations
 
 
+def _is_on_surface(imported: str) -> bool:
+    return any(imported == module or imported.startswith(module + ".") for module in AI_AGENT_SURFACE)
+
+
+def scan_surface_violations(root: Path = ROOT) -> list[ImportViolation]:
+    """Return provider-layer imports of the harness beyond :data:`AI_AGENT_SURFACE`.
+
+    ``from baldric_agent import X`` counts as a violation: importing the package
+    root executes ``baldric_agent/__init__.py``, which pulls the session, storage,
+    and JSONL modules the provider layer must not depend on.
+    """
+    violations: list[ImportViolation] = []
+    source_root = root / "src"
+    if not source_root.exists():
+        return violations
+    for path in sorted(source_root.rglob("*.py")):
+        if "__pycache__" in path.parts or "data" in path.parts:
+            continue
+        module = _module_name(path, root)
+        if not (module == "baldric_ai" or module.startswith("baldric_ai.")):
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for lineno, imported in _imports(tree):
+            if not (imported == "baldric_agent" or imported.startswith("baldric_agent.")):
+                continue
+            if not _is_on_surface(imported):
+                violations.append(ImportViolation(module=module, lineno=lineno, imported=imported))
+    return violations
+
+
 def main() -> int:
-    violations = scan_violations()
+    violations = [(violation, "layer") for violation in scan_violations()] + [
+        (violation, "surface") for violation in scan_surface_violations()
+    ]
     if violations:
         print("import-graph violations:")
-        for violation in violations:
-            print(f"  {violation.module}:{violation.lineno} imports {violation.imported}")
+        for violation, kind in violations:
+            print(f"  [{kind}] {violation.module}:{violation.lineno} imports {violation.imported}")
         return 1
     print("import-graph: OK")
     return 0

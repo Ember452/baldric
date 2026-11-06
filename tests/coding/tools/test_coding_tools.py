@@ -447,15 +447,15 @@ async def test_bash_tool_disconnects_stdin_from_commands(
         async def communicate(self) -> tuple[bytes, None]:
             return b"", None
 
-    async def fake_create_subprocess_shell(
-        command: str,
+    async def fake_create_subprocess_exec(
+        *argv: str,
         **options: object,
     ) -> FakeProcess:
-        del command
+        del argv
         subprocess_options.update(options)
         return FakeProcess()
 
-    monkeypatch.setattr(asyncio, "create_subprocess_shell", fake_create_subprocess_shell)
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_create_subprocess_exec)
     tool = create_bash_tool(cwd=tmp_path)
 
     await tool.execute("test-call", {"command": "python"})

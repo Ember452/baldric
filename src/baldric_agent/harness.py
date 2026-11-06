@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections import deque
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import suppress
@@ -10,7 +11,7 @@ from inspect import isawaitable
 from typing import Literal
 
 from baldric_agent.events import AgentEvent, MessageEndEvent, MessageStartEvent
-from baldric_agent.loop import AfterToolCall, BeforeToolCall, run_agent_loop
+from baldric_agent.loop import run_agent_loop
 from baldric_agent.messages import (
     AgentMessage,
     AssistantMessage,
@@ -19,6 +20,7 @@ from baldric_agent.messages import (
     UserMessage,
 )
 from baldric_agent.provider import ModelProvider
+from baldric_agent.tool_calls import AfterToolCall, BeforeToolCall
 from baldric_agent.tools import AgentTool
 
 EventListener = Callable[[AgentEvent], Awaitable[None] | None]
@@ -50,13 +52,16 @@ class AgentHarnessConfig:
 
 class SimpleCancellationToken:
     def __init__(self) -> None:
-        self._cancelled = False
+        self._cancelled = asyncio.Event()
 
     def cancel(self) -> None:
-        self._cancelled = True
+        self._cancelled.set()
 
     def is_cancelled(self) -> bool:
-        return self._cancelled
+        return self._cancelled.is_set()
+
+    async def wait_cancelled(self) -> None:
+        await self._cancelled.wait()
 
 
 class AgentHarness:

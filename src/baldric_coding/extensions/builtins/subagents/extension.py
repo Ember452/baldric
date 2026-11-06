@@ -72,6 +72,7 @@ from .worktree import (
     cleanup_worktree,
     create_worktree,
     prune_worktrees,
+    worktree_notice,
 )
 
 if TYPE_CHECKING:
@@ -513,15 +514,13 @@ class SubagentManager:
             result = await cleanup_worktree(worktree, run.description)
         except Exception:  # noqa: BLE001 - worktree cleanup is best-effort
             return
-        if result.has_changes and result.branch:
-            annotation = (
-                f"\n\n---\nChanges saved to branch `{result.branch}`. Merge with: `git merge {result.branch}`"
-            )
-            run.result_text += annotation
-            # Error terminals surface run.error, not result_text — annotate
-            # both so committed work is never invisible.
+        notice = worktree_notice(result)
+        if notice:
+            run.result_text += notice
+            # Error terminals surface run.error, not result_text — annotate both
+            # so saved or preserved work is never invisible.
             if run.status == "error":
-                run.error = (run.error or "subagent failed") + annotation
+                run.error = (run.error or "subagent failed") + notice
 
     async def _persist_record(self, run: AgentRun) -> None:
         with contextlib.suppress(Exception):  # record persistence is best-effort

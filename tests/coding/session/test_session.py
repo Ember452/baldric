@@ -360,7 +360,7 @@ async def test_jsonl_storage_reads_existing_file_with_unicode_line_separator(
 async def test_jsonl_storage_reuses_parsed_entries_after_own_appends(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric_agent.session import storage as storage_module
+    from baldric_agent.session import jsonl as jsonl_module
 
     path = tmp_path / "session.jsonl"
     storage = JsonlSessionStorage(path)
@@ -370,14 +370,14 @@ async def test_jsonl_storage_reuses_parsed_entries_after_own_appends(
     await storage.append(first)
     assert await storage.read_all() == [first]
     full_parses = 0
-    original_parse = storage_module.entries_from_json_lines
+    original_parse = jsonl_module.entries_from_json_lines
 
     def counting_parse(lines: list[str]) -> list[object]:
         nonlocal full_parses
         full_parses += 1
         return original_parse(lines)  # type: ignore[return-value]
 
-    monkeypatch.setattr(storage_module, "entries_from_json_lines", counting_parse)
+    monkeypatch.setattr(jsonl_module, "entries_from_json_lines", counting_parse)
 
     await storage.append(second)
     await storage.append_batch([third])
@@ -896,3 +896,90 @@ def test_path_to_entry_rejects_missing_or_cyclic_parent() -> None:
     second = CustomEntry(id="second", parent_id="first", namespace="x")
     with pytest.raises(SessionTreeError):
         path_to_entry([first, second], "first")
+
+
+@pytest.mark.anyio
+async def test_jsonl_storage_reads_a_transcript_with_a_torn_final_line(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    entry = MessageEntry(id="one", message=UserMessage(content="Hi"))
+    path = tmp_path / "session.jsonl"
+    path.write_text(entry_to_json_line(entry) + '{"id":"torn","type":"mess', encoding="utf-8")
+    storage = JsonlSessionStorage(path)
+
+    with caplog.at_level("WARNING", logger="baldric_agent.session.storage"):
+        assert await storage.read_all() == [entry]
+
+    assert "partial final line" in caplog.text
+
+
+@pytest.mark.anyio
+async def test_jsonl_storage_repairs_a_torn_tail_before_appending(tmp_path: Path) -> None:
+    first = MessageEntry(id="one", message=UserMessage(content="Hi"))
+    second = MessageEntry(id="two", message=UserMessage(content="Bye"))
+    path = tmp_path / "session.jsonl"
+    path.write_text(entry_to_json_line(first) + '{"id":"torn","type":"mess', encoding="utf-8")
+    storage = JsonlSessionStorage(path)
+
+    await storage.append(second)
+
+    lines = [line for line in path.read_text(encoding="utf-8").split("\n") if line]
+    assert lines == [entry_to_json_line(first).rstrip("\n"), entry_to_json_line(second).rstrip("\n")]
+    assert await storage.read_all() == [first, second]
+
+
+@pytest.mark.anyio
+async def test_jsonl_storage_repairs_a_torn_tail_before_a_batch(tmp_path: Path) -> None:
+    first = MessageEntry(id="one", message=UserMessage(content="Hi"))
+    second = MessageEntry(id="two", message=UserMessage(content="Bye"))
+    third = LabelEntry(id="three", target_id="one", label="Greeting")
+    path = tmp_path / "session.jsonl"
+    path.write_text(entry_to_json_line(first) + '{"id":"torn"', encoding="utf-8")
+    storage = JsonlSessionStorage(path)
+
+    await storage.append_batch([second, third])
+
+    assert await storage.read_all() == [first, second, third]
+
+
+@pytest.mark.anyio
+async def test_jsonl_storage_terminates_a_complete_final_line_without_newline(
+    tmp_path: Path,
+) -> None:
+    first = MessageEntry(id="one", message=UserMessage(content="Hi"))
+    second = MessageEntry(id="two", message=UserMessage(content="Bye"))
+    path = tmp_path / "session.jsonl"
+    path.write_text(entry_to_json_line(first).rstrip("\n"), encoding="utf-8")
+    storage = JsonlSessionStorage(path)
+
+    assert await storage.read_all() == [first]
+
+    await storage.append(second)
+
+    assert await storage.read_all() == [first, second]
+
+
+@pytest.mark.anyio
+async def test_jsonl_storage_still_rejects_corruption_before_the_final_line(
+    tmp_path: Path,
+) -> None:
+    first = MessageEntry(id="one", message=UserMessage(content="Hi"))
+    path = tmp_path / "session.jsonl"
+    path.write_text(
+        entry_to_json_line(first) + "not a record\n" + '{"id":"torn","type":"mess',
+        encoding="utf-8",
+    )
+    storage = JsonlSessionStorage(path)
+
+    with pytest.raises(SessionJsonlError):
+        await storage.read_all()
+
+
+@pytest.mark.anyio
+async def test_jsonl_storage_reads_a_file_that_is_only_a_torn_line(tmp_path: Path) -> None:
+    path = tmp_path / "session.jsonl"
+    path.write_text('{"id":"torn","type":"mess', encoding="utf-8")
+    storage = JsonlSessionStorage(path)
+
+    assert await storage.read_all() == []

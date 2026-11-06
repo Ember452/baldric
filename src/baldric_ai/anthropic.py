@@ -45,11 +45,12 @@ from baldric_ai.env import (
     CacheRetention,
 )
 from baldric_ai.events import AssistantMessageEvent
-from baldric_ai.http import create_async_client
+from baldric_ai.http import create_async_client, iter_sse_lines
 from baldric_ai.http_errors import provider_http_error_message
 from baldric_ai.provider import CancellationToken
 from baldric_ai.retry import (
     RETRYABLE_TRANSPORT_ERRORS,
+    classify_response_failure,
     provider_retry_event,
     retry_delay_seconds,
     wait_for_retry,
@@ -173,23 +174,23 @@ class AnthropicProvider:
                         if response.status_code >= 400:
                             body = await response.aread()
                             body_text = body.decode(errors="replace")
-                            if self._should_retry(attempt, status_code=response.status_code):
-                                delay = retry_delay_seconds(
-                                    attempt,
-                                    max_delay_seconds=self._config.max_retry_delay_seconds,
-                                )
+                            decision = classify_response_failure(
+                                response, body_text, attempt=attempt, config=self._config
+                            )
+                            if decision.retryable:
                                 yield provider_retry_event(
                                     attempt=attempt,
                                     max_retries=self._config.max_retries,
-                                    delay_seconds=delay,
+                                    delay_seconds=decision.delay_seconds,
                                     reason=f"HTTP {response.status_code}",
                                     data={
                                         "status_code": response.status_code,
                                         "body": body_text,
+                                        "code": decision.code,
                                     },
                                 )
                                 attempt += 1
-                                if not await wait_for_retry(delay, signal=signal):
+                                if not await wait_for_retry(decision.delay_seconds, signal=signal):
                                     return
                                 continue
                             yield ProviderErrorEvent(
@@ -198,11 +199,13 @@ class AnthropicProvider:
                                     status_code=response.status_code,
                                     body=body_text,
                                     model=model,
-                                ),
+                                )
+                                + decision.note,
                                 data={
                                     "status_code": response.status_code,
                                     "body": body_text,
                                     "attempts": attempt + 1,
+                                    "code": decision.code,
                                 },
                             )
                             return
@@ -216,10 +219,7 @@ class AnthropicProvider:
                         finish_reason: str | None = None
                         usage: Usage | None = None
 
-                        async for line in response.aiter_lines():
-                            if signal is not None and signal.is_cancelled():
-                                return
-
+                        async for line in iter_sse_lines(response, signal):
                             event = _parse_sse_line(line)
                             if event is None:
                                 continue
@@ -280,7 +280,7 @@ class AnthropicProvider:
                                 error_type, message = _anthropic_stream_error_details(chunk)
                                 if (
                                     not emitted_content
-                                    and self._should_retry(attempt)
+                                    and attempt < self._config.max_retries
                                     and _retryable_anthropic_stream_error(error_type)
                                 ):
                                     stream_error = chunk
@@ -291,6 +291,8 @@ class AnthropicProvider:
                                 )
                                 return
 
+                        if signal is not None and signal.is_cancelled():
+                            return
                         if stream_error is not None:
                             error_type, _message = _anthropic_stream_error_details(stream_error)
                             delay = retry_delay_seconds(
@@ -333,7 +335,7 @@ class AnthropicProvider:
                         )
                         return
                 except RETRYABLE_TRANSPORT_ERRORS as exc:
-                    if not emitted_content and self._should_retry(attempt):
+                    if not emitted_content and attempt < self._config.max_retries:
                         delay = retry_delay_seconds(
                             attempt,
                             max_delay_seconds=self._config.max_retry_delay_seconds,
@@ -364,11 +366,6 @@ class AnthropicProvider:
         if self._client is None:
             self._client = create_async_client(timeout=self._config.timeout_seconds)
         return self._client
-
-    def _should_retry(self, attempt: int, *, status_code: int | None = None) -> bool:
-        if attempt >= self._config.max_retries:
-            return False
-        return status_code is None or status_code in {408, 409, 425, 429} or status_code >= 500
 
 
 _TRANSIENT_ANTHROPIC_STREAM_ERROR_TYPES = frozenset(

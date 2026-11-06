@@ -5,9 +5,10 @@ from typing import Any
 
 import pytest
 
-from baldric_agent.loop import MessageEndEvent, _execute_tool_call
+from baldric_agent.events import MessageEndEvent
 from baldric_agent.messages import TextContent, ToolCall, ToolResultMessage
 from baldric_agent.tool_arguments import argument_problems, invalid_arguments_message
+from baldric_agent.tool_calls import execute_tool_call
 from baldric_agent.tools import AgentTool, AgentToolResult
 from baldric_agent.types import JSONValue
 
@@ -60,7 +61,7 @@ async def _run(
     call = ToolCall(id="call-1", name="read", arguments=arguments)
 
     result_message: ToolResultMessage | None = None
-    events = _execute_tool_call(call, {"read": tool}, None, None, None)
+    events = execute_tool_call(call, {"read": tool}, None, None, None)
     async for event in events:
         if isinstance(event, MessageEndEvent) and isinstance(event.message, ToolResultMessage):
             result_message = event.message

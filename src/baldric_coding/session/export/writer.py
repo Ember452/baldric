@@ -8,6 +8,7 @@ from pathlib import Path
 from baldric_agent.session import SessionEntry
 from baldric_coding.session.export.html import render_session_html
 from baldric_coding.session.export.jsonl import _session_jsonl_text
+from baldric_coding.utils.atomic import atomic_write_text
 
 
 class SessionExportError(ValueError):
@@ -32,8 +33,7 @@ def default_session_export_artifact_path(
 
 def export_session_jsonl(entries: Sequence[SessionEntry], output_path: Path) -> Path:
     """Write session entries to a JSONL export and return its path."""
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(_session_jsonl_text(entries), encoding="utf-8")
+    atomic_write_text(output_path, _session_jsonl_text(entries))
     return output_path
 
 
@@ -46,15 +46,14 @@ def export_session_html(
     system_prompt: str | None = None,
 ) -> Path:
     """Write a self-contained HTML session export and return its path."""
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
+    atomic_write_text(
+        output_path,
         render_session_html(
             entries,
             title=title,
             source=source,
             system_prompt=system_prompt,
         ),
-        encoding="utf-8",
     )
     return output_path
 

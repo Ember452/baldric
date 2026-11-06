@@ -70,6 +70,12 @@ wrong.
 - [Phase 23: Advanced TUI and Product Polish](./phase-23-tui-polish.md)
 - [Bounded TUI Transcript Rendering](./tui-long-transcript-performance.md)
 - [Phase 24: Session Tree Branching](./phase-24-session-tree-branching.md)
+- [Wire contract baselines](./wire-contract-baselines.md)
+- [Truncated responses never execute tool calls](./truncated-tool-calls.md)
+- [Cancellation that interrupts a stalled stream](./cancellation.md)
+- [Session durability: torn lines and atomic writes](./session-durability.md)
+- [Provider retry policy](./provider-retry-policy.md)
+- [Contract debt: fields with no producer or consumer](./contract-debt.md)
 
 Phase 21 extensions are implemented; see the phase note and the user guide at
 `website/content/guides/extensions.md`.

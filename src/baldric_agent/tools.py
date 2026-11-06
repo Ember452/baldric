@@ -85,7 +85,9 @@ class AgentTool:
     prompt_snippet: str | None = None
     prompt_guidelines: tuple[str, ...] = ()
     prepare_arguments: ToolArgumentPreparer | None = None
-    execution_mode: ToolExecutionMode = "parallel"
+    # The loop runs one tool call at a time today, so the default states the
+    # truth. "parallel" is accepted for Pi compatibility but not yet honoured.
+    execution_mode: ToolExecutionMode = "sequential"
     render_call: ToolCallRenderer | None = None
     render_result: ToolResultRenderer | None = None
 

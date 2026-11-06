@@ -21,7 +21,8 @@ from baldric_agent import (
     ToolResultMessage,
     UserMessage,
 )
-from baldric_agent.loop import _provider_context, run_agent_loop
+from baldric_agent.context_projection import provider_context
+from baldric_agent.loop import run_agent_loop
 from baldric_ai import CancellationToken, FakeProvider
 from tests.helpers.pi_event_helpers import assistant_done, assistant_error
 
@@ -103,8 +104,8 @@ async def test_image_rejection_reaches_model_as_tool_error_and_preserves_history
     assert [event.type for event in events].count("turn_end") == 2
     # JSONL replay must reconstruct the same safe context, without in-place edits.
     restored = [type(message).model_validate_json(message.model_dump_json()) for message in messages]
-    assert _provider_context(restored) == _provider_context(messages)
-    assert _provider_context(restored)[2] == recovered
+    assert provider_context(restored) == provider_context(messages)
+    assert provider_context(restored)[2] == recovered
 
 
 @pytest.mark.anyio
@@ -221,7 +222,7 @@ def test_old_images_are_not_removed_for_unrelated_later_errors() -> None:
         AssistantMessage(stop_reason="error", error_message="unrelated outage"),
     ]
 
-    context = _provider_context(messages)
+    context = provider_context(messages)
 
     image_result = next(
         message
