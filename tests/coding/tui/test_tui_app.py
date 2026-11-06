@@ -4007,6 +4007,7 @@ async def test_tui_sidebar_context_file_opens_in_main_editor_and_saves(tmp_path:
 
         editor_input.text = "Updated context.\n"
         await pilot.press("ctrl+s")
+        await app.workers.wait_for_complete()
         await pilot.pause()
 
         assert context_path.read_text(encoding="utf-8") == "Updated context.\n"
@@ -4116,6 +4117,7 @@ async def test_tui_sidebar_editor_keeps_contents_open_after_save_failure(tmp_pat
         editor = app.query_one("#sidebar-file-editor", SidebarFileEditor)
         editor.query_one("#sidebar-file-editor-input", TextArea).text = "Unsaved changes.\n"
         await pilot.press("ctrl+s")
+        await app.workers.wait_for_complete()
         await pilot.pause()
 
         assert editor.is_mounted
@@ -4146,6 +4148,7 @@ async def test_tui_sidebar_editor_reports_unexpected_save_failure(
         editor.query_one("#sidebar-file-editor-input", TextArea).text = "Updated.\n"
 
         await pilot.press("ctrl+s")
+        await app.workers.wait_for_complete()
         await pilot.pause()
 
         status = editor.query_one("#sidebar-file-editor-status", Static).render().plain
@@ -4172,6 +4175,7 @@ async def test_tui_sidebar_editor_refuses_external_file_changes(tmp_path: Path) 
         context_path.write_text("External changes.\n", encoding="utf-8")
 
         await pilot.press("ctrl+s")
+        await app.workers.wait_for_complete()
         await pilot.pause()
 
         status = editor.query_one("#sidebar-file-editor-status", Static).render().plain
@@ -4238,6 +4242,7 @@ async def test_tui_sidebar_editor_partial_staging_failure_is_safe(
         editor = app.query_one("#sidebar-file-editor", SidebarFileEditor)
         editor.query_one("#sidebar-file-editor-input", TextArea).text = "Replacement rules.\n"
         await pilot.press("ctrl+s")
+        await app.workers.wait_for_complete()
         await pilot.pause()
 
         status = editor.query_one("#sidebar-file-editor-status", Static).render().plain
@@ -4274,6 +4279,7 @@ async def test_tui_sidebar_editor_rejects_read_only_target(tmp_path: Path) -> No
         editor = app.query_one("#sidebar-file-editor", SidebarFileEditor)
         editor.query_one("#sidebar-file-editor-input", TextArea).text = "Replacement rules.\n"
         await pilot.press("ctrl+s")
+        await app.workers.wait_for_complete()
         await pilot.pause()
 
         status = editor.query_one("#sidebar-file-editor-status", Static).render().plain
@@ -7343,6 +7349,7 @@ async def test_tui_app_prompts_picker_edits_template_and_reloads(tmp_path: Path)
 
         editor_input.text = "Updated prompt.\n"
         await pilot.press("ctrl+s")
+        await app.workers.wait_for_complete()
         await pilot.pause()
 
         assert template_path.read_text(encoding="utf-8") == "Updated prompt.\n"
