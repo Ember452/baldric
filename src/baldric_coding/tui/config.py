@@ -65,6 +65,8 @@ class TuiKeybindings:
     toggle_tool_results: str = "ctrl+o"
     copy_message: str = "ctrl+c"
     quit: str = "ctrl+d"
+    external_editor: str = "ctrl+e"
+    suspend: str = "ctrl+z"
 
     def to_json(self) -> dict[str, str]:
         """Serialize these keybindings to JSON-compatible data."""
@@ -84,6 +86,8 @@ class TuiKeybindings:
             "toggle_tool_results": self.toggle_tool_results,
             "copy_message": self.copy_message,
             "quit": self.quit,
+            "external_editor": self.external_editor,
+            "suspend": self.suspend,
         }
 
 
@@ -96,11 +100,15 @@ class TuiSettings:
     auto_copy_selection: bool = False
     sidebar_position: Literal["left", "right", "off"] = "right"
     turn_notification: TurnNotificationMode = "desktop"
+    # Durable override for the external prompt editor (e.g. "code -w" or "vim").
+    # When unset, Baldric falls back to BALDRIC_EDITOR / VISUAL / EDITOR.
+    editor_command: str | None = None
 
     def to_json(self) -> dict[str, Any]:
         """Serialize these settings to JSON-compatible data."""
         return {
             "auto_copy_selection": self.auto_copy_selection,
+            "editor_command": self.editor_command,
             "keybindings": self.keybindings.to_json(),
             "sidebar_position": self.sidebar_position,
             "theme": self.theme,
@@ -167,7 +175,18 @@ def tui_settings_from_json(data: dict[str, Any]) -> TuiSettings:
         ),
         sidebar_position=cast(Literal["left", "right", "off"], raw_sidebar),
         turn_notification=cast(TurnNotificationMode, raw_notification),
+        editor_command=_editor_command_setting(data.get("editor_command")),
     )
+
+
+def _editor_command_setting(value: object) -> str | None:
+    """Parse the durable editor override; empty string clears the override."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise TuiConfigError("editor_command must be a string or null")
+    normalized = value.strip()
+    return normalized or None
 
 
 def _bool_setting(value: object, field_name: str) -> bool:

@@ -3823,6 +3823,7 @@ async def test_tui_app_omits_footer_but_keeps_shortcuts_active() -> None:
             "Sessions": "ctrl+r",
             "Thinking": "shift+tab",
             "Model": "ctrl+p",
+            "Editor": "ctrl+e",
             "Cancel": "escape",
         }
 

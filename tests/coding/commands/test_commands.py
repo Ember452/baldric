@@ -378,6 +378,7 @@ def test_hotkeys_command_lists_common_tui_shortcuts(tmp_path: Path) -> None:
 
     assert result.message is not None
     assert "Common keyboard shortcuts:" in result.message
+    assert "Ctrl+E: edit prompt in external editor ($VISUAL/$EDITOR)" in result.message
     assert "Ctrl+K: open slash-command completions" in result.message
     assert "Ctrl+R: open session picker" in result.message
     assert "Ctrl+P / Shift+Ctrl+P: cycle scoped models forward / backward" in result.message
