@@ -148,6 +148,7 @@ def test_registered_commands_are_expected(tmp_path: Path) -> None:
         "skills",
         "system",
         "theme",
+        "thinking",
         "tools",
         "tree",
     ]

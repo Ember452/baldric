@@ -221,8 +221,8 @@
       "max_function_stmts": 5
     },
     "src/baldric_coding/commands/registry.py": {
-      "lines": 271,
-      "max_function_stmts": 27
+      "lines": 281,
+      "max_function_stmts": 28
     },
     "src/baldric_coding/commands/resources.py": {
       "lines": 94,
@@ -441,8 +441,8 @@
       "max_function_stmts": 0
     },
     "src/baldric_coding/modes/rpc/server.py": {
-      "lines": 435,
-      "max_function_stmts": 5
+      "lines": 455,
+      "max_function_stmts": 6
     },
     "src/baldric_coding/modes/rpc/session.py": {
       "lines": 120,

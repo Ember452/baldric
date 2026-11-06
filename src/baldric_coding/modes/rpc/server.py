@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sys
 from collections.abc import AsyncIterator
@@ -34,6 +35,23 @@ from baldric_coding.session.session import (
 _MAX_RECORD_BYTES = 16 * 1024 * 1024
 
 
+def _configure_rpc_stream(stream: IO[str], *, newline: str | None) -> None:
+    """Force UTF-8 and, for output, literal LF framing.
+
+    A Windows console pipes JSON through text-mode streams that default to the
+    system code page for reading and translate ``\\n`` to ``\\r\\n`` for writing.
+    Pi's protocol is UTF-8 with LF-delimited records, so a peer reading bytes
+    would otherwise see a carriage return it did not expect, and inbound UTF-8
+    (for example non-ASCII prompts) could fail to decode. Streams without
+    ``reconfigure`` (in-memory test doubles) keep their current settings.
+    """
+    reconfigure = getattr(stream, "reconfigure", None)
+    if reconfigure is None:
+        return
+    with contextlib.suppress(AttributeError, ValueError):
+        reconfigure(encoding="utf-8", newline=newline)
+
+
 class RpcServer:
     """Read Pi-style commands and stream responses/events as strict JSONL."""
 
@@ -52,6 +70,8 @@ class RpcServer:
 
     async def run(self) -> None:
         """Serve commands until stdin reaches EOF."""
+        _configure_rpc_stream(self._stdin, newline=None)
+        _configure_rpc_stream(self._stdout, newline="\n")
         await self._session.emit_pending_session_start()
         async with anyio.create_task_group() as tasks:
             while True:

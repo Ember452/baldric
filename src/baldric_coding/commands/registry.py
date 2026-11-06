@@ -19,6 +19,7 @@ from baldric_coding.commands.config import (
     _scoped_models_command,
     _sidebar_command,
     _theme_command,
+    _thinking_command,
 )
 from baldric_coding.commands.core import (
     _compact_command,
@@ -223,6 +224,15 @@ def create_default_command_registry() -> CommandRegistry:
             description="Choose models available to quick-cycle with Ctrl+P.",
             handler=_scoped_models_command,
             search_terms=("scope", "quick", "cycle", "ctrl+p"),
+        )
+    )
+    registry.register(
+        SlashCommand(
+            name="thinking",
+            usage="/thinking [level]",
+            description="Show or set the thinking mode.",
+            handler=_thinking_command,
+            search_terms=("reasoning", "effort"),
         )
     )
     registry.register(
