@@ -37,7 +37,8 @@ from baldric_coding.tui.config import BALDRIC_DARK_THEME
 from baldric_coding.tui.widgets import TranscriptMessageWidget
 
 # Sibling test module (pytest prepend import mode puts tests/ on sys.path).
-from test_subagents_extension import RecordingSession, _load_runtime  # noqa: E402
+from subagents_shared import RecordingSession, _load_runtime
+from subagents_ui_helpers import _run, _strip_text
 
 pytestmark = pytest.mark.anyio
 
@@ -48,32 +49,6 @@ def anyio_backend() -> str:
 
 
 # --- helpers ---------------------------------------------------------------
-
-
-def _run(
-    agent_id: str = "agent-1",
-    *,
-    agent_type: str = "explore",
-    description: str = "survey",
-    status: str = "running",
-    started: bool = True,
-    finished: bool = False,
-    session: object | None = None,
-) -> AgentRun:
-    run = AgentRun(
-        agent_id=agent_id,
-        agent_type=agent_type,
-        description=description,
-        prompt="child prompt",
-        background=True,
-        status=status,
-    )
-    if started:
-        run.started_at = time.monotonic()
-    if finished:
-        run.completed_at = time.monotonic()
-    run.session = session
-    return run
 
 
 def _manager(*runs: AgentRun) -> SimpleNamespace:
@@ -106,11 +81,6 @@ class _Harness(App):
     def compose(self) -> ComposeResult:
         yield Input(id="prompt")
         yield from self._widgets
-
-
-def _strip_text(strip: AgentStripWidget) -> str:
-    group = strip.render()
-    return " ".join(getattr(part, "plain", "") for part in group.renderables)
 
 
 # --- strip rendering -------------------------------------------------------

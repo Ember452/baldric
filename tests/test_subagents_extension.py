@@ -21,25 +21,31 @@ from baldric_ai import (
     AssistantStartEvent,
     FakeProvider,
 )
-from baldric_coding import BaldricResourcePaths
-from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.extensions import ExtensionRuntime
+from subagents_shared import (
+    EXTENSION_DIR,
+    BlockingProvider,
+    RecordingSession,
+    ScriptedUi,
+    _agent_tool,
+    _bpaths,
+    _extension_module,
+    _load_runtime,
+    _patch_provider_factory,
+    _patch_provider_sequence,
+    _paths,
+    _runtime_paths,
+    _submodule,
+    _text_stream,
+    _wait_for,
+)
 
 pytestmark = pytest.mark.anyio
-
-EXTENSION_DIR = (
-    Path(__file__).resolve().parents[1] / "src" / "baldric_coding" / "extensions" / "builtins" / "subagents"
-)
 
 
 @pytest.fixture
 def anyio_backend() -> str:
     return "asyncio"
-
-
-def _bpaths(home):  # noqa: ANN001, ANN202 - test helper
-    """BaldricPaths for a directory that stands in for the user home."""
-    return BaldricPaths(home=home / ".baldric", agents_home=home / "agents")
 
 
 @pytest.fixture
@@ -63,94 +69,6 @@ def _isolate_home(
     return home
 
 
-def _paths(tmp_path: Path) -> BaldricResourcePaths:
-    return BaldricResourcePaths(
-        root=tmp_path / "home-baldric",
-        cwd=tmp_path / "project",
-        agents_root=tmp_path / "home-agents",
-    )
-
-
-def _runtime_paths(tmp_path: Path) -> BaldricPaths:
-    """The paths object the runtime derives from `_paths(tmp_path)`.
-
-    Locations come from the injected paths rather than `Path.home()`, so a test
-    that predicts where the capability wrote must use this same pair.
-    """
-    return BaldricPaths(home=tmp_path / "home-baldric", agents_home=tmp_path / "home-agents")
-
-
-class RecordingSession:
-    """Minimal BoundSession implementation for runtime tests."""
-
-    def __init__(self, tmp_path: Path, *, running: bool = False) -> None:
-        self.cwd = tmp_path
-        self.model = "fake"
-        self.provider_name = "fake"
-        # Deliberately not the level a hardcoded default would have picked, so a
-        # child continuing at the parent's level is observable, not coincidental.
-        self.thinking_level = "high"
-        self.session_id = "session-1"
-        self.system_prompt = "You are Baldric."
-        self.is_running = running
-        # The trust gate reads this through the context; these tests place agent
-        # definitions and settings in the project directory, so the stand-in
-        # models an approved project (api.py:1000 reads `.trusted`).
-        self.project_trust_resolution = SimpleNamespace(trusted=True)
-        self.steered: list[str] = []
-        self.followed_up: list[str] = []
-        self.custom_entries: list[tuple[str, dict[str, object]]] = []
-        self.messages: list[object] = []
-        self.followed_up_custom: list[tuple[str | None, dict[str, object] | None]] = []
-
-    def queue_steering_message(
-        self,
-        content: str,
-        *,
-        custom_type: str | None = None,
-        details: dict[str, object] | None = None,
-    ) -> None:
-        del custom_type, details
-        self.steered.append(content)
-
-    def queue_follow_up_message(
-        self,
-        content: str,
-        *,
-        custom_type: str | None = None,
-        details: dict[str, object] | None = None,
-    ) -> None:
-        self.followed_up.append(content)
-        self.followed_up_custom.append((custom_type, details))
-
-    async def append_custom_entry(self, namespace: str, data: dict[str, object]) -> None:
-        self.custom_entries.append((namespace, data))
-
-
-def _load_runtime(tmp_path: Path) -> ExtensionRuntime:
-    # These suites load the capability from its source directory through
-    # ``extra_paths``, so the built-in declaration has to stay out of the way:
-    # loading both would register the tools twice and the first registration
-    # would win, leaving patches on the loaded copy without effect.
-    runtime = ExtensionRuntime(built_in_extensions=())
-    runtime.load(
-        _paths(tmp_path),
-        extra_paths=(EXTENSION_DIR,),
-        include_resource_dirs=False,
-    )
-    return runtime
-
-
-def _extension_module() -> object:
-    candidates = [
-        module
-        for module_name, module in sys.modules.items()
-        if module_name.startswith("baldric_extension_subagents") and "." not in module_name
-    ]
-    assert candidates, "extension module not loaded"
-    return candidates[-1]
-
-
 def _patch_fake_provider(module: object, *, response: str) -> None:
     module.load_provider_settings = lambda: None  # type: ignore[attr-defined]
     module.resolve_provider_selection = (  # type: ignore[attr-defined]
@@ -169,11 +87,6 @@ def _patch_fake_provider(module: object, *, response: str) -> None:
             ]
         )
     )
-
-
-def _submodule(name: str) -> object:
-    top = _extension_module()
-    return sys.modules[f"{top.__name__}.{name}"]  # type: ignore[attr-defined]
 
 
 def _prompts_module() -> object:
@@ -197,19 +110,8 @@ def _git_stdout(args: list[str], cwd: Path) -> str:
     return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=True).stdout
 
 
-def _agent_tool(runtime: ExtensionRuntime):  # noqa: ANN202
-    return next(tool for tool in runtime.extension_tools if tool.name == "agent")
-
-
 def _steer_tool(runtime: ExtensionRuntime):  # noqa: ANN202
     return next(tool for tool in runtime.extension_tools if tool.name == "steer_subagent")
-
-
-def _text_stream(text: str) -> list[object]:
-    return [
-        AssistantStartEvent(partial=AssistantMessage(model="fake")),
-        AssistantDoneEvent(reason="stop", message=AssistantMessage(content=text)),
-    ]
 
 
 def _tool_call_stream(text: str, call_id: str) -> list[object]:
@@ -223,51 +125,6 @@ def _tool_call_stream(text: str, call_id: str) -> list[object]:
             ),
         ),
     ]
-
-
-class BlockingProvider:
-    """A provider whose single text response waits on an event before yielding."""
-
-    def __init__(self, release: asyncio.Event, text: str) -> None:
-        self._release = release
-        self._text = text
-        self.calls: list[object] = []
-
-    def stream_response(  # noqa: ANN001, ANN202
-        self, *, model, system, messages, tools, signal=None, session_id=None
-    ):
-        self.calls.append(list(messages))
-
-        async def iterator():  # noqa: ANN202
-            await self._release.wait()
-            yield AssistantStartEvent(partial=AssistantMessage(model="fake"))
-            yield AssistantDoneEvent(reason="stop", message=AssistantMessage(content=self._text))
-
-        return iterator()
-
-
-def _patch_provider_settings(module: object) -> None:
-    module.load_provider_settings = lambda: None  # type: ignore[attr-defined]
-    module.resolve_provider_selection = (  # type: ignore[attr-defined]
-        lambda settings, provider_name=None, model=None: SimpleNamespace(
-            provider=SimpleNamespace(name="fake"), model="fake"
-        )
-    )
-
-
-def _patch_provider_factory(module: object, provider: object) -> None:
-    _patch_provider_settings(module)
-    module.create_model_provider = (  # type: ignore[attr-defined]
-        lambda provider_arg, model, thinking_level: provider
-    )
-
-
-def _patch_provider_sequence(module: object, providers: list[object]) -> None:
-    _patch_provider_settings(module)
-    it = iter(providers)
-    module.create_model_provider = (  # type: ignore[attr-defined]
-        lambda provider_arg, model, thinking_level: next(it)
-    )
 
 
 def _patch_recording_provider(
@@ -293,13 +150,6 @@ def _patch_recording_provider(
     module.resolve_provider_selection = fake_resolve  # type: ignore[attr-defined]
     module.create_model_provider = fake_create  # type: ignore[attr-defined]
     return provider_names, models, thinking_levels
-
-
-async def _wait_for(condition, *, tries: int = 500) -> None:  # noqa: ANN001
-    for _ in range(tries):
-        if condition():
-            return
-        await asyncio.sleep(0.01)
 
 
 async def test_settings_defaults_overrides_and_validation(tmp_path: Path) -> None:
@@ -1907,35 +1757,6 @@ async def test_notification_delivered_as_custom_message(tmp_path: Path) -> None:
     assert details["result_preview"] == "done"
     # The raw XML content still enters context for the model.
     assert "<task-notification>" in session.followed_up[0]
-
-
-class ScriptedUi:
-    """Scripted DialogUi fake for menu tests."""
-
-    def __init__(self, selects, confirms=(), inputs=()) -> None:  # noqa: ANN001
-        self.selects = list(selects)
-        self.confirms = list(confirms)
-        self.inputs = list(inputs)
-        self.select_calls: list[tuple[str, tuple[str, ...]]] = []
-        self.notifications: list[str] = []
-
-    @property
-    def has_ui(self) -> bool:
-        return True
-
-    def notify(self, message: str, level: str = "info") -> None:
-        self.notifications.append(message)
-
-    async def select(self, title, options, *, timeout=None):  # noqa: ANN001, ANN202
-        self.select_calls.append((title, tuple(options)))
-        answer = self.selects.pop(0)
-        return answer(options) if callable(answer) else answer
-
-    async def confirm(self, title, message, *, timeout=None):  # noqa: ANN001, ANN202
-        return self.confirms.pop(0)
-
-    async def input(self, title, placeholder="", *, timeout=None):  # noqa: ANN001, ANN202
-        return self.inputs.pop(0)
 
 
 def _menu_run(module, **overrides):  # noqa: ANN001, ANN202
