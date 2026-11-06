@@ -709,7 +709,7 @@
       "max_function_stmts": 14
     },
     "src/baldric_coding/tui/app.py": {
-      "lines": 5687,
+      "lines": 4472,
       "max_function_stmts": 61
     },
     "src/baldric_coding/tui/autocomplete.py": {
@@ -728,12 +728,20 @@
       "lines": 141,
       "max_function_stmts": 7
     },
+    "src/baldric_coding/tui/extension_components.py": {
+      "lines": 957,
+      "max_function_stmts": 18
+    },
     "src/baldric_coding/tui/file_drop.py": {
       "lines": 83,
       "max_function_stmts": 10
     },
+    "src/baldric_coding/tui/login_providers.py": {
+      "lines": 62,
+      "max_function_stmts": 2
+    },
     "src/baldric_coding/tui/pickers.py": {
-      "lines": 138,
+      "lines": 125,
       "max_function_stmts": 6
     },
     "src/baldric_coding/tui/screens/__init__.py": {
@@ -792,6 +800,14 @@
       "lines": 372,
       "max_function_stmts": 7
     },
+    "src/baldric_coding/tui/session_pickers.py": {
+      "lines": 294,
+      "max_function_stmts": 6
+    },
+    "src/baldric_coding/tui/session_records.py": {
+      "lines": 87,
+      "max_function_stmts": 8
+    },
     "src/baldric_coding/tui/state.py": {
       "lines": 988,
       "max_function_stmts": 15
@@ -803,6 +819,10 @@
     "src/baldric_coding/tui/terminal_title.py": {
       "lines": 122,
       "max_function_stmts": 7
+    },
+    "src/baldric_coding/tui/text_utils.py": {
+      "lines": 11,
+      "max_function_stmts": 3
     },
     "src/baldric_coding/tui/trust.py": {
       "lines": 184,
@@ -863,6 +883,6 @@
   },
   "global": {
     "inheritance_depth": 1,
-    "module_fanout": 52
+    "module_fanout": 54
   }
 }

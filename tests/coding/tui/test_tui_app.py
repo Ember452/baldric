@@ -103,6 +103,7 @@ from baldric_coding.session.session import (
 )
 from baldric_coding.session.stats import SessionStats
 from baldric_coding.tui import app as tui_app
+from baldric_coding.tui import session_pickers
 from baldric_coding.tui.adapter import TuiEventAdapter
 from baldric_coding.tui.app import (
     COMPLETION_MAX_VISIBLE_LINES,
@@ -9315,6 +9316,8 @@ async def test_tui_anthropic_subscription_alias_opens_oauth(
             raise AssertionError("unreachable")
 
     fake_provider = FakeOAuthProvider()
+    # The screen resolves the provider through ``_app_module()``, i.e. this module
+    # attribute, so it must be patched here (not on session_pickers).
     monkeypatch.setattr(tui_app, "get_oauth_provider", lambda _name: fake_provider)
     app = BaldricTuiApp(FakeSession())
 
@@ -9354,7 +9357,8 @@ async def test_tui_login_openai_codex_saves_oauth_credentials(
     async def fake_login_openai_codex(**_kwargs: object) -> OAuthCredential:
         return await credential_future
 
-    monkeypatch.setattr(tui_app, "login_openai_codex", fake_login_openai_codex)
+    # Patched on the module that owns the login flow (SessionPickerMixin).
+    monkeypatch.setattr(session_pickers, "login_openai_codex", fake_login_openai_codex)
     session = FakeSession()
     app = BaldricTuiApp(session)
 

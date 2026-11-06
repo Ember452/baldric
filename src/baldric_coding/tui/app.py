@@ -8,14 +8,13 @@ import os
 import signal
 import sys
 import threading
-import traceback
-from collections.abc import AsyncIterator, Callable, Coroutine, Sequence
-from contextlib import AbstractContextManager, suppress
-from dataclasses import dataclass, replace
+from collections.abc import AsyncIterator, Callable, Sequence
+from contextlib import suppress
+from dataclasses import replace
 from inspect import isawaitable
 from io import StringIO
 from pathlib import Path
-from typing import Any, ClassVar, Literal, TypeVar, cast
+from typing import Any, ClassVar, Literal, cast
 
 from rich.console import Console, Group
 from rich.text import Text
@@ -25,8 +24,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding, BindingsMap
 from textual.containers import Container, Horizontal, Vertical
 from textual.css.query import NoMatches
-from textual.events import Key, Resize
-from textual.screen import ModalScreen
+from textual.events import Resize
 from textual.timer import Timer
 from textual.widget import Widget
 from textual.widgets import (
@@ -64,11 +62,11 @@ from baldric_agent.provider_events import (
 from baldric_agent.tools import AgentTool
 from baldric_agent.types import JSONValue
 from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
-from baldric_coding.auth.oauth import login_openai_codex
-from baldric_coding.auth.registry import get_oauth_provider, oauth_provider_ids
-from baldric_coding.auth.types import (
-    OAuthLoginCallbacks,
-)
+
+# Re-exported on purpose: ``tui/screens/login.py`` resolves the OAuth provider via
+# ``_app_module().get_oauth_provider(name)`` so tests (and the app) can patch it
+# here. Removing this import breaks the OAuth login flow at runtime.
+from baldric_coding.auth.registry import get_oauth_provider as get_oauth_provider
 from baldric_coding.commands.registry import (
     LOGIN_PROVIDER_ALIASES,
     CommandRegistry,
@@ -90,15 +88,8 @@ from baldric_coding.events import (
 )
 from baldric_coding.extensions.api import (
     KeyInterceptor,
-    MainViewFactory,
-    MainViewHandle,
-    Placement,
-    SidebarContent,
-    SlotWidgetContent,
-    SlotWidgetFactory,
 )
 from baldric_coding.providers.catalog import (
-    BUILTIN_PROVIDER_CATALOG,
     ProviderCatalogEntry,
     builtin_provider_entry,
 )
@@ -144,7 +135,6 @@ from baldric_coding.tui.adapter import TuiEventAdapter
 from baldric_coding.tui.autocomplete import (
     CompletionItem,
     CompletionKind,
-    CompletionOption,
     CompletionState,
     build_completion_state,
 )
@@ -165,12 +155,26 @@ from baldric_coding.tui.config import (
     save_tui_settings,
 )
 from baldric_coding.tui.editor import EditorError, run_external_editor
+from baldric_coding.tui.extension_components import (
+    ExtensionComponentsMixin,
+    _MainViewHandle,
+    _SidebarContribution,
+)
+from baldric_coding.tui.extension_components import (
+    _TuiExtensionUiBridge as _TuiExtensionUiBridge,
+)
+from baldric_coding.tui.login_providers import (
+    NO_STORED_CREDENTIALS_MESSAGE,
+    credential_store_has_entry,
+)
 from baldric_coding.tui.pickers import PickerMixin
 from baldric_coding.tui.screens.command_output import CommandOutputScreen
 from baldric_coding.tui.screens.extension import (
     ExtensionConfirmScreen,
-    ExtensionInputScreen,
     ExtensionSelectScreen,
+)
+from baldric_coding.tui.screens.extension import (
+    ExtensionInputScreen as ExtensionInputScreen,
 )
 from baldric_coding.tui.screens.extensions import ExtensionsScreen
 from baldric_coding.tui.screens.login import (
@@ -178,9 +182,13 @@ from baldric_coding.tui.screens.login import (
     CustomProviderLoginScreen,
     LoginMethodPickerScreen,
     LoginProviderPickerScreen,
-    LoginScreen,
-    OAuthLoginScreen,
     _LoginFlowAction,
+)
+from baldric_coding.tui.screens.login import (
+    LoginScreen as LoginScreen,
+)
+from baldric_coding.tui.screens.login import (
+    OAuthLoginScreen as OAuthLoginScreen,
 )
 from baldric_coding.tui.screens.model_picker import ModelPickerScreen
 from baldric_coding.tui.screens.prompt_templates import (
@@ -205,7 +213,6 @@ from baldric_coding.tui.screens.sidebar import (
     _write_staged_utf8 as _write_staged_utf8,
 )
 from baldric_coding.tui.screens.skill_picker import (
-    SkillPickerResult,
     SkillPickerScreen,
 )
 from baldric_coding.tui.screens.support import (
@@ -250,9 +257,9 @@ from baldric_coding.tui.screens.support import (
 from baldric_coding.tui.screens.theme import ThemePickerScreen
 from baldric_coding.tui.screens.tools_reference import ToolsReferenceScreen
 from baldric_coding.tui.screens.tree_picker import (
-    TreePickerResult,
     TreePickerScreen,
 )
+from baldric_coding.tui.session_records import session_options, session_records, short_path
 from baldric_coding.tui.state import (
     TuiState,
     assistant_block_is_visible,
@@ -260,14 +267,13 @@ from baldric_coding.tui.state import (
 )
 from baldric_coding.tui.terminal_notification import TerminalNotificationController
 from baldric_coding.tui.terminal_title import TerminalTitleController
+from baldric_coding.tui.text_utils import text_end_location
 from baldric_coding.tui.trust import ProjectTrustScreen, prompt_project_trust
 from baldric_coding.tui.widgets import (
     CompactSessionInfo,
     SessionSidebar,
     SidebarFileItem,
     TranscriptView,
-    _custom_markup_to_text,
-    _sidebar_separator,
     render_completion_suggestions,
 )
 from baldric_coding.tui.widgets.prompt_input import (
@@ -298,6 +304,12 @@ from baldric_coding.tui.widgets.prompt_input import (
 _textual_theme_for_baldric_theme = textual_theme_for_tui_theme
 _theme_css_variables = theme_css_variables
 
+# Re-exported for backwards compatibility: these were importable from this module
+# before the picker/extension extraction. Moving the code changed their home, not
+# their callers, so the old private names stay importable here.
+_session_records = session_records
+_short_path = short_path
+
 type BindingEntry = Binding | tuple[str, str] | tuple[str, str, str]
 SIDEBAR_MIN_WIDTH = 96
 SIDEBAR_MIN_HEIGHT = 38
@@ -309,10 +321,6 @@ COMPLETION_MAX_VISIBLE_LINES = 16
 COMPLETION_INITIAL_TERMINAL_FRACTION = 3
 COMPLETION_MIN_TRANSCRIPT_LINES = 4
 COMPLETION_WIDGET_CHROME_LINES = 3
-NO_STORED_CREDENTIALS_MESSAGE = (
-    "No stored credentials to remove. /logout only removes credentials saved by /login; "
-    "environment variables and providers.json config are unchanged."
-)
 
 
 def _configure_herdr_textual_mouse() -> None:
@@ -358,259 +366,6 @@ class LoginRequiredProvider:
         return iterator()
 
 
-_DialogResult = TypeVar("_DialogResult")
-
-
-@dataclass(frozen=True, slots=True)
-class _SidebarContribution:
-    """One extension-owned sidebar section retained for theme rebuilds."""
-
-    title: str
-    content: SidebarContent
-
-
-class _TuiExtensionUiBridge:
-    """Route extension UI requests to the running Textual app."""
-
-    _SEVERITIES: ClassVar[dict[str, Literal["information", "warning", "error"]]] = {
-        "info": "information",
-        "warning": "warning",
-        "error": "error",
-    }
-
-    def __init__(self, app: BaldricTuiApp) -> None:
-        self._app = app
-
-    @property
-    def has_ui(self) -> bool:
-        """Return True: an interactive TUI is attached."""
-        return True
-
-    def notify(self, message: str, level: str = "info") -> None:
-        """Show an extension notification through the app's dedupe path."""
-        self._app._notify(message, severity=self._SEVERITIES.get(level, "information"))
-
-    def suspend(self) -> AbstractContextManager[None]:
-        """Pause the Textual app so an external program can use the terminal."""
-        return self._app.suspend()
-
-    async def select(
-        self,
-        title: str,
-        options: Sequence[str],
-        *,
-        timeout: float | None = None,
-    ) -> str | None:
-        """Show a modal picker; return the choice, or None on cancel/timeout."""
-        theme = self._app.tui_settings.resolved_theme
-        screen: ModalScreen[str | None] = ExtensionSelectScreen(title, options, theme=theme)
-        return await self._run_dialog(screen, default=None, timeout=timeout)
-
-    async def confirm(
-        self,
-        title: str,
-        message: str,
-        *,
-        timeout: float | None = None,
-    ) -> bool:
-        """Show a modal confirmation; True only if confirmed."""
-        theme = self._app.tui_settings.resolved_theme
-        screen: ModalScreen[bool] = ExtensionConfirmScreen(title, message, theme=theme)
-        return await self._run_dialog(screen, default=False, timeout=timeout)
-
-    async def input(
-        self,
-        title: str,
-        placeholder: str = "",
-        *,
-        timeout: float | None = None,
-    ) -> str | None:
-        """Show a modal text prompt; return the text, or None on cancel/timeout."""
-        theme = self._app.tui_settings.resolved_theme
-        screen: ModalScreen[str | None] = ExtensionInputScreen(title, placeholder, theme=theme)
-        return await self._run_dialog(screen, default=None, timeout=timeout)
-
-    # -- component seam -- pass-through to the app ----------------------------
-
-    @property
-    def supports_components(self) -> bool:
-        """Return True: a Textual TUI can host extension widgets."""
-        return True
-
-    @property
-    def theme(self) -> TuiTheme:
-        """Return the live TUI theme handed to widget factories."""
-        return self._app.tui_settings.resolved_theme
-
-    def get_prompt_text(self) -> str:
-        """Return the current prompt-editor text (Pi's getEditorText).
-
-        Interceptors do not need this — the host passes the prompt text as
-        their second argument; it exists for reads outside the key path.
-        """
-        return self._app._current_prompt_text()
-
-    def request_render(self) -> None:
-        """Re-render mounted extension widgets (analog of Pi's requestRender)."""
-        self._app._refresh_extension_components()
-
-    def set_slot_widget(
-        self,
-        key: str,
-        content: SlotWidgetContent | None,
-        *,
-        placement: Placement = "above_prompt",
-    ) -> None:
-        """Mount or remove an extension slot widget by key (factory or lines)."""
-        self._app._set_extension_slot_widget(key, content, placement)
-
-    def open_main_view(self, factory: MainViewFactory) -> MainViewHandle:
-        """Open a full main-area extension view (display-toggled, not modal)."""
-        return self._app._open_extension_main_view(factory)
-
-    def register_key_interceptor(self, handler: KeyInterceptor) -> Callable[[], None]:
-        """Register a pre-dispatch key hook; return an unsubscribe callable.
-
-        Ports Pi's ``onTerminalInput``. The handler is consulted in
-        ``BaldricTuiApp.on_event`` before Textual's app-level priority bindings and
-        before the focused widget receives the key, so it can own navigation
-        keys (``up``/``down``/``tab``/…) that baldric otherwise binds with
-        ``priority=True``. Because it fires for EVERY main-screen key regardless
-        of which widget holds focus, the handler MUST self-gate (e.g. on the
-        prompt text and its own state) and return ``True`` only for keys it
-        actually consumes. It is never consulted while a modal screen (dialog,
-        picker, command palette) is on top.
-        """
-        return self._app._register_extension_key_interceptor(handler)
-
-    @property
-    def supports_sidebar(self) -> bool:
-        """Return whether the configured TUI sidebar can host sections."""
-        return self._app.tui_settings.sidebar_position != "off"
-
-    def set_sidebar_section(
-        self,
-        extension_name: str,
-        key: str,
-        *,
-        title: str,
-        content: SidebarContent,
-    ) -> None:
-        """Add or replace one host-framed extension sidebar section."""
-        self._app._set_extension_sidebar_section(
-            extension_name,
-            key,
-            title=title,
-            content=content,
-        )
-
-    def remove_sidebar_section(self, extension_name: str, key: str) -> None:
-        """Remove one extension-owned sidebar section."""
-        self._app._remove_extension_sidebar_section(extension_name, key)
-
-    def clear_components(self) -> None:
-        """Tear down all extension-owned UI (runtime-driven: /reload, rebind)."""
-        self._app._clear_extension_components()
-
-    async def _run_dialog(
-        self,
-        screen: ModalScreen[_DialogResult],
-        *,
-        default: _DialogResult,
-        timeout: float | None,
-    ) -> _DialogResult:
-        """Push a modal and await its dismissal via a callback-resolved future.
-
-        Uses ``push_screen(screen, callback)`` + an ``asyncio.Future`` rather
-        than ``push_screen_wait`` (which requires a Textual worker context);
-        this pattern works from any coroutine on the app's event loop,
-        including a task spawned by a sync ``/command`` handler. On ``timeout``
-        (seconds) the dialog auto-dismisses and the no-op ``default`` returns.
-        """
-        loop = asyncio.get_running_loop()
-        future: asyncio.Future[_DialogResult] = loop.create_future()
-
-        def _resolve(result: _DialogResult | None) -> None:
-            # Textual passes None when a screen is dismissed with no value;
-            # map that (and any explicit cancel) to the no-op default.
-            if not future.done():
-                future.set_result(default if result is None else result)
-
-        self._app.push_screen(screen, _resolve)
-        if timeout is None:
-            return await future
-        try:
-            return await asyncio.wait_for(future, timeout)
-        except TimeoutError:
-            # `Screen.dismiss` only works while the dialog is the top screen.
-            # Known limitation: if another screen was pushed on top before the
-            # timeout fired, the stale dialog stays on the stack (its future
-            # result is discarded by `_resolve` racing `future.done()`) until
-            # the covering screen closes and the user dismisses it manually.
-            if screen.is_current:
-                with suppress(Exception):
-                    screen.dismiss(default)
-            return default
-
-
-class _MainViewHandle:
-    """Host-side handle to an open extension main view.
-
-    ``close(result)`` is idempotent and routes back to the app, which unmounts
-    the widget and restores the main transcript; it also resolves ``wait()``
-    with ``result`` (Pi's ``done(result)``). Every other teardown path the host
-    owns — session rebind, quarantine, being superseded by a later
-    ``open_main_view`` — resolves ``wait()`` with ``None`` via
-    :meth:`_resolve`, so an awaiting extension task never hangs.
-    """
-
-    def __init__(self, app: BaldricTuiApp, result: asyncio.Future[object | None]) -> None:
-        self._app = app
-        self._open = True
-        self.widget: Widget | None = None
-        # Created on the app's event loop at open time; resolved exactly once by
-        # the first teardown (close/clear/quarantine/supersede) to wake wait().
-        self._result = result
-
-    def close(self, result: object | None = None) -> None:
-        """Close the view, resolving ``wait()`` with ``result`` (safe to repeat)."""
-        if not self._open:
-            return
-        self._open = False
-        self._resolve(result)
-        self._app._close_extension_main_view(self)
-
-    def _resolve(self, result: object | None) -> None:
-        """Resolve the pending ``wait()`` future once; later calls are no-ops."""
-        if not self._result.done():
-            self._result.set_result(result)
-
-    async def wait(self) -> object | None:
-        """Await teardown and return the ``close`` result (``None`` if cleared)."""
-        return await self._result
-
-    @property
-    def is_open(self) -> bool:
-        """Return whether the view is still open."""
-        return self._open
-
-
-class _DeadMainViewHandle:
-    """A no-op main-view handle returned when a view could not be opened."""
-
-    def close(self, result: object | None = None) -> None:
-        """Do nothing: there is no view to close (``result`` is ignored)."""
-
-    async def wait(self) -> object | None:
-        """Return None immediately: a dead handle never opens a view."""
-        return None
-
-    @property
-    def is_open(self) -> bool:
-        """Return False: a dead handle is never open."""
-        return False
-
-
 #: Keys an extension key interceptor is never consulted for. These flow
 #: straight to normal dispatch so a buggy interceptor (one that returns True
 #: too broadly) cannot swallow the session's hard interrupt/exit reflexes and
@@ -636,8 +391,39 @@ def _collect_garbage_while_idle() -> None:
     gc.freeze()
 
 
-class BaldricTuiApp(PickerMixin, App[None]):
+class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
     """Interactive Textual frontend for a ``CodingSession``."""
+
+    # Textual registers @on(...) handlers from the concrete class __dict__ only,
+    # so this decorated handler must live on the app itself, not in a mixin.
+
+    @on(SidebarFileItem.OpenRequested)
+    def on_sidebar_file_open_requested(self: Any, event: SidebarFileItem.OpenRequested) -> None:
+        """Open a sidebar resource file in the main-area editor."""
+        event.stop()
+        item = event.item
+        current = self._extension_main_view
+        if current is not None and isinstance(current.widget, SidebarFileEditor) and current.widget.is_dirty:
+            message = "Save or close the current file before opening another."
+            self._notify(message, severity="warning")
+            current.widget.query_one("#sidebar-file-editor-status", Static).update(message)
+            current.widget.query_one("#sidebar-file-editor-input", TextArea).focus()
+            return
+        try:
+            source, snapshot = _read_sidebar_file(item.path)
+        except (OSError, UnicodeDecodeError) as exc:
+            self._notify(f"Could not read {item.path}: {exc}", severity="error")
+            return
+        self._open_extension_main_view(
+            lambda handle, theme: SidebarFileEditor(
+                handle=handle,
+                path=item.path,
+                label=item.file_label,
+                kind=item.kind,
+                source=source,
+                snapshot=snapshot,
+            )
+        )
 
     TITLE = "Baldric"
     CSS = """
@@ -1862,34 +1648,6 @@ class BaldricTuiApp(PickerMixin, App[None]):
         self._completion_visible_line_budget = None
         self._update_responsive_layout(event.size.width, event.size.height)
 
-    @on(SidebarFileItem.OpenRequested)
-    def on_sidebar_file_open_requested(self, event: SidebarFileItem.OpenRequested) -> None:
-        """Open a sidebar resource file in the main-area editor."""
-        event.stop()
-        item = event.item
-        current = self._extension_main_view
-        if current is not None and isinstance(current.widget, SidebarFileEditor) and current.widget.is_dirty:
-            message = "Save or close the current file before opening another."
-            self._notify(message, severity="warning")
-            current.widget.query_one("#sidebar-file-editor-status", Static).update(message)
-            current.widget.query_one("#sidebar-file-editor-input", TextArea).focus()
-            return
-        try:
-            source, snapshot = _read_sidebar_file(item.path)
-        except (OSError, UnicodeDecodeError) as exc:
-            self._notify(f"Could not read {item.path}: {exc}", severity="error")
-            return
-        self._open_extension_main_view(
-            lambda handle, theme: SidebarFileEditor(
-                handle=handle,
-                path=item.path,
-                label=item.file_label,
-                kind=item.kind,
-                source=source,
-                snapshot=snapshot,
-            )
-        )
-
     def on_click(self, event: events.Click) -> None:
         """Return keyboard focus to the prompt after clicks in the main TUI."""
         if event.button != 1:
@@ -1982,7 +1740,7 @@ class BaldricTuiApp(PickerMixin, App[None]):
                 self._notify("A compaction is already running.", severity="warning")
             else:
                 prompt.text = raw_text
-                prompt.move_cursor(_text_end_location(raw_text))
+                prompt.move_cursor(text_end_location(raw_text))
                 self._notify(
                     "Compaction is still running. You can keep editing, but wait to submit.",
                     severity="warning",
@@ -2031,7 +1789,7 @@ class BaldricTuiApp(PickerMixin, App[None]):
                     self._notify("A compaction is already running.", severity="warning")
                 elif self._is_agent_or_queue_active():
                     prompt.text = raw_text
-                    prompt.move_cursor(_text_end_location(raw_text))
+                    prompt.move_cursor(text_end_location(raw_text))
                     self._notify(
                         "Wait for the current agent turn and queued messages to finish before compacting.",
                         severity="warning",
@@ -2063,7 +1821,7 @@ class BaldricTuiApp(PickerMixin, App[None]):
             if command.tree_picker_requested:
                 if self._is_agent_or_queue_active():
                     prompt.text = raw_text
-                    prompt.move_cursor(_text_end_location(raw_text))
+                    prompt.move_cursor(text_end_location(raw_text))
                     self._notify(TREE_RUNNING_MESSAGE, severity="warning")
                     return
                 await self._open_tree_picker()
@@ -2391,49 +2149,6 @@ class BaldricTuiApp(PickerMixin, App[None]):
             return
         self._refresh()
 
-    def _connect_extension_runtime(self, session: CodingSession) -> None:
-        """Give the extension runtime a UI bridge and an idle-run entry point."""
-        runtime = getattr(session, "extension_runtime", None)
-        if runtime is None:
-            return
-        # Force-clear any extension widgets before installing the new bridge.
-        # This runs once, at construction; later teardowns (/reload, resume,
-        # new) come through the installed bridge's clear_components(), driven
-        # by the runtime, so extension widgets and key interceptors never
-        # survive a world they were mounted in.
-        self._clear_extension_components()
-        runtime.set_ui_bridge(_TuiExtensionUiBridge(self))
-        runtime.set_turn_requested_callback(self._on_extension_turn_requested)
-        # Let the transcript render custom messages via registered renderers.
-        self.state.custom_renderer = runtime.render_custom_message
-        # Let tool calls render through their tool's render_call, if any.
-        self.state.tool_call_renderer = runtime.render_tool_call
-        # And tool results through their tool's render_result, if any.
-        self.state.tool_result_renderer = runtime.render_tool_result
-
-    def _on_extension_turn_requested(
-        self,
-        content: str,
-        custom_type: str | None = None,
-        details: dict[str, JSONValue] | None = None,
-    ) -> None:
-        """Deliver an extension message through the serialized prompt path."""
-        self.call_later(self._deliver_extension_message, content, custom_type, details)
-
-    async def _deliver_extension_message(
-        self,
-        content: str,
-        custom_type: str | None = None,
-        details: dict[str, JSONValue] | None = None,
-    ) -> None:
-        if self.session.is_running or self._prompt_worker is not None:
-            # A run started while the delivery was in flight; drain with it.
-            queue_follow_up = getattr(self.session, "queue_follow_up_message", None)
-            if callable(queue_follow_up):
-                queue_follow_up(content, custom_type=custom_type, details=details)
-            return
-        await self._submit_prompt(content, source="extension", custom_type=custom_type, details=details)
-
     # -- component seam ------------------------------------------------------
 
     def _current_prompt_text(self) -> str:
@@ -2442,384 +2157,6 @@ class BaldricTuiApp(PickerMixin, App[None]):
             return self.query_one("#prompt", PromptInput).text
         except NoMatches:
             return ""
-
-    def _register_extension_key_interceptor(self, handler: KeyInterceptor) -> Callable[[], None]:
-        """Register a pre-dispatch key interceptor; return an unsubscribe fn."""
-        self._extension_key_interceptors.append(handler)
-
-        def unsubscribe() -> None:
-            with suppress(ValueError):
-                self._extension_key_interceptors.remove(handler)
-
-        return unsubscribe
-
-    def _run_extension_key_interceptors(self, event: Key, text: str) -> bool:
-        """Consult interceptors; return True if one consumed the key.
-
-        Each call is guarded: a raising interceptor is diagnosed once and
-        treated as "not consumed", so a broken interceptor degrades to normal
-        typing rather than a dead prompt.
-        """
-        for interceptor in tuple(self._extension_key_interceptors):
-            try:
-                if interceptor(event, text):
-                    return True
-            except Exception as exc:  # noqa: BLE001 - isolation boundary
-                # Notify like the other failure classes so a broken interceptor
-                # is not silently invisible, and dedup per-interceptor so a
-                # second faulty handler still gets diagnosed.
-                self._record_extension_component_failure(
-                    f"key_interceptor:{id(interceptor)}", exc, notify=True
-                )
-        return False
-
-    def _schedule_extension_swap(self, coro: Coroutine[object, object, None]) -> None:
-        """Run a slot/main-view reconcile coroutine on the app loop.
-
-        The task is retained until it finishes so it cannot be garbage-collected
-        mid-flight (asyncio only holds a weak reference). If there is no running
-        loop (only possible outside a live TUI), the coroutine is closed rather
-        than left un-awaited.
-        """
-        try:
-            task = asyncio.ensure_future(coro)
-        except RuntimeError:  # no running loop — not a live TUI
-            coro.close()
-            return
-        self._extension_swap_tasks.add(task)
-        task.add_done_callback(self._extension_swap_tasks.discard)
-
-    @staticmethod
-    def _string_slot_widget(lines: Sequence[str]) -> Static:
-        """Build a slot ``Static`` from display lines (Rich markup, safe fallback).
-
-        Joins ``lines`` with newlines and parses them as Rich markup; if the
-        markup is malformed the literal text is shown instead, mirroring the
-        custom-message renderer's guard so a bad string never crashes the TUI.
-        """
-        content = "\n".join(lines)
-        return Static(_custom_markup_to_text(content))
-
-    def _set_extension_slot_widget(
-        self,
-        key: str,
-        content: SlotWidgetContent | None,
-        placement: Placement,
-    ) -> None:
-        """Mount an extension widget into a prompt-adjacent slot, or unmount it.
-
-        ``content`` is a ``factory(theme)`` callable, a list of display lines
-        the host renders into a ``Static``, or ``None`` to unmount. The string
-        form is normalized into a factory here so the reconcile/quarantine/
-        replace machinery below is untouched.
-
-        The intended widget is recorded synchronously so mid-swap reads (clear,
-        quarantine, refresh) see what *should* occupy the slot; the actual
-        mount/unmount runs on a serialized continuation so a deferred remove()
-        of a same-id widget fully drains before the replacement mounts (else the
-        DOM briefly holds two widgets with one id -> ``DuplicateIds``).
-        """
-        factory: SlotWidgetFactory | None
-        if content is None:
-            factory = None
-        elif callable(content):
-            # Check callable() first: a Sequence[str] test must never swallow a
-            # factory (and a factory is not a Sequence).
-            factory = content
-        else:
-            # A plain list of display lines: build the widget host-side so the
-            # extension needs no Textual import. A bare str is treated as one
-            # line (never split into characters).
-            lines = [content] if isinstance(content, str) else list(content)
-            factory = lambda _theme: self._string_slot_widget(lines)  # noqa: E731
-        new_widget: Widget | None = None
-        if factory is not None:
-            try:
-                new_widget = factory(self.tui_settings.resolved_theme)
-            except Exception as exc:  # noqa: BLE001 - isolation boundary
-                self._record_extension_component_failure(f"slot:{key}", exc, notify=True)
-                return
-        slot_id = "above-prompt-slot" if placement == "above_prompt" else "below-prompt-slot"
-        if new_widget is None:
-            self._extension_slot_widgets.pop(key, None)
-            self._extension_slot_slot_ids.pop(key, None)
-        else:
-            self._extension_slot_widgets[key] = new_widget
-            self._extension_slot_slot_ids[key] = slot_id
-        self._schedule_extension_swap(self._reconcile_slot(key))
-
-    async def _reconcile_slot(self, key: str) -> None:
-        """Make the mounted slot widget match the intended target (serialized).
-
-        Reads the *live* target each time (not a snapshot), so a burst of set
-        calls collapses to "last writer wins": the first continuation removes the
-        stale mount, later ones find the target already satisfied and no-op.
-        """
-        lock = self._extension_slot_locks.setdefault(key, asyncio.Lock())
-        async with lock:
-            target = self._extension_slot_widgets.get(key)
-            mounted = self._extension_slot_mounted.get(key)
-            if mounted is not None and mounted is not target:
-                with suppress(Exception):
-                    await mounted.remove()
-                if self._extension_slot_mounted.get(key) is mounted:
-                    self._extension_slot_mounted.pop(key, None)
-            # Re-read after the await; the target may have changed meanwhile.
-            target = self._extension_slot_widgets.get(key)
-            if target is None or self._extension_slot_mounted.get(key) is target:
-                return
-            slot_id = self._extension_slot_slot_ids.get(key, "below-prompt-slot")
-            try:
-                self.query_one(f"#{slot_id}", Container).mount(target)
-            except Exception as exc:  # noqa: BLE001 - isolation boundary
-                if self._extension_slot_widgets.get(key) is target:
-                    self._extension_slot_widgets.pop(key, None)
-                    self._extension_slot_slot_ids.pop(key, None)
-                self._record_extension_component_failure(f"slot:{key}", exc, notify=True)
-                return
-            self._extension_slot_mounted[key] = target
-
-    def _build_extension_sidebar_widget(
-        self,
-        owner: tuple[str, str],
-        contribution: _SidebarContribution,
-        *,
-        theme: TuiTheme,
-    ) -> Widget | None:
-        """Build one host-framed sidebar section, isolating its body factory."""
-        content = contribution.content
-        try:
-            if callable(content):
-                body = content(theme)
-            else:
-                lines = [content] if isinstance(content, str) else list(content)
-                body = self._string_slot_widget(lines)
-            if not isinstance(body, Widget):
-                raise TypeError("sidebar factory must return a Textual Widget")
-            header = Text(contribution.title, style=f"bold {theme.prompt_text}")
-            return Vertical(
-                Static(_sidebar_separator(theme=theme), classes="sidebar-separator"),
-                Static(header, classes="extension-sidebar-title"),
-                Container(body, classes="extension-sidebar-body"),
-                classes="extension-sidebar-section",
-            )
-        except Exception as exc:  # noqa: BLE001 - isolation boundary
-            extension_name, key = owner
-            self._record_extension_component_failure(
-                f"sidebar:{extension_name}:{key}",
-                exc,
-                notify=True,
-                extension_name=extension_name,
-            )
-            return None
-
-    def _set_extension_sidebar_section(
-        self,
-        extension_name: str,
-        key: str,
-        *,
-        title: str,
-        content: SidebarContent,
-    ) -> None:
-        """Add or update a sidebar contribution while preserving key order."""
-        if self.tui_settings.sidebar_position == "off":
-            return
-        owner = (extension_name, key)
-        normalized_content: SidebarContent
-        if callable(content):
-            normalized_content = content
-        elif isinstance(content, str):
-            normalized_content = (content,)
-        else:
-            normalized_content = tuple(content)
-        contribution = _SidebarContribution(title=title, content=normalized_content)
-        theme = self.tui_settings.resolved_theme
-        previous = self._extension_sidebar_contributions.get(owner)
-        if previous == contribution and self._extension_sidebar_theme == theme:
-            return
-        mounted = self._extension_sidebar_mounted.get(owner)
-        target = self._extension_sidebar_widgets.get(owner)
-        if (
-            previous is not None
-            and not callable(previous.content)
-            and not callable(normalized_content)
-            and mounted is not None
-            and mounted is target
-            and self._extension_sidebar_theme == theme
-        ):
-            try:
-                header = Text(title, style=f"bold {theme.prompt_text}")
-                mounted.query_one(".extension-sidebar-title", Static).update(header)
-                body = mounted.query_one(".extension-sidebar-body", Container).query_one(Static)
-                body.update(_custom_markup_to_text("\n".join(normalized_content)))
-            except Exception as exc:  # noqa: BLE001 - isolation boundary
-                self._record_extension_component_failure(
-                    f"sidebar:{extension_name}:{key}",
-                    exc,
-                    notify=True,
-                    extension_name=extension_name,
-                )
-                return
-            self._extension_sidebar_contributions[owner] = contribution
-            return
-        widget = self._build_extension_sidebar_widget(owner, contribution, theme=theme)
-        if widget is None:
-            return
-        self._extension_sidebar_contributions[owner] = contribution
-        self._extension_sidebar_widgets[owner] = widget
-        self._extension_sidebar_theme = theme
-        self._schedule_extension_swap(self._reconcile_sidebar())
-
-    def _remove_extension_sidebar_section(self, extension_name: str, key: str) -> None:
-        """Forget and unmount one extension-owned sidebar contribution."""
-        owner = (extension_name, key)
-        if owner not in self._extension_sidebar_contributions:
-            return
-        self._extension_sidebar_contributions.pop(owner, None)
-        self._extension_sidebar_widgets.pop(owner, None)
-        self._schedule_extension_swap(self._reconcile_sidebar())
-
-    def _rebuild_extension_sidebar_sections(self, *, theme: TuiTheme) -> None:
-        """Recreate sidebar factories for a changed live theme."""
-        if self.tui_settings.sidebar_position == "off":
-            return
-        changed = False
-        for owner, contribution in tuple(self._extension_sidebar_contributions.items()):
-            widget = self._build_extension_sidebar_widget(owner, contribution, theme=theme)
-            if widget is not None:
-                self._extension_sidebar_widgets[owner] = widget
-                changed = True
-        self._extension_sidebar_theme = theme
-        if changed:
-            self._schedule_extension_swap(self._reconcile_sidebar())
-
-    async def _reconcile_sidebar(self) -> None:
-        """Mount sidebar sections in registration order after removals drain."""
-        async with self._extension_sidebar_lock:
-            target_items = tuple(self._extension_sidebar_widgets.items())
-            mounted_items = tuple(self._extension_sidebar_mounted.items())
-            if mounted_items == target_items:
-                return
-            try:
-                slot = self.query_one("#sidebar-extension-sections", Container)
-            except NoMatches:
-                return
-            # Remove only stale roots. An unchanged Textual widget cannot be
-            # removed and mounted again: removal prunes its composed children.
-            # Keeping unchanged roots also avoids rerunning unrelated factories.
-            for owner, mounted in mounted_items:
-                if self._extension_sidebar_widgets.get(owner) is mounted:
-                    continue
-                with suppress(Exception):
-                    await mounted.remove()
-                if self._extension_sidebar_mounted.get(owner) is mounted:
-                    self._extension_sidebar_mounted.pop(owner, None)
-            # Re-read after awaits: rapid updates collapse to the latest target.
-            target_items = tuple(self._extension_sidebar_widgets.items())
-            for index, (owner, target) in enumerate(target_items):
-                if self._extension_sidebar_mounted.get(owner) is target:
-                    continue
-                later_mounted = next(
-                    (
-                        self._extension_sidebar_mounted.get(later_owner)
-                        for later_owner, _ in target_items[index + 1 :]
-                        if self._extension_sidebar_mounted.get(later_owner) is not None
-                    ),
-                    None,
-                )
-                try:
-                    await slot.mount(target, before=later_mounted)
-                except Exception as exc:  # noqa: BLE001 - isolation boundary
-                    extension_name, key = owner
-                    if self._extension_sidebar_widgets.get(owner) is target:
-                        self._extension_sidebar_widgets.pop(owner, None)
-                        self._extension_sidebar_contributions.pop(owner, None)
-                    self._record_extension_component_failure(
-                        f"sidebar:{extension_name}:{key}",
-                        exc,
-                        notify=True,
-                        extension_name=extension_name,
-                    )
-                    continue
-                self._extension_sidebar_mounted[owner] = target
-            self._extension_sidebar_mounted = {
-                owner: target
-                for owner, target in target_items
-                if self._extension_sidebar_mounted.get(owner) is target
-            }
-
-    def _open_extension_main_view(self, factory: MainViewFactory) -> MainViewHandle:
-        """Open a display-toggled main-area view mounting ``factory(handle, theme)``.
-
-        Prompt focus is intentionally left where it is (the extension widget can
-        focus its own composer), so a registered key interceptor keeps firing
-        while the prompt is focused and can close the view on Esc.
-
-        The handle is returned synchronously (the factory needs it and callers
-        store it at once), but the mount is sequenced after any previous view's
-        remove() drains, so switching views never collides on the shared main
-        slot. ``is_open`` reports the *intended* state: the new handle is open
-        the instant it is returned even though its widget mounts a tick later.
-        """
-        handle = _MainViewHandle(self, asyncio.get_event_loop().create_future())
-        try:
-            widget = factory(handle, self.tui_settings.resolved_theme)
-        except Exception as exc:  # noqa: BLE001 - isolation boundary
-            self._record_extension_component_failure("main_view", exc, notify=True)
-            # Nothing awaits this handle (the extension gets the dead one), but
-            # resolve it anyway so no future leaks unresolved.
-            handle._resolve(None)
-            return _DeadMainViewHandle()
-        handle.widget = widget
-        previous = self._extension_main_view
-        if previous is not None and previous is not handle:
-            # Superseded (last writer wins): its close() becomes a no-op so a
-            # stale Esc/unmount can't tear down the view that replaced it, and
-            # its pending wait() resolves with None.
-            self._release_main_view_handle(previous)
-        self._extension_main_view = handle
-        self._schedule_extension_swap(self._reconcile_main_view())
-        return handle
-
-    async def _reconcile_main_view(self) -> None:
-        """Make the mounted main view match the intended handle (serialized)."""
-        async with self._extension_main_view_lock:
-            target = self._extension_main_view
-            target_widget = target.widget if target is not None else None
-            mounted = self._extension_main_view_mounted
-            if mounted is not None and mounted is not target_widget:
-                with suppress(Exception):
-                    await mounted.remove()
-                if self._extension_main_view_mounted is mounted:
-                    self._extension_main_view_mounted = None
-            # Re-read after the await.
-            target = self._extension_main_view
-            target_widget = target.widget if target is not None else None
-            if target_widget is not None and self._extension_main_view_mounted is not target_widget:
-                try:
-                    slot = self.query_one("#main-slot", Container)
-                    slot.mount(target_widget)
-                except Exception as exc:  # noqa: BLE001 - isolation boundary
-                    if self._extension_main_view is target:
-                        self._extension_main_view = None
-                    self._release_main_view_handle(target)
-                    self._record_extension_component_failure("main_view", exc, notify=True)
-                    self._restore_main_transcript()
-                    return
-                self._extension_main_view_mounted = target_widget
-                with suppress(NoMatches):
-                    self.query_one("#transcript", TranscriptView).display = False
-                slot.display = True
-            elif self._extension_main_view is None and self._extension_main_view_mounted is None:
-                # A close (target cleared) with nothing left to show.
-                self._restore_main_transcript()
-
-    def _close_extension_main_view(self, handle: _MainViewHandle) -> None:
-        """Unmount a main view and restore the main transcript (sequenced)."""
-        if self._extension_main_view is not handle:
-            return
-        self._extension_main_view = None
-        self._schedule_extension_swap(self._reconcile_main_view())
 
     def _release_main_view_handle(self, handle: _MainViewHandle | None) -> None:
         """Mark a host-torn-down handle closed and resolve its ``wait()`` with None.
@@ -2849,163 +2186,6 @@ class BaldricTuiApp(PickerMixin, App[None]):
         with suppress(NoMatches):
             self.query_one("#prompt", PromptInput).focus()
 
-    def _refresh_extension_components(self) -> None:
-        """Re-render all mounted extension widgets (analog of requestRender)."""
-        for widget in (
-            *self._extension_slot_widgets.values(),
-            *self._extension_sidebar_widgets.values(),
-        ):
-            with suppress(Exception):
-                widget.refresh()
-        handle = self._extension_main_view
-        if handle is not None and handle.widget is not None:
-            with suppress(Exception):
-                handle.widget.refresh()
-
-    def _clear_extension_components(self) -> None:
-        """Force-clear every tracked extension widget, view, and interceptor.
-
-        The runtime drives this through the UI bridge on `/reload` and session
-        rebinds (resume/new); it also runs on app teardown, so a leaked
-        extension widget never survives a session switch. Intent is cleared
-        synchronously — mid-swap reads and in-flight continuations then see
-        empty state — while the actual unmounts run on the same serialized
-        per-key reconciles as ordinary swaps, so a clear followed immediately
-        by a re-mount of a same-id widget (a session_start handler re-mounting
-        after a rebind) can never hold two widgets with one id
-        (``DuplicateIds``).
-        """
-        slot_keys = {*self._extension_slot_widgets, *self._extension_slot_mounted}
-        self._extension_slot_widgets.clear()
-        self._extension_slot_slot_ids.clear()
-        for key in slot_keys:
-            self._schedule_extension_swap(self._reconcile_slot(key))
-        self._extension_sidebar_contributions.clear()
-        self._extension_sidebar_widgets.clear()
-        self._extension_sidebar_theme = None
-        self._schedule_extension_swap(self._reconcile_sidebar())
-        handle = self._extension_main_view
-        self._extension_main_view = None
-        self._release_main_view_handle(handle)
-        self._schedule_extension_swap(self._reconcile_main_view())
-        self._extension_key_interceptors.clear()
-        # A recurring failure context must notify again in the new world.
-        self._extension_component_failures_reported.clear()
-
-    def _tracked_extension_widgets(self) -> tuple[Widget, ...]:
-        """Return every extension widget the host currently tracks (intended or mounted)."""
-        widgets: list[Widget] = []
-        seen: set[int] = set()
-        for widget in (
-            *self._extension_slot_widgets.values(),
-            *self._extension_slot_mounted.values(),
-            *self._extension_sidebar_widgets.values(),
-            *self._extension_sidebar_mounted.values(),
-        ):
-            if id(widget) not in seen:
-                seen.add(id(widget))
-                widgets.append(widget)
-        handle = self._extension_main_view
-        main_widgets = (
-            handle.widget if handle is not None else None,
-            self._extension_main_view_mounted,
-        )
-        for main_widget in main_widgets:
-            if main_widget is not None and id(main_widget) not in seen:
-                seen.add(id(main_widget))
-                widgets.append(main_widget)
-        return tuple(widgets)
-
-    def _extension_root_for(self, widget: Widget, tracked: tuple[Widget, ...]) -> Widget | None:
-        """Return the tracked extension root that owns ``widget``, if any."""
-        node: Widget | None = widget
-        while node is not None:
-            for root in tracked:
-                if node is root:
-                    return root
-            node = node.parent if isinstance(node.parent, Widget) else None
-        return None
-
-    def _quarantine_extension_widget(self, error: BaseException) -> bool:
-        """Remove the tracked extension widget implicated in ``error``.
-
-        Returns True when a culprit was found and torn down (so the app can
-        swallow the exception and stay alive), False otherwise (so core bugs
-        still surface). Textual runs ``render`` on the compositor's own reflow
-        loop, so a child's render/compose/on_mount crash cannot be caught at the
-        mount site; walking the traceback for a frame owned by a tracked widget
-        is the only handle we get.
-        """
-        tracked = self._tracked_extension_widgets()
-        if not tracked:
-            return False
-        tb = error.__traceback__
-        culprit: Widget | None = None
-        while tb is not None:
-            candidate = tb.tb_frame.f_locals.get("self")
-            if isinstance(candidate, Widget):
-                root = self._extension_root_for(candidate, tracked)
-                if root is not None:
-                    culprit = root
-                    break
-            tb = tb.tb_next
-        if culprit is None:
-            return False
-        # Suppress the ghost first: a widget that crashed in on_mount never
-        # finished mounting, so remove() cannot fully prune it, but hiding and
-        # disabling it makes it inert and invisible. A render-crash widget
-        # removes cleanly. Either way the app keeps running.
-        with suppress(Exception):
-            culprit.display = False
-        with suppress(Exception):
-            culprit.disabled = True
-        sidebar_owner: tuple[str, str] | None = None
-        if (
-            self._extension_main_view is not None and self._extension_main_view.widget is culprit
-        ) or self._extension_main_view_mounted is culprit:
-            if self._extension_main_view_mounted is culprit:
-                self._extension_main_view_mounted = None
-            handle = self._extension_main_view
-            self._extension_main_view = None
-            self._release_main_view_handle(handle)
-            with suppress(Exception):
-                culprit.remove()
-            self._restore_main_transcript()
-        else:
-            sidebar_owner = next(
-                (
-                    owner
-                    for owner, widget in (
-                        *self._extension_sidebar_widgets.items(),
-                        *self._extension_sidebar_mounted.items(),
-                    )
-                    if widget is culprit
-                ),
-                None,
-            )
-            if sidebar_owner is not None:
-                self._extension_sidebar_widgets.pop(sidebar_owner, None)
-                self._extension_sidebar_mounted.pop(sidebar_owner, None)
-                self._extension_sidebar_contributions.pop(sidebar_owner, None)
-            else:
-                for tracker in (self._extension_slot_widgets, self._extension_slot_mounted):
-                    key = next((k for k, w in tracker.items() if w is culprit), None)
-                    if key is not None:
-                        tracker.pop(key, None)
-            with suppress(Exception):
-                culprit.remove()
-        extension_name = sidebar_owner[0] if sidebar_owner else None
-        context = (
-            f"sidebar:{sidebar_owner[0]}:{sidebar_owner[1]}" if sidebar_owner else f"render:{id(culprit)}"
-        )
-        self._record_extension_component_failure(
-            context,
-            error,
-            notify=True,
-            extension_name=extension_name,
-        )
-        return True
-
     def _handle_exception(self, error: Exception) -> None:
         """Quarantine a crashing extension widget instead of tearing down.
 
@@ -3019,44 +2199,6 @@ class BaldricTuiApp(PickerMixin, App[None]):
         if self._quarantine_extension_widget(error):
             return
         super()._handle_exception(error)
-
-    def _record_extension_component_failure(
-        self,
-        context: str,
-        error: BaseException,
-        *,
-        notify: bool = False,
-        extension_name: str | None = None,
-    ) -> None:
-        """Diagnose an extension-component failure once per context.
-
-        The notification carries a short exception summary so the failure is
-        identifiable at a glance; the full traceback goes to the app log for a
-        post-mortem (the two together are what let us pin the deferred-remove
-        ``DuplicateIds`` race).
-        """
-        # Always log the traceback, even on a duplicate context, so a repeating
-        # failure leaves a full trail.
-        with suppress(Exception):
-            self.log.error(
-                f"Extension component failed ({context}):\n"
-                + "".join(traceback.format_exception(type(error), error, error.__traceback__))
-            )
-        if context in self._extension_component_failures_reported:
-            return
-        self._extension_component_failures_reported.add(context)
-        if extension_name is not None:
-            runtime = getattr(self.session, "extension_runtime", None)
-            if runtime is not None:
-                runtime.record_ui_failure(extension_name, context, error)
-        if notify:
-            summary = f"{type(error).__name__}: {error}"
-            if len(summary) > 120:
-                summary = summary[:117] + "..."
-            self._notify(
-                f"An extension component failed ({context}) and was removed ({summary}).",
-                severity="error",
-            )
 
     def _follow_transcript_output(self) -> None:
         """Put the transcript back in follow mode for explicit user actions."""
@@ -3232,7 +2374,7 @@ class BaldricTuiApp(PickerMixin, App[None]):
                 prompt = self.query_one("#prompt", PromptInput)
                 if not prompt.text:
                     prompt.text = text
-                    prompt.move_cursor(_text_end_location(text))
+                    prompt.move_cursor(text_end_location(text))
                     prompt.focus()
             message = _format_prompt_error(exc, self.session)
             self.state.error = message
@@ -3593,7 +2735,7 @@ class BaldricTuiApp(PickerMixin, App[None]):
             return False
         previous_prompt = self._prompt_history[-1]
         prompt.text = previous_prompt
-        prompt.move_cursor(_text_end_location(previous_prompt))
+        prompt.move_cursor(text_end_location(previous_prompt))
         self._completion_state = self._build_completion_state(prompt.text)
         self._refresh_completions()
         return True
@@ -3610,7 +2752,7 @@ class BaldricTuiApp(PickerMixin, App[None]):
         if not message:
             return False
         prompt.text = message
-        prompt.move_cursor(_text_end_location(message))
+        prompt.move_cursor(text_end_location(message))
         self._sync_queue_state()
         self._completion_state = self._build_completion_state(prompt.text)
         self._refresh()
@@ -3645,24 +2787,6 @@ class BaldricTuiApp(PickerMixin, App[None]):
         self._completion_state = self._build_completion_state(prompt.text)
         self._refresh_completions()
 
-    def action_open_session_picker(self) -> None:
-        """Open local sessions immediately, then load other projects."""
-        if self.state.running:
-            self._notify("Baldric is already working. Press Escape to cancel.")
-            return
-        if getattr(self.session, "session_manager", None) is None:
-            self._notify("No sessions found.")
-            return
-        picker = SessionPickerScreen(
-            (),
-            local_cwd=Path(self.session.cwd),
-            theme=self.tui_settings.resolved_theme,
-            loading_other_projects=True,
-            current_project_loaded=False,
-        )
-        self.push_screen(picker, callback=self._handle_session_picker_result)
-        self.run_worker(self._refresh_open_session_picker(picker), exclusive=False)
-
     async def action_open_external_editor(self) -> None:
         """Edit the current prompt text in the user's external editor.
 
@@ -3690,7 +2814,7 @@ class BaldricTuiApp(PickerMixin, App[None]):
             prompt.read_only = was_read_only
         if result.changed:
             prompt.load_text(result.text)
-            end_location = _text_end_location(result.text)
+            end_location = text_end_location(result.text)
             prompt.cursor_position = end_location[1] if end_location else len(result.text)
             self._notify("Prompt updated in external editor")
         prompt.focus()
@@ -3700,39 +2824,6 @@ class BaldricTuiApp(PickerMixin, App[None]):
         if sys.platform == "win32":
             return
         os.killpg(os.getpgrp(), signal.SIGTSTP)
-
-    async def _refresh_open_session_picker(self, picker: SessionPickerScreen) -> None:
-        """Load session indexes without blocking Textual's event loop."""
-        try:
-            local_records = await asyncio.to_thread(_local_session_records, self.session)
-        except Exception as exc:  # noqa: BLE001 - still attempt the global index
-            if self.screen is picker:
-                self._notify(f"Could not load current project sessions: {exc}", severity="warning")
-        else:
-            if not await self._wait_for_open_session_picker(picker):
-                return
-            picker.update_records(local_records, loading_other_projects=True)
-
-        try:
-            records = await asyncio.to_thread(_session_records, self.session)
-            archived_records = await asyncio.to_thread(_archived_session_records, self.session)
-        except Exception as exc:  # noqa: BLE001 - keep local sessions usable
-            if self.screen is picker:
-                picker.finish_loading()
-                self._notify(f"Could not load other projects: {exc}", severity="warning")
-            return
-        if await self._wait_for_open_session_picker(picker):
-            picker.update_records(records, archived_records=archived_records)
-
-    async def _wait_for_open_session_picker(self, picker: SessionPickerScreen) -> bool:
-        """Wait until this picker is mounted, or report that it was closed."""
-        if self.screen is not picker:
-            return False
-        while not picker.is_mounted:
-            await asyncio.sleep(0)
-            if self.screen is not picker:
-                return False
-        return True
 
     def _open_prompt_template_picker(self) -> None:
         self.push_screen(
@@ -3759,7 +2850,7 @@ class BaldricTuiApp(PickerMixin, App[None]):
             return
         invocation = f"/{result.template.name}"
         prompt.text = invocation
-        prompt.move_cursor(_text_end_location(invocation))
+        prompt.move_cursor(text_end_location(invocation))
         self._completion_state = self._build_completion_state(invocation)
         self._refresh_completions()
 
@@ -3792,29 +2883,6 @@ class BaldricTuiApp(PickerMixin, App[None]):
             self._refresh()
             self._notify(f"Saved /{template.name} and reloaded resources.")
         self._open_prompt_template_picker()
-
-    def _open_skills_picker(self) -> None:
-        """Open loaded-skill discovery."""
-        self.push_screen(
-            SkillPickerScreen(self.session.skills, theme=self.tui_settings.resolved_theme),
-            callback=self._handle_skill_picker_result,
-        )
-
-    def _handle_skill_picker_result(self, result: SkillPickerResult | None) -> None:
-        prompt = self.query_one("#prompt", PromptInput)
-        if result is None:
-            prompt.text = ""
-        elif result.action == "insert":
-            prompt.text = f"/skill:{result.skill.name}"
-        else:
-            prompt.text = ""
-            self.state.add_item(
-                "status",
-                f"Skill: {result.skill.name} (not added to context)\n{result.skill.content}",
-            )
-            self._refresh()
-        prompt.move_cursor(_text_end_location(prompt.text))
-        prompt.focus()
 
     def action_cycle_thinking(self) -> None:
         """Cycle the active thinking mode."""
@@ -3873,11 +2941,6 @@ class BaldricTuiApp(PickerMixin, App[None]):
             theme=self.tui_settings.resolved_theme,
         )
 
-    def _handle_session_picker_result(self, session_id: str | None) -> None:
-        if session_id is None:
-            return
-        self.run_worker(self._resume_session(session_id), exclusive=False)
-
     async def _archive_session_record(
         self, record: SessionCompletionRecord, picker: SessionPickerScreen
     ) -> None:
@@ -3910,7 +2973,7 @@ class BaldricTuiApp(PickerMixin, App[None]):
             return
         if archived:
             await picker._remove_records(cwd)
-            self._notify(f"Archived project: {_short_path(Path(cwd))}")
+            self._notify(f"Archived project: {short_path(Path(cwd))}")
 
     async def _unarchive_session_record(
         self, record: SessionCompletionRecord, picker: SessionPickerScreen
@@ -3944,7 +3007,7 @@ class BaldricTuiApp(PickerMixin, App[None]):
             return
         if restored:
             await picker._restore_records(cwd)
-            self._notify(f"Restored project: {_short_path(Path(cwd))}")
+            self._notify(f"Restored project: {short_path(Path(cwd))}")
 
     async def _resume_session(self, session_id: str) -> None:
         try:
@@ -3956,36 +3019,11 @@ class BaldricTuiApp(PickerMixin, App[None]):
             self._load_session_messages_from_session()
             current_cwd = Path(self.session.cwd).resolve()
             if current_cwd != previous_cwd:
-                resume_message = f"{resume_message} ({_short_path(current_cwd)})"
+                resume_message = f"{resume_message} ({short_path(current_cwd)})"
             self._notify(resume_message)
         except Exception as exc:  # noqa: BLE001 - surface command failures in the TUI
             self._notify(f"Error: {exc}", severity="error")
         self._refresh()
-
-    async def _open_tree_picker(self) -> None:
-        if self._is_agent_or_queue_active():
-            self._notify(TREE_RUNNING_MESSAGE, severity="warning")
-            return
-        tree_choices = getattr(self.session, "tree_choices", None)
-        if tree_choices is None:
-            self._notify("Session tree is not available.", severity="warning")
-            return
-        try:
-            choices = tuple(await tree_choices())
-        except Exception as exc:  # noqa: BLE001 - surface command failures in the TUI
-            self._notify(f"Error: {exc}", severity="error")
-            return
-        if not choices:
-            self._notify("No session entries are available for branching.", severity="warning")
-            return
-        self.push_screen(
-            TreePickerScreen(
-                choices,
-                theme=self.tui_settings.resolved_theme,
-                on_label_change=self._set_tree_label,
-            ),
-            callback=self._handle_tree_picker_result,
-        )
 
     async def _set_tree_label(self, entry_id: str, label: str | None) -> float:
         set_label = getattr(self.session, "set_label", None)
@@ -3996,18 +3034,6 @@ class BaldricTuiApp(PickerMixin, App[None]):
             entry = await entry
         self._notify("Label cleared." if label is None else f"Label set to [{label}].")
         return float(entry.timestamp)
-
-    def _handle_tree_picker_result(self, result: TreePickerResult | None) -> None:
-        if result is None:
-            return
-        self.run_worker(
-            self._branch_to_tree_entry(
-                result.entry_id,
-                summarize=result.summarize,
-                custom_instructions=result.custom_instructions,
-            ),
-            exclusive=False,
-        )
 
     async def _branch_to_tree_entry(
         self,
@@ -4043,7 +3069,7 @@ class BaldricTuiApp(PickerMixin, App[None]):
                 if result.input_prefill is not None:
                     prompt = self.query_one("#prompt", PromptInput)
                     prompt.value = result.input_prefill
-                    prompt.move_cursor(_text_end_location(result.input_prefill))
+                    prompt.move_cursor(text_end_location(result.input_prefill))
                     prompt.focus()
                 self._notify(result.message)
             elif isinstance(result, str):
@@ -4106,51 +3132,6 @@ class BaldricTuiApp(PickerMixin, App[None]):
             )
         )
 
-    def _open_login_picker(self) -> None:
-        self.push_screen(
-            LoginMethodPickerScreen(theme=self.tui_settings.resolved_theme),
-            callback=self._handle_login_method_result,
-        )
-
-    def _handle_login_method_result(self, method: str | None) -> None:
-        if method is None:
-            return
-        if method == "subscription":
-            providers = _subscription_login_providers(BUILTIN_PROVIDER_CATALOG)
-        elif method == "api-key":
-            providers = _api_key_login_providers(BUILTIN_PROVIDER_CATALOG)
-        elif method == "custom":
-            self._open_custom_provider_login()
-            return
-        else:
-            self._notify(f"Unknown login method: {method}", severity="error")
-            return
-        if not providers:
-            self._notify("No login providers are available for that method.", severity="warning")
-            return
-        self.push_screen(
-            LoginProviderPickerScreen(
-                providers,
-                theme=self.tui_settings.resolved_theme,
-                back_on_cancel=True,
-            ),
-            callback=lambda provider_name: self._handle_login_provider_result(
-                provider_name,
-                method=method,
-            ),
-        )
-
-    def _handle_login_provider_result(
-        self,
-        provider_name: str | _LoginFlowAction | None,
-        *,
-        method: str | None = None,
-    ) -> None:
-        if provider_name is _LoginFlowAction.BACK:
-            self._open_login_picker()
-        elif provider_name is not None:
-            self._open_login(provider_name, method=method)
-
     def _open_custom_provider_login(self) -> None:
         self.push_screen(
             CustomProviderLoginScreen(theme=self.tui_settings.resolved_theme),
@@ -4202,38 +3183,6 @@ class BaldricTuiApp(PickerMixin, App[None]):
         self._notify(f"Saved custom provider {result.display_name}.")
         self._refresh()
 
-    def _open_login(self, provider_name: str, *, method: str | None = None) -> None:
-        entry = builtin_provider_entry(provider_name)
-        if entry is None:
-            self._notify(f"Unknown provider: {provider_name}", severity="error")
-            return
-        use_oauth = method == "subscription" or (method is None and "api_key" not in entry.auth_methods)
-        if use_oauth and get_oauth_provider(entry.name) is not None:
-            login = None
-            if entry.name == "openai-codex":
-
-                async def login(callbacks: OAuthLoginCallbacks) -> OAuthCredential:
-                    return await login_openai_codex(
-                        on_auth=callbacks.on_auth,
-                        on_prompt=callbacks.on_prompt,
-                        on_manual_code_input=callbacks.on_manual_code_input,
-                        on_progress=callbacks.on_progress,
-                    )
-
-            self.push_screen(
-                OAuthLoginScreen(
-                    entry,
-                    theme=self.tui_settings.resolved_theme,
-                    login=login,
-                ),
-                callback=lambda credential: self._handle_oauth_login_navigation_result(entry, credential),
-            )
-            return
-        self.push_screen(
-            LoginScreen(entry, theme=self.tui_settings.resolved_theme),
-            callback=lambda api_key: self._handle_api_key_login_navigation_result(entry, api_key),
-        )
-
     def _handle_api_key_login_navigation_result(
         self,
         entry: ProviderCatalogEntry,
@@ -4243,30 +3192,6 @@ class BaldricTuiApp(PickerMixin, App[None]):
             self._open_login_picker()
         else:
             self._handle_login_result(entry, result)
-
-    def _handle_login_result(self, entry: ProviderCatalogEntry, api_key: str | None) -> None:
-        if api_key is None:
-            return
-        if entry.credential_name is None:
-            self._notify(
-                f"Provider {entry.name} does not support saved credentials.",
-                severity="error",
-            )
-            return
-        try:
-            FileCredentialStore().set(entry.credential_name, api_key)
-            provider = provider_config_from_catalog_entry(entry.name)
-            upsert_saved_provider(provider, set_default=False)
-            self.session.reload_provider_settings()
-            try:
-                self.session.set_provider(entry.name, persist_default=False)
-            except TypeError:
-                self.session.set_provider(entry.name)
-        except Exception as exc:  # noqa: BLE001 - surface login failures in the TUI
-            self._notify(f"Could not save login: {exc}", severity="error")
-            return
-        self._notify(f"Saved login for {entry.display_name}.")
-        self._refresh()
 
     def _handle_oauth_login_navigation_result(
         self,
@@ -4306,24 +3231,6 @@ class BaldricTuiApp(PickerMixin, App[None]):
         self._notify(f"Saved login for {entry.display_name}.")
         self._refresh()
 
-    def _open_logout_picker(self) -> None:
-        providers = _stored_credential_providers(BUILTIN_PROVIDER_CATALOG)
-        if not providers:
-            self._notify(NO_STORED_CREDENTIALS_MESSAGE, severity="warning")
-            return
-        self.push_screen(
-            LoginProviderPickerScreen(
-                providers,
-                theme=self.tui_settings.resolved_theme,
-                title="Logout",
-            ),
-            callback=self._handle_logout_provider_result,
-        )
-
-    def _handle_logout_provider_result(self, provider_name: str | _LoginFlowAction | None) -> None:
-        if isinstance(provider_name, str):
-            self._logout(provider_name)
-
     def _logout(self, provider_name: str) -> None:
         entry = builtin_provider_entry(provider_name)
         if entry is None:
@@ -4334,7 +3241,7 @@ class BaldricTuiApp(PickerMixin, App[None]):
             self._notify(NO_STORED_CREDENTIALS_MESSAGE, severity="warning")
             return
         credential_store = FileCredentialStore()
-        if not _credential_store_has_entry(credential_store, entry.credential_name):
+        if not credential_store_has_entry(credential_store, entry.credential_name):
             self._notify(NO_STORED_CREDENTIALS_MESSAGE, severity="warning")
             return
 
@@ -4748,23 +3655,6 @@ class BaldricTuiApp(PickerMixin, App[None]):
             show_sidebar = width >= SIDEBAR_MIN_WIDTH and height >= SIDEBAR_MIN_HEIGHT
         self.set_class(not show_sidebar, "-hide-sidebar")
 
-    def _apply_sidebar_position(self) -> None:
-        """Apply the configured (or off-setting fallback) sidebar position."""
-        pos = self.tui_settings.sidebar_position
-        # A configured ``off`` has no prior visible position, so an explicit
-        # session-only show uses the normal right-hand placement.
-        show_right = pos == "right" or (pos == "off" and self._sidebar_visibility_override is True)
-        self.set_class(show_right, "-sidebar-right")
-
-    def _toggle_sidebar_visibility(self) -> None:
-        """Toggle sidebar visibility without changing durable TUI settings."""
-        currently_visible = not self.has_class("-hide-sidebar")
-        self._sidebar_visibility_override = not currently_visible
-        self._apply_sidebar_position()
-        self._update_responsive_layout(self.size.width, self.size.height)
-        state = "shown" if self._sidebar_visibility_override else "hidden"
-        self._notify(f"Sidebar {state} for this session.")
-
     def _build_completion_state(self, text: str, *, cursor: int | None = None) -> CompletionState:
         registry = _session_command_registry(self.session)
         return build_completion_state(
@@ -4780,7 +3670,7 @@ class BaldricTuiApp(PickerMixin, App[None]):
             ),
             thinking_levels=getattr(self.session, "available_thinking_levels", ()),
             theme_names=available_tui_theme_names(),
-            session_options=(_session_options(self.session) if text.startswith("/resume ") else ()),
+            session_options=(session_options(self.session) if text.startswith("/resume ") else ()),
             cwd=self.session.cwd,
         )
 
@@ -4997,61 +3887,6 @@ def _session_command_registry(session: CodingSession) -> CommandRegistry:
     return create_default_command_registry()
 
 
-def _session_options(session: CodingSession) -> tuple[CompletionOption, ...]:
-    return tuple(_session_option(record) for record in _session_records(session))
-
-
-def _local_session_records(session: CodingSession) -> tuple[SessionCompletionRecord, ...]:
-    """Return only the current project's indexed sessions."""
-    manager = getattr(session, "session_manager", None)
-    if manager is None:
-        return ()
-    try:
-        records = manager.list_sessions(session.cwd)
-    except TypeError:
-        records = manager.list_sessions()
-    local_cwd = Path(session.cwd).resolve()
-    return tuple(record for record in records if Path(record.cwd).resolve() == local_cwd)
-
-
-def _archived_session_records(session: CodingSession) -> tuple[SessionCompletionRecord, ...]:
-    """Return archived session metadata for the picker's archived tab."""
-    manager = getattr(session, "session_manager", None)
-    list_archived = getattr(manager, "list_archived_sessions", None)
-    if not callable(list_archived):
-        return ()
-    return tuple(list_archived())
-
-
-def _session_records(session: CodingSession) -> tuple[SessionCompletionRecord, ...]:
-    """Return indexed sessions for resume, current directory first.
-
-    Sessions from the session's working directory are listed newest-first,
-    followed by sessions from every other directory (also newest-first), so a
-    session from another project is visible in the picker without leaving it.
-    """
-    manager = getattr(session, "session_manager", None)
-    if manager is None:
-        return ()
-    try:
-        records = list(manager.list_sessions())
-    except TypeError:
-        # Older managers only accept an explicit cwd argument.
-        records = list(manager.list_sessions(session.cwd))
-    local_cwd = Path(session.cwd).resolve()
-    local = [record for record in records if Path(record.cwd).resolve() == local_cwd]
-    other = [record for record in records if Path(record.cwd).resolve() != local_cwd]
-    return tuple(local) + tuple(other)
-
-
-def _session_option(record: SessionCompletionRecord) -> CompletionOption:
-    description_parts = [record.title if record.title else "Untitled session"]
-    if record.model:
-        description_parts.append(record.model)
-    description_parts.append(_short_path(record.cwd))
-    return CompletionOption(value=record.id, description=" - ".join(description_parts))
-
-
 async def _run_in_daemon_thread[T](function: Callable[[], T]) -> T:
     """Run blocking work in a daemon thread so quitting never waits for it.
 
@@ -5081,50 +3916,6 @@ async def _run_in_daemon_thread[T](function: Callable[[], T]) -> T:
 
     threading.Thread(target=run, name="baldric-background-check", daemon=True).start()
     return await future
-
-
-def _short_path(path: Path) -> str:
-    home = Path.home()
-    try:
-        relative = path.relative_to(home)
-        return "~" if relative == Path(".") else f"~/{relative}"
-    except ValueError:
-        return str(path)
-
-
-def _subscription_login_providers(
-    providers: Sequence[ProviderCatalogEntry],
-) -> tuple[ProviderCatalogEntry, ...]:
-    provider_ids = oauth_provider_ids()
-    return tuple(provider for provider in providers if provider.name in provider_ids)
-
-
-def _api_key_login_providers(
-    providers: Sequence[ProviderCatalogEntry],
-) -> tuple[ProviderCatalogEntry, ...]:
-    return tuple(provider for provider in providers if "api_key" in provider.auth_methods)
-
-
-def _stored_credential_providers(
-    providers: Sequence[ProviderCatalogEntry],
-) -> tuple[ProviderCatalogEntry, ...]:
-    credential_store = FileCredentialStore()
-    return tuple(
-        provider
-        for provider in providers
-        if provider.credential_name is not None
-        and _credential_store_has_entry(credential_store, provider.credential_name)
-    )
-
-
-def _credential_store_has_entry(
-    credential_store: FileCredentialStore,
-    credential_name: str,
-) -> bool:
-    return (
-        credential_store.get(credential_name) is not None
-        or credential_store.get_oauth(credential_name) is not None
-    )
 
 
 def _command_message_uses_transcript(command_text: str) -> bool:
@@ -5221,12 +4012,6 @@ def _app_bindings(keybindings: TuiKeybindings) -> list[Binding]:
         Binding(keybindings.copy_message, "clear_prompt", "Copy/Clear"),
         Binding(keybindings.quit, "quit", "Quit"),
     ]
-
-
-def _text_end_location(text: str) -> tuple[int, int]:
-    """Return the TextArea cursor location at the end of text."""
-    line, _, column_text = text.rpartition("\n")
-    return (line.count("\n") + 1 if line else 0, len(column_text))
 
 
 def _format_prompt_error(exc: BaseException, session: CodingSession) -> str:

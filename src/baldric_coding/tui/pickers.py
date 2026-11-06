@@ -1,21 +1,14 @@
-"""Picker orchestration mixed into ``BaldricTuiApp``.
+"""Model / scoped-model / theme picker orchestration.
 
-The picker *screens* already live in ``baldric_coding.tui.screens`` (and
-``backends``); this module holds only the ``BaldricTuiApp`` methods that open
-those screens and handle their results. They are methods on a mixin rather than
-free functions because they read app state through ``self`` (``session``,
-``tui_settings``, ``push_screen``, ``run_worker`` ...) exactly as before, so
-moving them changes no call sites and no behaviour.
+The picker *screens* live in ``baldric_coding.tui.screens``; this module holds
+the ``BaldricTuiApp`` methods that open the model/scoped-model and theme pickers
+and handle their results. Session/tree/skill/login pickers live in
+``tui/session_pickers.py`` and are composed here via ``SessionPickerMixin``, so
+``BaldricTuiApp`` inherits a single picker entry point.
 
-The bodies are thin screen-orchestration glue, so ``self`` is typed ``Any`` here
-rather than re-declaring Textual's ``App`` surface (re-declaring it would clash
-with ``App``/``MessagePump`` in the concrete class's MRO). All real type checking
-of session/config objects happens at their construction sites.
-
-This is the first slice of the ``tui/app.py`` decomposition: the model,
-scoped-model and theme pickers, which depend on no app-local helper functions.
-Later slices (session/tree/login pickers, then the extension reconcile cluster)
-can follow the same pattern once their helper families are relocated.
+``self`` is typed ``Any``: re-declaring Textual's ``App`` surface clashes with
+``App``/``MessagePump`` in the concrete class's MRO. Bodies are thin
+orchestration glue moved verbatim; nothing here changes behaviour.
 """
 
 from __future__ import annotations
@@ -25,20 +18,16 @@ from typing import TYPE_CHECKING, Any
 from baldric_coding.rendering.themes import available_tui_theme_names
 from baldric_coding.tui.screens.model_picker import ModelPickerScreen
 from baldric_coding.tui.screens.theme import ThemePickerScreen
+from baldric_coding.tui.session_pickers import SessionPickerMixin
 
 if TYPE_CHECKING:
-    from baldric_coding.session.session import ModelChoice
     from baldric_coding.tui.config import TuiThemeName
 
 __all__ = ["PickerMixin"]
 
 
-class PickerMixin:
-    """Model / scoped-model / theme picker orchestration for ``BaldricTuiApp``.
-
-    Mixed into the app; bodies are moved verbatim from ``BaldricTuiApp`` so call
-    sites and behaviour are unchanged. ``self`` is the app at runtime.
-    """
+class PickerMixin(SessionPickerMixin):
+    """Model / scoped-model / theme pickers; ``self`` is the app."""
 
     def _open_model_picker(self: Any) -> None:
         choices = self._available_model_choices()
@@ -81,6 +70,11 @@ class PickerMixin:
                 tuple(getattr(self.session, "scoped_model_choices", ())),
             )
 
+    def _handle_model_picker_result(self: Any, picker: ModelPickerScreen, choice: Any) -> None:
+        picker.cancel_refresh()
+        if choice is not None:
+            self.call_after_refresh(self._start_selected_model_switch, choice)
+
     def _open_scoped_models_picker(self: Any) -> None:
         choices = self._available_model_choices()
         scoped = tuple(getattr(self.session, "scoped_model_choices", ()))
@@ -106,9 +100,7 @@ class PickerMixin:
             callback=lambda choice: self._handle_scoped_models_picker_result(picker, choice),
         )
 
-    def _handle_scoped_models_picker_result(
-        self: Any, picker: ModelPickerScreen, choice: ModelChoice | None
-    ) -> None:
+    def _handle_scoped_models_picker_result(self: Any, picker: ModelPickerScreen, choice: Any) -> None:
         del choice
         picker.cancel_refresh()
         if (
@@ -116,11 +108,6 @@ class PickerMixin:
             and picker.initial_thinking_level != self.session.thinking_level
         ):
             self.call_after_refresh(self._refresh_chrome)
-
-    def _handle_model_picker_result(self: Any, picker: ModelPickerScreen, choice: ModelChoice | None) -> None:
-        picker.cancel_refresh()
-        if choice is not None:
-            self.call_after_refresh(self._start_selected_model_switch, choice)
 
     def _open_theme_picker(self: Any) -> None:
         self.push_screen(

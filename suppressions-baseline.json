@@ -92,8 +92,7 @@
     "type-ignore:attr-defined": 2
   },
   "src/baldric_coding/tui/app.py": {
-    "noqa:BLE001": 36,
-    "noqa:E731": 1,
+    "noqa:BLE001": 24,
     "type-ignore:assignment": 1,
     "type-ignore:import-untyped": 1,
     "type-ignore:misc": 1
@@ -104,6 +103,10 @@
   },
   "src/baldric_coding/tui/editor.py": {
     "noqa:BLE001": 2
+  },
+  "src/baldric_coding/tui/extension_components.py": {
+    "noqa:BLE001": 8,
+    "noqa:E731": 1
   },
   "src/baldric_coding/tui/screens/login.py": {
     "noqa:BLE001": 1
