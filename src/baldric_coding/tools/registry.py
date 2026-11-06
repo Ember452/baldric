@@ -33,6 +33,7 @@ def create_coding_tools(
     *,
     cwd: str | Path | None = None,
     shell_command_prefix: str | None = None,
+    shell: str = "auto",
     image_support: ImageSupportState | None = None,
 ) -> list[AgentTool]:
     """Create the default coding-tool set for a local project.
@@ -42,12 +43,13 @@ def create_coding_tools(
     is omitted, the process current working directory at factory-call time is
     used. The tools share per-path write/edit locks within this process so
     concurrent mutations of the same file do not interleave. When configured,
-    `shell_command_prefix` is prepended to every bash tool command.
+    `shell_command_prefix` is prepended to every bash tool command, and `shell`
+    selects the shell (`auto` by default).
     """
     root = Path.cwd() if cwd is None else Path(cwd)
     return [
         create_read_tool(cwd=root, image_support=image_support),
         create_write_tool(cwd=root),
         create_edit_tool(cwd=root),
-        create_bash_tool(cwd=root, shell_command_prefix=shell_command_prefix),
+        create_bash_tool(cwd=root, shell_command_prefix=shell_command_prefix, shell=shell),
     ]

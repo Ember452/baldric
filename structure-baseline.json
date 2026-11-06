@@ -209,7 +209,7 @@
       "max_function_stmts": 15
     },
     "src/baldric_coding/cli.py": {
-      "lines": 1485,
+      "lines": 1489,
       "max_function_stmts": 43
     },
     "src/baldric_coding/commands/__init__.py": {
@@ -253,8 +253,8 @@
       "max_function_stmts": 9
     },
     "src/baldric_coding/config/shell_config.py": {
-      "lines": 74,
-      "max_function_stmts": 9
+      "lines": 85,
+      "max_function_stmts": 11
     },
     "src/baldric_coding/context/__init__.py": {
       "lines": 1,
@@ -629,7 +629,7 @@
       "max_function_stmts": 21
     },
     "src/baldric_coding/session/session.py": {
-      "lines": 2220,
+      "lines": 2222,
       "max_function_stmts": 51
     },
     "src/baldric_coding/session/stats.py": {
@@ -653,7 +653,7 @@
       "max_function_stmts": 5
     },
     "src/baldric_coding/tools/bash.py": {
-      "lines": 240,
+      "lines": 243,
       "max_function_stmts": 18
     },
     "src/baldric_coding/tools/edit.py": {
@@ -673,7 +673,7 @@
       "max_function_stmts": 25
     },
     "src/baldric_coding/tools/registry.py": {
-      "lines": 53,
+      "lines": 55,
       "max_function_stmts": 3
     },
     "src/baldric_coding/tools/shell.py": {

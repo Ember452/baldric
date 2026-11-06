@@ -127,3 +127,25 @@ def test_windows_auto_prefers_powershell_or_cmd() -> None:
     spec = resolve_shell()
 
     assert spec.name in {"pwsh", "powershell", "cmd"}
+
+
+@pytest.mark.anyio
+async def test_explicit_shell_preference_is_used_by_the_tool(tmp_path: Path) -> None:
+    from baldric_coding.tools.bash import create_bash_tool
+
+    preference = "cmd" if os.name == "nt" else "bash"
+    expected = resolve_shell(preference)
+    tool = create_bash_tool(cwd=tmp_path, shell=preference)
+
+    result = await tool.execute("call-1", {"command": "echo hello"})
+
+    assert result.details["shell"] == expected.name
+    assert result.details["exit_code"] == 0
+    assert "hello" in result.text
+
+
+def test_unknown_shell_preference_fails_at_tool_creation() -> None:
+    from baldric_coding.tools.bash import create_bash_tool
+
+    with pytest.raises(ShellUnavailable, match="Unknown shell preference"):
+        create_bash_tool(cwd=".", shell="zsh")

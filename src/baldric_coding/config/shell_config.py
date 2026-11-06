@@ -15,11 +15,15 @@ class ShellConfigError(ValueError):
     """Raised when Baldric shell settings are invalid."""
 
 
+SHELL_PREFERENCES = ("auto", "bash", "pwsh", "cmd")
+
+
 @dataclass(frozen=True, slots=True)
 class ShellSettings:
     """Shell execution settings loaded from Baldric home."""
 
     shell_command_prefix: str | None = None
+    shell: str = "auto"
     default_project_trust: TrustDefault = "ask"
 
     def to_json(self) -> dict[str, str]:
@@ -29,6 +33,8 @@ class ShellSettings:
             result["defaultProjectTrust"] = self.default_project_trust
         if self.shell_command_prefix is not None:
             result["shellCommandPrefix"] = self.shell_command_prefix
+        if self.shell != "auto":
+            result["shell"] = self.shell
         return result
 
 
@@ -62,13 +68,18 @@ def shell_settings_from_json(data: dict[str, Any]) -> ShellSettings:
     if raw_default not in {"ask", "always", "never"}:
         raise ShellConfigError("defaultProjectTrust must be ask, always, or never")
 
+    raw_shell = data.get("shell", "auto")
+    if raw_shell not in SHELL_PREFERENCES:
+        raise ShellConfigError("shell must be one of " + ", ".join(SHELL_PREFERENCES))
+
     raw_prefix = data.get("shellCommandPrefix", data.get("shell_command_prefix"))
     if raw_prefix is None:
-        return ShellSettings(default_project_trust=raw_default)
+        return ShellSettings(shell=str(raw_shell), default_project_trust=raw_default)
     if not isinstance(raw_prefix, str):
         raise ShellConfigError("shellCommandPrefix must be a string")
     prefix = raw_prefix.strip()
     return ShellSettings(
         shell_command_prefix=prefix or None,
+        shell=str(raw_shell),
         default_project_trust=raw_default,
     )

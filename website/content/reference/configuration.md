@@ -392,6 +392,11 @@ PowerShell — `pwsh`, then Windows PowerShell — falling back to `cmd.exe` on
 Windows. `shellCommandPrefix` runs in that resolved shell, so write the prefix in
 the matching syntax.
 
+Set `"shell"` in `~/.baldric/settings.json` to override the auto choice:
+`"auto"` (default), `"bash"` (requires Git Bash on Windows), `"pwsh"`, or
+`"cmd"`. An explicit `"bash"` with no bash installed fails with an install hint
+rather than silently running a different shell.
+
 To make your own aliases available, opt in with a `shellCommandPrefix` in
 `~/.baldric/settings.json` that loads a small Baldric-specific alias file:
 

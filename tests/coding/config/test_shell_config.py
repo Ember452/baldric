@@ -1,7 +1,10 @@
 from pathlib import Path
 
+import pytest
+
 from baldric_coding import (
     BaldricPaths,
+    ShellConfigError,
     ShellSettings,
     load_shell_settings,
     shell_settings_from_json,
@@ -45,3 +48,22 @@ def test_shell_settings_ignore_unknown_fields() -> None:
     )
 
     assert settings.shell_command_prefix == "source ~/.baldric/aliases.bash"
+
+
+def test_shell_preference_defaults_to_auto_and_is_not_serialized() -> None:
+    settings = shell_settings_from_json({})
+
+    assert settings.shell == "auto"
+    assert "shell" not in settings.to_json()
+
+
+def test_shell_preference_round_trips() -> None:
+    settings = shell_settings_from_json({"shell": "bash"})
+
+    assert settings.shell == "bash"
+    assert settings.to_json() == {"shell": "bash"}
+
+
+def test_unknown_shell_preference_is_rejected() -> None:
+    with pytest.raises(ShellConfigError, match="shell must be one of"):
+        shell_settings_from_json({"shell": "zsh"})
