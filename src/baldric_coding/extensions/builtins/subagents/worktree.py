@@ -39,10 +39,27 @@ class Worktree:
 
 @dataclass(frozen=True, slots=True)
 class WorktreeResult:
-    """Outcome of cleaning up a worktree after the run."""
+    """Outcome of cleaning up a worktree after the run.
+
+    ``error`` means the work could not be captured on a branch. The worktree is
+    then deliberately kept so nothing is lost, and ``preserved_path`` tells the
+    caller where it is.
+    """
 
     has_changes: bool
     branch: str | None = None
+    preserved_path: Path | None = None
+    error: str | None = None
+
+
+def worktree_notice(result: WorktreeResult) -> str | None:
+    """Return the user-facing annotation for a cleanup outcome, if any."""
+    if result.error:
+        location = f" at `{result.preserved_path}`" if result.preserved_path is not None else ""
+        return f"\n\n---\nSubagent worktree preserved{location}: {result.error}"
+    if result.has_changes and result.branch:
+        return f"\n\n---\nChanges saved to branch `{result.branch}`. Merge with: `git merge {result.branch}`"
+    return None
 
 
 async def create_worktree(cwd: Path, agent_id: str) -> Worktree | None:
@@ -99,14 +116,18 @@ def _cleanup_worktree_blocking(worktree: Worktree, description: str) -> Worktree
             return WorktreeResult(has_changes=False)
         status = _git(["status", "--porcelain"], worktree.path)
         if status is None or status.returncode != 0:
-            raise RuntimeError("git status failed")
+            return _preserve(worktree, "git status failed, so its changes could not be inspected")
         if status.stdout.strip():
-            _git(["add", "-A"], worktree.path, timeout=WORKTREE_ADD_TIMEOUT_SECONDS)
-            _git(
+            added = _git(["add", "-A"], worktree.path, timeout=WORKTREE_ADD_TIMEOUT_SECONDS)
+            if added is None or added.returncode != 0:
+                return _preserve(worktree, "git add failed, so its changes were not committed")
+            committed = _git(
                 ["commit", "--no-verify", "-m", f"baldric-agent: {description[:200]}"],
                 worktree.path,
                 timeout=WORKTREE_ADD_TIMEOUT_SECONDS,
             )
+            if committed is None or committed.returncode != 0:
+                return _preserve(worktree, "git commit failed, so its changes were not committed")
         head = _git(["rev-parse", "HEAD"], worktree.path)
         if head is None or head.returncode != 0:
             raise RuntimeError("git rev-parse failed")
@@ -119,12 +140,16 @@ def _cleanup_worktree_blocking(worktree: Worktree, description: str) -> Worktree
             branch = f"{worktree.branch}-{int(time.time() * 1000)}"
             created = _git(["branch", branch], worktree.path)
             if created is None or created.returncode != 0:
-                raise RuntimeError("git branch failed")
+                return _preserve(worktree, "git branch failed, so the commit has no branch yet")
         _remove_worktree(worktree)
         return WorktreeResult(has_changes=True, branch=branch)
-    except Exception:  # noqa: BLE001 - cleanup is best-effort
-        _remove_worktree(worktree)
-        return WorktreeResult(has_changes=False)
+    except Exception as exc:  # noqa: BLE001 - cleanup is best-effort
+        return _preserve(worktree, f"worktree cleanup failed: {exc}")
+
+
+def _preserve(worktree: Worktree, error: str) -> WorktreeResult:
+    """Keep the worktree on disk so a failed capture cannot lose the work."""
+    return WorktreeResult(has_changes=False, preserved_path=worktree.path, error=error)
 
 
 def _remove_worktree(worktree: Worktree) -> None:

@@ -353,7 +353,7 @@
       "max_function_stmts": 8
     },
     "src/baldric_coding/extensions/builtins/subagents/extension.py": {
-      "lines": 1782,
+      "lines": 1781,
       "max_function_stmts": 32
     },
     "src/baldric_coding/extensions/builtins/subagents/fork.py": {
@@ -409,7 +409,7 @@
       "max_function_stmts": 23
     },
     "src/baldric_coding/extensions/builtins/subagents/worktree.py": {
-      "lines": 152,
+      "lines": 177,
       "max_function_stmts": 13
     },
     "src/baldric_coding/extensions/installer.py": {
