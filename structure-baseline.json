@@ -576,6 +576,10 @@
       "lines": 217,
       "max_function_stmts": 9
     },
+    "src/baldric_coding/session/branching.py": {
+      "lines": 194,
+      "max_function_stmts": 26
+    },
     "src/baldric_coding/session/compaction/__init__.py": {
       "lines": 1,
       "max_function_stmts": 0
@@ -608,6 +612,10 @@
       "lines": 537,
       "max_function_stmts": 11
     },
+    "src/baldric_coding/session/model_runtime.py": {
+      "lines": 316,
+      "max_function_stmts": 14
+    },
     "src/baldric_coding/session/model_selection.py": {
       "lines": 881,
       "max_function_stmts": 30
@@ -633,7 +641,7 @@
       "max_function_stmts": 21
     },
     "src/baldric_coding/session/session.py": {
-      "lines": 2232,
+      "lines": 1931,
       "max_function_stmts": 51
     },
     "src/baldric_coding/session/stats.py": {

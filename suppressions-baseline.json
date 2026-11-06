@@ -79,7 +79,6 @@
     "noqa:F401": 3
   },
   "src/baldric_coding/session/session.py": {
-    "noqa:BLE001": 1,
     "noqa:F401": 3,
     "type-ignore:arg-type": 1,
     "type-ignore:attr-defined": 1

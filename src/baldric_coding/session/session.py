@@ -6,11 +6,10 @@ import asyncio
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field, replace
-from os import environ
 from pathlib import Path
 from typing import Literal
 
-from baldric_agent.events import AgentEndEvent, AgentEvent, MessageEndEvent, ToolExecutionEndEvent
+from baldric_agent.events import AgentEvent
 from baldric_agent.harness import AgentHarness, AgentHarnessConfig, QueuedMessages
 from baldric_agent.messages import (
     AgentMessage,
@@ -22,7 +21,6 @@ from baldric_agent.messages import (
 )
 from baldric_agent.provider import ModelProvider
 from baldric_agent.session import (
-    BranchSummaryEntry,
     CompactionEntry,
     CustomEntry,
     LabelEntry,
@@ -36,8 +34,8 @@ from baldric_agent.session.entries import SessionEntry
 from baldric_agent.tool_history import ToolHistoryRepair
 from baldric_agent.tools import AgentTool
 from baldric_agent.types import JSONValue
-from baldric_ai.model_catalog import ModelCatalogProvider, RuntimeModelCatalog
-from baldric_ai.model_limits import ModelLimitsProvider, RuntimeModelLimits
+from baldric_ai.model_catalog import RuntimeModelCatalog
+from baldric_ai.model_limits import RuntimeModelLimits
 from baldric_coding.auth.credentials import FileCredentialStore, credentials_path
 from baldric_coding.commands.registry import CommandRegistry, CommandResult, create_default_command_registry
 from baldric_coding.config.paths import BaldricPaths
@@ -66,11 +64,8 @@ from baldric_coding.context.thinking import (
 )
 from baldric_coding.events import (
     AgentSettledEvent,
-    AutoRetryEndEvent,
-    AutoRetryStartEvent,
     CodingSessionEvent,
     QueueUpdateEvent,
-    SessionAgentEndEvent,
 )
 from baldric_coding.extensions.providers import DynamicProvider, ProviderModel
 from baldric_coding.extensions.runtime import ExtensionRuntime
@@ -85,8 +80,6 @@ from baldric_coding.providers.config import (
     ProviderSettings,
     provider_thinking_levels,
     provider_thinking_unavailable_reason,
-    validate_huggingface_inference_provider,
-    validate_provider_model,
 )
 from baldric_coding.providers.config import (
     load_provider_settings as load_provider_settings,
@@ -103,9 +96,20 @@ from baldric_coding.providers.stores.codex_model_store import (
 from baldric_coding.providers.stores.models_dev_store import (
     ModelsDevRefreshResult,
 )
+from baldric_coding.session import branching as _branching
 from baldric_coding.session import lifecycle as _lifecycle
+from baldric_coding.session import model_runtime as _model_runtime
 from baldric_coding.session import model_selection as _model_selection
 from baldric_coding.session import runtime as _session_runtime
+from baldric_coding.session.branching import (
+    TREE_RUNNING_MESSAGE as TREE_RUNNING_MESSAGE,
+)
+from baldric_coding.session.branching import (
+    SessionTreeBranchResult as SessionTreeBranchResult,
+)
+from baldric_coding.session.branching import (
+    SessionTreeChoice as SessionTreeChoice,
+)
 from baldric_coding.session.compaction.context_window import (
     DEFAULT_COMPACTION_KEEP_RECENT_TOKENS as DEFAULT_COMPACTION_KEEP_RECENT_TOKENS,
 )
@@ -353,7 +357,6 @@ SESSION_NAME_SYSTEM_PROMPT = (
     "You write concise coding-agent session names. Reply with only a short title, "
     "maximum four words, no quotes, no punctuation-only output."
 )
-TREE_RUNNING_MESSAGE = "Baldric is still working. Press Escape to interrupt before using /tree."
 
 
 async def _await_cleanup_completion[CleanupResult](
@@ -413,26 +416,6 @@ class TerminalCommandResult:
     exit_code: int | None
     ok: bool
     added_to_context: bool
-
-
-@dataclass(frozen=True, slots=True)
-class SessionTreeChoice:
-    """One branchable entry in the active session tree."""
-
-    entry_id: str
-    label: str
-    active: bool = False
-    is_tool_call: bool = False
-    bookmark_label: str | None = None
-    label_timestamp: float | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class SessionTreeBranchResult:
-    """Result of moving the active session tree leaf."""
-
-    message: str
-    input_prefill: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -1097,45 +1080,15 @@ class CodingSession:
 
     async def session_entries(self) -> tuple[SessionEntry, ...]:
         """Return append-only entries for frontend session inspection."""
-        return tuple(await self._read_session_entries())
+        return await _branching.session_entries(self)
 
     async def tree_choices(self) -> tuple[SessionTreeChoice, ...]:
         """Return branchable session entries for a tree picker."""
-        entries = await self._read_session_entries()
-        ordered_entries, branch_indents = _tree_layout(entries)
-        labels_by_id, label_timestamps_by_id = _resolved_labels(entries)
-        active_choice_id = _active_branchable_entry_id(entries, self._state.active_leaf_id)
-        return tuple(
-            SessionTreeChoice(
-                entry_id=entry.id,
-                label=_tree_choice_label(entry, branch_indent=branch_indents.get(entry.id, 0)),
-                active=entry.id == active_choice_id,
-                is_tool_call=_is_tool_call_tree_entry(entry),
-                bookmark_label=labels_by_id.get(entry.id),
-                label_timestamp=label_timestamps_by_id.get(entry.id),
-            )
-            for entry in ordered_entries
-            if _is_branchable_tree_entry(entry)
-        )
+        return await _branching.tree_choices(self)
 
     async def set_label(self, target_id: str, label: str | None) -> LabelEntry:
         """Set or clear the bookmark on an existing session entry."""
-        if self._harness.is_running:
-            raise RuntimeError(TREE_RUNNING_MESSAGE)
-        await self._flush_pending_message_writes(context=self._diagnostic_context())
-        entries = await self._read_session_entries()
-        if target_id not in {entry.id for entry in entries}:
-            raise ValueError(f"Unknown session entry: {target_id}")
-        normalized = label.strip() if label is not None else ""
-        entry = LabelEntry(
-            parent_id=self._last_parent_id,
-            target_id=target_id,
-            label=normalized or None,
-        )
-        await self._append_session_entry(entry)
-        self._last_parent_id = entry.id
-        await self._refresh_persisted_state(leaf_id=entry.id)
-        return entry
+        return await _branching.set_label(self, target_id, label)
 
     async def branch_to_entry(
         self,
@@ -1146,73 +1099,13 @@ class CodingSession:
         replace_instructions: bool = False,
     ) -> SessionTreeBranchResult:
         """Move the active leaf to a previous entry, preserving existing history."""
-        if self._harness.is_running:
-            raise RuntimeError(TREE_RUNNING_MESSAGE)
-        await self._flush_pending_message_writes(context=self._diagnostic_context())
-        entries = await self._read_session_entries()
-        by_id = {entry.id: entry for entry in entries}
-        if entry_id not in by_id:
-            raise ValueError(f"Unknown session entry: {entry_id}")
-        selected_entry = by_id[entry_id]
-        if not _is_branchable_tree_entry(selected_entry):
-            raise ValueError(f"Session entry cannot be branched from: {entry_id}")
-
-        target_id: str | None = entry_id
-        input_prefill: str | None = None
-        summary_entry: BranchSummaryEntry | None = None
-        if summarize:
-            abandoned_messages = _messages_after_entry_on_active_path(
-                entries,
-                entry_id,
-                self._last_parent_id,
-            )
-            if abandoned_messages:
-                generated = await self._summarize_branch_messages(
-                    abandoned_messages,
-                    custom_instructions=custom_instructions,
-                    replace_instructions=replace_instructions,
-                )
-                summary_entry = BranchSummaryEntry(
-                    parent_id=entry_id,
-                    branch_root_id=entry_id,
-                    summary=generated.text,
-                    usage=generated.usage,
-                    provider=generated.provider,
-                    model=generated.model,
-                    response_provider=generated.response_provider,
-                )
-                await self._append_session_entry(summary_entry)
-                target_id = summary_entry.id
-        elif selected_entry.type == "message" and isinstance(selected_entry.message, UserMessage):
-            target_id = selected_entry.parent_id
-            input_prefill = selected_entry.message.text
-
-        self._preview_model = None
-        self._preview_thinking = None
-        self._last_parent_id = target_id
-
-        # Plain navigation is in-memory only. A summary above is the sole write,
-        # and becomes the file-order tip when present.
-        await self._refresh_persisted_state(leaf_id=target_id)
-        history_repair = await self._persist_active_tool_history_repairs()
-        if history_repair is None:
-            self._harness.replace_messages(self._state.messages)
-        self._invalidate_context_usage_cache()
-        self._thinking_level = _state_thinking_level(
-            self._state,
-            default=_default_thinking_level_for_active_model(self),
+        return await _branching.branch_to_entry(
+            self,
+            entry_id,
+            summarize=summarize,
+            custom_instructions=custom_instructions,
+            replace_instructions=replace_instructions,
         )
-        self._sync_thinking_level_to_active_model()
-        self._refresh_runtime_provider()
-        suffix = " with branch summary" if summary_entry is not None else ""
-        if history_repair is not None:
-            suffix += " and repaired malformed tool history"
-        if input_prefill is not None:
-            return SessionTreeBranchResult(
-                message=f"Branched session before {entry_id}{suffix}.",
-                input_prefill=input_prefill,
-            )
-        return SessionTreeBranchResult(message=f"Branched session at {target_id}{suffix}.")
 
     @property
     def thinking_level(self) -> ThinkingLevel:
@@ -1491,16 +1384,7 @@ class CodingSession:
         model: str,
         input_tokens: int,
     ) -> dict[str, float] | None:
-        provider = _provider_config_for_name(self._config, provider_name)
-        if provider is None or provider.name != provider_name or not hasattr(provider, "model_metadata"):
-            return None
-        metadata = provider.model_metadata.get(model)
-        if metadata is None:
-            return None
-        for tier in metadata.cost_tiers:
-            if tier.max_input_tokens is None or input_tokens <= tier.max_input_tokens:
-                return dict(tier.cost)
-        return dict(metadata.cost) if metadata.cost else None
+        return _model_runtime.pricing_for_response(self, provider_name, model, input_tokens)
 
     async def emit_pending_session_start(self) -> None:
         """Emit the `session_start` deferred by `load`, once per session.
@@ -1745,87 +1629,20 @@ class CodingSession:
         return _model_selection._persist_thinking_level_choice(self)
 
     def _observe_response_headers(self, headers: Mapping[str, str]) -> None:
-        if (
-            self.provider_name != "huggingface"
-            or self._inference_provider_mode != "automatic"
-            or self._inference_provider is not None
-        ):
-            return
-        route = next(
-            (value for key, value in headers.items() if key.casefold() == "x-inference-provider"),
-            None,
-        )
-        if route is None:
-            return
-        try:
-            route = validate_huggingface_inference_provider(route)
-        except ProviderConfigError:
-            return
-        provider, provider_config = self._build_runtime_provider(
-            inference_provider=route,
-        )
-        # Track staged providers immediately so a later index-write failure does
-        # not leak a provider-owned client. The active runtime remains unchanged.
-        self._owned_providers.append(provider)
-        if self._config.session_manager is not None and self._config.session_id is not None:
-            self._config.session_manager.touch_session(
-                self._config.session_id,
-                model=self.model,
-                provider_name=self.provider_name,
-                inference_provider=route,
-                inference_provider_mode="automatic",
-                preserve_inference_provider=False,
-            )
-        self._inference_provider = route
-        self._config = replace(
-            self._config,
-            inference_provider=route,
-            inference_provider_mode="automatic",
-        )
-        self._activate_runtime_provider(provider, provider_config)
+        _model_runtime.observe_response_headers(self, headers)
 
     def will_auto_retry(self, message: AssistantMessage) -> bool:
         """Return whether session orchestration will retry this assistant error."""
-        return (
-            message.is_tool_result_recovery
-            or is_context_overflow_error(message)
-            or self._should_auto_failover_huggingface_route(message)
-        )
+        return _model_runtime.will_auto_retry(self, message)
 
     def _should_auto_failover_huggingface_route(
         self,
         message: AssistantMessage,
     ) -> bool:
-        return (
-            self.provider_name == "huggingface"
-            and self._inference_provider_mode == "automatic"
-            and self._inference_provider is not None
-            and is_retryable_huggingface_route_error(message)
-        )
+        return _model_runtime.should_auto_failover_huggingface_route(self, message)
 
     def _reset_automatic_inference_provider_for_failover(self) -> str:
-        failed_route = self._inference_provider
-        if failed_route is None:
-            raise ProviderConfigError("Hugging Face failover requires a pinned route")
-        provider, provider_config = self._build_runtime_provider(inference_provider=None)
-        self._owned_providers.append(provider)
-        if self._config.session_manager is not None and self._config.session_id is not None:
-            self._config.session_manager.touch_session(
-                self._config.session_id,
-                model=self.model,
-                provider_name=self.provider_name,
-                inference_provider=None,
-                inference_provider_mode="automatic",
-                preserve_inference_provider=False,
-            )
-        self._inference_provider = None
-        self._config = replace(
-            self._config,
-            inference_provider=None,
-            inference_provider_mode="automatic",
-        )
-        self._activate_runtime_provider(provider, provider_config)
-        return failed_route
+        return _model_runtime.reset_automatic_inference_provider_for_failover(self)
 
     async def _run_huggingface_route_failover(
         self,
@@ -1833,144 +1650,31 @@ class CodingSession:
         context: AgentCallDiagnosticContext,
     ) -> AsyncIterator[CodingSessionEvent]:
         """Retry the interrupted run once through unsuffixed Hugging Face routing."""
-        failed_route = self._reset_automatic_inference_provider_for_failover()
-        retry_start = AutoRetryStartEvent(
-            attempt=1,
-            max_attempts=1,
-            delay_ms=0,
-            error_message=f"Hugging Face route {failed_route} failed; rerouting automatically",
-        )
-        await self._extension_runtime.emit_event(retry_start)
-        yield retry_start
-
-        retry_events = self._harness.continue_()
-        self._invalidate_context_usage_cache()
-        final_error: str | None = None
-        try:
-            async for retry_event in retry_events:
-                if isinstance(retry_event, ToolExecutionEndEvent):
-                    self._invalidate_context_usage_cache()
-                if (
-                    isinstance(retry_event, MessageEndEvent)
-                    and isinstance(retry_event.message, AssistantMessage)
-                    and retry_event.message.stop_reason in {"error", "aborted"}
-                ):
-                    final_error = retry_event.message.error_message or "Provider request aborted"
-                    if retry_event.message.stop_reason == "error":
-                        self._last_diagnostic_log_path = self._diagnostic_logger.log_assistant_error(
-                            context=context,
-                            phase="agent_loop_route_failover",
-                            message=retry_event.message,
-                        )
-                if isinstance(retry_event, AgentEndEvent):
-                    yield SessionAgentEndEvent(
-                        messages=retry_event.messages,
-                        will_retry=False,
-                    )
-                else:
-                    yield retry_event
-        finally:
-            aclose = getattr(retry_events, "aclose", None)
-            if aclose is not None:
-                with suppress(Exception):
-                    await aclose()
-
-        failover_succeeded = final_error is None
-        self._last_diagnostic_log_path = self._diagnostic_logger.log_huggingface_route_failover(
-            context=context,
-            failed_route=failed_route,
-            replacement_route=self._inference_provider,
-            success=failover_succeeded,
-            error_message=final_error,
-        )
-        retry_end = AutoRetryEndEvent(
-            success=failover_succeeded,
-            attempt=1,
-            final_error=final_error,
-        )
-        await self._extension_runtime.emit_event(retry_end)
-        yield retry_end
+        async for event in _model_runtime.run_huggingface_route_failover(self, context=context):
+            yield event
 
     def _build_runtime_provider(
         self,
         *,
         inference_provider: str | None,
     ) -> tuple[ClosableModelProvider, ProviderConfig]:
-        if self._runtime_provider_config is None:
-            raise ProviderConfigError("Runtime provider configuration is unavailable")
-        provider_config = self._active_provider_config() or self._runtime_provider_config
-        committed_model = self._harness.config.model
-        validate_provider_model(provider_config, committed_model)
-        try:
-            provider = _create_runtime_provider(
-                provider_config,
-                credential_store=self._credential_store,
-                model=committed_model,
-                thinking_level=self._thinking_level,
-                inference_provider=inference_provider,
-                response_headers_observer=(
-                    self._observe_response_headers if provider_config.name == "huggingface" else None
-                ),
-            )
-        except RuntimeError as exc:
-            raise ProviderConfigError(str(exc)) from exc
-        return provider, provider_config
+        return _model_runtime.build_runtime_provider(self, inference_provider=inference_provider)
 
     def _activate_runtime_provider(
         self,
         provider: ClosableModelProvider,
         provider_config: ProviderConfig,
     ) -> None:
-        self._harness.config.provider = provider
-        self._runtime_provider_config = provider_config
-        self._invalidate_runtime_model_limits()
+        return _model_runtime.activate_runtime_provider(self, provider, provider_config)
 
     def _refresh_runtime_provider(self) -> None:
-        if self._runtime_provider_config is None:
-            return
-        provider, provider_config = self._build_runtime_provider(
-            inference_provider=self._inference_provider,
-        )
-        self._owned_providers.append(provider)
-        self._activate_runtime_provider(provider, provider_config)
+        return _model_runtime.refresh_runtime_provider(self)
 
     def _invalidate_runtime_model_limits(self) -> None:
-        self._runtime_model_limits = None
-        self._runtime_model_limits_key = None
-        self._model_limits_discovery_error = None
+        return _model_runtime.invalidate_runtime_model_limits(self)
 
     async def _refresh_runtime_model_limits(self) -> None:
-        key = (self.provider_name, self.model)
-        if self._runtime_model_limits_key == key:
-            return
-        self._runtime_model_limits = None
-        self._runtime_model_limits_key = key
-        self._model_limits_discovery_error = None
-        provider = self._harness.config.provider
-        if (
-            self.provider_name == "openai-codex"
-            and isinstance(provider, ModelCatalogProvider)
-            and environ.get("BALDRIC_OFFLINE") is not None
-        ):
-            return
-        try:
-            cached_catalog = self._runtime_model_catalogs.get(self.provider_name)
-            if self.provider_name == "openai-codex" and cached_catalog is not None:
-                model = cached_catalog.model(self.model)
-                self._runtime_model_limits = model.limits if model is not None else None
-                return
-            if isinstance(provider, ModelCatalogProvider):
-                catalog = await provider.discover_models()
-                self._publish_runtime_model_catalog(self.provider_name, catalog)
-                if self.provider_name == "openai-codex":
-                    self._persist_codex_model_catalog(provider, catalog)
-            if isinstance(provider, ModelLimitsProvider):
-                self._runtime_model_limits = await provider.discover_model_limits(self.model)
-        except Exception as exc:  # noqa: BLE001 - static catalog remains the safe fallback
-            error = f"{type(exc).__name__}: {exc}"
-            self._model_limits_discovery_error = error
-            if isinstance(provider, ModelCatalogProvider):
-                self._model_catalog_discovery_errors[self.provider_name] = error
+        await _model_runtime.refresh_runtime_model_limits(self)
 
     async def reload(self) -> CodingReloadSummary:
         return await _lifecycle.reload(self)
@@ -2123,12 +1827,7 @@ class CodingSession:
 
     async def _close_replaced_provider(self, provider: ModelProvider) -> None:
         """Close a Baldric-owned provider once after a committed publication."""
-        if provider not in self._owned_providers:
-            return
-        self._owned_providers.remove(provider)
-        close = getattr(provider, "aclose", None)
-        if close is not None:
-            await close()
+        return await _model_runtime.close_replaced_provider(self, provider)
 
     async def _ensure_session_initialized(self) -> None:
         return await _session_runtime._ensure_session_initialized(self)
