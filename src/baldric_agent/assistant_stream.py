@@ -10,6 +10,7 @@ from baldric_agent.events import (
     MessageEndEvent,
     MessageStartEvent,
     MessageUpdateEvent,
+    RetryAttemptEvent,
 )
 from baldric_agent.messages import AgentMessage, ResponseTiming
 from baldric_agent.provider import CancellationToken, ModelProvider
@@ -17,6 +18,7 @@ from baldric_agent.provider_events import (
     AssistantDoneEvent,
     AssistantErrorEvent,
     AssistantMessageEvent,
+    AssistantRetryEvent,
     AssistantStartEvent,
     TextDeltaEvent,
     ThinkingDeltaEvent,
@@ -57,6 +59,14 @@ async def assistant_events(
         except StopAsyncIteration:
             break
         provider_elapsed_ns += max(0, monotonic_ns() - wait_started_ns)
+        if isinstance(event, AssistantRetryEvent):
+            yield RetryAttemptEvent(
+                attempt=event.attempt,
+                max_attempts=event.max_attempts,
+                delay_ms=event.delay_ms,
+                message=event.message,
+            )
+            continue
         if first_output_elapsed_ns is None and isinstance(
             event,
             (

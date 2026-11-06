@@ -36,6 +36,20 @@ class MessageStartEvent(WireModel):
     message: AgentMessage
 
 
+class RetryAttemptEvent(WireModel):
+    """A provider adapter is retrying a transient failure before output starts.
+
+    Distinct from the internal `baldric_ai._provider_events.ProviderRetryEvent`,
+    which stays inside the adapter; this is the frontend-visible event.
+    """
+
+    type: Literal["provider_retry"] = "provider_retry"
+    attempt: int
+    max_attempts: int
+    delay_ms: int
+    message: str = ""
+
+
 class MessageUpdateEvent(WireModel):
     type: Literal["message_update"] = "message_update"
     message: AgentMessage
@@ -79,6 +93,7 @@ type AgentEvent = Annotated[
     | TurnStartEvent
     | TurnEndEvent
     | MessageStartEvent
+    | RetryAttemptEvent
     | MessageUpdateEvent
     | MessageEndEvent
     | ToolExecutionStartEvent

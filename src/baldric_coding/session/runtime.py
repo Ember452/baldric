@@ -191,6 +191,7 @@ from baldric_coding.session.resource_helpers import (
 from baldric_coding.session.resource_helpers import (
     parse_terminal_command as parse_terminal_command,
 )
+from baldric_coding.session.retry_events import with_auto_retry_events
 from baldric_coding.session.tree_helpers import (  # noqa: F401
     _active_branchable_entry_id as _active_branchable_entry_id,
 )
@@ -392,7 +393,7 @@ async def prompt(
             prompt_message = UserMessage(content=expanded_content)
         events = session._harness.prompt_message(prompt_message)
         session._invalidate_context_usage_cache()
-        async for event in events:
+        async for event in with_auto_retry_events(events):
             auto_name_message: str | None = None
             if (
                 isinstance(event, MessageEndEvent)
@@ -537,7 +538,7 @@ async def continue_(session: CodingSession) -> AsyncGenerator[CodingSessionEvent
     try:
         events = session._harness.continue_()
         session._invalidate_context_usage_cache()
-        async for event in events:
+        async for event in with_auto_retry_events(events):
             if isinstance(event, ToolExecutionEndEvent):
                 session._invalidate_context_usage_cache()
             if (

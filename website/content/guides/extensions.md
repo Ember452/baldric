@@ -659,6 +659,7 @@ Observation events mirror the canonical agent/session stream. Handlers receive
 | `turn_start` | `turn_index`, Unix-millisecond `timestamp` |
 | `turn_end` | matching `turn_index`, `message`, `tool_results` |
 | `message_start` / `message_end` | `message`; assistant usage is at `message.usage` |
+| `provider_retry` | `attempt`, `max_attempts`, `delay_ms`, `message`; emitted before a retried provider request produces output, and paired with `auto_retry_start` / `auto_retry_end` on the coding-session stream |
 | `message_update` | `message`, nested `assistant_message_event` |
 | `tool_execution_start` | `tool_call_id`, `tool_name`, `args` |
 | `tool_execution_update` | the call fields plus `partial_result` |

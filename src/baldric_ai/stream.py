@@ -25,6 +25,7 @@ from baldric_ai.events import (
     AssistantDoneEvent,
     AssistantErrorEvent,
     AssistantMessageEvent,
+    AssistantRetryEvent,
     AssistantStartEvent,
     TextDeltaEvent,
     TextEndEvent,
@@ -109,7 +110,14 @@ async def canonicalize_provider_stream(
 
     async for event in source:
         if isinstance(event, ProviderRetryEvent):
-            # Retries are provider-internal at the Pi AI boundary.
+            # Surface the retry so a frontend can show it instead of a hang; the
+            # agent layer turns this into a provider_retry event.
+            yield AssistantRetryEvent(
+                attempt=event.attempt,
+                max_attempts=event.max_attempts,
+                delay_ms=int(round(event.delay_seconds * 1000)),
+                message=event.message,
+            )
             continue
         if isinstance(event, ProviderResponseStartEvent):
             if event.response_provider is not None:

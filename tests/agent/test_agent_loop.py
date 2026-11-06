@@ -13,6 +13,7 @@ from baldric_agent import (
     AssistantMessage,
     MessageEndEvent,
     MessageUpdateEvent,
+    RetryAttemptEvent,
     SimpleCancellationToken,
     TextContent,
     ToolCall,
@@ -22,7 +23,12 @@ from baldric_agent import (
     UserMessage,
 )
 from baldric_agent.loop import run_agent_loop
-from baldric_agent.provider_events import AssistantDoneEvent, AssistantErrorEvent, ThinkingDeltaEvent
+from baldric_agent.provider_events import (
+    AssistantDoneEvent,
+    AssistantErrorEvent,
+    AssistantRetryEvent,
+    ThinkingDeltaEvent,
+)
 from baldric_agent.tool_calls import execute_tool_call
 from baldric_agent.types import JSONValue
 from baldric_ai import CancellationToken, FakeProvider
@@ -84,6 +90,42 @@ async def test_agent_loop_streams_canonical_nested_events() -> None:
     updates = [event for event in events if isinstance(event, MessageUpdateEvent)]
     assert [event.assistant_message_event.delta for event in updates] == ["Hel", "lo"]  # type: ignore[union-attr]
     assert messages == [messages[0], assistant]
+
+
+@pytest.mark.anyio
+async def test_agent_loop_surfaces_provider_retries_before_the_message() -> None:
+    messages: list[AgentMessage] = [UserMessage(content="Say hello")]
+    assistant = AssistantMessage(content="Hello", model="fake")
+    provider = FakeProvider(
+        [
+            [
+                AssistantRetryEvent(attempt=1, max_attempts=3, delay_ms=250, message="HTTP 429"),
+                assistant_start(),
+                assistant_done(assistant),
+            ]
+        ]
+    )
+
+    events = await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=messages,
+            tools=[],
+        )
+    )
+
+    assert [event.type for event in events][:3] == ["agent_start", "turn_start", "provider_retry"]
+    retries = [event for event in events if isinstance(event, RetryAttemptEvent)]
+    assert len(retries) == 1
+    retry = retries[0]
+    assert (retry.attempt, retry.max_attempts, retry.delay_ms, retry.message) == (
+        1,
+        3,
+        250,
+        "HTTP 429",
+    )
 
 
 @pytest.mark.anyio

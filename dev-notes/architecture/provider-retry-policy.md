@@ -57,12 +57,28 @@ generator, so the same decision is applied at each failure site instead.
 - **Stream-level retries keep the exponential delay.** Those paths have no
   response headers to honour; only the HTTP failure path gained server guidance.
 
+## Visibility
+
+A retry is no longer silent. The adapter still emits the internal
+`ProviderRetryEvent`; `baldric_ai/stream.py` now converts it into the public
+`AssistantRetryEvent`, the loop turns that into the agent-level
+`RetryAttemptEvent` (`provider_retry`), and `baldric_coding/session/retry_events.py`
+pairs it with the `auto_retry_start` / `auto_retry_end` events the transcript,
+JSON, and TUI already render. A failed run therefore shows "retrying (2/3) in 1s"
+instead of looking hung for the backoff.
+
+Pi declares the same information as retry callbacks (`onRetryScheduled` /
+`onRetryFinished`) on its retry helper and consumes them in the coding session.
+Baldric's stream is an async generator, so it carries the notice as an event
+instead of a callback; behaviour matches, mechanism differs.
+
 ## What is not covered
 
-- `ProviderRetryEvent` is still dropped by `baldric_ai/stream.py`, so the user
-  does not yet see "retrying" in the UI. That is #47.
 - Provider-specific stream errors (Anthropic `overloaded_error`, Codex transient
   markers) keep their own predicates; only the HTTP path was centralised.
+- `ToolCallDeltaEvent` is still never produced: parsers emit one complete
+  `ProviderToolCallEvent`, so streamed tool-argument fragments are not surfaced
+  yet (tracked separately).
 
 ## Tests
 

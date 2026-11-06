@@ -31,6 +31,7 @@ from baldric_agent import (
     MessageEndEvent,
     MessageStartEvent,
     MessageUpdateEvent,
+    RetryAttemptEvent,
     TextContent,
     ThinkingContent,
     ToolCall,
@@ -49,6 +50,7 @@ from baldric_agent.provider_events import (
     AssistantDoneEvent,
     AssistantErrorEvent,
     AssistantMessageEvent,
+    AssistantRetryEvent,
     AssistantStartEvent,
     TextDeltaEvent,
     TextEndEvent,
@@ -188,6 +190,7 @@ def _provider_events() -> tuple[AssistantMessageEvent, ...]:
 
     return (
         AssistantStartEvent(partial=partial),
+        AssistantRetryEvent(attempt=1, max_attempts=3, delay_ms=500, message="HTTP 429"),
         TextStartEvent(content_index=0, partial=partial),
         TextDeltaEvent(content_index=0, delta="hello", partial=partial),
         TextEndEvent(content_index=0, content="hello", partial=partial),
@@ -213,6 +216,7 @@ def _agent_events() -> tuple[AgentEvent, ...]:
         TurnStartEvent(),
         TurnEndEvent(message=assistant, tool_results=[result]),
         MessageStartEvent(message=UserMessage(content="hello", timestamp=_TIMESTAMP)),
+        RetryAttemptEvent(attempt=1, max_attempts=3, delay_ms=500, message="HTTP 429"),
         MessageUpdateEvent(
             message=assistant,
             assistant_message_event=TextDeltaEvent(

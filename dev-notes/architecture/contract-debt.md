@@ -2,24 +2,23 @@
 
 **Status:** open register — 2026-11-06
 
-The P0 contract work pinned the shapes; this note records the places where a Pi
-contract was ported but the mechanism behind it was not. Each one passes type
-checks and tests while promising something the code does not do, which is worse
-than a missing feature because a reviewer reads the field as evidence.
+The P0 contract work pinned the shapes; this note records where a contract exists
+without the mechanism behind it. Each row is either wired, deleted, or has a
+named owner and an exit condition.
 
-| Field / type | Where | State | Owner |
-| --- | --- | --- | --- |
-| `AgentTool.execution_mode` | `src/baldric_agent/tools.py` | Defaults to `"parallel"`; nothing reads it. The loop executes tools sequentially. | Parallel tool execution (platform and tools phase) |
-| `AgentToolResult.added_tool_names` | `src/baldric_agent/tools.py`, carried into `ToolResultMessage` and JSONL | Copied end to end; no consumer. | Dynamic tool loadout decision (#48) |
-| `ToolCallDeltaEvent` | `src/baldric_agent/provider_events.py` | Type exists; no adapter produces it, so tool arguments always arrive whole at `ToolCallEndEvent`. | Streaming tool arguments (platform and tools phase) |
-| `ProviderRetryEvent` | `src/baldric_ai/retry.py`, built by every adapter | Dropped in `src/baldric_ai/stream.py`, so a retrying request still looks like a hang. | #47 |
-| `sum_usage` | `src/baldric_agent/messages.py` | No caller; session usage sums fields directly. | Cost accounting (quality and release phase), or delete |
+| Field / type | State after review |
+| --- | --- |
+| `AgentTool.execution_mode` | Default is now `"sequential"`, which is what the loop does. `"parallel"` is accepted for Pi compatibility but not honoured yet; implementing parallel execution is a separate feature. |
+| `AgentToolResult.added_tool_names` | Propagated end to end (`tools.py` → `ToolResultMessage` → JSONL). Pi carries the same field to mark where late tools become available; the consumer here lands with dynamic tool loadout. Kept as wire parity. |
+| `ToolCallDeltaEvent` | Still has no producer: parsers emit one complete `ProviderToolCallEvent`. Pi's adapters emit `toolcall_delta` while streamed arguments arrive, so this is a real gap — tracked in #52. |
+| `ProviderRetryEvent` (AI internal) | Now surfaced: `stream.py` converts it to `AssistantRetryEvent`, the loop to `RetryAttemptEvent`, coding to `auto_retry_start` / `auto_retry_end` (#47). |
+| `sum_usage` | Already wired (`session/branch_summary.py`, `session/session.py`). Not debt. |
 
 ## Rule
 
 Every field or type ported from Pi lands with a producer, a consumer, and a test,
-or it does not land. Adding another one is a review blocker. Removing a dead one
-is always in scope for the change that touches its file.
+or it does not land. Removing a dead one is always in scope for the change that
+touches its file.
 
 ## Exit criteria
 
