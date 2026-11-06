@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from scripts.check_agent_guidance import _check, build_report
+from scripts.check_agent_guidance import _check, _normalized_bytes, build_report
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BASELINE = REPO_ROOT / "agent-guidance-baseline.json"
@@ -65,3 +65,13 @@ def test_oversized_shim_is_rejected() -> None:
     violations = _check(report, baseline)
 
     assert any("shim limit" in violation for violation in violations)
+
+
+def test_measurement_ignores_checkout_line_endings(tmp_path: Path) -> None:
+    """An LF baseline must not fail on a CRLF checkout (Windows CI)."""
+    lf = tmp_path / "lf.md"
+    crlf = tmp_path / "crlf.md"
+    lf.write_bytes(b"# Title\n\nTwo lines.\n")
+    crlf.write_bytes(b"# Title\r\n\r\nTwo lines.\r\n")
+
+    assert _normalized_bytes(crlf) == _normalized_bytes(lf)

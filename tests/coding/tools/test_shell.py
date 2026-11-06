@@ -83,9 +83,8 @@ def test_windows_taskkill_targets_the_system_binary_and_the_tree(
 
     kill_process_tree(4321, platform="nt")
 
-    assert calls == [
-        [r"C:\Windows\System32\taskkill.exe", "/F", "/T", "/PID", "4321"],
-    ]
+    taskkill = os.path.join(r"C:\Windows", "System32", "taskkill.exe")
+    assert calls == [[taskkill, "/F", "/T", "/PID", "4321"]]
 
 
 def test_posix_kill_signals_the_process_group(monkeypatch: pytest.MonkeyPatch) -> None:
