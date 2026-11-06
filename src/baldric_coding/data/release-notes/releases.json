@@ -1,5 +1,22 @@
 [
   {
+    "version": "0.2.2",
+    "date": null,
+    "sections": {
+      "Added": [
+        "Hugging Face selections default to a fixed OpenRouter route; a per-model inference provider still wins, and an explicit null preference restores automatic routing.",
+        "Ctrl+E edits the prompt in an external editor, using the durable editor_command setting or BALDRIC_EDITOR / VISUAL / EDITOR; Ctrl+Z suspends the process on POSIX.",
+        "A rejected image tool result is recovered instead of ending the run: affected tool responses are replayed as text-only API errors, bounded at three consecutive failures, and the original tools are never re-executed.",
+        "The /extensions command opens a searchable, read-only inventory of loaded extensions and their diagnostics.",
+        "baldric extensions list, update, and remove manage extensions that Baldric installed, while leaving manually placed files untouched."
+      ],
+      "Changed": [
+        "Coverage, structure, suppression, and agent-guidance ratchets now gate CI, alongside a single aggregated required check and a clean-worktree assertion.",
+        "Architecture layer boundaries run as ordinary pytest tests, and instruction files are split into a root guide plus per-package scoped guides."
+      ]
+    }
+  },
+  {
     "version": "0.2.1",
     "date": null,
     "sections": {
