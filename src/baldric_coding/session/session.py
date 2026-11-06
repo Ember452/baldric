@@ -487,6 +487,7 @@ class CodingSessionConfig:
     """
     index_on_first_persist: bool = False
     shell_command_prefix: str | None = None
+    shell: str = "auto"
     skills_enabled: bool = True
     """Whether skill discovery is enabled for this session.
 
@@ -811,6 +812,7 @@ class CodingSession:
             else create_coding_tools(
                 cwd=config.cwd,
                 shell_command_prefix=config.shell_command_prefix,
+                shell=config.shell,
                 image_support=image_support,
             )
         )

@@ -38,7 +38,9 @@ from baldric_ai._provider_events import (
     ProviderResponseStartEvent,
     ProviderTextDeltaEvent,
     ProviderThinkingDeltaEvent,
+    ProviderToolCallDeltaEvent,
     ProviderToolCallEvent,
+    ProviderToolCallStartEvent,
 )
 from baldric_ai.content import (
     NON_VISION_TOOL_IMAGE_PLACEHOLDER,
@@ -475,6 +477,7 @@ class _ChatStreamParser:
         self._thinking_parts: list[str] = []
         self._thinking_signature: str | None = None
         self._tool_call_builders: dict[int, _ToolCallBuilder] = {}
+        self._started_tool_indices: set[int] = set()
         self._finish_reason: str | None = None
         self._usage: Usage | None = None
 
@@ -528,7 +531,13 @@ class _ChatStreamParser:
             self.emitted_content = True
             index = int(tool_call_delta.get("index", 0))
             builder = self._tool_call_builders.setdefault(index, _ToolCallBuilder())
+            if index not in self._started_tool_indices:
+                self._started_tool_indices.add(index)
+                events.append(ProviderToolCallStartEvent(index=index))
             builder.add_delta(tool_call_delta)
+            fragment = _tool_call_argument_fragment(tool_call_delta)
+            if fragment:
+                events.append(ProviderToolCallDeltaEvent(index=index, delta=fragment))
 
         return events, False
 
@@ -1428,6 +1437,14 @@ def _tool_call_deltas(delta: Mapping[str, Any]) -> list[Mapping[str, Any]]:
     if not isinstance(tool_calls, list):
         return []
     return [tool_call for tool_call in tool_calls if isinstance(tool_call, Mapping)]
+
+
+def _tool_call_argument_fragment(tool_call_delta: Mapping[str, Any]) -> str:
+    function = tool_call_delta.get("function")
+    if not isinstance(function, Mapping):
+        return ""
+    arguments = function.get("arguments")
+    return arguments if isinstance(arguments, str) else ""
 
 
 def _thinking_delta(delta: Mapping[str, Any]) -> tuple[str, str] | None:

@@ -29,6 +29,7 @@ def create_bash_tool_definition(
     *,
     cwd: str | Path | None = None,
     shell_command_prefix: str | None = None,
+    shell: str = "auto",
 ) -> ToolDefinition:
     """Create a definition for the `bash` tool.
 
@@ -51,7 +52,7 @@ def create_bash_tool_definition(
     """
     root = Path.cwd() if cwd is None else Path(cwd)
     prefix = shell_command_prefix.strip() if shell_command_prefix else None
-    shell = resolve_shell()
+    shell_spec = resolve_shell(shell)
 
     async def execute(
         arguments: Mapping[str, JSONValue],
@@ -67,7 +68,7 @@ def create_bash_tool_definition(
 
         start = monotonic()
         process = await asyncio.create_subprocess_exec(
-            *shell.command_line(shell_command),
+            *shell_spec.command_line(shell_command),
             cwd=root,
             stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
@@ -127,7 +128,7 @@ def create_bash_tool_definition(
                 "duration_seconds": round(monotonic() - start, 3),
                 "truncation": truncation.to_json(),
                 "full_output_path": full_output_path,
-                "shell": shell.name,
+                "shell": shell_spec.name,
                 "shell_command_prefix_applied": prefix is not None,
             },
         )
@@ -135,13 +136,13 @@ def create_bash_tool_definition(
     return ToolDefinition(
         name="bash",
         description=(
-            f"Execute a command with {shell.label} in the current working directory. "
+            f"Execute a command with {shell_spec.label} in the current working directory. "
             "Returns stdout and stderr. "
             f"Output is truncated to last {DEFAULT_MAX_OUTPUT_LINES} lines or "
             f"{DEFAULT_MAX_OUTPUT_BYTES // 1024}KB (whichever is hit first). If truncated, "
             "full output is saved to a temp file. Optionally provide a timeout in seconds."
         ),
-        prompt_snippet=f"Execute {shell.label} commands",
+        prompt_snippet=f"Execute {shell_spec.label} commands",
         prompt_guidelines=(
             "When using bash, include a brief present-participle description of the "
             "command's purpose (for example, 'Running tests').",
@@ -149,7 +150,7 @@ def create_bash_tool_definition(
         input_schema={
             "type": "object",
             "properties": {
-                "command": {"type": "string", "description": f"Command to execute with {shell.label}"},
+                "command": {"type": "string", "description": f"Command to execute with {shell_spec.label}"},
                 "description": {
                     "type": "string",
                     "description": (
@@ -173,11 +174,13 @@ def create_bash_tool(
     *,
     cwd: str | Path | None = None,
     shell_command_prefix: str | None = None,
+    shell: str = "auto",
 ) -> AgentTool:
     """Create an `AgentTool` for executing shell commands with captured output."""
     return create_bash_tool_definition(
         cwd=cwd,
         shell_command_prefix=shell_command_prefix,
+        shell=shell,
     ).to_agent_tool()
 
 

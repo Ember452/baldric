@@ -52,6 +52,25 @@ class ProviderThinkingDeltaEvent(BaseModel):
     delta: str
 
 
+class ProviderToolCallStartEvent(BaseModel):
+    """A streamed tool call has begun; argument fragments follow."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["tool_call_start"] = "tool_call_start"
+    index: int
+
+
+class ProviderToolCallDeltaEvent(BaseModel):
+    """A fragment of a streamed tool call's JSON arguments."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["tool_call_delta"] = "tool_call_delta"
+    index: int
+    delta: str
+
+
 class ProviderToolCallEvent(BaseModel):
     """A complete tool call requested by the model."""
 
@@ -87,6 +106,8 @@ type ProviderEvent = (
     | ProviderRetryEvent
     | ProviderTextDeltaEvent
     | ProviderThinkingDeltaEvent
+    | ProviderToolCallStartEvent
+    | ProviderToolCallDeltaEvent
     | ProviderToolCallEvent
     | ProviderResponseEndEvent
     | ProviderErrorEvent
