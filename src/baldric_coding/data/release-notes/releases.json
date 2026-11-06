@@ -1,5 +1,26 @@
 [
   {
+    "version": "0.2.3",
+    "date": null,
+    "sections": {
+      "Added": [
+        "The `/thinking` command reports the active thinking mode and sets a new level, matching the command set Pi exposes.",
+        "Quality ratchets gate CI: suppression counts (`# type: ignore` / `# noqa`), structure metrics (file size, function length, inheritance depth, module fan-out), and instruction-file byte budgets may only shrink against their committed baselines.",
+        "Architecture layer boundaries now run as ordinary pytest tests, and every gate has a self-test that proves it still rejects a synthetic violation.",
+        "Golden files lock wire-format output (assistant and tool-result messages); updating them requires UPDATE_EXPECTED=1 and prints the accepted diff.",
+        "Code invariants run in the suite: subprocess calls must pass a timeout, bare `except:` is rejected, and unencoded file IO is ratcheted.",
+        "A lint-configuration fingerprint forces any change to ruff or mypy settings to be disclosed in the diff."
+      ],
+      "Fixed": [
+        "The RPC frontend frames records as UTF-8 with LF terminators on every platform; previously Windows text-mode stdout emitted CRLF and stdin decoded through the system code page, which a byte-level peer would reject."
+      ],
+      "Changed": [
+        "CI splits fast static checks from the coverage suite, adds a Windows smoke job for the deterministic core domains, and enforces a 120-second per-test timeout.",
+        "Local development uses tiered verification (static ~20s, everything except the TUI ~75s, full suite ~4min) instead of always running the whole suite; CI still runs it exhaustively."
+      ]
+    }
+  },
+  {
     "version": "0.2.2",
     "date": null,
     "sections": {
