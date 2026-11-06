@@ -74,6 +74,7 @@ wrong.
 - [Truncated responses never execute tool calls](./truncated-tool-calls.md)
 - [Cancellation that interrupts a stalled stream](./cancellation.md)
 - [Session durability: torn lines and atomic writes](./session-durability.md)
+- [Provider retry policy](./provider-retry-policy.md)
 
 Phase 21 extensions are implemented; see the phase note and the user guide at
 `website/content/guides/extensions.md`.

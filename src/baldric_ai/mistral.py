@@ -41,6 +41,7 @@ from baldric_ai.http_errors import provider_http_error_message
 from baldric_ai.provider import CancellationToken
 from baldric_ai.retry import (
     RETRYABLE_TRANSPORT_ERRORS,
+    classify_response_failure,
     provider_retry_event,
     retry_delay_seconds,
     wait_for_retry,
@@ -133,20 +134,23 @@ class MistralConversationsProvider:
                         if response.status_code >= 400:
                             body = await response.aread()
                             body_text = body.decode(errors="replace")
-                            if self._should_retry(attempt, status_code=response.status_code):
-                                delay = retry_delay_seconds(
-                                    attempt,
-                                    max_delay_seconds=self._config.max_retry_delay_seconds,
-                                )
+                            decision = classify_response_failure(
+                                response, body_text, attempt=attempt, config=self._config
+                            )
+                            if decision.retryable:
                                 yield provider_retry_event(
                                     attempt=attempt,
                                     max_retries=self._config.max_retries,
-                                    delay_seconds=delay,
+                                    delay_seconds=decision.delay_seconds,
                                     reason=f"HTTP {response.status_code}",
-                                    data={"status_code": response.status_code, "body": body_text},
+                                    data={
+                                        "status_code": response.status_code,
+                                        "body": body_text,
+                                        "code": decision.code,
+                                    },
                                 )
                                 attempt += 1
-                                if not await wait_for_retry(delay, signal=signal):
+                                if not await wait_for_retry(decision.delay_seconds, signal=signal):
                                     return
                                 continue
                             yield ProviderErrorEvent(
@@ -155,8 +159,13 @@ class MistralConversationsProvider:
                                     status_code=response.status_code,
                                     body=body_text,
                                     model=model,
-                                ),
-                                data={"status_code": response.status_code, "body": body_text},
+                                )
+                                + decision.note,
+                                data={
+                                    "status_code": response.status_code,
+                                    "body": body_text,
+                                    "code": decision.code,
+                                },
                             )
                             return
 
@@ -176,7 +185,7 @@ class MistralConversationsProvider:
                             yield parser_event
                         return
                 except RETRYABLE_TRANSPORT_ERRORS as exc:
-                    if not parser.emitted_content and self._should_retry(attempt):
+                    if not parser.emitted_content and attempt < self._config.max_retries:
                         delay = retry_delay_seconds(
                             attempt,
                             max_delay_seconds=self._config.max_retry_delay_seconds,
@@ -201,11 +210,6 @@ class MistralConversationsProvider:
         if self._client is None:
             self._client = create_async_client(timeout=self._config.timeout_seconds)
         return self._client
-
-    def _should_retry(self, attempt: int, *, status_code: int | None = None) -> bool:
-        if attempt >= self._config.max_retries:
-            return False
-        return status_code is None or status_code in {408, 409, 425, 429} or status_code >= 500
 
 
 class _StreamParser(Protocol):

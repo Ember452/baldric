@@ -1421,6 +1421,7 @@ async def test_openai_compatible_provider_does_not_retry_non_transient_status() 
         "status_code": 400,
         "body": '{"error":{"message":"The selected model is unavailable."}}',
         "attempts": 1,
+        "code": "invalid_request",
     }
 
 
@@ -1457,6 +1458,7 @@ async def test_openai_compatible_provider_includes_plain_http_error_body_in_mess
         "status_code": 400,
         "body": "bad request details",
         "attempts": 1,
+        "code": "invalid_request",
     }
 
 
@@ -1639,6 +1641,7 @@ async def test_openai_codex_provider_includes_http_error_detail_in_message() -> 
         "status_code": 400,
         "body": '{"error":{"message":"The requested model does not exist."}}',
         "attempts": 1,
+        "code": "invalid_request",
     }
 
 
@@ -1678,6 +1681,7 @@ async def test_openai_codex_provider_includes_plain_http_error_body_in_message()
         "status_code": 400,
         "body": "bad request details",
         "attempts": 1,
+        "code": "invalid_request",
     }
 
 
@@ -2960,6 +2964,7 @@ async def test_anthropic_provider_includes_http_error_detail_in_message() -> Non
         "status_code": 400,
         "body": '{"error":{"message":"model: invalid-model is not supported"}}',
         "attempts": 1,
+        "code": "invalid_request",
     }
 
 

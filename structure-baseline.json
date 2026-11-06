@@ -77,7 +77,7 @@
       "max_function_stmts": 0
     },
     "src/baldric_ai/anthropic.py": {
-      "lines": 771,
+      "lines": 769,
       "max_function_stmts": 12
     },
     "src/baldric_ai/content.py": {
@@ -97,7 +97,7 @@
       "max_function_stmts": 5
     },
     "src/baldric_ai/google.py": {
-      "lines": 564,
+      "lines": 568,
       "max_function_stmts": 15
     },
     "src/baldric_ai/http.py": {
@@ -109,7 +109,7 @@
       "max_function_stmts": 6
     },
     "src/baldric_ai/mistral.py": {
-      "lines": 518,
+      "lines": 522,
       "max_function_stmts": 13
     },
     "src/baldric_ai/model_catalog.py": {
@@ -125,11 +125,11 @@
       "max_function_stmts": 3
     },
     "src/baldric_ai/openai_codex.py": {
-      "lines": 1198,
+      "lines": 1187,
       "max_function_stmts": 15
     },
     "src/baldric_ai/openai_compatible.py": {
-      "lines": 1444,
+      "lines": 1438,
       "max_function_stmts": 19
     },
     "src/baldric_ai/provider.py": {
@@ -137,8 +137,8 @@
       "max_function_stmts": 0
     },
     "src/baldric_ai/retry.py": {
-      "lines": 69,
-      "max_function_stmts": 5
+      "lines": 267,
+      "max_function_stmts": 12
     },
     "src/baldric_ai/stream.py": {
       "lines": 230,
