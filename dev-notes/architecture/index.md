@@ -79,6 +79,7 @@ wrong.
 - [Streamed tool-call arguments](./tool-call-deltas.md)
 - [Context and cost: current state](./context-and-cost-status.md)
 - [Deferred reliability decisions](./deferred-decisions.md)
+- [Large-file decomposition: what was split, and what was not](./large-file-decomposition.md)
 
 Phase 21 extensions are implemented; see the phase note and the user guide at
 `website/content/guides/extensions.md`.
