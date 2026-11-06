@@ -14,7 +14,7 @@ from baldric_coding.providers.stores.models_dev import (
     thinking_level_map_from_reasoning_options,
 )
 
-FIXTURE = Path(__file__).parent / "fixtures/models_dev_catalog.json"
+FIXTURE = Path(__file__).parents[1] / "fixtures/models_dev_catalog.json"
 
 
 def test_effort_options_use_pi_level_map_semantics() -> None:

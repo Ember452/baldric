@@ -16,7 +16,7 @@ from baldric_coding.providers.stores.models_dev_store import (
     refresh_models_dev_catalog,
 )
 
-FIXTURE = Path(__file__).parent / "fixtures/models_dev_catalog.json"
+FIXTURE = Path(__file__).parents[1] / "fixtures/models_dev_catalog.json"
 
 
 def _source() -> dict[str, object]:
