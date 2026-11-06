@@ -156,6 +156,13 @@ Use those lifecycle hooks to stop and restart background work and to remount UI.
 > `--project-extensions` are both required. Project trust is not a process,
 > filesystem, network, credential, tool, model, or prompt-injection sandbox.
 
+In the TUI, run `/extensions` to open a searchable inventory. Each loaded
+extension shows its name, entry path, source scope (`project`, `user`,
+`explicit`, or `built-in`), and load status. Discovery, import, setup, and
+runtime diagnostics appear in the same view. The inventory is intentionally
+read-only: Baldric does not claim ownership of manually placed, project, or
+`-e` extension files and never deletes them.
+
 ## The extension API
 
 ```python

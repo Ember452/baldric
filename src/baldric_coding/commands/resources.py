@@ -52,6 +52,12 @@ def _diagnostics_command(context: CommandContext) -> CommandResult:
     )
 
 
+def _extensions_command(context: CommandContext) -> CommandResult:
+    if context.args:
+        return CommandResult(handled=True, message="Usage: /extensions")
+    return CommandResult(handled=True, extensions_picker_requested=True)
+
+
 def _reload_command(context: CommandContext) -> CommandResult:
     # Reload owns async extension lifecycle hooks, so frontends execute it from
     # their async command path rather than inside this synchronous registry.

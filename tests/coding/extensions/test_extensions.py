@@ -40,6 +40,7 @@ from baldric_coding.extensions import (
     ExtensionRuntime,
     InputEvent,
     InputHookResult,
+    LoadedExtension,
     MessageRenderOptions,
     NoAuth,
     OpenAICompatibleTransport,
@@ -3517,3 +3518,51 @@ def _loaded_extension_module(name: str) -> object:
     ]
     assert candidates, f"extension module {name} not loaded"
     return candidates[-1]
+
+
+def test_extension_info_reports_load_scope(tmp_path: Path) -> None:
+    paths = _paths(tmp_path)
+    user_dir = _user_extensions_dir(paths)
+    project_dir = _project_extensions_dir(paths)
+    user_dir.mkdir(parents=True)
+    project_dir.mkdir(parents=True)
+    (user_dir / "user_ext.py").write_text("def setup(baldric):\n    pass\n", encoding="utf-8")
+    (project_dir / "project_ext.py").write_text("def setup(baldric):\n    pass\n", encoding="utf-8")
+    explicit = tmp_path / "explicit_ext.py"
+    explicit.write_text("def setup(baldric):\n    pass\n", encoding="utf-8")
+
+    runtime = ExtensionRuntime(built_in_extensions=())
+    runtime.load(paths, extra_paths=(explicit,), include_project_dir=True)
+    runtime._setup_extension(
+        LoadedExtension(
+            name="built_in_ext",
+            path=None,
+            source_id="built-in:built_in_ext",
+            setup=lambda api: None,
+            source="built-in",
+            hidden=False,
+        )
+    )
+
+    scopes = {info.name: info.scope for info in runtime.extension_info}
+    assert scopes == {
+        "user_ext": "user",
+        "project_ext": "project",
+        "explicit_ext": "explicit",
+        "built_in_ext": "built-in",
+    }
+    assert all(info.status == "loaded" for info in runtime.extension_info)
+
+
+def test_extension_info_is_cleared_on_reload_reset(tmp_path: Path) -> None:
+    paths = _paths(tmp_path)
+    user_dir = _user_extensions_dir(paths)
+    user_dir.mkdir(parents=True)
+    (user_dir / "seed_ext.py").write_text("def setup(baldric):\n    pass\n", encoding="utf-8")
+    runtime = ExtensionRuntime(built_in_extensions=())
+    runtime.load(paths)
+    assert runtime.extension_info
+
+    runtime.reset_for_reload()
+
+    assert runtime.extension_info == ()

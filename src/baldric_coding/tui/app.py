@@ -171,6 +171,7 @@ from baldric_coding.tui.screens.extension import (
     ExtensionInputScreen,
     ExtensionSelectScreen,
 )
+from baldric_coding.tui.screens.extensions import ExtensionsScreen
 from baldric_coding.tui.screens.login import (
     CustomProviderLoginResult,
     CustomProviderLoginScreen,
@@ -920,7 +921,8 @@ class BaldricTuiApp(App[None]):
     SkillPickerScreen,
     TreePickerScreen,
     ToolsReferenceScreen,
-    CommandOutputScreen {
+    CommandOutputScreen,
+    ExtensionsScreen {
         align: center middle;
     }
 
@@ -929,7 +931,8 @@ class BaldricTuiApp(App[None]):
     #prompt-template-editor,
     #skill-picker,
     #tree-picker,
-    #tools-reference {
+    #tools-reference,
+    #extensions-screen {
         width: 76;
         max-width: 90%;
         height: auto;
@@ -944,13 +947,15 @@ class BaldricTuiApp(App[None]):
     #prompt-template-editor-title,
     #skill-picker-title,
     #tree-picker-title,
-    #tools-reference-title {
+    #tools-reference-title,
+    #extensions-title {
         height: 1;
         color: $baldric-chrome-text;
         text-style: bold;
         margin-bottom: 1;
     }
 
+    #extensions-search,
     #session-picker-search,
     #prompt-template-picker-search,
     #skill-picker-search,
@@ -985,6 +990,7 @@ class BaldricTuiApp(App[None]):
         border: tall $baldric-prompt-border;
     }
 
+    #extensions-list,
     #session-picker-list,
     #prompt-template-picker-list,
     #skill-picker-list,
@@ -1040,6 +1046,7 @@ class BaldricTuiApp(App[None]):
         color: $baldric-highlight-text;
     }
 
+    #extensions-help,
     #session-picker-help,
     #prompt-template-picker-help,
     #prompt-template-editor-help,
@@ -2089,6 +2096,13 @@ class BaldricTuiApp(App[None]):
                 self._open_skills_picker()
             if command.theme_picker_requested:
                 self._open_theme_picker()
+            if command.extensions_picker_requested:
+                self.push_screen(
+                    ExtensionsScreen(
+                        self.session.extension_runtime,
+                        theme=self.tui_settings.resolved_theme,
+                    )
+                )
             if command.session_name is not None:
                 try:
                     await self.session.set_session_name(command.session_name)

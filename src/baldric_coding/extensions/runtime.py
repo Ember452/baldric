@@ -201,6 +201,16 @@ class InputHookOutcome:
     message: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class ExtensionInfo:
+    """User-facing metadata for one loaded extension."""
+
+    name: str
+    path: Path | None
+    scope: Literal["project", "user", "explicit", "built-in"]
+    status: Literal["loaded"] = "loaded"
+
+
 class ExtensionRuntime:
     """Owns loaded extensions and dispatches events between them and a session.
 
@@ -270,6 +280,8 @@ class ExtensionRuntime:
         self._renderer_failures_reported: set[str] = set()
         self._load_diagnostics: list[ResourceDiagnostic] = []
         self._runtime_diagnostics: list[ResourceDiagnostic] = []
+        self._project_extensions_dir: Path | None = None
+        self._user_extensions_dir: Path = BaldricPaths().home / "extensions"
         # Keep constructor-provided paths visible until ``load`` installs the
         # authoritative resource-path snapshot.
         self._paths: BaldricPaths = paths or BaldricPaths()
@@ -304,6 +316,10 @@ class ExtensionRuntime:
             include_user_dir=include_user_dir,
         )
         self._load_diagnostics.extend(result.diagnostics)
+        self._project_extensions_dir = (
+            paths.cwd / ".baldric" / "extensions" if paths.cwd is not None else None
+        )
+        self._user_extensions_dir = paths.root / "extensions"
         for extension in result.extensions:
             self._setup_extension(extension)
 
@@ -438,6 +454,8 @@ class ExtensionRuntime:
         self._renderer_failures_reported.clear()
         self._load_diagnostics.clear()
         self._runtime_diagnostics.clear()
+        self._project_extensions_dir = None
+        self._user_extensions_dir = BaldricPaths().home / "extensions"
         unload_extension_modules()
 
     def _setup_extension(self, extension: LoadedExtension) -> None:
@@ -877,6 +895,23 @@ class ExtensionRuntime:
     def extension_names(self) -> tuple[str, ...]:
         """Return visible extension names in load order."""
         return tuple(extension.name for extension in self._extensions if not extension.hidden)
+
+    @property
+    def extension_info(self) -> tuple[ExtensionInfo, ...]:
+        """Return user-facing metadata for visible loaded extensions."""
+        return tuple(
+            ExtensionInfo(
+                name=metadata.name,
+                path=metadata.path,
+                scope=extension_scope(
+                    metadata.path,
+                    project_dir=self._project_extensions_dir,
+                    user_dir=self._user_extensions_dir,
+                ),
+            )
+            for metadata in self.extension_metadata
+            if not metadata.hidden
+        )
 
     @property
     def extension_metadata(self) -> tuple[ExtensionSourceMetadata, ...]:
@@ -1320,6 +1355,23 @@ class ExtensionRuntime:
                 ),
             )
         )
+
+
+def extension_scope(
+    path: Path | None,
+    *,
+    project_dir: Path | None,
+    user_dir: Path,
+) -> Literal["project", "user", "explicit", "built-in"]:
+    """Classify where a loaded extension came from."""
+    if path is None:
+        return "built-in"
+    resolved = path.resolve()
+    if project_dir is not None and resolved.is_relative_to(project_dir.resolve()):
+        return "project"
+    if resolved.is_relative_to(user_dir.resolve()):
+        return "user"
+    return "explicit"
 
 
 async def _resolve(value: object) -> object:

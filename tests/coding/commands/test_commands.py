@@ -129,6 +129,7 @@ def test_registered_commands_are_expected(tmp_path: Path) -> None:
         "compact",
         "diagnostics",
         "export",
+        "extensions",
         "hotkeys",
         "local",
         "login",
@@ -160,6 +161,17 @@ def test_diagnostics_command_shows_empty_state(tmp_path: Path) -> None:
     assert (
         create_default_command_registry().execute(FakeSession(tmp_path), "/diagnostics extra").message
         == "Usage: /diagnostics"
+    )
+
+
+def test_extensions_command_requests_inventory_modal(tmp_path: Path) -> None:
+    result = create_default_command_registry().execute(FakeSession(tmp_path), "/extensions")
+
+    assert result.handled is True
+    assert result.extensions_picker_requested is True
+    assert (
+        create_default_command_registry().execute(FakeSession(tmp_path), "/extensions extra").message
+        == "Usage: /extensions"
     )
 
 
