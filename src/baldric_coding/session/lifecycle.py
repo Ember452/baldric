@@ -393,6 +393,7 @@ async def reload(session: CodingSession) -> CodingReloadSummary:
         else create_coding_tools(
             cwd=session._config.cwd,
             shell_command_prefix=session._config.shell_command_prefix,
+            shell=session._config.shell,
             image_support=session._image_support,
         )
     )
@@ -724,6 +725,7 @@ async def resume(session: CodingSession, session_id: str) -> str:
             auto_compact_enabled=session._auto_compact_enabled,
             thinking_level=session._thinking_level,
             shell_command_prefix=session._config.shell_command_prefix,
+            shell=session._config.shell,
             skills_enabled=session._config.skills_enabled,
             allowed_tool_names=session._config.allowed_tool_names,
             extension_paths=session._config.extension_paths,

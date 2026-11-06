@@ -597,7 +597,7 @@
       "max_function_stmts": 5
     },
     "src/baldric_coding/session/lifecycle.py": {
-      "lines": 1173,
+      "lines": 1175,
       "max_function_stmts": 61
     },
     "src/baldric_coding/session/manager.py": {
