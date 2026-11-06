@@ -30,3 +30,5 @@ website/.astro/
 scripts/analyze_session.py
 cov-output.txt
 
+.coverage
+

@@ -39,9 +39,22 @@ default = true
 dev = [
     "mypy>=1.10",
     "pytest>=8.0",
+    "pytest-cov>=6.0",
     "pytest-timeout>=2.4.0",
     "ruff>=0.5",
 ]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["src/baldric_coding/data/*"]
+
+[tool.coverage.report]
+# Ratchet floor: CI fails below this line. The committed value is deliberately
+# below what the Linux CI suite achieves, because Windows runs skip the
+# POSIX-only tests; tighten it whenever coverage grows.
+fail_under = 80
+show_missing = false
+precision = 1
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/baldric_ai", "src/baldric_agent", "src/baldric_coding"]
