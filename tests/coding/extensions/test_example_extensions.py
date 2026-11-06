@@ -19,7 +19,7 @@ from baldric_coding.extensions import ExtensionRuntime, NullUiBridge
 
 pytestmark = pytest.mark.anyio
 
-EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples" / "extensions"
+EXAMPLES_DIR = Path(__file__).resolve().parents[3] / "examples" / "extensions"
 
 
 @pytest.fixture

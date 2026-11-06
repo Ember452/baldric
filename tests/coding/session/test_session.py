@@ -859,7 +859,7 @@ def test_legacy_compaction_with_explicit_empty_id_list_keeps_prior_context() -> 
 async def test_legacy_compaction_fixture_replays_with_id_list_precedence(
     tmp_path: Path,
 ) -> None:
-    fixture = Path(__file__).parent / "fixtures" / "legacy_compaction.jsonl"
+    fixture = Path(__file__).parents[2] / "fixtures" / "legacy_compaction.jsonl"
     session_path = tmp_path / "legacy_compaction.jsonl"
     session_path.write_bytes(fixture.read_bytes())
     entries = await JsonlSessionStorage(session_path).read_all()
