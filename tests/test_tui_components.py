@@ -22,10 +22,7 @@ from baldric_coding.tui.app import BaldricTuiApp, PromptInput
 from baldric_coding.tui.config import TuiSettings
 from baldric_coding.tui.widgets import SessionSidebar, TranscriptView
 from conftest import isolate_home
-from test_tui_app import (  # noqa: E402 - sibling test module (see docstring)
-    FakeSession,
-    _component_bridge,
-)
+from tui_helpers import FakeSession, _component_bridge
 
 
 @pytest.mark.anyio

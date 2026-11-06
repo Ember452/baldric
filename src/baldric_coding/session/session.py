@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import string
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field, replace
@@ -20,18 +19,13 @@ from baldric_agent.messages import (
     Usage,
     UserMessage,
     message_text,
-    sum_usage,
 )
 from baldric_agent.provider import ModelProvider
-from baldric_agent.provider_events import AssistantDoneEvent, AssistantErrorEvent, TextDeltaEvent
 from baldric_agent.session import (
     BranchSummaryEntry,
     CompactionEntry,
     CustomEntry,
-    CustomMessageEntry,
-    JsonlSessionStorage,
     LabelEntry,
-    MessageEntry,
     ModelChangeEntry,
     SessionInfoEntry,
     SessionState,
@@ -39,36 +33,27 @@ from baldric_agent.session import (
     ThinkingLevelChangeEntry,
 )
 from baldric_agent.session.entries import SessionEntry
-from baldric_agent.session.jsonl import entry_to_json_line
-from baldric_agent.session.tree import SessionTreeError, path_to_entry
-from baldric_agent.tool_history import ToolHistoryRepair, repair_tool_history
+from baldric_agent.tool_history import ToolHistoryRepair
 from baldric_agent.tools import AgentTool
 from baldric_agent.types import JSONValue
-from baldric_ai.model_catalog import ModelCatalogProvider, RuntimeModel, RuntimeModelCatalog
+from baldric_ai.model_catalog import ModelCatalogProvider, RuntimeModelCatalog
 from baldric_ai.model_limits import ModelLimitsProvider, RuntimeModelLimits
 from baldric_coding.auth.credentials import FileCredentialStore, credentials_path
-from baldric_coding.auth.oauth import account_id_from_access_token
 from baldric_coding.commands.registry import CommandRegistry, CommandResult, create_default_command_registry
 from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.context.project import discover_project_context_with_diagnostics
 from baldric_coding.context.prompts import (
     PromptTemplate,
-    expand_prompt_template_command,
-    load_prompt_templates_with_diagnostics,
 )
 from baldric_coding.context.resources import (
     BaldricResourcePaths,
     ResourceDiagnostic,
-    ResourceError,
-    discover_system_prompt_resources,
     resource_paths_with_cwd,
     resource_paths_with_project_trust,
 )
-from baldric_coding.context.skills.skills import Skill, expand_skill_command, load_skills_with_diagnostics
+from baldric_coding.context.skills.skills import Skill
 from baldric_coding.context.system_prompt import (
     BuildSystemPromptOptions,
     ProjectContextFile,
-    PromptSection,
     SystemPromptInspection,
     SystemPromptSource,
     build_system_prompt,
@@ -78,88 +63,279 @@ from baldric_coding.context.thinking import (
     DEFAULT_THINKING_LEVEL,
     THINKING_LEVELS,
     ThinkingLevel,
-    next_thinking_level,
-    normalize_thinking_level,
 )
 from baldric_coding.events import (
     AgentSettledEvent,
     AutoRetryEndEvent,
     AutoRetryStartEvent,
     CodingSessionEvent,
-    CompactionEndEvent,
-    CompactionStartEvent,
     QueueUpdateEvent,
     SessionAgentEndEvent,
-    SessionInfoChangedEvent,
-    ThinkingLevelChangedEvent,
 )
-from baldric_coding.extensions.provider_registry import DynamicProviderRegistry
 from baldric_coding.extensions.providers import DynamicProvider, ProviderModel
 from baldric_coding.extensions.runtime import ExtensionRuntime
 from baldric_coding.observability.diagnostics import (
     AgentCallDiagnosticContext,
     AgentCallDiagnosticLogger,
-    new_agent_call_run_id,
 )
 from baldric_coding.providers.config import (
     OpenAICodexProviderConfig,
-    OpenAICompatibleProviderConfig,
     ProviderConfig,
     ProviderConfigError,
-    ProviderModelMetadata,
     ProviderSettings,
-    load_provider_settings,
-    provider_default_thinking_level,
-    provider_has_usable_credentials,
-    provider_model_supports_images,
     provider_thinking_levels,
     provider_thinking_unavailable_reason,
-    resolve_provider_selection,
-    resolve_startup_thinking_level,
-    save_default_provider_model,
-    save_provider_thinking_level,
-    toggle_saved_scoped_model,
-    toggle_saved_stable_scoped_model,
     validate_huggingface_inference_provider,
     validate_provider_model,
 )
+from baldric_coding.providers.config import (
+    load_provider_settings as load_provider_settings,
+)
 from baldric_coding.providers.runtime import (
     ClosableModelProvider,
-    create_dynamic_model_provider,
-    create_model_provider,
+)
+from baldric_coding.providers.runtime import (
+    create_model_provider as create_model_provider,
 )
 from baldric_coding.providers.stores.codex_model_store import (
     cached_codex_model_catalog,
-    save_codex_model_catalog,
 )
 from baldric_coding.providers.stores.models_dev_store import (
     ModelsDevRefreshResult,
-    refresh_models_dev_catalog,
 )
-from baldric_coding.session.branch_summary import summarize_branch_messages_with_model
+from baldric_coding.session import lifecycle as _lifecycle
+from baldric_coding.session import model_selection as _model_selection
+from baldric_coding.session import runtime as _session_runtime
 from baldric_coding.session.compaction.context_window import (
-    DEFAULT_COMPACTION_KEEP_RECENT_TOKENS,
+    DEFAULT_COMPACTION_KEEP_RECENT_TOKENS as DEFAULT_COMPACTION_KEEP_RECENT_TOKENS,
+)
+from baldric_coding.session.compaction.context_window import (
     DEFAULT_CONTEXT_WINDOW_TOKENS,
-    SUMMARIZATION_SYSTEM_PROMPT,
     ContextUsageEstimate,
     auto_compaction_threshold_for_context_window,
-    build_compaction_summary_prompt,
     estimate_context_usage,
-    estimate_message_tokens,
-    summarize_messages_for_compaction,
 )
 from baldric_coding.session.export import (
-    default_session_export_artifact_path,
     export_session_artifact,
     normalize_export_format,
 )
 from baldric_coding.session.manager import (
     InferenceProviderMode,
     SessionManager,
-    normalize_session_name,
 )
+from baldric_coding.session.model_selection import (
+    ModelChoice as ModelChoice,
+)
+from baldric_coding.session.model_selection import (
+    ModelSelectionResult as ModelSelectionResult,
+)
+from baldric_coding.session.provider_helpers import (  # noqa: F401
+    _coerced_thinking_level as _coerced_thinking_level,
+)
+from baldric_coding.session.provider_helpers import (
+    _configured_inference_provider as _configured_inference_provider,
+)
+from baldric_coding.session.provider_helpers import (
+    _configured_inference_provider_mode as _configured_inference_provider_mode,
+)
+from baldric_coding.session.provider_helpers import (
+    _configured_model_supports_images as _configured_model_supports_images,
+)
+from baldric_coding.session.provider_helpers import (
+    _create_runtime_provider as _create_runtime_provider,
+)
+from baldric_coding.session.provider_helpers import (
+    _default_thinking_level_for_active_model as _default_thinking_level_for_active_model,
+)
+from baldric_coding.session.provider_helpers import (
+    _fallback_session_name as _fallback_session_name,
+)
+from baldric_coding.session.provider_helpers import (
+    _filter_tools as _filter_tools,
+)
+from baldric_coding.session.provider_helpers import (
+    _initial_model_for_config as _initial_model_for_config,
+)
+from baldric_coding.session.provider_helpers import (
+    _initial_thinking_level_for_config as _initial_thinking_level_for_config,
+)
+from baldric_coding.session.provider_helpers import (
+    _preferred_thinking_level_for_model as _preferred_thinking_level_for_model,
+)
+from baldric_coding.session.provider_helpers import (
+    _prepare_provider_selection as _prepare_provider_selection,
+)
+from baldric_coding.session.provider_helpers import (
+    _provider_config_for_name as _provider_config_for_name,
+)
+from baldric_coding.session.provider_helpers import (
+    _runtime_model_for_state as _runtime_model_for_state,
+)
+from baldric_coding.session.provider_helpers import (
+    _sanitize_session_name as _sanitize_session_name,
+)
+from baldric_coding.session.provider_helpers import (
+    _session_inference_provider as _session_inference_provider,
+)
+from baldric_coding.session.provider_helpers import (
+    _session_inference_provider_mode as _session_inference_provider_mode,
+)
+from baldric_coding.session.provider_helpers import (
+    _state_thinking_level as _state_thinking_level,
+)
+from baldric_coding.session.provider_helpers import (
+    _terminal_command_context_message as _terminal_command_context_message,
+)
+from baldric_coding.session.provider_helpers import (
+    _unavailable_thinking_message as _unavailable_thinking_message,
+)
+from baldric_coding.session.resource_helpers import (  # noqa: F401
+    SessionResources as SessionResources,
+)
+from baldric_coding.session.resource_helpers import (
+    TerminalCommandRequest as TerminalCommandRequest,
+)
+from baldric_coding.session.resource_helpers import (
+    _append_prompt_sections as _append_prompt_sections,
+)
+from baldric_coding.session.resource_helpers import (
+    _append_session_entry_sync as _append_session_entry_sync,
+)
+from baldric_coding.session.resource_helpers import (
+    _category_summary as _category_summary,
+)
+from baldric_coding.session.resource_helpers import (
+    _codex_account_id as _codex_account_id,
+)
+from baldric_coding.session.resource_helpers import (
+    _context_file_signatures as _context_file_signatures,
+)
+from baldric_coding.session.resource_helpers import (
+    _custom_prompt_source as _custom_prompt_source,
+)
+from baldric_coding.session.resource_helpers import (
+    _diagnostic_signatures as _diagnostic_signatures,
+)
+from baldric_coding.session.resource_helpers import (
+    _extension_signatures as _extension_signatures,
+)
+from baldric_coding.session.resource_helpers import (
+    _load_session_resources as _load_session_resources,
+)
+from baldric_coding.session.resource_helpers import (
+    _merge_context_files as _merge_context_files,
+)
+from baldric_coding.session.resource_helpers import (
+    _prompt_template_signatures as _prompt_template_signatures,
+)
+from baldric_coding.session.resource_helpers import (
+    _provider_config_or_none as _provider_config_or_none,
+)
+from baldric_coding.session.resource_helpers import (
+    _provider_settings_with_runtime_catalogs as _provider_settings_with_runtime_catalogs,
+)
+from baldric_coding.session.resource_helpers import (
+    _provider_with_runtime_model_catalog as _provider_with_runtime_model_catalog,
+)
+from baldric_coding.session.resource_helpers import (
+    _runtime_model_thinking_defaults as _runtime_model_thinking_defaults,
+)
+from baldric_coding.session.resource_helpers import (
+    _runtime_provider_model_metadata as _runtime_provider_model_metadata,
+)
+from baldric_coding.session.resource_helpers import (
+    _skill_signatures as _skill_signatures,
+)
+from baldric_coding.session.resource_helpers import (
+    _system_prompt_resource_signatures as _system_prompt_resource_signatures,
+)
+from baldric_coding.session.resource_helpers import (
+    _tool_history_repair_plan as _tool_history_repair_plan,
+)
+from baldric_coding.session.resource_helpers import (
+    default_session_path as default_session_path,
+)
+from baldric_coding.session.resource_helpers import (
+    jsonl_session_storage as jsonl_session_storage,
+)
+from baldric_coding.session.resource_helpers import (
+    parse_terminal_command as parse_terminal_command,
+)
+from baldric_coding.session.runtime import CompactionPlan, _GeneratedSummary, _PendingMessageWrite
 from baldric_coding.session.stats import SessionStats, calculate_session_stats
-from baldric_coding.tools.registry import ImageSupportState, create_bash_tool, create_coding_tools
+from baldric_coding.session.tree_helpers import (  # noqa: F401
+    _active_branchable_entry_id as _active_branchable_entry_id,
+)
+from baldric_coding.session.tree_helpers import (
+    _custom_message_from_entry as _custom_message_from_entry,
+)
+from baldric_coding.session.tree_helpers import (
+    _detach_missing_parents as _detach_missing_parents,
+)
+from baldric_coding.session.tree_helpers import (
+    _first_recent_context_index as _first_recent_context_index,
+)
+from baldric_coding.session.tree_helpers import (
+    _is_branchable_tree_entry as _is_branchable_tree_entry,
+)
+from baldric_coding.session.tree_helpers import (
+    _is_tool_call_tree_entry as _is_tool_call_tree_entry,
+)
+from baldric_coding.session.tree_helpers import (
+    _last_parent_id_from_state as _last_parent_id_from_state,
+)
+from baldric_coding.session.tree_helpers import (
+    _last_user_message_index as _last_user_message_index,
+)
+from baldric_coding.session.tree_helpers import (
+    _message_text_preview as _message_text_preview,
+)
+from baldric_coding.session.tree_helpers import (
+    _messages_after_entry_on_active_path as _messages_after_entry_on_active_path,
+)
+from baldric_coding.session.tree_helpers import (
+    _next_user_message_index as _next_user_message_index,
+)
+from baldric_coding.session.tree_helpers import (
+    _ordered_tree_entries as _ordered_tree_entries,
+)
+from baldric_coding.session.tree_helpers import (
+    _resolve_export_destination as _resolve_export_destination,
+)
+from baldric_coding.session.tree_helpers import (
+    _resolved_labels as _resolved_labels,
+)
+from baldric_coding.session.tree_helpers import (
+    _session_entry_for_message as _session_entry_for_message,
+)
+from baldric_coding.session.tree_helpers import (
+    _session_export_title as _session_export_title,
+)
+from baldric_coding.session.tree_helpers import (
+    _short_preview as _short_preview,
+)
+from baldric_coding.session.tree_helpers import (
+    _storage_path as _storage_path,
+)
+from baldric_coding.session.tree_helpers import (
+    _tree_branch_indents as _tree_branch_indents,
+)
+from baldric_coding.session.tree_helpers import (
+    _tree_choice_label as _tree_choice_label,
+)
+from baldric_coding.session.tree_helpers import (
+    _tree_entry_title as _tree_entry_title,
+)
+from baldric_coding.session.tree_helpers import (
+    _tree_layout as _tree_layout,
+)
+from baldric_coding.session.tree_helpers import (
+    is_context_overflow_error as is_context_overflow_error,
+)
+from baldric_coding.session.tree_helpers import (
+    is_retryable_huggingface_route_error as is_retryable_huggingface_route_error,
+)
+from baldric_coding.tools.registry import ImageSupportState, create_coding_tools
 from baldric_coding.trust.policy import (
     CanonicalProjectPath,
     ProjectTrustCoordinator,
@@ -170,7 +346,7 @@ from baldric_coding.trust.policy import (
     TrustPrompt,
     format_trust_diagnostic,
 )
-from baldric_coding.update.reload import CodingReloadSummary, ReloadCategorySummary
+from baldric_coding.update.reload import CodingReloadSummary
 
 StreamingBehavior = Literal["steer", "follow_up"]
 SESSION_NAME_SYSTEM_PROMPT = (
@@ -229,22 +405,6 @@ async def _finish_aborted_session_close(session: CodingSession) -> None:
 
 
 @dataclass(frozen=True, slots=True)
-class ModelChoice:
-    """A selectable model and the provider that serves it."""
-
-    provider_name: str
-    model: str
-
-
-@dataclass(frozen=True, slots=True)
-class ModelSelectionResult:
-    """Result of a candidate-first provider/model selection."""
-
-    choice: ModelChoice
-    changed: bool
-
-
-@dataclass(frozen=True, slots=True)
 class TerminalCommandResult:
     """Result of an input-bar terminal command."""
 
@@ -276,49 +436,6 @@ class SessionTreeBranchResult:
 
 
 @dataclass(frozen=True, slots=True)
-class TerminalCommandRequest:
-    """Parsed input-bar terminal command request."""
-
-    command: str
-    add_to_context: bool
-
-
-@dataclass(frozen=True, slots=True)
-class SessionResources:
-    """Baldric-owned resources loaded around a coding session."""
-
-    skills: tuple[Skill, ...]
-    prompt_templates: tuple[PromptTemplate, ...]
-    context_files: tuple[ProjectContextFile, ...]
-    custom_system_prompt: str | None
-    custom_system_prompt_path: Path | None
-    append_system_prompt: str | None
-    append_system_prompts: tuple[str, ...]
-    append_system_prompt_paths: tuple[Path, ...]
-    diagnostics: tuple[ResourceDiagnostic, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class CompactionPlan:
-    """Prepared active-context entries for a compaction run."""
-
-    first_kept_entry_id: str
-    replaced_entry_count: int
-    messages_to_summarize: tuple[AgentMessage, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class _GeneratedSummary:
-    """Summary text paired with the provider usage spent producing it."""
-
-    text: str
-    usage: Usage | None
-    provider: str | None = None
-    model: str | None = None
-    response_provider: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
 class ManualCompactionResult:
     """Structured result from one manual compaction."""
 
@@ -327,14 +444,6 @@ class ManualCompactionResult:
     tokens_before: int
     estimated_tokens_after: int
     replaced_entry_count: int
-
-
-@dataclass(frozen=True, slots=True)
-class _PendingMessageWrite:
-    """Stable entry retained while a message persistence attempt is retried."""
-
-    message: AgentMessage
-    entry: MessageEntry | CustomMessageEntry
 
 
 @dataclass(frozen=True, slots=True)
@@ -1544,589 +1653,84 @@ class CodingSession:
         return None if message is None else message_text(message)
 
     def set_model(self, model: str) -> None:
-        """Switch the active model for future turns and make it the default."""
-        provider = self._active_provider_config()
-        if provider is not None:
-            validate_provider_model(provider, model)
-        self._harness.config.model = model
-        self._inference_provider = _configured_inference_provider(provider, model)
-        self._inference_provider_mode = _configured_inference_provider_mode(provider, model)
-        self._sync_thinking_level_to_active_model()
-        self._refresh_runtime_provider()
-        self._sync_image_support()
-        self._persist_default_model_choice()
-        if self._config.session_id is not None and self._config.session_manager is not None:
-            self._config.session_manager.touch_session(
-                self._config.session_id,
-                model=model,
-                provider_name=self.provider_name,
-                inference_provider=self._inference_provider,
-                inference_provider_mode=self._inference_provider_mode,
-                preserve_inference_provider=False,
-            )
+        return _model_selection.set_model(self, model)
 
     async def apply_startup_model_override(self, model: str) -> None:
-        """Activate and persist an explicit startup model before the next turn."""
-        provider = self._active_provider_config()
-        if provider is not None:
-            validate_provider_model(provider, model)
-        if self.model == model:
-            return
-
-        self._harness.config.model = model
-        self._inference_provider = _configured_inference_provider(provider, model)
-        self._inference_provider_mode = _configured_inference_provider_mode(provider, model)
-        self._sync_thinking_level_to_active_model()
-        self._refresh_runtime_provider()
-        self._sync_image_support()
-        entry = ModelChangeEntry(
-            parent_id=self._last_parent_id,
-            model=model,
-            provider=self.provider_name,
-        )
-        await self._append_session_entry(entry)
-        self._last_parent_id = entry.id
-        await self._refresh_persisted_state(leaf_id=entry.id)
+        return await _model_selection.apply_startup_model_override(self, model)
 
     async def select_provider_model(
         self, choice: ModelChoice, *, persist_default: bool = True
     ) -> ModelSelectionResult:
-        """Switch provider/model with candidate-first durable publication.
-
-        No active state changes until the candidate runtime exists and the
-        provider-aware model entry is committed.
-        """
-        if self._harness.is_running:
-            raise RuntimeError("Baldric is still working. Press Escape to interrupt before switching models.")
-        if choice.provider_name == self.provider_name and choice.model == self.model:
-            return ModelSelectionResult(choice, changed=False)
-
-        candidate: ClosableModelProvider | None = None
-        selected_dynamic: DynamicProvider | None = None
-        selected_config: ProviderConfig | None = None
-        selected_inference: str | None = None
-        selected_inference_mode: InferenceProviderMode = "automatic"
-        selected_thinking = self._thinking_level
-        selected_image_support: bool | None = None
-        try:
-            effective = self._provider_registry.effective(choice.provider_name)
-            if effective is not None and isinstance(effective.definition, DynamicProvider):
-                selected_dynamic = effective.definition
-                selected_model = next(
-                    (item for item in selected_dynamic.models if item.id == choice.model), None
-                )
-                if selected_model is None:
-                    raise ProviderConfigError(
-                        f"Model is not available for provider {choice.provider_name}: {choice.model}"
-                    )
-                candidate = await create_dynamic_model_provider(
-                    selected_dynamic,
-                    model=choice.model,
-                    credential_store=self._credential_store,
-                )
-                if (
-                    selected_model.thinking_levels is not None
-                    and selected_thinking not in selected_model.thinking_levels
-                ):
-                    selected_thinking = (
-                        selected_model.thinking_levels[0]
-                        if selected_model.thinking_levels
-                        else DEFAULT_THINKING_LEVEL
-                    )
-                selected_image_support = (
-                    "image" in selected_model.input_modalities
-                    if selected_model.input_modalities is not None
-                    else None
-                )
-            else:
-                if self._provider_settings is None:
-                    raise ProviderConfigError(f"Provider is not available: {choice.provider_name}")
-                selected_config = self._provider_settings.get_provider(choice.provider_name)
-                validate_provider_model(selected_config, choice.model)
-                selected_inference = _configured_inference_provider(selected_config, choice.model)
-                selected_inference_mode = _configured_inference_provider_mode(selected_config, choice.model)
-                selected_thinking = _coerced_thinking_level(
-                    selected_config,
-                    model=choice.model,
-                    current=self._thinking_level,
-                )
-                candidate = _create_runtime_provider(
-                    selected_config,
-                    credential_store=self._credential_store,
-                    model=choice.model,
-                    thinking_level=selected_thinking,
-                    inference_provider=selected_inference,
-                    response_headers_observer=(
-                        self._observe_response_headers if selected_config.name == "huggingface" else None
-                    ),
-                )
-                selected_image_support = provider_model_supports_images(selected_config, choice.model)
-
-            entry = ModelChangeEntry(
-                parent_id=self._last_parent_id,
-                model=choice.model,
-                provider=choice.provider_name,
-            )
-            await self._append_session_entry(entry)
-        except BaseException:
-            if candidate is not None:
-                await candidate.aclose()
-            raise
-
-        # From this point the transcript is authoritative. Only synchronous
-        # assignments happen before control returns to the frontend.
-        old_provider = self._harness.config.provider
-        assert candidate is not None
-        self._owned_providers.append(candidate)
-        self._harness.config.provider = candidate
-        self._harness.config.model = choice.model
-        self._provider_name = choice.provider_name
-        self._inference_provider = selected_inference
-        self._inference_provider_mode = selected_inference_mode
-        self._runtime_provider_config = selected_config
-        self._config = replace(
-            self._config,
-            provider=candidate,
-            model=choice.model,
-            provider_name=choice.provider_name,
-            inference_provider=selected_inference,
-            inference_provider_mode=selected_inference_mode,
-            runtime_provider_config=selected_config,
-            dynamic_provider=selected_dynamic,
-        )
-        self._thinking_level = selected_thinking
-        self._image_support.supported = selected_image_support
-        self._last_parent_id = entry.id
-        self._invalidate_runtime_model_limits()
-        self._invalidate_context_usage_cache()
-        try:
-            await self._refresh_persisted_state(leaf_id=entry.id)
-        except Exception as exc:  # committed history wins over repairable index failure
-            self._resource_diagnostics = (
-                *self._resource_diagnostics,
-                ResourceDiagnostic(
-                    kind="session-index",
-                    message=f"Committed model switch requires index repair: {type(exc).__name__}",
-                    severity="warning",
-                ),
-            )
-        if old_provider is not candidate:
-            with suppress(Exception):
-                await self._close_replaced_provider(old_provider)
-        if selected_config is not None and persist_default:
-            self._persist_default_model_choice()
-        return ModelSelectionResult(choice, changed=True)
+        return await _model_selection.select_provider_model(self, choice, persist_default=persist_default)
 
     def set_inference_provider(self, route: str | None) -> str:
-        """Select or reset the active Hugging Face session route."""
-        if self.provider_name != "huggingface":
-            raise ProviderConfigError("Inference-provider routing requires the huggingface provider")
-        normalized = validate_huggingface_inference_provider(route) if route is not None else None
-        mode: InferenceProviderMode = "fixed" if normalized is not None else "automatic"
-        provider, provider_config = self._build_runtime_provider(
-            inference_provider=normalized,
-        )
-        self._owned_providers.append(provider)
-        if self._config.session_manager is not None and self._config.session_id is not None:
-            self._config.session_manager.touch_session(
-                self._config.session_id,
-                model=self.model,
-                provider_name=self.provider_name,
-                inference_provider=normalized,
-                inference_provider_mode=mode,
-                preserve_inference_provider=False,
-            )
-        self._inference_provider = normalized
-        self._inference_provider_mode = mode
-        self._config = replace(
-            self._config,
-            inference_provider=normalized,
-            inference_provider_mode=mode,
-        )
-        self._activate_runtime_provider(provider, provider_config)
-        return normalized or "automatic (will pin after the next successful response)"
+        return _model_selection.set_inference_provider(self, route)
 
     def set_model_choice(self, choice: ModelChoice) -> None:
-        """Switch provider/model as one operation."""
-        if choice.provider_name == self.provider_name:
-            self.set_model(choice.model)
-            return
-        self._set_provider_model(choice.provider_name, choice.model)
+        return _model_selection.set_model_choice(self, choice)
 
     def is_scoped_model(self, choice: ModelChoice) -> bool:
-        """Return whether a provider/model pair is in the scoped model list."""
-        return choice in self.scoped_model_choices
+        return _model_selection.is_scoped_model(self, choice)
 
     def toggle_scoped_model(self, choice: ModelChoice) -> tuple[ModelChoice, ...]:
-        """Add or remove a model from the persisted scoped model list."""
-        if self._provider_settings is None:
-            raise ProviderConfigError("Provider settings are not available for this session")
-        available = set(self.available_model_choices)
-        existing = choice in self.scoped_model_choices
-        durable_settings = getattr(self, "_durable_provider_settings", self._provider_settings)
-        effective = self._provider_registry.effective(choice.provider_name)
-        if effective is not None and isinstance(effective.definition, DynamicProvider):
-            if not (
-                self._effective_stable_dynamic_scoped_provider(choice.provider_name)
-                or (existing and self._stable_dynamic_scoped_provider(choice.provider_name))
-            ):
-                raise ProviderConfigError(
-                    "Only effective trusted built-in dynamic providers support scoped references"
-                )
-            if choice not in available and not existing:
-                raise ProviderConfigError(f"Model is unavailable: {choice.provider_name}:{choice.model}")
-            toggle = toggle_saved_stable_scoped_model
-        else:
-            if choice not in available:
-                raise ProviderConfigError(f"Model is not available: {choice.provider_name}:{choice.model}")
-            durable_provider = (
-                durable_settings.get_provider(choice.provider_name) if durable_settings is not None else None
-            )
-            toggle = (
-                toggle_saved_scoped_model
-                if durable_provider is not None and choice.model in durable_provider.models
-                else toggle_saved_stable_scoped_model
-            )
-
-        updated_settings = toggle(
-            provider_name=choice.provider_name,
-            model=choice.model,
-            paths=self._resource_paths.paths,
-            fallback_settings=durable_settings,
-        )
-        if hasattr(self, "_durable_provider_settings"):
-            self._durable_provider_settings = updated_settings
-            self._apply_runtime_model_catalogs()
-        else:  # narrowly supports lightweight host/test session doubles
-            self._provider_settings = updated_settings
-        self._sync_thinking_level_to_active_model()
-        return self.scoped_model_choices
+        return _model_selection.toggle_scoped_model(self, choice)
 
     @property
     def has_pending_selection(self) -> bool:
-        """Whether a TUI selection has not yet been committed to history."""
-        return self._preview_model is not None or self._preview_thinking is not None
+        return _model_selection.has_pending_selection(self)
 
     def preview_model_choice(self, choice: ModelChoice) -> None:
-        """Select a model for the next turn without constructing or persisting a provider."""
-        if self._harness.is_running:
-            raise RuntimeError("Cannot switch models while Baldric is working")
-        if choice not in self.available_model_choices:
-            raise ProviderConfigError(f"Model is not available: {choice.provider_name}:{choice.model}")
-        self._preview_model = choice
-        levels = self.available_thinking_levels
-        if not levels:
-            self._preview_thinking = "off"
-        elif self.thinking_level not in levels:
-            self._preview_thinking = levels[0]
-        self._invalidate_runtime_model_limits()
+        return _model_selection.preview_model_choice(self, choice)
 
     def preview_thinking_level(self, level: str) -> str:
-        """Select a thinking level for the next turn without touching durable settings."""
-        normalized = normalize_thinking_level(level)
-        levels = self.available_thinking_levels
-        if not levels:
-            raise ValueError(_unavailable_thinking_message(self))
-        if normalized not in levels:
-            raise ValueError(f"Thinking mode {normalized} is not available. Available: {', '.join(levels)}")
-        self._preview_thinking = normalized
-        return f"Thinking mode: {normalized}"
+        return _model_selection.preview_thinking_level(self, level)
 
     def preview_cycle_thinking_level(self) -> str:
-        return self.preview_thinking_level(
-            next_thinking_level(self.thinking_level, available=self.available_thinking_levels)
-        )
+        return _model_selection.preview_cycle_thinking_level(self)
 
     def preview_cycle_scoped_model(self, *, reverse: bool = False) -> ModelChoice:
-        """Cycle through available scoped choices without changing durable state."""
-        available = set(self.available_model_choices)
-        scoped = tuple(choice for choice in self.scoped_model_choices if choice in available)
-        if not scoped:
-            raise ProviderConfigError("No scoped models configured.")
-        current = ModelChoice(self.provider_name, self.model)
-        try:
-            index = scoped.index(current)
-        except ValueError:
-            index = 0 if reverse else -1
-        choice = scoped[(index + (-1 if reverse else 1)) % len(scoped)]
-        self.preview_model_choice(choice)
-        return choice
+        return _model_selection.preview_cycle_scoped_model(self, reverse=reverse)
 
     async def _commit_preview(self) -> None:
-        """Commit the final pending selection before the next accepted user turn."""
-        choice, thinking = self._preview_model, self._preview_thinking
-        if choice is None and thinking is None:
-            return
-        self._preview_model = None
-        self._preview_thinking = None
-        try:
-            if choice is not None:
-                await self.select_provider_model(choice, persist_default=False)
-            if thinking is not None and thinking != self._state.thinking_level:
-                if thinking == "off" and not self.available_thinking_levels:
-                    # A non-reasoning model has no effort control to rebuild.
-                    self._thinking_level = "off"
-                if thinking != self._thinking_level and self.available_thinking_levels:
-                    await self.set_thinking_level(thinking, persist_preference=False)
-                elif thinking == self._thinking_level:
-                    # A model switch can clamp thinking before set_thinking_level
-                    # runs. Record that effective change on the same branch.
-                    entry = ThinkingLevelChangeEntry(parent_id=self._last_parent_id, thinking_level=thinking)
-                    await self._append_session_entry(entry)
-                    self._last_parent_id = entry.id
-                    await self._refresh_persisted_state(leaf_id=entry.id)
-                    await self._extension_runtime.emit_event(ThinkingLevelChangedEvent(level=thinking))
-        except Exception:
-            self._preview_model = choice
-            self._preview_thinking = thinking
-            raise
+        return await _model_selection._commit_preview(self)
 
     def cycle_scoped_model(self, *, reverse: bool = False) -> ModelChoice:
-        """Switch to the next currently available configured scoped model."""
-        available = set(self.available_model_choices)
-        scoped = tuple(choice for choice in self.scoped_model_choices if choice in available)
-        if not scoped:
-            raise ProviderConfigError("No scoped models configured.")
-        current = ModelChoice(provider_name=self.provider_name, model=self.model)
-        try:
-            current_index = scoped.index(current)
-        except ValueError:
-            current_index = -1 if not reverse else 0
-        delta = -1 if reverse else 1
-        choice = scoped[(current_index + delta) % len(scoped)]
-        self.set_model_choice(choice)
-        return choice
+        return _model_selection.cycle_scoped_model(self, reverse=reverse)
 
     def set_provider(self, provider_name: str, *, persist_default: bool = True) -> None:
-        """Switch the active provider and reset to that provider's default model."""
-        if self._provider_settings is None:
-            raise ProviderConfigError("Provider settings are not available for this session")
-        provider_config = self._provider_settings.get_provider(provider_name)
-        self._set_provider_model(
-            provider_name,
-            provider_config.default_model,
-            persist_default=persist_default,
-        )
+        return _model_selection.set_provider(self, provider_name, persist_default=persist_default)
 
-    def _set_provider_model(
-        self,
-        provider_name: str,
-        model: str,
-        *,
-        persist_default: bool = True,
-    ) -> None:
-        """Switch active provider/model without constructing an intermediate provider."""
-        if self._provider_settings is None:
-            raise ProviderConfigError("Provider settings are not available for this session")
-
-        provider_config = self._provider_settings.get_provider(provider_name)
-        if model not in provider_config.models:
-            raise ProviderConfigError(f"Model is not configured: {provider_name}:{model}")
-        thinking_level = _coerced_thinking_level(
-            provider_config,
-            model=model,
-            current=self._thinking_level,
+    def _set_provider_model(self, provider_name: str, model: str, *, persist_default: bool = True) -> None:
+        return _model_selection._set_provider_model(
+            self, provider_name, model, persist_default=persist_default
         )
-        try:
-            provider = _create_runtime_provider(
-                provider_config,
-                credential_store=self._credential_store,
-                model=model,
-                thinking_level=thinking_level,
-                inference_provider=_configured_inference_provider(provider_config, model),
-                response_headers_observer=(
-                    self._observe_response_headers if provider_config.name == "huggingface" else None
-                ),
-            )
-        except RuntimeError as exc:
-            raise ProviderConfigError(str(exc)) from exc
-        self._owned_providers.append(provider)
-        self._harness.config.provider = provider
-        self._provider_name = provider_config.name
-        self._inference_provider = _configured_inference_provider(provider_config, model)
-        self._inference_provider_mode = _configured_inference_provider_mode(provider_config, model)
-        self._runtime_provider_config = provider_config
-        self._invalidate_runtime_model_limits()
-        self._harness.config.model = model
-        self._thinking_level = thinking_level
-        self._sync_image_support()
-        if persist_default:
-            self._persist_default_model_choice()
-        if self._config.session_id is not None and self._config.session_manager is not None:
-            self._config.session_manager.touch_session(
-                self._config.session_id,
-                model=model,
-                provider_name=self.provider_name,
-                inference_provider=self._inference_provider,
-                inference_provider_mode=self._inference_provider_mode,
-                preserve_inference_provider=False,
-            )
 
     async def set_thinking_level(self, level: str, *, persist_preference: bool = True) -> str:
-        """Persist and activate a thinking mode for future turns."""
-        normalized = normalize_thinking_level(level)
-        available = self.available_thinking_levels
-        if not available:
-            raise ValueError(_unavailable_thinking_message(self))
-        if normalized not in available:
-            modes = ", ".join(available)
-            raise ValueError(
-                f"Thinking mode {normalized} is not available for "
-                f"{self._provider_name}:{self.model}. Available modes: {modes}"
-            )
-        if normalized == self._thinking_level:
-            return f"Thinking mode: {normalized}"
-
-        previous = self._thinking_level
-        self._thinking_level = normalized
-        try:
-            self._refresh_runtime_provider()
-        except ProviderConfigError:
-            self._thinking_level = previous
-            raise
-
-        entry = ThinkingLevelChangeEntry(
-            parent_id=self._last_parent_id,
-            thinking_level=normalized,
-        )
-        await self._append_session_entry(entry)
-        self._last_parent_id = entry.id
-
-        if persist_preference:
-            self._persist_thinking_level_choice()
-        await self._refresh_persisted_state(leaf_id=entry.id)
-        await self._extension_runtime.emit_event(ThinkingLevelChangedEvent(level=normalized))
-        return f"Thinking mode: {normalized}"
+        return await _model_selection.set_thinking_level(self, level, persist_preference=persist_preference)
 
     async def cycle_thinking_level(self) -> str:
-        """Cycle to the next supported thinking mode and persist it."""
-        return await self.set_thinking_level(
-            next_thinking_level(
-                self._thinking_level,
-                available=self.available_thinking_levels,
-            )
-        )
+        return await _model_selection.cycle_thinking_level(self)
 
     def _selected_provider_config(self) -> ProviderConfig | None:
-        """Resolve displayed capabilities without changing the committed runtime."""
-        if self._preview_model is None:
-            return self._active_provider_config()
-        if self._provider_settings is None:
-            return None
-        try:
-            return self._provider_settings.get_provider(self.provider_name)
-        except ProviderConfigError:
-            return None
+        return _model_selection._selected_provider_config(self)
 
     def _active_provider_config(self) -> ProviderConfig | None:
-        if self._provider_settings is None:
-            return None
-        try:
-            provider = self._provider_settings.get_provider(self._provider_name)
-        except ProviderConfigError:
-            return None
-        runtime = self._runtime_provider_config
-        if (
-            isinstance(provider, OpenAICodexProviderConfig)
-            and self._harness.config.model not in provider.models
-            and runtime is not None
-            and runtime.name == provider.name
-            and self._harness.config.model in runtime.models
-        ):
-            # Picker visibility must not invalidate an already selected runtime.
-            return runtime
-        return provider
+        return _model_selection._active_provider_config(self)
 
     def _apply_thinking_level_override(self) -> None:
-        """Apply the one-shot startup thinking override to the loaded session.
-
-        Runs once during :meth:`load`, after session state is replayed and
-        before the level is synced to the active model, so the override wins
-        over both remembered defaults and the resumed transcript state. The
-        override is validated strictly against either the active dynamic model
-        or the durable provider configuration when its capabilities are known.
-        """
-        override = self._config.thinking_level_override
-        if override is None:
-            return
-        dynamic = self._active_dynamic_provider
-        if dynamic is not None:
-            model = self._active_dynamic_model
-            levels = model.thinking_levels if model is not None else None
-            if not levels:
-                raise ProviderConfigError(f"Thinking modes are unavailable for {dynamic.id}:{self.model}")
-            if override not in levels:
-                allowed = ", ".join(levels)
-                raise ProviderConfigError(
-                    f'Thinking mode "{override}" is not available for '
-                    f"{dynamic.id}:{self.model}. Available modes: {allowed}"
-                )
-            self._thinking_level = override
-            return
-        provider = self._active_provider_config()
-        if provider is None:
-            self._thinking_level = override
-            return
-        resolved = resolve_startup_thinking_level(provider, self.model, cli_override=override)
-        if resolved is not None:
-            self._thinking_level = resolved
+        return _model_selection._apply_thinking_level_override(self)
 
     def _sync_thinking_level_to_active_model(self) -> None:
-        provider = self._active_provider_config()
-        if provider is None:
-            return
-        committed_model = self._harness.config.model
-        self._thinking_level = _coerced_thinking_level(
-            provider,
-            model=committed_model,
-            current=self._thinking_level,
-            preferred=provider.thinking_defaults.get(committed_model),
-        )
+        return _model_selection._sync_thinking_level_to_active_model(self)
 
     def _sync_image_support(self) -> None:
-        provider = self._active_provider_config() or self._runtime_provider_config
-        self._image_support.supported = (
-            provider_model_supports_images(provider, self._harness.config.model)
-            if provider is not None
-            else None
-        )
+        return _model_selection._sync_image_support(self)
 
     def _persist_default_model_choice(self) -> None:
-        if self._durable_provider_settings is None:
-            return
-        durable_provider = self._durable_provider_settings.get_provider(self.provider_name)
-        if self.model not in durable_provider.models:
-            # Account-specific inventory is deliberately not written into catalog.toml.
-            return
-        self._durable_provider_settings = save_default_provider_model(
-            provider_name=self.provider_name,
-            model=self.model,
-            paths=self._resource_paths.paths,
-            fallback_settings=self._durable_provider_settings,
-        )
-        self._apply_runtime_model_catalogs()
-        self._sync_thinking_level_to_active_model()
+        return _model_selection._persist_default_model_choice(self)
 
     def _persist_thinking_level_choice(self) -> None:
-        if self._provider_settings is None:
-            return
-        provider = self._active_provider_config()
-        if provider is None or self._thinking_level not in provider_thinking_levels(
-            provider,
-            model=self.model,
-        ):
-            return
-        try:
-            self._durable_provider_settings = save_provider_thinking_level(
-                provider_name=self.provider_name,
-                model=self.model,
-                thinking_level=self._thinking_level,
-                paths=self._resource_paths.paths,
-                fallback_settings=self._durable_provider_settings,
-            )
-            self._apply_runtime_model_catalogs()
-        except ProviderConfigError:
-            return
+        return _model_selection._persist_thinking_level_choice(self)
 
     def _observe_response_headers(self, headers: Mapping[str, str]) -> None:
         if (
@@ -2353,274 +1957,13 @@ class CodingSession:
                 self._model_catalog_discovery_errors[self.provider_name] = error
 
     async def reload(self) -> CodingReloadSummary:
-        """Stage and atomically publish a complete replacement snapshot."""
-        self._require_idle("reload")
-        before_skills = _skill_signatures(self._skills)
-        before_prompt_templates = _prompt_template_signatures(self._prompt_templates)
-        before_context_files = _context_file_signatures(self._context_files)
-        before_diagnostics = _diagnostic_signatures(self.resource_diagnostics)
-        before_system_prompt_inputs = _system_prompt_resource_signatures(
-            skills=self._skills,
-            context_files=self._context_files,
-            custom_system_prompt=self._custom_system_prompt,
-            custom_system_prompt_path=self._custom_system_prompt_path,
-            append_system_prompt=self._append_system_prompt,
-            append_system_prompt_paths=self._append_system_prompt_paths,
-        )
-        before_extensions = _extension_signatures(self._extension_runtime)
-        before_tool_names = tuple(tool.name for tool in self._harness.config.tools)
-        before_guidelines = self._extension_runtime.prompt_guidelines
-        before_sections = self._extension_runtime.sourced_prompt_sections
-
-        # Nothing below mutates the live session. Eligible extensions are loaded
-        # first so project code cannot import before the destination decision.
-        unfiltered_paths = resource_paths_with_cwd(self._config.resource_paths, self.cwd)
-        previous_ui = self._extension_runtime.ui
-        staged_runtime = ExtensionRuntime(
-            durable_providers=(self._provider_settings.providers if self._provider_settings else ()),
-            credentials=self._extension_runtime.provider_credentials or self._credential_store,
-            environment=self._extension_runtime.provider_environment,
-            built_in_credentials=self._extension_runtime.built_in_credentials,
-            built_in_http_client=self._extension_runtime.built_in_http_client,
-            paths=(
-                self._resource_paths.paths
-                or BaldricPaths(
-                    home=self._resource_paths.root,
-                    agents_home=self._resource_paths.agents_root or Path.home() / ".agents",
-                )
-            ),
-        )
-        staged_runtime.load(
-            unfiltered_paths,
-            extra_paths=self._config.extension_paths,
-            include_resource_dirs=self._config.extensions_enabled,
-            include_project_dir=False,
-        )
-
-        staged_resolution = self._project_trust_resolution
-        staged_paths = self._resource_paths
-        coordinator = self._config.project_trust_coordinator
-        trust_summary = None
-        if coordinator is not None:
-            trust_summary, staged_resolution = await coordinator.resolve(
-                self.cwd,
-                override=self._config.trust_override,
-                default=self._config.trust_default,
-                interactive=self._config.trust_interactive,
-                prompt=self._config.trust_prompt,
-                extension_deciders=(staged_runtime.decide_project_trust,),
-                refresh=True,
-                cache_result=False,
-            )
-            if staged_resolution.cancelled:
-                raise ValueError("Project trust decision cancelled; keeping current resources")
-            staged_paths = resource_paths_with_project_trust(
-                resource_paths_with_cwd(self._config.resource_paths, trust_summary.cwd.value),
-                trusted=staged_resolution.trusted,
-            )
-
-        resources = _load_session_resources(
-            staged_paths,
-            self._config.context_files,
-            skills_enabled=self._config.skills_enabled,
-            system_prompt_enabled=self._config.system is None,
-            custom_system_prompt_explicit=self._config.custom_system_prompt is not None,
-        )
-        if trust_summary is not None and trust_summary.categories:
-            assert staged_resolution is not None
-            resources = replace(
-                resources,
-                diagnostics=(
-                    *resources.diagnostics,
-                    ResourceDiagnostic(
-                        kind="project-trust",
-                        message=format_trust_diagnostic(trust_summary, staged_resolution),
-                        severity="info" if staged_resolution.trusted else "warning",
-                    ),
-                ),
-            )
-        if (
-            staged_resolution is not None
-            and staged_resolution.trusted
-            and self._config.project_extensions_enabled
-        ):
-            staged_runtime.load(
-                staged_paths,
-                include_resource_dirs=True,
-                include_project_dir=True,
-                include_user_dir=False,
-            )
-
-        base_tools = (
-            self._config.tools
-            if self._config.tools is not None
-            else create_coding_tools(
-                cwd=self._config.cwd,
-                shell_command_prefix=self._config.shell_command_prefix,
-                image_support=self._image_support,
-            )
-        )
-        staged_tools = _filter_tools(
-            staged_runtime.compose_tools(base_tools), self._config.allowed_tool_names
-        )
-        staged_commands = self._config.command_registry or staged_runtime.build_command_registry()
-        after_system_prompt_inputs = _system_prompt_resource_signatures(
-            skills=resources.skills,
-            context_files=resources.context_files,
-            custom_system_prompt=resources.custom_system_prompt,
-            custom_system_prompt_path=resources.custom_system_prompt_path,
-            append_system_prompt=resources.append_system_prompt,
-            append_system_prompt_paths=resources.append_system_prompt_paths,
-        )
-        after_guidelines = staged_runtime.prompt_guidelines
-        after_sections = staged_runtime.sourced_prompt_sections
-        system_prompt_rebuilt = self._config.system is None and (
-            before_system_prompt_inputs != after_system_prompt_inputs
-            or before_tool_names != tuple(tool.name for tool in staged_tools)
-            or before_guidelines != after_guidelines
-            or before_sections != after_sections
-        )
-        staged_system = self._harness.config.system
-        if system_prompt_rebuilt:
-            staged_system = build_system_prompt(
-                BuildSystemPromptOptions(
-                    cwd=self._config.cwd,
-                    tools=staged_tools,
-                    skills=resources.skills,
-                    custom_prompt=(
-                        self._config.custom_system_prompt
-                        if self._config.custom_system_prompt is not None
-                        else resources.custom_system_prompt
-                    ),
-                    append_sections=_append_prompt_sections(
-                        resources.append_system_prompts,
-                        resources.append_system_prompt_paths,
-                        self._config.append_system_prompt,
-                    ),
-                    context_files=resources.context_files,
-                    extra_guidelines=after_guidelines,
-                    extra_sections=after_sections,
-                    custom_prompt_source=_custom_prompt_source(
-                        explicit=self._config.custom_system_prompt is not None,
-                        path=resources.custom_system_prompt_path,
-                    ),
-                )
-            )
-
-        # Cancellable lifecycle work stays before the publication boundary. The
-        # staged runtime may inspect the still-live session during session_start;
-        # cancellation leaves that prior snapshot/runtime/cache untouched.
-        old_runtime = self._extension_runtime
-        await old_runtime.emit_session_shutdown("reload")
-        old_runtime.clear_ui_components()
-        staged_runtime.set_ui_bridge(previous_ui)
-        staged_runtime.bind(self)
-        await staged_runtime.emit_session_start("reload")
-
-        # Publication is synchronous: cancellation can no longer report failure
-        # after only part of the live snapshot or trust cache was adopted.
-        if coordinator is not None and trust_summary is not None:
-            assert staged_resolution is not None
-            coordinator.commit(trust_summary.cwd, staged_resolution)
-        old_runtime.retire()
-        self._resource_paths = staged_paths
-        self._config = replace(
-            self._config,
-            cwd=staged_paths.cwd or self._config.cwd,
-            resource_paths=staged_paths,
-            extension_runtime=staged_runtime,
-        )
-        self._project_trust_resolution = staged_resolution
-        self._skills = resources.skills
-        self._prompt_templates = resources.prompt_templates
-        self._context_files = resources.context_files
-        self._custom_system_prompt = resources.custom_system_prompt
-        self._custom_system_prompt_path = resources.custom_system_prompt_path
-        self._append_system_prompt = resources.append_system_prompt
-        self._append_system_prompts = resources.append_system_prompts
-        self._append_system_prompt_paths = resources.append_system_prompt_paths
-        self._resource_diagnostics = resources.diagnostics
-        self._command_registry = staged_commands
-        self._extension_runtime = staged_runtime
-        self._provider_registry = staged_runtime.provider_registry
-        self._harness.config.tools = staged_tools
-        self._harness.config.system = staged_system
-        if system_prompt_rebuilt:
-            self._invalidate_context_usage_cache()
-        staged_runtime.attach_harness_listener(self._harness.subscribe)
-        # Retirement invalidates publication synchronously; async close then
-        # waits for cooperative provider callback cleanup or reports bounded
-        # containment while the outgoing runtime still owns every task handle.
-        # Caller cancellation at this committed seam is contained so reload
-        # cannot report failure after the fresh snapshot became active.
-        await _finish_adopted_runtime_close(old_runtime)
-
-        return CodingReloadSummary(
-            skills=_category_summary(before_skills, _skill_signatures(resources.skills)),
-            prompt_templates=_category_summary(
-                before_prompt_templates, _prompt_template_signatures(resources.prompt_templates)
-            ),
-            context_files=_category_summary(
-                before_context_files, _context_file_signatures(resources.context_files)
-            ),
-            extensions=_category_summary(before_extensions, _extension_signatures(staged_runtime)),
-            diagnostics=_category_summary(
-                before_diagnostics, _diagnostic_signatures(self.resource_diagnostics)
-            ),
-            system_prompt_rebuilt=system_prompt_rebuilt,
-        )
+        return await _lifecycle.reload(self)
 
     async def refresh_model_catalogs(self, *, force: bool = False) -> ModelsDevRefreshResult:
-        """Refresh public and authenticated catalogs and publish them to this session."""
-        public_error: Exception | None = None
-        result: ModelsDevRefreshResult | None = None
-        try:
-            result = await refresh_models_dev_catalog(
-                paths=self._resource_paths.paths,
-                force=force,
-            )
-            self.reload_provider_settings()
-        except Exception as error:  # noqa: BLE001 - authenticated refresh still runs
-            public_error = error
-        await self._refresh_codex_model_catalog()
-        if public_error is not None:
-            raise public_error
-        assert result is not None
-        return result
+        return await _lifecycle.refresh_model_catalogs(self, force=force)
 
     async def _refresh_codex_model_catalog(self) -> None:
-        """Refresh the account-specific Codex inventory without making it durable."""
-        if environ.get("BALDRIC_OFFLINE") is not None or self._durable_provider_settings is None:
-            return
-        try:
-            provider_config = self._durable_provider_settings.get_provider("openai-codex")
-        except ProviderConfigError:
-            return
-        if not isinstance(provider_config, OpenAICodexProviderConfig):
-            return
-        if not self._provider_is_usable(provider_config):
-            return
-
-        # Use a fresh provider even when Codex is active. The active provider caches
-        # its startup snapshot so reusing it would make `/model` unable to discover
-        # versions or models released during a long-running Baldric process.
-        temporary_provider = create_model_provider(
-            provider_config,
-            credential_store=self._credential_store,
-            model=None,
-            thinking_level=None,
-        )
-        if not isinstance(temporary_provider, ModelCatalogProvider):
-            await temporary_provider.aclose()
-            return
-        try:
-            catalog = await temporary_provider.discover_models()
-            self._publish_runtime_model_catalog(provider_config.name, catalog)
-            self._persist_codex_model_catalog(temporary_provider, catalog, provider_config)
-        except Exception as exc:  # noqa: BLE001 - static catalog remains the safe fallback
-            self._model_catalog_discovery_errors[provider_config.name] = f"{type(exc).__name__}: {exc}"
-        finally:
-            await temporary_provider.aclose()
+        return await _lifecycle._refresh_codex_model_catalog(self)
 
     def _persist_codex_model_catalog(
         self,
@@ -2628,597 +1971,61 @@ class CodingSession:
         catalog: RuntimeModelCatalog,
         provider_config: OpenAICodexProviderConfig | None = None,
     ) -> None:
-        config = provider_config or (
-            self._runtime_provider_config
-            if isinstance(self._runtime_provider_config, OpenAICodexProviderConfig)
-            else None
-        )
-        if config is None:
-            return
-        account_id = getattr(provider, "account_id", None) or _codex_account_id(
-            config,
-            self._credential_store,
-        )
-        if not isinstance(account_id, str) or not account_id:
-            return
-        with suppress(OSError, TypeError, ValueError):
-            save_codex_model_catalog(
-                catalog,
-                account_id=account_id,
-                paths=self._resource_paths.paths,
-            )
+        return _lifecycle._persist_codex_model_catalog(self, provider, catalog, provider_config)
 
-    def _publish_runtime_model_catalog(
-        self,
-        provider_name: str,
-        catalog: RuntimeModelCatalog,
-    ) -> None:
-        if not catalog.models:
-            raise ValueError("provider returned an empty model catalog")
-        self._runtime_model_catalogs[provider_name] = catalog
-        self._model_catalog_discovery_errors.pop(provider_name, None)
-        self._invalidate_runtime_model_limits()
-        self._apply_runtime_model_catalogs()
+    def _publish_runtime_model_catalog(self, provider_name: str, catalog: RuntimeModelCatalog) -> None:
+        return _lifecycle._publish_runtime_model_catalog(self, provider_name, catalog)
 
     def _apply_runtime_model_catalogs(self) -> None:
-        settings = self._durable_provider_settings
-        if settings is None:
-            self._provider_settings = None
-            return
-        providers = tuple(
-            _provider_with_runtime_model_catalog(
-                provider,
-                self._runtime_model_catalogs.get(provider.name),
-            )
-            for provider in settings.providers
-        )
-        self._provider_settings = replace(settings, providers=providers)
+        return _lifecycle._apply_runtime_model_catalogs(self)
 
     def reload_provider_settings(self) -> None:
-        """Reload provider settings for login and model-selection flows."""
-        if self._provider_settings is None:
-            return
-        previous_settings = self._provider_settings
-        previous_durable_settings = self._durable_provider_settings
-        previous_thinking_level = self._thinking_level
-        self._durable_provider_settings = load_provider_settings(self._resource_paths.paths)
-        self._apply_runtime_model_catalogs()
-        active_config = self._active_provider_config()
-        if active_config is None or self._harness.config.model not in active_config.models:
-            # The refreshed picker snapshot is authoritative for new selections,
-            # but cannot invalidate an already constructed, working provider.
-            return
-        try:
-            self._sync_thinking_level_to_active_model()
-            self._refresh_runtime_provider()
-            self._sync_image_support()
-        except ProviderConfigError:
-            self._provider_settings = previous_settings
-            self._durable_provider_settings = previous_durable_settings
-            self._thinking_level = previous_thinking_level
-            raise
+        return _lifecycle.reload_provider_settings(self)
 
     async def resume(self, session_id: str) -> str:
-        """Replace this session's active state with another indexed session."""
-        self._require_idle("resume")
-        await self._flush_pending_message_writes(context=self._diagnostic_context())
-        manager = self._config.session_manager
-        if manager is None:
-            raise ValueError("Session manager is not available")
-        record = manager.get_session(session_id)
-        if record is None:
-            raise ValueError(f"Unknown session: {session_id}")
-
-        provider_name = self._provider_name
-        runtime_provider_config = self._runtime_provider_config
-        model = self.model
-        restore_record_model = False
-        dynamic_resume = False
-        if record.provider_name:
-            effective = self._provider_registry.effective(record.provider_name)
-            if effective is not None and isinstance(effective.definition, DynamicProvider):
-                # Dynamic definitions are generation-local. Re-resolve the
-                # reference in the fresh destination runtime instead of
-                # carrying this runtime's provider object across cwd/trust
-                # boundaries.
-                provider_name = record.provider_name
-                model = record.model
-                runtime_provider_config = None
-                dynamic_resume = True
-                restore_record_model = True
-            else:
-                provider_name = record.provider_name
-                model = record.model
-                restore_record_model = True
-                if self._provider_settings is None:
-                    # The destination runtime may provide a process-local
-                    # definition even when the source session did not.
-                    dynamic_resume = True
-                    runtime_provider_config = None
-                else:
-                    try:
-                        runtime_provider_config = self._provider_settings.get_provider(record.provider_name)
-                    except ProviderConfigError:
-                        # Do not reject a dynamic overlay merely because the
-                        # current cwd has not loaded its destination extension.
-                        dynamic_resume = True
-                        runtime_provider_config = None
-                    else:
-                        if (
-                            isinstance(runtime_provider_config, OpenAICodexProviderConfig)
-                            and model not in runtime_provider_config.models
-                        ):
-                            # Re-discover a live-only destination model before validation.
-                            dynamic_resume = True
-                            runtime_provider_config = None
-                        else:
-                            validate_provider_model(runtime_provider_config, model)
-
-        replacement = await type(self).load(
-            CodingSessionConfig(
-                provider=None if dynamic_resume else self._harness.config.provider,
-                model=model,
-                cwd=record.cwd,
-                storage=jsonl_session_storage(record.path),
-                system=self._config.system,
-                custom_system_prompt=self._config.custom_system_prompt,
-                append_system_prompt=self._config.append_system_prompt,
-                context_files=self._config.context_files,
-                resource_paths=self._config.resource_paths,
-                session_id=record.id,
-                session_manager=manager,
-                command_registry=self._config.command_registry,
-                provider_name=provider_name,
-                inference_provider=None if dynamic_resume else record.inference_provider,
-                inference_provider_mode=record.inference_provider_mode,
-                requested_provider=provider_name if dynamic_resume else None,
-                requested_model=model if dynamic_resume else None,
-                session_provider_name=record.provider_name,
-                provider_settings=self._durable_provider_settings,
-                runtime_provider_config=runtime_provider_config,
-                auto_compact_token_threshold=self._auto_compact_token_threshold,
-                auto_compact_enabled=self._auto_compact_enabled,
-                thinking_level=self._thinking_level,
-                shell_command_prefix=self._config.shell_command_prefix,
-                skills_enabled=self._config.skills_enabled,
-                allowed_tool_names=self._config.allowed_tool_names,
-                extension_paths=self._config.extension_paths,
-                extensions_enabled=self._config.extensions_enabled,
-                project_extensions_enabled=self._config.project_extensions_enabled,
-                extension_runtime=self._extension_runtime,
-                project_trust_coordinator=self._config.project_trust_coordinator,
-                trust_override=self._config.trust_override,
-                trust_default=self._config.trust_default,
-                trust_interactive=self._config.trust_interactive,
-                trust_prompt=self._config.trust_prompt,
-                defer_authoritative_writes=dynamic_resume,
-                owns_initial_provider=dynamic_resume,
-            )
-        )
-        try:
-            if not restore_record_model:
-                # Only provider-less legacy records inherit the source model.
-                # The staged loader has already resolved provider-aware records
-                # against the destination's (possibly freshly discovered) catalog.
-                replacement._harness.config.model = self._harness.config.model
-                replacement._sync_thinking_level_to_active_model()
-                replacement._refresh_runtime_provider()
-                replacement._sync_image_support()
-        except BaseException:
-            # resume owns the loaded candidate until adoption takes ownership.
-            await _finish_aborted_session_close(replacement)
-            raise
-        await self._adopt_replacement(replacement, reason="resume")
-        return f"Resumed session: {record.id}"
+        return await _lifecycle.resume(self, session_id)
 
     async def set_session_name(self, name: str) -> str:
-        """Persist a session name and notify extensions after it changes."""
-        normalized = normalize_session_name(name)
-        persisted = self._persist_session_name(
-            normalized,
-            only_if_unnamed=False,
-            index_if_missing=True,
-        )
-        if persisted is None:
-            return normalized
-        await self._extension_runtime.emit_event(SessionInfoChangedEvent(name=persisted))
-        return persisted
+        return await _lifecycle.set_session_name(self, name)
 
     def _persist_session_name(
-        self,
-        name: str,
-        *,
-        only_if_unnamed: bool,
-        index_if_missing: bool,
+        self, name: str, *, only_if_unnamed: bool, index_if_missing: bool
     ) -> str | None:
-        """Persist and return a changed name; return None for a no-op."""
-        normalized = normalize_session_name(name)
-        manager = self._config.session_manager
-        session_id = self._config.session_id
-        if manager is None or session_id is None:
-            raise ValueError("Session manager is not available")
-        record = manager.get_session(session_id)
-        if record is None and index_if_missing:
-            self.ensure_session_indexed()
-            record = manager.get_session(session_id)
-        if record is None:
-            return None
-        if only_if_unnamed and record.title:
-            return None
-        if record.title == normalized:
-            return None
-        updated = manager.touch_session(
-            session_id,
-            model=self.model,
-            provider_name=self.provider_name,
-            title=normalized,
+        return _lifecycle._persist_session_name(
+            self, name, only_if_unnamed=only_if_unnamed, index_if_missing=index_if_missing
         )
-        if updated is None:
-            if index_if_missing:
-                raise ValueError(f"Unknown session: {session_id}")
-            return None
-        return updated.title or normalized
 
     async def new_session(self) -> str:
-        """Replace this session's active state with a pending unindexed session."""
-        self._require_idle("start a new session")
-        await self._flush_pending_message_writes(context=self._diagnostic_context())
-        manager = self._config.session_manager
-        if manager is None:
-            raise ValueError("Session manager is not available")
-
-        provider_name = self._provider_name
-        model = self._harness.config.model
-        runtime_provider_config = self._runtime_provider_config
-        thinking_level = self._thinking_level
-        if self._provider_settings is not None:
-            selection = resolve_provider_selection(self._provider_settings)
-            provider_name = selection.provider.name
-            model = selection.model
-            runtime_provider_config = selection.provider
-            thinking_level = _coerced_thinking_level(
-                selection.provider,
-                model=model,
-                current=self._thinking_level,
-            )
-
-        effective = self._provider_registry.effective(provider_name)
-        dynamic_provider = (
-            effective.definition
-            if effective is not None and isinstance(effective.definition, DynamicProvider)
-            else None
-        )
-        if dynamic_provider is not None:
-            model = next(
-                (item.id for item in dynamic_provider.models if item.id == model),
-                dynamic_provider.default_model
-                or (dynamic_provider.models[0].id if dynamic_provider.models else model),
-            )
-            runtime_provider_config = None
-        inference_provider = (
-            None
-            if dynamic_provider is not None
-            else _configured_inference_provider(runtime_provider_config, model)
-        )
-        inference_provider_mode: InferenceProviderMode = (
-            "automatic"
-            if dynamic_provider is not None
-            else _configured_inference_provider_mode(runtime_provider_config, model)
-        )
-        record = (
-            manager.prepare_session(
-                cwd=self.cwd,
-                model=model,
-                provider_name=provider_name,
-                inference_provider=inference_provider,
-                inference_provider_mode=inference_provider_mode,
-            )
-            if inference_provider is not None
-            else manager.prepare_session(
-                cwd=self.cwd,
-                model=model,
-                provider_name=provider_name,
-            )
-        )
-        replacement = await type(self).load(
-            replace(
-                self._config,
-                # The old runtime may belong to a different provider. Stage a
-                # fresh runtime for the new session's default provider/model.
-                provider=(self._harness.config.provider if self._provider_settings is None else None),
-                model=record.model or model,
-                cwd=record.cwd,
-                storage=jsonl_session_storage(record.path),
-                session_id=record.id,
-                provider_name=provider_name,
-                inference_provider=inference_provider,
-                inference_provider_mode=inference_provider_mode,
-                requested_provider=provider_name if dynamic_provider is not None else None,
-                requested_model=model if dynamic_provider is not None else None,
-                session_provider_name=provider_name,
-                provider_settings=self._durable_provider_settings,
-                runtime_provider_config=runtime_provider_config,
-                dynamic_provider=dynamic_provider,
-                owns_initial_provider=False,
-                defer_authoritative_writes=dynamic_provider is not None,
-                thinking_level=thinking_level,
-                index_on_first_persist=True,
-                extension_runtime=self._extension_runtime,
-            )
-        )
-        await self._adopt_replacement(replacement, reason="new")
-        return f"Started new session: {record.id}"
+        return await _lifecycle.new_session(self)
 
     async def _adopt_replacement(
-        self,
-        replacement: CodingSession,
-        *,
-        reason: Literal["new", "resume", "branch"],
+        self, replacement: CodingSession, *, reason: Literal["new", "resume", "branch"]
     ) -> None:
-        """Adopt a replacement session's state and re-bind the extension runtime.
-
-        The extension runtime is long-lived and shared with the replacement; it
-        must be re-bound to this outer session object because later state
-        (transcript persistence, parent ids) mutates here, not on the discarded
-        replacement instance.
-        """
-        old_runtime = self._extension_runtime
-        try:
-            if (
-                replacement.project_trust_resolution is not None
-                and replacement.project_trust_resolution.cancelled
-            ):
-                raise ValueError("Project trust decision cancelled; current session unchanged")
-
-            # Destination transcript initialization/repair is the durable
-            # commit point. It must succeed before the outgoing runtime enters
-            # its shutdown path.
-            await replacement._commit_prepared_entries()
-
-            # The replacement remains the explicit owner of its providers
-            # through every cancellable/erroring pre-publication seam.
-            await old_runtime.emit_session_shutdown(reason)
-            old_runtime.clear_ui_components()
-            await replacement._extension_runtime.emit_session_start(reason)
-            replacement._commit_project_trust_resolution()
-            replacement._session_start_pending = False
-        except BaseException:
-            await _finish_aborted_session_close(replacement)
-            raise
-
-        # Every cancellable boundary has completed. Adopt synchronously so a
-        # reported cancellation cannot expose only part of the destination.
-        old_runtime.retire()
-        self._config = replacement._config
-        self._state = replacement._state
-        self._harness = replacement._harness
-        self._preview_model = None
-        self._preview_thinking = None
-        # Detach the replacement's persistence listener so writes advance
-        # this session's parent pointers, not the discarded replacement's.
-        if replacement._persistence_unsubscribe is not None:
-            replacement._persistence_unsubscribe()
-            replacement._persistence_unsubscribe = None
-        self._attach_persistence_listener()
-        self._invalidate_context_usage_cache()
-        self._last_parent_id = replacement._last_parent_id
-        self._skills = replacement._skills
-        self._prompt_templates = replacement._prompt_templates
-        self._context_files = replacement._context_files
-        self._custom_system_prompt = replacement._custom_system_prompt
-        self._custom_system_prompt_path = replacement._custom_system_prompt_path
-        self._append_system_prompt = replacement._append_system_prompt
-        self._append_system_prompts = replacement._append_system_prompts
-        self._append_system_prompt_paths = replacement._append_system_prompt_paths
-        self._resource_diagnostics = replacement._resource_diagnostics
-        self._command_registry = replacement._command_registry
-        self._provider_name = replacement._provider_name
-        self._inference_provider = replacement._inference_provider
-        self._inference_provider_mode = replacement._inference_provider_mode
-        self._provider_settings = replacement._provider_settings
-        self._durable_provider_settings = replacement._durable_provider_settings
-        self._runtime_model_catalogs = replacement._runtime_model_catalogs
-        self._model_catalog_discovery_errors = replacement._model_catalog_discovery_errors
-        self._runtime_provider_config = replacement._runtime_provider_config
-        self._resource_paths = replacement._resource_paths
-        self._auto_compact_token_threshold = replacement._auto_compact_token_threshold
-        self._auto_compact_enabled = replacement._auto_compact_enabled
-        self._thinking_level = replacement._thinking_level
-        self._pending_initial_entries = replacement._pending_initial_entries
-        self._pending_message_writes = replacement._pending_message_writes
-        self._extension_runtime = replacement._extension_runtime
-        self._provider_registry = replacement._provider_registry
-        self._credential_store = replacement._credential_store
-        self._diagnostic_logger = replacement._diagnostic_logger
-        self._runtime_model_limits = replacement._runtime_model_limits
-        self._runtime_model_limits_key = replacement._runtime_model_limits_key
-        self._model_limits_discovery_error = replacement._model_limits_discovery_error
-        self._prepared_entries = replacement._prepared_entries
-        self._owned_providers.extend(replacement._owned_providers)
-        replacement._owned_providers.clear()
-        self._image_support = replacement._image_support
-        self._project_trust_resolution = replacement._project_trust_resolution
-        self._project_trust_commit_pending = False
-        self._session_start_pending = False
-        self._extension_runtime.bind(self)
-        self._extension_runtime.attach_harness_listener(self._harness.subscribe)
-        # Adoption is already committed. Finish outgoing cleanup under a
-        # shielded owner and contain cancellation rather than reporting that
-        # the requested destination failed to replace the source session.
-        await _finish_adopted_runtime_close(old_runtime)
+        return await _lifecycle._adopt_replacement(self, replacement, reason=reason)
 
     async def compact_detailed(self, instructions: str | None = None) -> ManualCompactionResult:
-        """Compact older context while preserving a real recent-entry boundary."""
-        await self._flush_pending_message_writes(context=self._diagnostic_context())
-        plan = self._recent_preserving_compaction_plan()
-        if plan is None:
-            raise ValueError("Not enough context to compact while preserving recent entries")
-        tokens_before = self.context_token_estimate
-        generated = await self._generate_compaction_summary(
-            plan.messages_to_summarize,
-            custom_instructions=instructions,
-        )
-        await self._append_compaction(
-            generated.text,
-            first_kept_entry_id=plan.first_kept_entry_id,
-            tokens_before=tokens_before,
-            usage=generated.usage,
-            provider=generated.provider,
-            model=generated.model,
-            response_provider=generated.response_provider,
-        )
-        return ManualCompactionResult(
-            summary=generated.text,
-            first_kept_entry_id=plan.first_kept_entry_id,
-            tokens_before=tokens_before,
-            estimated_tokens_after=self.context_token_estimate,
-            replaced_entry_count=plan.replaced_entry_count,
-        )
+        return await _lifecycle.compact_detailed(self, instructions)
 
     async def compact(self, instructions: str | None = None) -> str:
-        """Generate a manual compaction summary and rebuild active context."""
-        result = await self.compact_detailed(instructions)
-        return f"Compacted {result.replaced_entry_count} context entries."
+        return await _lifecycle.compact(self, instructions)
 
     async def aclose(self) -> None:
-        """Close every owned extension/provider resource exactly once.
-
-        Caller cancellation is remembered but cannot cancel the durable close
-        task. The first call propagates it only after all ownership ledgers are
-        discharged; later calls observe the same completed task idempotently.
-        """
-        close_task = self._close_task
-        if close_task is None:
-            close_task = asyncio.create_task(
-                self._close_owned_resources(),
-                name="baldric-coding-session-close",
-            )
-            self._close_task = close_task
-
-        cancelled = await _await_cleanup_completion(close_task)
-        error: BaseException | None = None
-        try:
-            close_task.result()
-        except BaseException as exc:  # all resources were attempted before this outcome
-            error = exc
-        if cancelled:
-            raise asyncio.CancelledError
-        if error is not None:
-            raise error
+        return await _lifecycle.aclose(self)
 
     async def _close_owned_resources(self) -> None:
-        """Run the sole close pass, continuing after individual failures."""
-        error: BaseException | None = None
-        try:
-            if self._extension_runtime.active:
-                await self._extension_runtime.emit_session_shutdown("quit")
-        except BaseException as exc:
-            error = exc
-
-        # Final close has no successor sharing the UI bridge. Remove any
-        # source-owned widgets/interceptors before invalidating the API.
-        try:
-            self._extension_runtime.clear_ui_components()
-        except BaseException as exc:
-            if error is None:
-                error = exc
-
-        # A runtime may already be synchronously retired by replacement. Close
-        # still owns the async drain/containment step and must never skip it.
-        try:
-            await self._extension_runtime.aclose()
-        except BaseException as exc:
-            if error is None:
-                error = exc
-
-        # Remove each provider from the ownership ledger before its only close
-        # attempt. One hostile provider cannot prevent later providers closing.
-        providers = tuple(self._owned_providers)
-        self._owned_providers.clear()
-        for provider in providers:
-            try:
-                await provider.aclose()
-            except BaseException as exc:
-                if error is None:
-                    error = exc
-
-        if error is not None:
-            raise error
+        return await _lifecycle._close_owned_resources(self)
 
     def handle_command(self, text: str) -> CommandResult:
-        """Handle coding-session slash commands.
-
-        Prompt-template slash commands are expansion directives, so they remain
-        unhandled here and flow through `prompt()` for on-the-fly replacement.
-        """
-        if expand_prompt_template_command(text, self._prompt_templates) is not None:
-            return CommandResult(handled=False)
-        return self._command_registry.execute(self, text)
+        return _lifecycle.handle_command(self, text)
 
     def ensure_session_indexed(self) -> None:
-        """Persist pending session metadata and add this session to the resume index."""
-        if self._config.session_id is None or self._config.session_manager is None:
-            return
-        if self._config.session_manager.get_session(self._config.session_id) is None:
-            self._config.session_manager.create_session(
-                cwd=self.cwd,
-                model=self.model,
-                provider_name=self.provider_name,
-                inference_provider=self._inference_provider,
-                inference_provider_mode=self._inference_provider_mode,
-                session_id=self._config.session_id,
-            )
-        self._config = replace(self._config, index_on_first_persist=False)
-        self._ensure_session_file_initialized()
+        return _lifecycle.ensure_session_indexed(self)
 
     def expand_prompt_text(self, text: str) -> str:
-        """Expand prompt text using loaded markdown resources."""
-        expanded_prompt = expand_prompt_template_command(text, self._prompt_templates)
-        if expanded_prompt is not None:
-            return expanded_prompt
-        expanded_skill = expand_skill_command(text, self._skills)
-        return expanded_skill if expanded_skill is not None else text
+        return _lifecycle.expand_prompt_text(self, text)
 
-    async def run_terminal_command(
-        self,
-        command: str,
-        *,
-        add_to_context: bool,
-    ) -> TerminalCommandResult:
-        """Run a shell command in the session cwd, optionally adding output to context."""
-        normalized_command = command.strip()
-        if not normalized_command:
-            raise ValueError("Terminal command cannot be empty")
-
-        bash_tool = create_bash_tool(
-            cwd=self.cwd,
-            shell_command_prefix=self._config.shell_command_prefix,
-        )
-        result = await bash_tool.execute("terminal-command", {"command": normalized_command})
-        exit_code = None
-        if isinstance(result.details, dict):
-            raw_exit_code = result.details.get("exit_code")
-            exit_code = raw_exit_code if isinstance(raw_exit_code, int) else None
-
-        if add_to_context:
-            await self._flush_pending_message_writes(context=self._diagnostic_context())
-            context_message = UserMessage(
-                content=_terminal_command_context_message(
-                    normalized_command,
-                    result.text,
-                )
-            )
-            self._harness.append_message(context_message)
-            self._invalidate_context_usage_cache()
-            await self._persist_message(context_message)
-
-        return TerminalCommandResult(
-            command=normalized_command,
-            output=result.text,
-            exit_code=exit_code,
-            ok=exit_code == 0,
-            added_to_context=add_to_context,
-        )
+    async def run_terminal_command(self, command: str, *, add_to_context: bool) -> TerminalCommandResult:
+        return await _lifecycle.run_terminal_command(self, command, add_to_context=add_to_context)
 
     async def prompt(
         self,
@@ -3229,507 +2036,74 @@ class CodingSession:
         custom_type: str | None = None,
         details: dict[str, JSONValue] | None = None,
     ) -> AsyncIterator[CodingSessionEvent]:
-        """Append a user prompt, run the agent, and persist new messages.
-
-        ``custom_type``/``details`` attach custom-message render metadata to the
-        appended ``UserMessage`` (used when an extension delivers a custom
-        message that starts an idle session's turn). ``source`` marks who
-        initiated the turn for the `input` hook (``"extension"`` when an
-        extension started it, ``"interactive"`` otherwise).
-        """
-        context = self._diagnostic_context()
-        input_outcome = await self._extension_runtime.run_input_hooks(
-            content, source=source, streaming_behavior=streaming_behavior
+        stream = _session_runtime.prompt(
+            self,
+            content,
+            streaming_behavior=streaming_behavior,
+            source=source,
+            custom_type=custom_type,
+            details=details,
         )
-        if input_outcome.handled:
-            if input_outcome.message:
-                self._extension_runtime.ui.notify(input_outcome.message)
-            return
-        content = input_outcome.text
         try:
-            expanded_content = self.expand_prompt_text(content)
-        except ResourceError:
-            raise
-        except Exception as exc:
-            self._last_diagnostic_log_path = self._diagnostic_logger.log_exception(
-                context=context,
-                phase="expand_prompt",
-                exc=exc,
-            )
-            raise
-
-        if self._harness.is_running:
-            if streaming_behavior == "steer":
-                self._harness.steer(expanded_content)
-                session_event_0 = self.queue_update_event()
-                await self._extension_runtime.emit_event(session_event_0)
-                yield session_event_0
-                return
-            if streaming_behavior == "follow_up":
-                self._harness.follow_up(expanded_content)
-                session_event_0 = self.queue_update_event()
-                await self._extension_runtime.emit_event(session_event_0)
-                yield session_event_0
-                return
-            raise RuntimeError(
-                "CodingSession is already running; pass streaming_behavior to queue a message."
-            )
-
-        await self._flush_pending_message_writes(context=context)
-        await self._commit_preview()
-        await self._refresh_runtime_model_limits()
-        async for compaction_event in self._try_auto_compact(
-            context=context, phase="auto_compact_before_prompt"
-        ):
-            yield compaction_event
-        # id() values can be reused once earlier message objects are freed.
-        self._ended_message_ids.clear()
-        self._persisted_message_ids.clear()
-        events: AsyncIterator[AgentEvent] | None = None
-        settled_event: AgentSettledEvent | None = None
-        auto_name_attempted = False
-        auto_name_task: asyncio.Task[None] | None = None
-        overflow_message: AssistantMessage | None = None
-        route_failure_message: AssistantMessage | None = None
-        try:
-            prompt_message: AgentMessage
-            if custom_type is not None:
-                prompt_message = CustomMessage(
-                    custom_type=custom_type,
-                    content=expanded_content,
-                    display=True,
-                    details=details,
-                )
-            else:
-                prompt_message = UserMessage(content=expanded_content)
-            events = self._harness.prompt_message(prompt_message)
-            self._invalidate_context_usage_cache()
-            async for event in events:
-                auto_name_message: str | None = None
-                if (
-                    isinstance(event, MessageEndEvent)
-                    and not auto_name_attempted
-                    and isinstance(event.message, UserMessage)
-                ):
-                    auto_name_attempted = True
-                    auto_name_message = event.message.text
-                if isinstance(event, ToolExecutionEndEvent):
-                    self._invalidate_context_usage_cache()
-                if (
-                    isinstance(event, MessageEndEvent)
-                    and isinstance(event.message, AssistantMessage)
-                    and event.message.stop_reason == "error"
-                ):
-                    self._last_diagnostic_log_path = self._diagnostic_logger.log_assistant_error(
-                        context=context,
-                        phase="agent_loop",
-                        message=event.message,
-                    )
-                    if is_context_overflow_error(event.message):
-                        overflow_message = event.message
-                    elif self._should_auto_failover_huggingface_route(event.message):
-                        route_failure_message = event.message
-                if isinstance(event, AgentEndEvent):
-                    yield SessionAgentEndEvent(
-                        messages=event.messages,
-                        will_retry=(overflow_message is not None or route_failure_message is not None),
-                    )
-                else:
-                    yield event
-                # Frontends have rendered the confirmed, expanded prompt. Name
-                # the session alongside the agent's reply instead of delaying
-                # the reply's request behind the naming request.
-                if auto_name_message is not None:
-                    auto_name_task = asyncio.create_task(
-                        self._try_auto_name_session(auto_name_message, context=context),
-                        name="baldric-auto-name-session",
-                    )
-                    # Let the naming request start first so provider calls keep
-                    # a deterministic order.
-                    await asyncio.sleep(0)
-            if overflow_message is not None:
-                session_event_1 = CompactionStartEvent(reason="overflow")
-                await self._extension_runtime.emit_event(session_event_1)
-                yield session_event_1
-                compacted = await self._try_overflow_compact(context=context)
-                compaction_end = CompactionEndEvent(
-                    reason="overflow",
-                    result=None,
-                    aborted=not compacted,
-                    will_retry=compacted,
-                    error_message=None if compacted else "Overflow compaction failed",
-                )
-                await self._extension_runtime.emit_event(compaction_end)
-                yield compaction_end
-                if compacted:
-                    retry_start = AutoRetryStartEvent(
-                        attempt=1,
-                        max_attempts=1,
-                        delay_ms=0,
-                        error_message=overflow_message.error_message or "Context overflow",
-                    )
-                    await self._extension_runtime.emit_event(retry_start)
-                    yield retry_start
-                    events = self._harness.continue_()
-                    self._invalidate_context_usage_cache()
-                    overflow_retry_error: str | None = None
-                    async for retry_event in events:
-                        if isinstance(retry_event, ToolExecutionEndEvent):
-                            self._invalidate_context_usage_cache()
-                        if (
-                            isinstance(retry_event, MessageEndEvent)
-                            and isinstance(retry_event.message, AssistantMessage)
-                            and retry_event.message.stop_reason in {"error", "aborted"}
-                        ):
-                            overflow_retry_error = (
-                                retry_event.message.error_message or "Provider request aborted"
-                            )
-                            if retry_event.message.stop_reason == "error":
-                                self._last_diagnostic_log_path = self._diagnostic_logger.log_assistant_error(
-                                    context=context,
-                                    phase="agent_loop_retry",
-                                    message=retry_event.message,
-                                )
-                        if isinstance(retry_event, AgentEndEvent):
-                            yield SessionAgentEndEvent(
-                                messages=retry_event.messages,
-                                will_retry=False,
-                            )
-                        else:
-                            yield retry_event
-                    session_event_4 = AutoRetryEndEvent(
-                        success=overflow_retry_error is None,
-                        attempt=1,
-                        final_error=overflow_retry_error,
-                    )
-                    await self._extension_runtime.emit_event(session_event_4)
-                    yield session_event_4
-            elif route_failure_message is not None:
-                async for failover_event in self._run_huggingface_route_failover(context=context):
-                    yield failover_event
-            else:
-                async for compaction_event in self._try_auto_compact(
-                    context=context, phase="auto_compact_after_prompt"
-                ):
-                    yield compaction_event
-            if auto_name_task is not None:
-                await auto_name_task
-        except Exception as exc:
-            self._last_diagnostic_log_path = self._diagnostic_logger.log_exception(
-                context=context,
-                phase="agent_loop",
-                exc=exc,
-            )
-            raise
+            async for item in stream:
+                yield item
         finally:
-            if auto_name_task is not None and not auto_name_task.done():
-                auto_name_task.cancel()
-            try:
-                await self._reconcile_run_persistence(events, context=context)
-            finally:
-                if events is not None:
-                    settled_event = await self._dispatch_agent_settled()
-        if settled_event is not None:
-            yield settled_event
+            await stream.aclose()
 
     async def continue_(self) -> AsyncIterator[CodingSessionEvent]:
-        """Continue the agent from restored state and persist new messages."""
-        context = self._diagnostic_context()
-        await self._flush_pending_message_writes(context=context)
-        await self._refresh_runtime_model_limits()
-        # id() values can be reused once earlier message objects are freed.
-        self._ended_message_ids.clear()
-        self._persisted_message_ids.clear()
-        events: AsyncIterator[AgentEvent] | None = None
-        settled_event: AgentSettledEvent | None = None
-        route_failure_message: AssistantMessage | None = None
+        stream = _session_runtime.continue_(self)
         try:
-            events = self._harness.continue_()
-            self._invalidate_context_usage_cache()
-            async for event in events:
-                if isinstance(event, ToolExecutionEndEvent):
-                    self._invalidate_context_usage_cache()
-                if (
-                    isinstance(event, MessageEndEvent)
-                    and isinstance(event.message, AssistantMessage)
-                    and event.message.stop_reason == "error"
-                ):
-                    self._last_diagnostic_log_path = self._diagnostic_logger.log_assistant_error(
-                        context=context,
-                        phase="agent_loop",
-                        message=event.message,
-                    )
-                    if self._should_auto_failover_huggingface_route(event.message):
-                        route_failure_message = event.message
-                if isinstance(event, AgentEndEvent):
-                    yield SessionAgentEndEvent(
-                        messages=event.messages,
-                        will_retry=route_failure_message is not None,
-                    )
-                else:
-                    yield event
-            if route_failure_message is not None:
-                async for failover_event in self._run_huggingface_route_failover(context=context):
-                    yield failover_event
-            async for compaction_event in self._try_auto_compact(
-                context=context, phase="auto_compact_after_continue"
-            ):
-                yield compaction_event
-        except Exception as exc:
-            self._last_diagnostic_log_path = self._diagnostic_logger.log_exception(
-                context=context,
-                phase="agent_loop",
-                exc=exc,
-            )
-            raise
+            async for item in stream:
+                yield item
         finally:
-            try:
-                await self._reconcile_run_persistence(events, context=context)
-            finally:
-                if events is not None:
-                    settled_event = await self._dispatch_agent_settled()
-        if settled_event is not None:
-            yield settled_event
+            await stream.aclose()
 
     async def _dispatch_agent_settled(self) -> AgentSettledEvent:
-        """Dispatch and return the final session event for one started run."""
-        event = AgentSettledEvent()
-        await self._extension_runtime.emit_event(event)
-        return event
+        return await _session_runtime._dispatch_agent_settled(self)
 
     def _diagnostic_context(self) -> AgentCallDiagnosticContext:
-        return AgentCallDiagnosticContext(
-            provider_name=self._provider_name,
-            model=self.model,
-            cwd=self.cwd,
-            session_id=self.session_id,
-            run_id=new_agent_call_run_id(),
-        )
+        return _session_runtime._diagnostic_context(self)
 
     async def _persist_active_tool_history_repairs(self) -> ToolHistoryRepair | None:
-        """Stage or append one complete repair branch for malformed history."""
-        plan = _tool_history_repair_plan(
-            self._state.messages,
-            context_entry_ids=self._state.context_entry_ids,
-            entries=self._state.entries,
-        )
-        if plan is None:
-            return None
-
-        parent_id, suffix, repair = plan
-        active_model = self._state.model
-        active_thinking_level = self._state.thinking_level
-        active_entries = self._state.entries
-        parent_index = next(
-            (index for index, entry in enumerate(active_entries) if entry.id == parent_id),
-            -1,
-        )
-        custom_entries = [
-            entry
-            for entry in active_entries[parent_index + 1 :]
-            if isinstance(entry, CustomEntry) and entry.namespace != "baldric.session-history-repair"
-        ]
-        staged: list[SessionEntry] = [
-            CustomEntry(
-                parent_id=parent_id,
-                namespace="baldric.session-history-repair",
-                data={"version": 1, **repair.diagnostic_data()},
-            )
-        ]
-        parent_id = staged[-1].id
-        for message in suffix:
-            entry = _session_entry_for_message(parent_id=parent_id, message=message)
-            staged.append(entry)
-            parent_id = entry.id
-        if active_model is not None:
-            model_entry = ModelChangeEntry(
-                parent_id=parent_id,
-                model=active_model,
-                provider=self.provider_name,
-            )
-            staged.append(model_entry)
-            parent_id = model_entry.id
-        thinking_entry = ThinkingLevelChangeEntry(
-            parent_id=parent_id,
-            thinking_level=active_thinking_level,
-        )
-        staged.append(thinking_entry)
-        parent_id = thinking_entry.id
-        for custom_entry in custom_entries:
-            copied_entry = CustomEntry(
-                parent_id=parent_id,
-                namespace=custom_entry.namespace,
-                data=custom_entry.data,
-            )
-            staged.append(copied_entry)
-            parent_id = copied_entry.id
-        if self._config.defer_authoritative_writes:
-            self._prepared_entries.extend(staged)
-            self._last_parent_id = parent_id
-            replay_entries = [*self._state.entries, *staged]
-            self._state = SessionState.from_entries(replay_entries, leaf_id=parent_id)
-        else:
-            await self._append_session_batch(staged)
-            self._last_parent_id = parent_id
-            await self._refresh_persisted_state(leaf_id=parent_id)
-        self._harness.replace_messages(self._state.messages)
-        self._invalidate_context_usage_cache()
-        return repair
+        return await _session_runtime._persist_active_tool_history_repairs(self)
 
     def _attach_persistence_listener(self) -> None:
-        """(Re-)attach push persistence to the current harness.
-
-        Persistence subscribes to harness events rather than running in the
-        event consumer, which the TUI tears down on interrupt.
-        """
-        if self._persistence_unsubscribe is not None:
-            self._persistence_unsubscribe()
-            self._persistence_unsubscribe = None
-        # Command-only tests construct sessions with stub harnesses.
-        subscribe = getattr(self._harness, "subscribe", None)
-        if subscribe is not None:
-            self._persistence_unsubscribe = subscribe(self._persist_on_message_end)
+        return _session_runtime._attach_persistence_listener(self)
 
     async def _persist_on_message_end(self, event: AgentEvent) -> None:
-        if isinstance(event, MessageEndEvent):
-            self._ended_message_ids.add(id(event.message))
-            await self._persist_message(event.message)
+        return await _session_runtime._persist_on_message_end(self, event)
 
     async def _persist_message(self, message: AgentMessage) -> None:
-        """Persist one completed message at the active branch tip, idempotently.
-
-        Message lifecycle events are the durable-message boundary. A stable entry
-        id lets a retry recognize an append that reached disk before raising.
-        Only retries pay for a full-file read.
-        """
-        message_id = id(message)
-        pending = self._pending_message_writes.get(message_id)
-        is_retry = pending is not None
-        if pending is None:
-            entry = _session_entry_for_message(parent_id=self._last_parent_id, message=message)
-            pending = _PendingMessageWrite(message=message, entry=entry)
-            self._pending_message_writes[message_id] = pending
-
-        durable_ids = {entry.id for entry in await self._read_session_entries()} if is_retry else frozenset()
-        if pending.entry.id not in durable_ids:
-            await self._append_session_entry(pending.entry)
-        self._last_parent_id = pending.entry.id
-
-        await self._refresh_persisted_state(leaf_id=self._last_parent_id)
-        self._persisted_message_ids.add(message_id)
-        self._pending_message_writes.pop(message_id, None)
-        self._invalidate_context_usage_cache()
+        return await _session_runtime._persist_message(self, message)
 
     async def _reconcile_run_persistence(
-        self,
-        events: AsyncIterator[AgentEvent] | None,
-        *,
-        context: AgentCallDiagnosticContext,
+        self, events: AsyncIterator[AgentEvent] | None, *, context: AgentCallDiagnosticContext
     ) -> None:
-        """Close a run and retry failed persists still present in the transcript.
-
-        Keyed on message identity, not counts: the loop emits an assistant's
-        ``message_end`` before appending it to the transcript. A message whose
-        persist and append both failed cannot be retried here; the repair at
-        the next run start re-synthesizes and persists its tool result.
-        """
-        if events is not None:
-            aclose = getattr(events, "aclose", None)
-            if aclose is not None:
-                with suppress(Exception):
-                    await aclose()
-        for message in self._harness.messages:
-            message_id = id(message)
-            if message_id in self._ended_message_ids and message_id not in self._persisted_message_ids:
-                # Runs in a finally: a repeat failure must not mask cancellation.
-                try:
-                    await self._persist_message(message)
-                except Exception as exc:  # noqa: BLE001 - preserve cancellation
-                    self._log_persistence_failure(context=context, exc=exc)
-        self._ended_message_ids.clear()
-        self._persisted_message_ids.clear()
+        return await _session_runtime._reconcile_run_persistence(self, events, context=context)
 
     async def _flush_pending_message_writes(self, *, context: AgentCallDiagnosticContext) -> None:
-        """Finish earlier partial writes before another storage-dependent action."""
-        harness_message_ids = {id(message) for message in self._harness.messages}
-        for pending in tuple(self._pending_message_writes.values()):
-            if id(pending.message) not in harness_message_ids:
-                self._harness.append_message(pending.message)
-                harness_message_ids.add(id(pending.message))
-            try:
-                await self._persist_message(pending.message)
-            except Exception as exc:
-                self._log_persistence_failure(context=context, exc=exc)
-                raise
+        return await _session_runtime._flush_pending_message_writes(self, context=context)
 
     def _log_persistence_failure(self, *, context: AgentCallDiagnosticContext, exc: BaseException) -> None:
-        with suppress(Exception):
-            self._last_diagnostic_log_path = self._diagnostic_logger.log_exception(
-                context=context,
-                phase="session_persistence_reconcile",
-                exc=exc,
-            )
+        return _session_runtime._log_persistence_failure(self, context=context, exc=exc)
 
     def _invalidate_context_usage_cache(self) -> None:
-        """Mark context accounting dirty after transcript/system/tool changes."""
-        self._context_usage_cache = None
+        return _session_runtime._invalidate_context_usage_cache(self)
 
     async def _refresh_persisted_state(self, *, leaf_id: str | None) -> None:
-        entries = await self._read_session_entries()
-        self._state = SessionState.from_entries(entries, leaf_id=leaf_id)
-        if self._config.session_id is not None and self._config.session_manager is not None:
-            self._config.session_manager.touch_session(
-                self._config.session_id,
-                model=self.model,
-                provider_name=self.provider_name,
-                inference_provider=self._inference_provider,
-                inference_provider_mode=self._inference_provider_mode,
-                preserve_inference_provider=False,
-                cwd=self.cwd,
-            )
+        return await _session_runtime._refresh_persisted_state(self, leaf_id=leaf_id)
 
     async def _read_session_entries(self) -> list[SessionEntry]:
-        """Read stored entries, detaching roots imported from external history."""
-        return _detach_missing_parents(await self._config.storage.read_all())
+        return await _session_runtime._read_session_entries(self)
 
     async def _commit_prepared_entries(self) -> None:
-        """Durably commit the staged startup/repair batch exactly once."""
-        if not self._config.defer_authoritative_writes:
-            return
-        durable_ids = {entry.id for entry in await self._config.storage.read_all()}
-        missing = tuple(entry for entry in self._prepared_entries if entry.id not in durable_ids)
-        if missing:
-            append_batch = getattr(self._config.storage, "append_batch", None)
-            if append_batch is None:
-                # Compatibility storage implementations predate the atomic
-                # batch contract.  Production storage always takes this path.
-                for entry in missing:
-                    await self._config.storage.append(entry)
-            else:
-                await append_batch(missing)
-        self._pending_initial_entries = ()
-        self._prepared_entries.clear()
-        self._config = replace(self._config, defer_authoritative_writes=False)
-        try:
-            if self._config.index_on_first_persist:
-                self._index_current_session()
-        except Exception as exc:  # index is a rebuildable cache, not authority
-            self._record_session_index_diagnostic(exc)
+        return await _session_runtime._commit_prepared_entries(self)
 
     async def _append_session_entry(self, entry: SessionEntry) -> None:
-        """Append one durable entry after flushing deferred session metadata."""
-        await self._ensure_session_initialized()
-        await self._config.storage.append(entry)
+        return await _session_runtime._append_session_entry(self, entry)
 
     async def _append_session_batch(self, entries: Sequence[SessionEntry]) -> None:
-        """Append entries as one storage transaction, with legacy fallback."""
-        await self._ensure_session_initialized()
-        append_batch = getattr(self._config.storage, "append_batch", None)
-        if append_batch is None:
-            for entry in entries:
-                await self._config.storage.append(entry)
-            return
-        await append_batch(tuple(entries))
+        return await _session_runtime._append_session_batch(self, entries)
 
     async def _close_replaced_provider(self, provider: ModelProvider) -> None:
         """Close a Baldric-owned provider once after a committed publication."""
@@ -3741,282 +2115,65 @@ class CodingSession:
             await close()
 
     async def _ensure_session_initialized(self) -> None:
-        if self._config.defer_authoritative_writes and self._prepared_entries:
-            await self._commit_prepared_entries()
-            return
-        if not self._pending_initial_entries:
-            return
-        await self._write_pending_initial_entries()
-        if self._config.index_on_first_persist:
-            try:
-                self._index_current_session()
-            except Exception as exc:
-                self._record_session_index_diagnostic(exc)
+        return await _session_runtime._ensure_session_initialized(self)
 
     async def _write_pending_initial_entries(self) -> None:
-        durable_ids = {entry.id for entry in await self._config.storage.read_all()}
-        missing = tuple(entry for entry in self._pending_initial_entries if entry.id not in durable_ids)
-        if missing:
-            append_batch = getattr(self._config.storage, "append_batch", None)
-            if append_batch is not None:
-                await append_batch(missing)
-            else:
-                for entry in missing:
-                    await self._config.storage.append(entry)
-        self._pending_initial_entries = ()
+        return await _session_runtime._write_pending_initial_entries(self)
 
     def _ensure_session_file_initialized(self) -> None:
-        if not self._pending_initial_entries:
-            return
-        for entry in self._pending_initial_entries:
-            _append_session_entry_sync(self._config.storage, entry)
-        self._pending_initial_entries = ()
+        return _session_runtime._ensure_session_file_initialized(self)
 
     def _record_session_index_diagnostic(self, exc: BaseException) -> None:
-        self._resource_diagnostics = (
-            *self._resource_diagnostics,
-            ResourceDiagnostic(
-                kind="session-index",
-                message=f"Session index needs repair: {type(exc).__name__}",
-                severity="warning",
-            ),
-        )
+        return _session_runtime._record_session_index_diagnostic(self, exc)
 
     def _index_current_session(self) -> None:
-        if self._config.session_id is None or self._config.session_manager is None:
-            return
-        existing = self._config.session_manager.get_session(self._config.session_id)
-        if existing is not None:
-            return
-        self._config.session_manager.create_session(
-            cwd=self.cwd,
-            model=self.model,
-            provider_name=self.provider_name,
-            inference_provider=self._inference_provider,
-            session_id=self._config.session_id,
-        )
+        return _session_runtime._index_current_session(self)
 
     async def _try_auto_compact(
-        self,
-        *,
-        context: AgentCallDiagnosticContext,
-        phase: str,
+        self, *, context: AgentCallDiagnosticContext, phase: str
     ) -> AsyncIterator[CodingSessionEvent]:
+        stream = _session_runtime._try_auto_compact(self, context=context, phase=phase)
         try:
-            plan = self._auto_compaction_plan()
-        except Exception as exc:  # noqa: BLE001 - automatic compaction must not lose a turn
-            self._last_diagnostic_log_path = self._diagnostic_logger.log_exception(
-                context=context,
-                phase=phase,
-                exc=exc,
-            )
-            return
-        if plan is None:
-            return
-        start_event = CompactionStartEvent(reason="threshold")
-        await self._extension_runtime.emit_event(start_event)
-        yield start_event
-        try:
-            await self._run_compaction_plan(plan)
-        except Exception as exc:  # noqa: BLE001 - automatic compaction must not lose a turn
-            self._last_diagnostic_log_path = self._diagnostic_logger.log_exception(
-                context=context,
-                phase=phase,
-                exc=exc,
-            )
-            end_event = CompactionEndEvent(
-                reason="threshold",
-                result=None,
-                aborted=True,
-                will_retry=False,
-                error_message=str(exc) or type(exc).__name__,
-            )
-        else:
-            end_event = CompactionEndEvent(
-                reason="threshold",
-                result=None,
-                aborted=False,
-                will_retry=False,
-                error_message=None,
-            )
-        await self._extension_runtime.emit_event(end_event)
-        yield end_event
+            async for item in stream:
+                yield item
+        finally:
+            await stream.aclose()
 
-    async def _try_overflow_compact(
-        self,
-        *,
-        context: AgentCallDiagnosticContext,
-    ) -> bool:
-        try:
-            plan = self._recent_preserving_compaction_plan()
-            if plan is None:
-                return False
-            await self._run_compaction_plan(plan)
-            return True
-        except Exception as exc:  # noqa: BLE001 - the original overflow remains visible
-            self._last_diagnostic_log_path = self._diagnostic_logger.log_exception(
-                context=context,
-                phase="overflow_compact",
-                exc=exc,
-            )
-            return False
+    async def _try_overflow_compact(self, *, context: AgentCallDiagnosticContext) -> bool:
+        return await _session_runtime._try_overflow_compact(self, context=context)
 
     async def _try_auto_name_session(
-        self,
-        first_message: str,
-        *,
-        context: AgentCallDiagnosticContext,
+        self, first_message: str, *, context: AgentCallDiagnosticContext
     ) -> None:
-        # Bind the naming result to the session that requested it: a concurrent
-        # resume/new adopts a different config and harness on this object while
-        # the naming request is in flight, and a late result must not rename the
-        # adopted session.
-        bound_session_id = self._config.session_id
-        bound_manager = self._config.session_manager
-        bound_provider = self._harness.config.provider
-        bound_model = self.model
-        if not self._should_auto_name_session():
-            return
-        try:
-            title = await self._generate_session_name(
-                first_message, provider=bound_provider, model=bound_model
-            )
-        except Exception as exc:  # noqa: BLE001 - naming must not interrupt the agent turn
-            self._last_diagnostic_log_path = self._diagnostic_logger.log_exception(
-                context=context,
-                phase="auto_name_session",
-                exc=exc,
-            )
-            title = _fallback_session_name(first_message)
-        if title is None:
-            title = _fallback_session_name(first_message)
-        if title is None:
-            return
-        if self._config.session_id != bound_session_id or self._config.session_manager is not bound_manager:
-            # The session was replaced while naming ran; drop the stale result
-            # instead of retitling the adopted session.
-            return
-        persisted = self._persist_session_name(
-            title,
-            only_if_unnamed=True,
-            index_if_missing=False,
-        )
-        if persisted is not None:
-            await self._extension_runtime.emit_event(SessionInfoChangedEvent(name=persisted))
+        return await _session_runtime._try_auto_name_session(self, first_message, context=context)
 
     def _should_auto_name_session(self) -> bool:
-        if self._config.session_id is None or self._config.session_manager is None:
-            return False
-        record = self._config.session_manager.get_session(self._config.session_id, cwd=self.cwd)
-        if record is not None and record.title:
-            return False
-        return sum(isinstance(message, UserMessage) for message in self._harness.messages) == 1
+        return _session_runtime._should_auto_name_session(self)
 
     async def _generate_session_name(
-        self,
-        first_message: str,
-        *,
-        provider: ModelProvider,
-        model: str,
+        self, first_message: str, *, provider: ModelProvider, model: str
     ) -> str | None:
-        prompt = (
-            "Create a concise session name for this first user message. "
-            "Use at most four words.\n\n"
-            f"User message:\n{first_message}"
+        return await _session_runtime._generate_session_name(
+            self, first_message, provider=provider, model=model
         )
-        text_parts: list[str] = []
-        final_text: str | None = None
-        async for event in provider.stream_response(
-            model=model,
-            system=SESSION_NAME_SYSTEM_PROMPT,
-            messages=[UserMessage(content=prompt)],
-            tools=[],
-        ):
-            if isinstance(event, TextDeltaEvent):
-                text_parts.append(event.delta)
-            elif isinstance(event, AssistantDoneEvent):
-                final_text = event.message.text
-            elif isinstance(event, AssistantErrorEvent):
-                raise RuntimeError(f"Session naming failed: {event.error.error_message or event.reason}")
-        return _sanitize_session_name(final_text if final_text is not None else "".join(text_parts))
 
     def _provider_is_usable(self, provider: ProviderConfig) -> bool:
-        return provider_has_usable_credentials(
-            provider,
-            credential_reader=self._credential_store,
-        )
+        return _session_runtime._provider_is_usable(self, provider)
 
     def _usable_provider_configs(self) -> tuple[ProviderConfig, ...]:
-        if self._provider_settings is None:
-            return ()
-        return tuple(
-            provider for provider in self._provider_settings.providers if self._provider_is_usable(provider)
-        )
+        return _session_runtime._usable_provider_configs(self)
 
     def _auto_compaction_plan(self) -> CompactionPlan | None:
-        threshold = self.auto_compact_token_threshold
-        if threshold is None or threshold <= 0:
-            return None
-        if len(self._state.context_entry_ids) < 2:
-            return None
-        if self.context_token_estimate <= threshold:
-            return None
-        return self._recent_preserving_compaction_plan()
+        return _session_runtime._auto_compaction_plan(self)
 
     async def _run_compaction_plan(self, plan: CompactionPlan) -> None:
-        tokens_before = self.context_token_estimate
-        generated = await self._generate_compaction_summary(plan.messages_to_summarize)
-        await self._append_compaction(
-            generated.text,
-            first_kept_entry_id=plan.first_kept_entry_id,
-            tokens_before=tokens_before,
-            usage=generated.usage,
-            provider=generated.provider,
-            model=generated.model,
-            response_provider=generated.response_provider,
-        )
+        return await _session_runtime._run_compaction_plan(self, plan)
 
     async def _generate_compaction_summary(
-        self,
-        messages: tuple[AgentMessage, ...],
-        *,
-        custom_instructions: str | None = None,
+        self, messages: tuple[AgentMessage, ...], *, custom_instructions: str | None = None
     ) -> _GeneratedSummary:
-        prompt = build_compaction_summary_prompt(
-            messages,
-            custom_instructions=custom_instructions,
-        )
-        text_parts: list[str] = []
-        final_text: str | None = None
-        response_usages: list[Usage] = []
-        response_provider: str | None = None
-        summary_messages: list[AgentMessage] = [UserMessage(content=prompt)]
-        async for event in self._harness.config.provider.stream_response(
-            model=self.model,
-            system=SUMMARIZATION_SYSTEM_PROMPT,
-            messages=summary_messages,
-            tools=[],
-        ):
-            if isinstance(event, TextDeltaEvent):
-                text_parts.append(event.delta)
-            elif isinstance(event, AssistantDoneEvent):
-                final_text = event.message.text
-                response_usages.append(event.message.usage)
-                response_provider = event.message.response_provider
-            elif isinstance(event, AssistantErrorEvent):
-                raise RuntimeError(
-                    f"Compaction summarization failed: {event.error.error_message or event.reason}"
-                )
-
-        summary = (final_text if final_text is not None else "".join(text_parts)).strip()
-        if not summary:
-            raise RuntimeError("Compaction summarization returned an empty summary")
-        return _GeneratedSummary(
-            text=summary,
-            usage=sum_usage(response_usages) if response_usages else None,
-            provider=self.provider_name,
-            model=self.model,
-            response_provider=response_provider,
+        return await _session_runtime._generate_compaction_summary(
+            self, messages, custom_instructions=custom_instructions
         )
 
     async def _summarize_branch_messages(
@@ -4026,54 +2183,15 @@ class CodingSession:
         custom_instructions: str | None = None,
         replace_instructions: bool = False,
     ) -> _GeneratedSummary:
-        try:
-            result = await summarize_branch_messages_with_model(
-                provider=self._harness.config.provider,
-                model=self.model,
-                messages=messages,
-                custom_instructions=custom_instructions,
-                replace_instructions=replace_instructions,
-            )
-        except Exception:
-            result = None
-        if result is not None:
-            summary, usage, response_provider = result
-            return _GeneratedSummary(
-                text=summary,
-                usage=usage,
-                provider=self.provider_name,
-                model=self.model,
-                response_provider=response_provider,
-            )
-        return _GeneratedSummary(
-            text=summarize_messages_for_compaction(messages),
-            usage=None,
+        return await _session_runtime._summarize_branch_messages(
+            self, messages, custom_instructions=custom_instructions, replace_instructions=replace_instructions
         )
 
     def _recent_preserving_compaction_plan(self) -> CompactionPlan | None:
-        rows = self._active_context_rows()
-        if len(rows) < 2:
-            return None
-
-        first_kept_index = _first_recent_context_index(
-            rows,
-            keep_recent_tokens=DEFAULT_COMPACTION_KEEP_RECENT_TOKENS,
-        )
-        if first_kept_index <= 0:
-            return None
-
-        if first_kept_index >= len(rows):
-            return None
-
-        replaced = rows[:first_kept_index]
-        return CompactionPlan(
-            first_kept_entry_id=rows[first_kept_index][0],
-            replaced_entry_count=len(replaced),
-            messages_to_summarize=tuple(message for _entry_id, message in replaced),
-        )
+        return _session_runtime._recent_preserving_compaction_plan(self)
 
     def _active_context_rows(self) -> tuple[tuple[str, AgentMessage], ...]:
-        return tuple(zip(self._state.context_entry_ids, self._state.messages, strict=True))
+        return _session_runtime._active_context_rows(self)
 
     async def _append_compaction(
         self,
@@ -4086,12 +2204,9 @@ class CodingSession:
         model: str | None = None,
         response_provider: str | None = None,
     ) -> CompactionEntry:
-        if first_kept_entry_id not in self._state.context_entry_ids:
-            raise ValueError("First kept entry is not in the active context")
-
-        compaction = CompactionEntry(
-            parent_id=self._last_parent_id,
-            summary=summary,
+        return await _session_runtime._append_compaction(
+            self,
+            summary,
             first_kept_entry_id=first_kept_entry_id,
             tokens_before=tokens_before,
             usage=usage,
@@ -4099,1126 +2214,3 @@ class CodingSession:
             model=model,
             response_provider=response_provider,
         )
-        await self._append_session_entry(compaction)
-        self._last_parent_id = compaction.id
-
-        await self._refresh_persisted_state(leaf_id=compaction.id)
-        self._harness.replace_messages(self._state.messages)
-        self._invalidate_context_usage_cache()
-        return compaction
-
-
-def _first_recent_context_index(
-    rows: tuple[tuple[str, AgentMessage], ...],
-    *,
-    keep_recent_tokens: int,
-) -> int:
-    if keep_recent_tokens <= 0:
-        return len(rows)
-
-    accumulated_tokens = 0
-    candidate_index: int | None = None
-    for index in range(len(rows) - 1, -1, -1):
-        _entry_id, message = rows[index]
-        accumulated_tokens += estimate_message_tokens(message)
-        if accumulated_tokens >= keep_recent_tokens:
-            candidate_index = index
-            break
-
-    if candidate_index is None:
-        return 0
-
-    candidate_message = rows[candidate_index][1]
-    if candidate_message.role == "user":
-        if candidate_index > 0:
-            boundary = candidate_index
-        else:
-            next_user_index = _next_user_message_index(rows, start=1)
-            boundary = next_user_index if next_user_index is not None else 0
-    else:
-        next_user_index = _next_user_message_index(rows, start=candidate_index + 1)
-        if next_user_index is not None:
-            boundary = next_user_index
-        else:
-            for index in range(candidate_index, len(rows)):
-                if rows[index][1].role != "toolResult":
-                    boundary = index
-                    break
-            else:
-                boundary = len(rows)
-
-    last_user_index = _last_user_message_index(rows)
-    if last_user_index is not None:
-        boundary = min(boundary, last_user_index)
-    return boundary
-
-
-def _last_user_message_index(
-    rows: tuple[tuple[str, AgentMessage], ...],
-) -> int | None:
-    for index in range(len(rows) - 1, -1, -1):
-        if rows[index][1].role == "user":
-            return index
-    return None
-
-
-def _next_user_message_index(
-    rows: tuple[tuple[str, AgentMessage], ...],
-    *,
-    start: int,
-) -> int | None:
-    for index in range(start, len(rows)):
-        if rows[index][1].role == "user":
-            return index
-    return None
-
-
-def is_context_overflow_error(message: AssistantMessage) -> bool:
-    """Return True when an assistant error looks like a context overflow."""
-    text = message.error_message or ""
-    normalized = text.lower()
-    markers = (
-        "context length",
-        "context window",
-        "context limit",
-        "maximum context",
-        "max context",
-        "input is too long",
-        "input length",
-        "prompt is too long",
-        "too many tokens",
-        "token limit",
-        "exceeds the limit",
-        "exceeded the limit",
-    )
-    return any(marker in normalized for marker in markers)
-
-
-def is_retryable_huggingface_route_error(message: AssistantMessage) -> bool:
-    """Return whether a pre-output Hugging Face HTTP failure is safe to reroute."""
-    if message.content:
-        return False
-    for diagnostic in message.diagnostics or []:
-        if diagnostic.type != "provider_error" or diagnostic.details is None:
-            continue
-        status_code = diagnostic.details.get("status_code")
-        if isinstance(status_code, int) and not isinstance(status_code, bool):
-            return status_code in {408, 409, 425, 429} or status_code >= 500
-    return False
-
-
-def _session_entry_for_message(
-    *, parent_id: str | None, message: AgentMessage
-) -> MessageEntry | CustomMessageEntry:
-    """Build the canonical persisted entry for one completed runtime message."""
-    if isinstance(message, CustomMessage):
-        return CustomMessageEntry(
-            parent_id=parent_id,
-            timestamp=message.timestamp / 1000,
-            custom_type=message.custom_type,
-            content=message.content,
-            display=message.display,
-            details=message.details,
-        )
-    return MessageEntry(parent_id=parent_id, message=message)
-
-
-def _detach_missing_parents(entries: list[SessionEntry]) -> list[SessionEntry]:
-    """Return entries with dangling parent pointers detached from external history."""
-    entry_ids = {entry.id for entry in entries}
-    return [
-        entry.model_copy(update={"parent_id": None})
-        if entry.parent_id is not None and entry.parent_id not in entry_ids
-        else entry
-        for entry in entries
-    ]
-
-
-def _last_parent_id_from_state(state: SessionState) -> str | None:
-    if state.active_leaf_id is not None:
-        return state.active_leaf_id
-    if state.entries:
-        return state.entries[-1].id
-    return None
-
-
-def _active_branchable_entry_id(entries: list[SessionEntry], active_leaf_id: str | None) -> str | None:
-    if active_leaf_id is None:
-        return None
-    try:
-        path = path_to_entry(entries, active_leaf_id)
-    except SessionTreeError:
-        return active_leaf_id
-    return next((entry.id for entry in reversed(path) if _is_branchable_tree_entry(entry)), None)
-
-
-def _resolved_labels(entries: list[SessionEntry]) -> tuple[dict[str, str], dict[str, float]]:
-    """Resolve the latest label change for every target in storage order."""
-    labels: dict[str, str] = {}
-    timestamps: dict[str, float] = {}
-    for entry in entries:
-        if not isinstance(entry, LabelEntry):
-            continue
-        label = entry.label.strip() if entry.label is not None else ""
-        if label:
-            labels[entry.target_id] = label
-            timestamps[entry.target_id] = entry.timestamp
-        else:
-            labels.pop(entry.target_id, None)
-            timestamps.pop(entry.target_id, None)
-    return labels, timestamps
-
-
-def _is_branchable_tree_entry(entry: SessionEntry) -> bool:
-    if entry.type in {"compaction", "branch_summary"}:
-        return True
-    if entry.type != "message":
-        return False
-    return isinstance(entry.message, UserMessage | AssistantMessage)
-
-
-def _tree_choice_label(entry: SessionEntry, *, branch_indent: int = 0) -> str:
-    prefix = "  " * branch_indent
-    return f"{prefix}{_tree_entry_title(entry)}"
-
-
-def _tree_branch_indents(entries: list[SessionEntry]) -> dict[str, int]:
-    return _tree_layout(entries)[1]
-
-
-def _ordered_tree_entries(entries: list[SessionEntry]) -> tuple[SessionEntry, ...]:
-    return _tree_layout(entries)[0]
-
-
-def _tree_layout(
-    entries: list[SessionEntry],
-) -> tuple[tuple[SessionEntry, ...], dict[str, int]]:
-    tree_entries = [entry for entry in entries if entry.type != "leaf"]
-    children_by_parent: dict[str | None, list[SessionEntry]] = {}
-    entries_by_id: dict[str, SessionEntry] = {}
-    for entry in tree_entries:
-        children_by_parent.setdefault(entry.parent_id, []).append(entry)
-        entries_by_id[entry.id] = entry
-
-    # Resolve each child's longest path to a leaf without recursion. Processing
-    # leaves upward also keeps deep sessions safe. Malformed cycles retain a
-    # finite fallback length and are handled by the traversal's `seen` set.
-    branch_lengths = dict.fromkeys(entries_by_id, 1)
-    remaining_children = {entry_id: len(children_by_parent.get(entry_id, ())) for entry_id in entries_by_id}
-    pending = [entry_id for entry_id, count in remaining_children.items() if count == 0]
-    while pending:
-        entry_id = pending.pop()
-        parent_id = entries_by_id[entry_id].parent_id
-        if parent_id not in remaining_children:
-            continue
-        branch_lengths[parent_id] = max(branch_lengths[parent_id], branch_lengths[entry_id] + 1)
-        remaining_children[parent_id] -= 1
-        if remaining_children[parent_id] == 0:
-            pending.append(parent_id)
-
-    def ordered_children(parent_id: str | None) -> list[SessionEntry]:
-        return sorted(
-            children_by_parent.get(parent_id, ()),
-            key=lambda child: branch_lengths.get(child.id, 1),
-            reverse=True,
-        )
-
-    ordered: list[SessionEntry] = []
-    indents: dict[str, int] = {}
-    seen: set[str] = set()
-
-    def child_stack_items(children: list[SessionEntry], parent_indent: int) -> list[tuple[SessionEntry, int]]:
-        if not children:
-            return []
-        main_child, *alternate_children = children
-        display_children = [*alternate_children, main_child]
-        return [
-            (child, parent_indent if child is main_child else parent_indent + 1)
-            for child in reversed(display_children)
-        ]
-
-    def append_subtrees(children: list[SessionEntry], parent_indent: int) -> None:
-        # The longest child is the unindented main branch. Emit shorter siblings
-        # immediately after their parent, indented one level, before continuing
-        # down the main branch. Stable length sorting preserves storage order
-        # when histories have equal lengths.
-        stack = child_stack_items(children, parent_indent)
-        while stack:
-            entry, indent = stack.pop()
-            if entry.id in seen:
-                continue
-            seen.add(entry.id)
-            ordered.append(entry)
-            indents[entry.id] = indent
-            stack.extend(child_stack_items(ordered_children(entry.id), indent))
-
-    append_subtrees(ordered_children(None), 0)
-    for entry in tree_entries:
-        if entry.id not in seen:
-            append_subtrees([entry], 0)
-    return tuple(ordered), indents
-
-
-def _is_tool_call_tree_entry(entry: SessionEntry) -> bool:
-    return (
-        entry.type == "message"
-        and isinstance(entry.message, AssistantMessage)
-        and bool(entry.message.tool_calls)
-    )
-
-
-def _tree_entry_title(entry: SessionEntry) -> str:
-    match entry.type:
-        case "message":
-            message = entry.message
-            if isinstance(message, AssistantMessage) and message.tool_calls and not message.text.strip():
-                tool_names = ", ".join(call.name for call in message.tool_calls)
-                return f"tool call: {tool_names}"
-            return f"{message.role}: {_message_text_preview(message)}"
-        case "custom_message":
-            return f"custom: {_short_preview(message_text(_custom_message_from_entry(entry)))}"
-        case "compaction":
-            return f"compaction summary: {_short_preview(entry.summary)}"
-        case "branch_summary":
-            return f"branch summary: {_short_preview(entry.summary)}"
-        case _:
-            return entry.type
-
-
-def _message_text_preview(message: AgentMessage) -> str:
-    return _short_preview(message_text(message))
-
-
-def _short_preview(text: str, *, limit: int = 72) -> str:
-    normalized = " ".join(text.split())
-    if len(normalized) <= limit:
-        return normalized or "(empty)"
-    return f"{normalized[: limit - 1]}..."
-
-
-def _messages_after_entry_on_active_path(
-    entries: list[SessionEntry],
-    entry_id: str,
-    active_leaf_id: str | None,
-) -> tuple[AgentMessage, ...]:
-    if active_leaf_id is None:
-        return ()
-    try:
-        active_path = path_to_entry(entries, active_leaf_id)
-    except SessionTreeError:
-        return ()
-    try:
-        target_index = next(index for index, entry in enumerate(active_path) if entry.id == entry_id)
-    except StopIteration:
-        return ()
-    messages: list[AgentMessage] = []
-    for entry in active_path[target_index + 1 :]:
-        if entry.type == "message":
-            messages.append(entry.message)
-        elif entry.type == "custom_message":
-            messages.append(_custom_message_from_entry(entry))
-    return tuple(messages)
-
-
-def _custom_message_from_entry(entry: CustomMessageEntry) -> CustomMessage:
-    return CustomMessage(
-        custom_type=entry.custom_type,
-        content=entry.content,
-        display=entry.display,
-        details=entry.details,
-        timestamp=round(entry.timestamp * 1000),
-    )
-
-
-def _storage_path(storage: SessionStorage) -> Path | None:
-    path = getattr(storage, "path", None)
-    return path if isinstance(path, Path) else None
-
-
-def _resolve_export_destination(
-    destination: Path | None,
-    *,
-    cwd: Path,
-    session_path: Path | None,
-    format: str,
-) -> Path:
-    if destination is None:
-        if session_path is not None:
-            return default_session_export_artifact_path(
-                session_path,
-                destination_dir=cwd,
-                format=format,
-            )
-        return cwd / f"baldric-session.{format}"
-
-    resolved = destination if destination.is_absolute() else cwd / destination
-    if resolved.suffix:
-        return resolved
-    name = session_path.stem if session_path is not None else "baldric-session"
-    return default_session_export_artifact_path(
-        Path(name),
-        destination_dir=resolved,
-        format=format,
-    )
-
-
-def _session_export_title(session: CodingSession) -> str:
-    manager = session.session_manager
-    session_id = session.session_id
-    if manager is not None and session_id is not None:
-        record = manager.get_session(session_id)
-        if record is not None and record.title:
-            return record.title
-    return f"Baldric session {session_id}" if session_id is not None else "Baldric Session Export"
-
-
-@dataclass(frozen=True, slots=True)
-class _PreparedProvider:
-    """A runtime candidate built after the destination environment is trusted."""
-
-    provider: ClosableModelProvider
-    provider_name: str
-    model: str
-    inference_provider: str | None
-    inference_provider_mode: InferenceProviderMode
-    runtime_provider_config: ProviderConfig | None
-    dynamic_provider: DynamicProvider | None
-    runtime_model_catalog: RuntimeModelCatalog | None = None
-
-
-async def _prepare_provider_selection(
-    config: CodingSessionConfig,
-    *,
-    state: SessionState,
-    provider_registry: DynamicProviderRegistry,
-    credential_store: FileCredentialStore | None = None,
-) -> _PreparedProvider:
-    """Resolve and construct the provider after extension/project staging."""
-    requested_provider = config.requested_provider
-    requested_model = config.requested_model
-    provider_name = requested_provider or state.provider or config.session_provider_name
-    explicit = requested_provider is not None or requested_model is not None
-
-    if provider_name is not None:
-        effective = provider_registry.effective(provider_name)
-        if effective is not None and isinstance(effective.definition, DynamicProvider):
-            dynamic = effective.definition
-            model = requested_model
-            if model is None and state.provider == provider_name:
-                model = state.model
-            if model is None:
-                model = dynamic.default_model
-            if model is None and len(dynamic.models) == 1:
-                model = dynamic.models[0].id
-            if (
-                (model is None or not any(item.id == model for item in dynamic.models))
-                and dynamic.refresh_models is not None
-                and (explicit or state.provider == provider_name)
-            ):
-                refreshed = await provider_registry.refresh(
-                    provider_name,
-                    allow_network=True,
-                    timeout_seconds=5.0,
-                )
-                if refreshed.provider is not None:
-                    dynamic = refreshed.provider
-                if model is None:
-                    model = dynamic.default_model
-                    if model is None and len(dynamic.models) == 1:
-                        model = dynamic.models[0].id
-            if model is None:
-                raise ProviderConfigError(
-                    f"Provider {provider_name} has no selectable models; refresh it explicitly."
-                )
-            selected = next((item for item in dynamic.models if item.id == model), None)
-            if selected is None:
-                raise ProviderConfigError(f"Model is not available for provider {provider_name}: {model}")
-            try:
-                runtime = await create_dynamic_model_provider(
-                    dynamic,
-                    model=model,
-                    credential_store=provider_registry.credentials,
-                    environment=provider_registry.environment,
-                )
-            except (ProviderConfigError, RuntimeError) as exc:
-                raise ProviderConfigError(str(exc)) from exc
-            return _PreparedProvider(
-                provider=runtime,
-                provider_name=provider_name,
-                model=model,
-                inference_provider=None,
-                inference_provider_mode="automatic",
-                runtime_provider_config=None,
-                dynamic_provider=dynamic,
-            )
-
-    settings = config.provider_settings
-    discovered_catalog: RuntimeModelCatalog | None = None
-    if settings is None:
-        raise ProviderConfigError(
-            f"Provider is not available after trusted extension loading: {provider_name or config.model}"
-        )
-    selected_model = requested_model or (state.model if state.provider == provider_name else None)
-    selected_provider = settings.get_provider(provider_name or settings.default_provider)
-    if (
-        isinstance(selected_provider, OpenAICodexProviderConfig)
-        and selected_model is not None
-        and selected_model not in selected_provider.models
-        and environ.get("BALDRIC_OFFLINE") is None
-    ):
-        # Live-only explicit/resumed models need discovery before static validation.
-        discovery_provider = None
-        try:
-            discovery_provider = create_model_provider(
-                selected_provider,
-                credential_store=credential_store,
-                model=None,
-                thinking_level=None,
-            )
-            if isinstance(discovery_provider, ModelCatalogProvider):
-                catalog = await discovery_provider.discover_models()
-                if catalog.models:
-                    discovered_catalog = catalog
-                    live_provider = _provider_with_runtime_model_catalog(selected_provider, catalog)
-                    settings = replace(
-                        settings,
-                        providers=tuple(
-                            live_provider if item.name == selected_provider.name else item
-                            for item in settings.providers
-                        ),
-                    )
-        except Exception:  # noqa: BLE001 - retain ordinary static validation on failure
-            pass
-        finally:
-            if discovery_provider is not None:
-                await discovery_provider.aclose()
-    selection = resolve_provider_selection(
-        settings,
-        provider_name=provider_name,
-        model=selected_model,
-    )
-    inference_provider = _session_inference_provider(
-        config,
-        state,
-        selection.provider.name,
-        selection.model,
-    )
-    inference_provider_mode = _session_inference_provider_mode(
-        config,
-        state,
-        selection.provider,
-        selection.model,
-        inference_provider,
-    )
-    try:
-        runtime = _create_runtime_provider(
-            selection.provider,
-            credential_store=credential_store,
-            model=selection.model,
-            inference_provider=inference_provider,
-            thinking_level=resolve_startup_thinking_level(
-                selection.provider,
-                selection.model,
-            ),
-        )
-    except RuntimeError as exc:
-        raise ProviderConfigError(str(exc)) from exc
-    return _PreparedProvider(
-        provider=runtime,
-        provider_name=selection.provider.name,
-        model=selection.model,
-        inference_provider=inference_provider,
-        inference_provider_mode=inference_provider_mode,
-        runtime_provider_config=selection.provider,
-        dynamic_provider=None,
-        runtime_model_catalog=discovered_catalog,
-    )
-
-
-def _session_inference_provider(
-    config: CodingSessionConfig,
-    state: SessionState,
-    provider_name: str,
-    model: str,
-) -> str | None:
-    """Preserve HF routing only for the same logical provider/model."""
-    if provider_name != "huggingface":
-        return None
-    if state.provider == provider_name and state.model == model:
-        return config.inference_provider
-    provider = config.provider_settings.get_provider(provider_name) if config.provider_settings else None
-    if isinstance(provider, OpenAICompatibleProviderConfig):
-        return provider.inference_providers.get(model)
-    return None
-
-
-def _session_inference_provider_mode(
-    config: CodingSessionConfig,
-    state: SessionState,
-    provider: ProviderConfig,
-    model: str,
-    inference_provider: str | None,
-) -> InferenceProviderMode:
-    """Preserve automatic/fixed HF routing for the same resumed model."""
-    if provider.name != "huggingface":
-        return "automatic"
-    if state.provider == provider.name and state.model == model:
-        return config.inference_provider_mode or ("fixed" if inference_provider is not None else "automatic")
-    return _configured_inference_provider_mode(provider, model)
-
-
-def _filter_tools(tools: Sequence[AgentTool], allowed_tool_names: frozenset[str] | None) -> list[AgentTool]:
-    """Apply ``CodingSessionConfig.allowed_tool_names`` to a composed tool list."""
-    if allowed_tool_names is None:
-        return list(tools)
-    return [tool for tool in tools if tool.name in allowed_tool_names]
-
-
-def _configured_model_supports_images(config: CodingSessionConfig, model: str) -> bool | None:
-    if config.dynamic_provider is not None:
-        selected = next((item for item in config.dynamic_provider.models if item.id == model), None)
-        if selected is None or selected.input_modalities is None:
-            return None
-        return "image" in selected.input_modalities
-    provider = config.runtime_provider_config
-    if provider is None and config.provider_settings is not None:
-        try:
-            provider = config.provider_settings.get_provider(config.provider_name)
-        except ProviderConfigError:
-            return None
-    return provider_model_supports_images(provider, model) if provider is not None else None
-
-
-def _initial_model_for_config(config: CodingSessionConfig) -> str:
-    if config.provider_settings is None or config.runtime_provider_config is None:
-        return config.model
-    provider = _provider_config_for_name(config, config.provider_name)
-    if provider is None:
-        return config.model
-    try:
-        validate_provider_model(provider, config.model)
-    except ProviderConfigError:
-        return provider.default_model
-    return config.model
-
-
-def _runtime_model_for_state(config: CodingSessionConfig, state: SessionState) -> str:
-    state_model = state.model or config.model
-    if config.dynamic_provider is not None:
-        return config.model
-    if config.provider_settings is None or config.runtime_provider_config is None:
-        return state_model
-    provider = _provider_config_for_name(config, config.provider_name)
-    if provider is None:
-        return state_model
-    try:
-        validate_provider_model(provider, state_model)
-    except ProviderConfigError:
-        return config.model if config.model in provider.models else provider.default_model
-    return state_model
-
-
-def _initial_thinking_level_for_config(
-    config: CodingSessionConfig,
-    *,
-    model: str,
-) -> ThinkingLevel:
-    provider = _provider_config_for_name(config, config.provider_name)
-    if config.thinking_level_override is not None:
-        if provider is None:
-            return config.thinking_level_override
-        resolved = resolve_startup_thinking_level(
-            provider,
-            model,
-            cli_override=config.thinking_level_override,
-        )
-        if resolved is not None:
-            return resolved
-    if provider is None:
-        return config.thinking_level
-    return _preferred_thinking_level_for_model(
-        provider,
-        model=model,
-        fallback=config.thinking_level,
-    )
-
-
-def _provider_config_for_name(
-    config: CodingSessionConfig,
-    provider_name: str,
-) -> ProviderConfig | None:
-    if (
-        isinstance(config.runtime_provider_config, OpenAICodexProviderConfig)
-        and config.runtime_provider_config.name == provider_name
-    ):
-        return config.runtime_provider_config
-    if config.provider_settings is not None:
-        try:
-            return config.provider_settings.get_provider(provider_name)
-        except ProviderConfigError:
-            pass
-    if config.runtime_provider_config is not None:
-        return config.runtime_provider_config
-    return None
-
-
-def _state_thinking_level(
-    state: SessionState,
-    default: ThinkingLevel,
-) -> ThinkingLevel:
-    thinking_level = getattr(state, "thinking_level", None)
-    if thinking_level is None:
-        return default
-    return normalize_thinking_level(thinking_level)
-
-
-def _create_runtime_provider(
-    provider: ProviderConfig,
-    *,
-    credential_store: FileCredentialStore | None,
-    model: str,
-    thinking_level: ThinkingLevel | None,
-    inference_provider: str | None,
-    response_headers_observer: Callable[[Mapping[str, str]], None] | None = None,
-) -> ClosableModelProvider:
-    if inference_provider is None and response_headers_observer is None:
-        return create_model_provider(
-            provider,
-            credential_store=credential_store,
-            model=model,
-            thinking_level=thinking_level,
-        )
-    if inference_provider is None:
-        return create_model_provider(
-            provider,
-            credential_store=credential_store,
-            model=model,
-            thinking_level=thinking_level,
-            response_headers_observer=response_headers_observer,
-        )
-    return create_model_provider(
-        provider,
-        credential_store=credential_store,
-        model=model,
-        thinking_level=thinking_level,
-        inference_provider=inference_provider,
-        response_headers_observer=response_headers_observer,
-    )
-
-
-def _configured_inference_provider(
-    provider: ProviderConfig | None,
-    model: str,
-) -> str | None:
-    if not isinstance(provider, OpenAICompatibleProviderConfig) or provider.name != "huggingface":
-        return None
-    return provider.inference_providers.get(model)
-
-
-def _configured_inference_provider_mode(
-    provider: ProviderConfig | None,
-    model: str,
-) -> InferenceProviderMode:
-    return "fixed" if _configured_inference_provider(provider, model) is not None else "automatic"
-
-
-def _default_thinking_level_for_active_model(session: CodingSession) -> ThinkingLevel:
-    provider = session._active_provider_config()
-    if provider is None:
-        return session._config.thinking_level
-    return _preferred_thinking_level_for_model(
-        provider,
-        model=session.model,
-        fallback=session._config.thinking_level,
-    )
-
-
-def _preferred_thinking_level_for_model(
-    provider: ProviderConfig,
-    *,
-    model: str,
-    fallback: ThinkingLevel,
-) -> ThinkingLevel:
-    levels = provider_thinking_levels(provider, model=model)
-    preferred = provider.thinking_defaults.get(model)
-    if preferred in levels:
-        return preferred
-    if fallback in levels or not levels:
-        return fallback
-    default = provider_default_thinking_level(provider, model=model)
-    return default or levels[0]
-
-
-def _coerced_thinking_level(
-    provider: ProviderConfig,
-    *,
-    model: str,
-    current: ThinkingLevel,
-    preferred: ThinkingLevel | None = None,
-) -> ThinkingLevel:
-    levels = provider_thinking_levels(provider, model=model)
-    if not levels or current in levels:
-        return current
-    if preferred in levels:
-        return preferred
-    default = provider_default_thinking_level(provider, model=model)
-    return default or levels[0]
-
-
-def _unavailable_thinking_message(session: CodingSession) -> str:
-    message = f"Thinking controls are unavailable for {session.provider_name}:{session.model}"
-    reason = session.thinking_unavailable_reason
-    if reason:
-        return f"{message}: {reason}"
-    return message
-
-
-def _sanitize_session_name(text: str) -> str | None:
-    cleaned = " ".join(text.split()).strip()
-    cleaned = cleaned.strip("\"'`“”‘’")
-    cleaned = cleaned.strip(string.punctuation + " ")
-    words = [word.strip(string.punctuation + "\"'`“”‘’") for word in cleaned.split()]
-    words = [word for word in words if word]
-    if not words:
-        return None
-    return " ".join(words[:4])
-
-
-def _fallback_session_name(first_message: str) -> str | None:
-    return _sanitize_session_name(first_message)
-
-
-def _terminal_command_context_message(command: str, output: str) -> str:
-    return (
-        "Terminal command executed by the user.\n\n"
-        f"Command:\n```bash\n{command}\n```\n\n"
-        f"Output:\n```text\n{output}\n```"
-    )
-
-
-def parse_terminal_command(text: str) -> TerminalCommandRequest | None:
-    """Parse input-bar terminal command syntax."""
-    stripped = text.strip()
-    if stripped.startswith("!!"):
-        command = stripped[2:].strip()
-        if not command:
-            return None
-        return TerminalCommandRequest(command=command, add_to_context=False)
-    if stripped.startswith("!"):
-        command = stripped[1:].strip()
-        if not command:
-            return None
-        return TerminalCommandRequest(command=command, add_to_context=True)
-    return None
-
-
-def _category_summary(
-    before: tuple[tuple[object, ...], ...],
-    after: tuple[tuple[object, ...], ...],
-) -> ReloadCategorySummary:
-    return ReloadCategorySummary(
-        before=len(before),
-        after=len(after),
-        changed=before != after,
-    )
-
-
-def _skill_signatures(skills: tuple[Skill, ...]) -> tuple[tuple[object, ...], ...]:
-    return tuple(
-        (
-            skill.name,
-            str(skill.path),
-            skill.description,
-            skill.content,
-            skill.disable_model_invocation,
-        )
-        for skill in skills
-    )
-
-
-def _prompt_template_signatures(
-    prompt_templates: tuple[PromptTemplate, ...],
-) -> tuple[tuple[object, ...], ...]:
-    return tuple(
-        (template.name, str(template.path), template.description, template.content)
-        for template in prompt_templates
-    )
-
-
-def _context_file_signatures(
-    context_files: tuple[ProjectContextFile, ...],
-) -> tuple[tuple[object, ...], ...]:
-    return tuple((context_file.path, context_file.content) for context_file in context_files)
-
-
-def _diagnostic_signatures(
-    diagnostics: tuple[ResourceDiagnostic, ...],
-) -> tuple[tuple[object, ...], ...]:
-    return tuple(
-        (
-            diagnostic.kind,
-            diagnostic.message,
-            str(diagnostic.path) if diagnostic.path is not None else None,
-            diagnostic.name,
-            diagnostic.severity,
-        )
-        for diagnostic in diagnostics
-    )
-
-
-def _extension_signatures(runtime: ExtensionRuntime) -> tuple[tuple[object, ...], ...]:
-    return tuple((name,) for name in runtime.extension_names)
-
-
-def _system_prompt_resource_signatures(
-    *,
-    skills: tuple[Skill, ...],
-    context_files: tuple[ProjectContextFile, ...],
-    custom_system_prompt: str | None,
-    custom_system_prompt_path: Path | None,
-    append_system_prompt: str | None,
-    append_system_prompt_paths: tuple[Path, ...],
-) -> tuple[object, ...]:
-    prompt_skills = tuple(
-        (skill.name, str(skill.path), skill.description, skill.disable_model_invocation)
-        for skill in sorted(skills, key=lambda item: item.name)
-    )
-    return (
-        prompt_skills,
-        _context_file_signatures(context_files),
-        custom_system_prompt,
-        str(custom_system_prompt_path) if custom_system_prompt_path is not None else None,
-        append_system_prompt,
-        tuple(str(path) for path in append_system_prompt_paths),
-    )
-
-
-def _provider_config_or_none(
-    settings: ProviderSettings | None,
-    provider_name: str | None,
-) -> ProviderConfig | None:
-    if settings is None or provider_name is None:
-        return None
-    try:
-        return settings.get_provider(provider_name)
-    except ProviderConfigError:
-        return None
-
-
-def _codex_account_id(
-    provider: OpenAICodexProviderConfig,
-    credential_store: FileCredentialStore,
-) -> str | None:
-    if provider.credential_name:
-        credential = credential_store.get_oauth(provider.credential_name)
-        if credential is not None and credential.account_id:
-            return credential.account_id
-    return account_id_from_access_token(environ.get(provider.api_key_env, ""))
-
-
-def _provider_settings_with_runtime_catalogs(
-    settings: ProviderSettings | None,
-    catalogs: Mapping[str, RuntimeModelCatalog],
-) -> ProviderSettings | None:
-    if settings is None or not catalogs:
-        return settings
-    providers = tuple(
-        _provider_with_runtime_model_catalog(provider, catalogs.get(provider.name))
-        for provider in settings.providers
-    )
-    return replace(settings, providers=providers)
-
-
-def _provider_with_runtime_model_catalog(
-    provider: ProviderConfig,
-    catalog: RuntimeModelCatalog | None,
-) -> ProviderConfig:
-    """Overlay one account-specific catalog without changing durable settings."""
-    if catalog is None or not isinstance(provider, OpenAICodexProviderConfig):
-        return provider
-
-    models = tuple(model.id for model in catalog.models)
-    metadata = {model.id: _runtime_provider_model_metadata(provider, model) for model in catalog.models}
-    context_windows = {
-        model.id: (
-            model.limits.context_window if model.limits is not None else provider.context_windows[model.id]
-        )
-        for model in catalog.models
-        if model.limits is not None or model.id in provider.context_windows
-    }
-    return replace(
-        provider,
-        models=models,
-        default_model=(provider.default_model if provider.default_model in models else models[0]),
-        context_windows=context_windows,
-        model_metadata=metadata,
-        thinking_models=tuple(model.id for model in catalog.models if model.thinking_levels),
-        thinking_defaults=_runtime_model_thinking_defaults(provider, catalog),
-    )
-
-
-def _runtime_model_thinking_defaults(
-    provider: OpenAICodexProviderConfig,
-    catalog: RuntimeModelCatalog,
-) -> dict[str, ThinkingLevel]:
-    defaults: dict[str, ThinkingLevel] = {}
-    for model in catalog.models:
-        default = provider.thinking_defaults.get(model.id) or model.default_thinking_level
-        if default is not None:
-            defaults[model.id] = default
-    return defaults
-
-
-def _runtime_provider_model_metadata(
-    provider: OpenAICodexProviderConfig,
-    model: RuntimeModel,
-) -> ProviderModelMetadata:
-    existing = provider.model_metadata.get(model.id, ProviderModelMetadata())
-    supported = set(model.thinking_levels)
-    thinking_level_map = {
-        level: ("none" if level == "off" else level) if level in supported else None
-        for level in THINKING_LEVELS
-    }
-    return replace(
-        existing,
-        name=model.name or existing.name,
-        reasoning=True if model.thinking_levels else existing.reasoning,
-        input=model.input_modalities,
-        context_window=(model.limits.context_window if model.limits is not None else existing.context_window),
-        max_tokens=(
-            model.limits.max_output_tokens
-            if model.limits is not None and model.limits.max_output_tokens is not None
-            else existing.max_tokens
-        ),
-        thinking_level_map=thinking_level_map,
-    )
-
-
-def _load_session_resources(
-    resource_paths: BaldricResourcePaths,
-    explicit_context_files: tuple[ProjectContextFile, ...],
-    *,
-    skills_enabled: bool = True,
-    system_prompt_enabled: bool = True,
-    custom_system_prompt_explicit: bool = False,
-) -> SessionResources:
-    loaded_skills: list[Skill]
-    skill_diagnostics: list[ResourceDiagnostic]
-    if skills_enabled:
-        loaded_skills, skill_diagnostics = load_skills_with_diagnostics(resource_paths)
-    else:
-        loaded_skills, skill_diagnostics = [], []
-    loaded_prompt_templates, prompt_diagnostics = load_prompt_templates_with_diagnostics(resource_paths)
-    discovered_context, context_diagnostics = discover_project_context_with_diagnostics(resource_paths)
-    system_prompts = discover_system_prompt_resources(
-        resource_paths,
-        custom_prompt_explicit=custom_system_prompt_explicit,
-        enabled=system_prompt_enabled,
-    )
-    return SessionResources(
-        skills=tuple(loaded_skills),
-        prompt_templates=tuple(loaded_prompt_templates),
-        context_files=_merge_context_files(explicit_context_files, discovered_context),
-        custom_system_prompt=system_prompts.custom_prompt,
-        custom_system_prompt_path=system_prompts.custom_prompt_path,
-        append_system_prompt=system_prompts.append_prompt,
-        append_system_prompts=system_prompts.append_prompts,
-        append_system_prompt_paths=system_prompts.append_prompt_paths,
-        diagnostics=tuple(
-            [
-                *skill_diagnostics,
-                *prompt_diagnostics,
-                *context_diagnostics,
-                *system_prompts.diagnostics,
-            ]
-        ),
-    )
-
-
-def _append_prompt_sections(
-    prompts: tuple[str, ...],
-    paths: tuple[Path, ...],
-    explicit_prompt: str | None,
-) -> tuple[PromptSection, ...]:
-    """Pair append content with its file or CLI origin in composition order."""
-    sections = [
-        PromptSection(title=None, body=prompt, source=str(path))
-        for prompt, path in zip(prompts, paths, strict=True)
-    ]
-    if explicit_prompt is not None:
-        sections.append(
-            PromptSection(
-                title=None,
-                body=explicit_prompt,
-                source="CLI --append-system-prompt",
-            )
-        )
-    return tuple(sections)
-
-
-def _custom_prompt_source(*, explicit: bool, path: Path | None) -> str:
-    if explicit:
-        return "CLI --system-prompt"
-    return str(path) if path is not None else "runtime configuration"
-
-
-def _merge_context_files(
-    explicit: tuple[ProjectContextFile, ...],
-    discovered: tuple[ProjectContextFile, ...],
-) -> tuple[ProjectContextFile, ...]:
-    merged: list[ProjectContextFile] = []
-    seen: set[str] = set()
-    for context_file in (*explicit, *discovered):
-        if context_file.path in seen:
-            continue
-        seen.add(context_file.path)
-        merged.append(context_file)
-    return tuple(merged)
-
-
-def _tool_history_repair_plan(
-    messages: tuple[AgentMessage, ...],
-    *,
-    context_entry_ids: tuple[str, ...],
-    entries: tuple[SessionEntry, ...],
-) -> tuple[str | None, tuple[AgentMessage, ...], ToolHistoryRepair] | None:
-    repair = repair_tool_history(messages)
-    if not repair.changed:
-        return None
-
-    common_prefix_length = 0
-    for old_message, repaired_message in zip(messages, repair.messages, strict=False):
-        if old_message != repaired_message:
-            break
-        common_prefix_length += 1
-
-    if common_prefix_length > 0:
-        parent_id: str | None = context_entry_ids[common_prefix_length - 1]
-    elif context_entry_ids:
-        entries_by_id = {entry.id: entry for entry in entries}
-        first_entry = entries_by_id.get(context_entry_ids[0])
-        parent_id = first_entry.parent_id if first_entry is not None else None
-    else:
-        parent_id = None
-
-    return parent_id, repair.messages[common_prefix_length:], repair
-
-
-def default_session_path(cwd: Path) -> Path:
-    """Return Baldric's default user-home session path for a project cwd."""
-    return BaldricPaths().default_session_path(cwd)
-
-
-def jsonl_session_storage(path: str | Path) -> JsonlSessionStorage:
-    """Convenience factory for local JSONL coding-session storage."""
-    return JsonlSessionStorage(path)
-
-
-def _append_session_entry_sync(storage: SessionStorage, entry: SessionEntry) -> None:
-    """Append an entry synchronously for slash commands that cannot await storage."""
-    if isinstance(storage, JsonlSessionStorage):
-        storage.path.parent.mkdir(parents=True, exist_ok=True)
-        with storage.path.open("a", encoding="utf-8") as file:
-            file.write(entry_to_json_line(entry))
-        return
-    raise RuntimeError("Session storage does not support synchronous initialization")
