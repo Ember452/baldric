@@ -387,6 +387,11 @@ commands (`! gst`, `!! ll`) and the agent's `bash` tool. Non-interactive shells
 don't load your aliases from `~/.zshrc` or `~/.bashrc`, and Baldric deliberately
 never reads those files (they can hold tokens and side effects).
 
+The shell itself is resolved per platform: `bash` (or `sh`) on POSIX, and
+PowerShell — `pwsh`, then Windows PowerShell — falling back to `cmd.exe` on
+Windows. `shellCommandPrefix` runs in that resolved shell, so write the prefix in
+the matching syntax.
+
 To make your own aliases available, opt in with a `shellCommandPrefix` in
 `~/.baldric/settings.json` that loads a small Baldric-specific alias file:
 

@@ -123,8 +123,15 @@ Runs a shell command in the working directory.
 
 Combines stdout and stderr, succeeds on exit code `0`, and returns the **tail**
 of large output (truncated to 2,000 lines / 50 KB; the full output is written to
-a temp `.log` file whose path is included in the result). On POSIX, a timeout
-kills the whole process group.
+a temp `.log` file whose path is included in the result).
+
+The shell is resolved once per session and the tool description names it: on
+POSIX that is `bash` (or `sh` when bash is absent); on Windows it is PowerShell
+(`pwsh`, then Windows PowerShell, each run with `-NoProfile -NonInteractive`),
+falling back to `cmd.exe`. Write commands in that shell's syntax — on Windows the
+tool does not pretend to be bash. A timeout or cancellation terminates the whole
+process tree (process group on POSIX, `taskkill /T` on Windows), so children
+started by a pipeline or a compound command do not keep running.
 
 ## Choosing the right tool
 

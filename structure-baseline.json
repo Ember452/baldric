@@ -633,7 +633,7 @@
       "max_function_stmts": 5
     },
     "src/baldric_coding/tools/bash.py": {
-      "lines": 256,
+      "lines": 240,
       "max_function_stmts": 18
     },
     "src/baldric_coding/tools/edit.py": {
@@ -655,6 +655,10 @@
     "src/baldric_coding/tools/registry.py": {
       "lines": 53,
       "max_function_stmts": 3
+    },
+    "src/baldric_coding/tools/shell.py": {
+      "lines": 166,
+      "max_function_stmts": 9
     },
     "src/baldric_coding/tools/truncate.py": {
       "lines": 137,

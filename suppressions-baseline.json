@@ -84,9 +84,6 @@
     "type-ignore:arg-type": 1,
     "type-ignore:attr-defined": 1
   },
-  "src/baldric_coding/tools/bash.py": {
-    "noqa:B009": 2
-  },
   "src/baldric_coding/tools/registry.py": {
     "noqa:F401": 1
   },

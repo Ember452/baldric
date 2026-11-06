@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import signal
 from collections.abc import Mapping
 from pathlib import Path
 from time import monotonic
@@ -22,6 +21,7 @@ from baldric_coding.tools.base import (
     _str_arg,
 )
 from baldric_coding.tools.output_accumulator import _write_temp_output, append_status_block, format_size
+from baldric_coding.tools.shell import kill_process_tree, resolve_shell
 from baldric_coding.tools.truncate import truncate_tail
 
 
@@ -35,11 +35,13 @@ def create_bash_tool_definition(
     The tool runs a shell command with `cwd` as the subprocess working
     directory, disconnects stdin, and combines stdout and stderr into one UTF-8
     decoded output stream. Disconnecting stdin keeps interactive programs from
-    competing with Baldric for terminal input. The optional `timeout` argument must
-    be positive when supplied. On timeout, POSIX commands are started in a new
-    session and the entire process group is killed so shell children from
-    pipelines or compound commands do not continue running; non-POSIX platforms
-    fall back to killing the direct subprocess.
+    competing with Baldric for terminal input. The shell is resolved once per
+    tool instance: bash/sh on POSIX, and PowerShell (pwsh, then Windows
+    PowerShell) or cmd.exe on Windows. The tool description names the resolved
+    shell so the model writes the right syntax. The optional `timeout` argument
+    must be positive when supplied. On timeout or cancellation the whole process
+    tree is terminated (process group on POSIX, `taskkill /T` on Windows), so
+    shell children from pipelines or compound commands do not continue running.
 
     Output is tail-truncated to `DEFAULT_MAX_OUTPUT_LINES` lines or
     `DEFAULT_MAX_OUTPUT_BYTES` bytes. When truncation occurs, the full output is
@@ -49,6 +51,7 @@ def create_bash_tool_definition(
     """
     root = Path.cwd() if cwd is None else Path(cwd)
     prefix = shell_command_prefix.strip() if shell_command_prefix else None
+    shell = resolve_shell()
 
     async def execute(
         arguments: Mapping[str, JSONValue],
@@ -63,24 +66,15 @@ def create_bash_tool_definition(
             raise ToolInputError("Command cancelled")
 
         start = monotonic()
-        if os.name == "posix":
-            process = await asyncio.create_subprocess_shell(
-                shell_command,
-                cwd=root,
-                stdin=asyncio.subprocess.DEVNULL,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT,
-                start_new_session=True,
-                executable="bash" if prefix else None,
-            )
-        else:
-            process = await asyncio.create_subprocess_shell(
-                shell_command,
-                cwd=root,
-                stdin=asyncio.subprocess.DEVNULL,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT,
-            )
+        process = await asyncio.create_subprocess_exec(
+            *shell.command_line(shell_command),
+            cwd=root,
+            stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            # Ignored on Windows; the process tree is terminated through taskkill.
+            start_new_session=os.name == "posix",
+        )
         output_bytes, _stderr, timed_out, cancelled = await _communicate_with_cancellation(
             process,
             timeout=timeout,
@@ -133,6 +127,7 @@ def create_bash_tool_definition(
                 "duration_seconds": round(monotonic() - start, 3),
                 "truncation": truncation.to_json(),
                 "full_output_path": full_output_path,
+                "shell": shell.name,
                 "shell_command_prefix_applied": prefix is not None,
             },
         )
@@ -140,12 +135,13 @@ def create_bash_tool_definition(
     return ToolDefinition(
         name="bash",
         description=(
-            "Execute a bash command in the current working directory. Returns stdout and stderr. "
+            f"Execute a command with {shell.label} in the current working directory. "
+            "Returns stdout and stderr. "
             f"Output is truncated to last {DEFAULT_MAX_OUTPUT_LINES} lines or "
             f"{DEFAULT_MAX_OUTPUT_BYTES // 1024}KB (whichever is hit first). If truncated, "
             "full output is saved to a temp file. Optionally provide a timeout in seconds."
         ),
-        prompt_snippet="Execute bash commands (ls, grep, find, etc.)",
+        prompt_snippet=f"Execute {shell.label} commands",
         prompt_guidelines=(
             "When using bash, include a brief present-participle description of the "
             "command's purpose (for example, 'Running tests').",
@@ -153,7 +149,7 @@ def create_bash_tool_definition(
         input_schema={
             "type": "object",
             "properties": {
-                "command": {"type": "string", "description": "Bash command to execute"},
+                "command": {"type": "string", "description": f"Command to execute with {shell.label}"},
                 "description": {
                     "type": "string",
                     "description": (
@@ -241,16 +237,4 @@ async def _wait_for_cancel(signal: ToolCancellationToken) -> None:
 
 
 def _kill_process_tree(process: asyncio.subprocess.Process) -> None:
-    if os.name == "posix":
-        # `getattr` keeps mypy happy on the Windows stubs (see issue #513).
-        killpg = getattr(os, "killpg")  # noqa: B009
-        sigkill = getattr(signal, "SIGKILL")  # noqa: B009
-        try:
-            killpg(process.pid, sigkill)
-        except ProcessLookupError:
-            return
-    else:
-        try:
-            process.kill()
-        except ProcessLookupError:
-            return
+    kill_process_tree(process.pid)
