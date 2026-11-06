@@ -1,0 +1,162 @@
+                                                                               
+ Usage: baldric [OPTIONS] [PROMPT_ARGS]... COMMAND [ARGS]...                   
+                                                                               
+ Baldric coding-agent harness.                                                 
+                                                                               
+┌─ Arguments ─────────────────────────────────────────────────────────────────┐
+│   prompt_args      [PROMPT_ARGS]...  Initial prompt to run in interactive   │
+│                                      TUI mode.                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌─ Options ───────────────────────────────────────────────────────────────────┐
+│ --print           -p                                       Run the          │
+│                                                            positional       │
+│                                                            prompt in        │
+│                                                            non-interactive  │
+│                                                            print mode.      │
+│ --provider                                TEXT             Configured       │
+│                                                            provider name to │
+│                                                            use.             │
+│ --model           -m                      TEXT             Model name to    │
+│                                                            request from the │
+│                                                            provider.        │
+│ --thinking        -t                      TEXT             Initial thinking │
+│                                                            level for this   │
+│                                                            run (off,        │
+│                                                            minimal, low,    │
+│                                                            medium, high,    │
+│                                                            xhigh, max).     │
+│                                                            Overrides        │
+│                                                            remembered       │
+│                                                            defaults without │
+│                                                            persisting.      │
+│ --base-url                                TEXT             OpenAI-compatib… │
+│                                                            base URL for     │
+│                                                            `baldric setup`. │
+│                                                            [default:        │
+│                                                            https://api.ope… │
+│ --api-key-env                             TEXT             API key          │
+│                                                            environment      │
+│                                                            variable for     │
+│                                                            `baldric setup`. │
+│                                                            [default:        │
+│                                                            OPENAI_API_KEY]  │
+│ --timeout-secon…                          FLOAT            HTTP timeout in  │
+│                                                            seconds for      │
+│                                                            `baldric setup`  │
+│                                                            provider         │
+│                                                            requests.        │
+│                                                            [default: 60.0]  │
+│ --max-retries                             INTEGER          Provider retry   │
+│                                                            count for        │
+│                                                            `baldric setup`. │
+│                                                            [default: 2]     │
+│ --max-retry-del…                          FLOAT            Provider retry   │
+│                                                            delay in seconds │
+│                                                            for `baldric     │
+│                                                            setup`.          │
+│                                                            [default: 1.0]   │
+│ --set-default          --no-set-defau…                     Make setup       │
+│                                                            provider the     │
+│                                                            default.         │
+│                                                            [default:        │
+│                                                            set-default]     │
+│ --cwd                                     PATH             Working          │
+│                                                            directory for    │
+│                                                            built-in coding  │
+│                                                            tools.           │
+│ --mode                                    [text|json|tran  Run headlessly   │
+│                                           script|rpc]      with this output │
+│                                                            format (text,    │
+│                                                            json,            │
+│                                                            transcript, or   │
+│                                                            rpc).            │
+│ --show-full-out…                                           Start the TUI    │
+│                                                            with untruncated │
+│                                                            tool and         │
+│                                                            terminal-command │
+│                                                            output instead   │
+│                                                            of previews.     │
+│                                                            Also available   │
+│                                                            in-session via   │
+│                                                            the tool-results │
+│                                                            toggle.          │
+│ --session                                 TEXT             Resume a session │
+│                                                            id in TUI or     │
+│                                                            print mode.      │
+│ --new-session                                              Create a new     │
+│                                                            session in TUI   │
+│                                                            mode (default).  │
+│ --session-id                              TEXT             Set the exact id │
+│                                                            for the newly    │
+│                                                            created          │
+│                                                            print-mode       │
+│                                                            session.         │
+│ --system-prompt                           TEXT_OR_PATH     Replace the      │
+│                                                            default          │
+│                                                            system-prompt    │
+│                                                            base with        │
+│                                                            literal text or  │
+│                                                            a UTF-8 file.    │
+│ --append-system…                          TEXT_OR_PATH     Append literal   │
+│                                                            text or a UTF-8  │
+│                                                            file to the      │
+│                                                            system prompt    │
+│                                                            (repeatable).    │
+│ --auto-compact-…                          INTEGER          Automatically    │
+│                                                            compact TUI      │
+│                                                            context above    │
+│                                                            this rough token │
+│                                                            estimate.        │
+│ --extension       -e                      PATH             Load an          │
+│                                                            extension file   │
+│                                                            or directory     │
+│                                                            (repeatable).    │
+│ --export                                                   Export the given │
+│                                                            session id or    │
+│                                                            JSONL path       │
+│                                                            (mirrors         │
+│                                                            `baldric         │
+│                                                            export`).        │
+│ --no-extensions                                            Disable          │
+│                                                            extension        │
+│                                                            directory        │
+│                                                            discovery        │
+│                                                            (explicit -e     │
+│                                                            paths still      │
+│                                                            load).           │
+│ --project-exten…                                           Also load        │
+│                                                            trusted project  │
+│                                                            .baldric/extens… │
+│                                                            (additional code │
+│                                                            opt-in).         │
+│ --approve         -a                                       Trust protected  │
+│                                                            project inputs   │
+│                                                            for this run.    │
+│ --no-approve      -na                                      Decline          │
+│                                                            protected        │
+│                                                            project inputs   │
+│                                                            for this run.    │
+│ --version         -v                                       Show Baldric's   │
+│                                                            version and      │
+│                                                            exit.            │
+│ --models                                                   With `baldric    │
+│                                                            update`, refresh │
+│                                                            model catalogs   │
+│                                                            only.            │
+│ --help                                                     Show this        │
+│                                                            message and      │
+│                                                            exit.            │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                                                               
+ Commands:                                                                     
+ baldric install SOURCE [--force] - Install a trusted local or Git extension.  
+ baldric extensions  - Show managed and unmanaged extensions.                  
+ baldric extensions update <name> [--force] - Refresh a managed Git extension. 
+ baldric extensions remove <name> - Remove a managed extension.                
+ baldric update - Upgrade Baldric.                                             
+ baldric sessions - List indexed sessions.                                     
+ baldric export REF [DEST] - Export a session as HTML or JSONL.                
+ baldric providers - List configured model providers.                          
+ baldric setup - Configure an OpenAI-compatible provider.                      
+                                                                               
+

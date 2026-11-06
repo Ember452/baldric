@@ -38,6 +38,7 @@ default = true
 [dependency-groups]
 dev = [
     "mypy>=1.10",
+    "pre-commit>=3.7",
     "pytest>=8.0",
     "pytest-cov>=6.0",
     "pytest-timeout>=2.4.0",

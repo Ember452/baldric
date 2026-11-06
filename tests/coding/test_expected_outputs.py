@@ -1,0 +1,52 @@
+"""Golden-file locks on user-visible and wire-visible output.
+
+These files under ``tests/expected/`` are the contract. They only change when
+someone deliberately reruns with ``UPDATE_EXPECTED=1`` and reviews the diff.
+"""
+
+from __future__ import annotations
+
+from typer.testing import CliRunner
+
+from baldric_agent.messages import AssistantMessage, TextContent, ToolCall, Usage
+from baldric_coding.cli import app
+from tests.helpers.golden import assert_matches_expected
+
+
+def test_cli_help_is_stable() -> None:
+    result = CliRunner().invoke(app, ["--help"])
+
+    assert result.exit_code == 0
+    assert_matches_expected("cli_help.txt", result.output)
+
+
+def test_assistant_message_wire_format_is_stable() -> None:
+    message = AssistantMessage(
+        content=[
+            TextContent(text="hello"),
+            ToolCall(id="call-1", name="read", arguments={"path": "README.md"}),
+        ],
+        model="golden-model",
+        provider="golden-provider",
+        stop_reason="toolUse",
+        usage=Usage(input=10, output=5),
+        timestamp=1_700_000_000_000,
+    )
+
+    wire = message.model_dump_json(exclude_none=True)
+    assert_matches_expected("assistant_message.json", wire + "\n")
+
+
+def test_tool_result_message_wire_format_is_stable() -> None:
+    from baldric_agent.messages import ToolResultMessage
+
+    message = ToolResultMessage(
+        tool_call_id="call-1",
+        tool_name="read",
+        content=[TextContent(text="file contents")],
+        is_error=False,
+        timestamp=1_700_000_000_000,
+    )
+
+    wire = message.model_dump_json(exclude_none=True)
+    assert_matches_expected("tool_result_message.json", wire + "\n")

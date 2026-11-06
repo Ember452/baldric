@@ -107,6 +107,7 @@ pushing; run the full suite before claiming completion.
 | Layer direction | `uv run python scripts/check_import_graph.py` | package import boundaries |
 | Structure ratchet | `uv run python scripts/check_structure.py` | file size, function length, inheritance depth, module fan-out |
 | Suppression ratchet | `uv run python scripts/check_suppressions.py` | `# type: ignore` / `# noqa` counts may only shrink |
+| Agent-guidance ratchet | `uv run python scripts/check_agent_guidance.py` | instruction files and their root-to-module chain may only shrink |
 | Clean worktree | CI only | uncommitted generated files |
 
 The ratchet scripts read committed baselines (`structure-baseline.json`,
