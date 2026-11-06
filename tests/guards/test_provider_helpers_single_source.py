@@ -22,9 +22,8 @@ def test_loads_object_is_defined_only_in_shared_module() -> None:
     offenders: list[str] = []
     for path in AI_DIR.glob("*.py"):
         source = path.read_text(encoding="utf-8")
-        if re.search(r"^def loads_object\b", source, re.MULTILINE):
-            if path != OWNER:
-                offenders.append(path.name)
+        if re.search(r"^def loads_object\b", source, re.MULTILINE) and path != OWNER:
+            offenders.append(path.name)
         # The old private name must not be re-defined anywhere.
         if re.search(r"^def _loads_object\b", source, re.MULTILINE):
             offenders.append(f"{path.name} (def _loads_object)")
