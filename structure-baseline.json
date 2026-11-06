@@ -4,16 +4,24 @@
       "lines": 127,
       "max_function_stmts": 0
     },
+    "src/baldric_agent/assistant_stream.py": {
+      "lines": 113,
+      "max_function_stmts": 7
+    },
+    "src/baldric_agent/context_projection.py": {
+      "lines": 73,
+      "max_function_stmts": 5
+    },
     "src/baldric_agent/events.py": {
       "lines": 88,
       "max_function_stmts": 0
     },
     "src/baldric_agent/harness.py": {
-      "lines": 261,
+      "lines": 262,
       "max_function_stmts": 7
     },
     "src/baldric_agent/loop.py": {
-      "lines": 612,
+      "lines": 260,
       "max_function_stmts": 17
     },
     "src/baldric_agent/messages.py": {
@@ -55,6 +63,10 @@
     "src/baldric_agent/tool_arguments.py": {
       "lines": 127,
       "max_function_stmts": 7
+    },
+    "src/baldric_agent/tool_calls.py": {
+      "lines": 213,
+      "max_function_stmts": 12
     },
     "src/baldric_agent/tool_history.py": {
       "lines": 162,
@@ -544,6 +556,10 @@
       "lines": 518,
       "max_function_stmts": 12
     },
+    "src/baldric_coding/rendering/tool_calls.py": {
+      "lines": 128,
+      "max_function_stmts": 7
+    },
     "src/baldric_coding/rendering/transcript.py": {
       "lines": 113,
       "max_function_stmts": 9
@@ -765,7 +781,7 @@
       "max_function_stmts": 7
     },
     "src/baldric_coding/tui/state.py": {
-      "lines": 1101,
+      "lines": 988,
       "max_function_stmts": 15
     },
     "src/baldric_coding/tui/terminal_notification.py": {

@@ -18,7 +18,7 @@ from baldric_agent.messages import AssistantMessage, CustomMessage, ToolCall
 from baldric_ai.events import TextDeltaEvent
 from baldric_coding.events import AutoRetryEndEvent, AutoRetryStartEvent, CodingSessionEvent
 from baldric_coding.extensions.api import CustomMessageMarkup
-from baldric_coding.tui.state import format_tool_call_block
+from baldric_coding.rendering.tool_calls import format_tool_call_block
 
 
 class TranscriptRenderer:

@@ -27,6 +27,7 @@ def test_rules_declare_the_layer_direction() -> None:
     assert ("baldric_agent", "baldric_coding") in pairs
     assert ("baldric_agent", "textual") in pairs
     assert ("baldric_ai", "baldric_coding") in pairs
+    assert ("baldric_coding.rendering", "baldric_coding.tui") in pairs
 
 
 def test_repository_has_no_layer_violations() -> None:
@@ -64,6 +65,26 @@ def test_scanner_ignores_allowed_directions(tmp_path: Path) -> None:
     )
 
     assert scan_violations(tmp_path) == []
+
+
+def test_scanner_detects_rendering_importing_the_frontend(tmp_path: Path) -> None:
+    package = tmp_path / "src" / "baldric_coding" / "rendering"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (package / "leaky.py").write_text(
+        "from baldric_coding.tui.state import TuiState  # noqa: F401\n",
+        encoding="utf-8",
+    )
+
+    violations = scan_violations(tmp_path)
+
+    assert violations == [
+        ImportViolation(
+            module="baldric_coding.rendering.leaky",
+            lineno=1,
+            imported="baldric_coding.tui.state",
+        )
+    ]
 
 
 def test_ai_agent_surface_is_declared_and_real() -> None:

@@ -30,6 +30,7 @@ from baldric_agent.tools import ToolCall
 from baldric_coding.context.system_prompt import (
     SystemPromptSource,
 )
+from baldric_coding.rendering.tool_calls import format_tool_call_invocation
 from baldric_coding.tui.autocomplete import CompletionState
 from baldric_coding.tui.config import BALDRIC_DARK_THEME, TuiRoleStyle, TuiTheme
 from baldric_coding.tui.state import (
@@ -38,7 +39,6 @@ from baldric_coding.tui.state import (
     ChatItem,
     TuiState,
     format_elapsed,
-    format_tool_call_invocation,
 )
 from baldric_coding.tui.widgets.markdown import (
     ThemedMarkdown,

@@ -33,6 +33,7 @@ RULES: tuple[tuple[str, str], ...] = (
     ("baldric_coding.trust", "baldric_coding.tui"),
     ("baldric_coding.context", "baldric_coding.tui"),
     ("baldric_coding.providers", "baldric_coding.tui"),
+    ("baldric_coding.rendering", "baldric_coding.tui"),
 )
 
 # The provider layer may use the harness's provider-neutral wire contract and

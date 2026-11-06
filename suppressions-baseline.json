@@ -1,9 +1,9 @@
 {
-  "src/baldric_agent/loop.py": {
-    "noqa:BLE001": 2
-  },
   "src/baldric_agent/session/storage.py": {
     "type-ignore:attr-defined": 2
+  },
+  "src/baldric_agent/tool_calls.py": {
+    "noqa:BLE001": 2
   },
   "src/baldric_ai/openai_codex.py": {
     "noqa:BLE001": 1

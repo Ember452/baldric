@@ -1,37 +1,34 @@
-# baldric_ai - Provider Layer
+# baldric_ai - Provider Adapters
 
-Provider and model streaming layer. Everything here talks to a model endpoint
-and emits `AssistantMessageEvent` streams; nothing here knows about agents,
-sessions, files, or UI.
+Provider adapters: they talk to a model endpoint and emit
+`AssistantMessageEvent` streams, and know nothing about sessions, files, or UI.
+
+This is an **adapter layer over the harness contract**, not the lowest layer:
+`baldric_agent` owns the wire types and the `ModelProvider` port. The arrow is
+`baldric_ai -> baldric_agent`, restricted by CI to five contract modules.
 
 ## Responsibilities
 
-- Wire request serialization for each provider adapter (`openai.py`,
-  `anthropic.py`, `google.py`, `mistral.py`, `openai_codex.py`).
-- Streaming event translation into `AssistantStartEvent` /
-  `TextDeltaEvent` / `ThinkingDeltaEvent` / `ToolCallStartEvent` /
-  `ToolCallEndEvent` / `AssistantDoneEvent` / `AssistantErrorEvent`.
-- Network retry and timeout semantics (`stream.py`), auth headers, and
-  provider-specific request quirks.
+- Request serialization and streaming translation per adapter
+  (`openai_compatible.py`, `anthropic.py`, `google.py`, `mistral.py`,
+  `openai_codex.py`).
+- Retry policy (`retry.py`), timeouts, auth headers, provider quirks.
 - `FakeProvider` for deterministic agent-loop tests.
 
 ## Boundaries
 
-- Do not import `baldric_agent` or `baldric_coding`; this is the lowest layer.
-- No UI, terminal, Rich, or Textual imports.
-- No session or file-location knowledge (that belongs to `baldric_agent` and
-  `baldric_coding`).
-- Provider-specific assumptions stay in adapters; shared code in `stream.py`
-  and `messages` must remain provider-neutral.
+- Import `baldric_agent` only through `messages`, `provider`,
+  `provider_events`, `tools`, and `types`; never `loop`, `harness`, `session`,
+  `tool_calls`, or `context_projection`.
+- No `baldric_coding`, UI, terminal, Rich, or Textual imports.
+- Provider quirks stay in adapters; `stream.py` and `retry.py` stay neutral.
 
 ## Known Limitations (do not "fix" these)
 
-- Each adapter documents its own quirks in module docstrings; a "cleanup" that
-  makes adapters uniform usually breaks a provider. Read the adapter first.
-- Retries here are transport-level only. Higher-level recovery (image
-  rejections, overflow compaction) belongs to `baldric_agent` / `baldric_coding`.
+- Making adapters uniform usually breaks a provider; read the adapter first.
+- Retries are transport-level only; image rejection and overflow recovery
+  belong to `baldric_agent` / `baldric_coding`.
 
 ## Tests
 
-- `tests/ai/` covers adapters with fake HTTP responses and `FakeProvider`.
-- Do not add live-network tests; use recorded payloads or fakes.
+- `tests/ai/` uses fake HTTP responses and `FakeProvider`; no live-network tests.

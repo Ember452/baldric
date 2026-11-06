@@ -4,7 +4,7 @@ from itertools import chain, repeat
 
 import pytest
 
-import baldric_agent.loop as loop_module
+import baldric_agent.assistant_stream as assistant_stream_module
 from baldric_agent import (
     AgentEvent,
     AgentMessage,
@@ -21,8 +21,9 @@ from baldric_agent import (
     ToolResultMessage,
     UserMessage,
 )
-from baldric_agent.loop import _execute_tool_call, run_agent_loop
+from baldric_agent.loop import run_agent_loop
 from baldric_agent.provider_events import AssistantDoneEvent, AssistantErrorEvent, ThinkingDeltaEvent
+from baldric_agent.tool_calls import execute_tool_call
 from baldric_agent.types import JSONValue
 from baldric_ai import CancellationToken, FakeProvider
 from tests.helpers.pi_event_helpers import (
@@ -100,7 +101,7 @@ async def test_agent_loop_records_only_monotonic_provider_wait_time(
         ],
         repeat(13_750_000_000),
     )
-    monkeypatch.setattr(loop_module, "monotonic_ns", lambda: next(ticks))
+    monkeypatch.setattr(assistant_stream_module, "monotonic_ns", lambda: next(ticks))
     messages: list[AgentMessage] = [UserMessage(content="Say hello")]
     assistant = AssistantMessage(content="Hello", model="fake")
     assistant.usage.output = 100
@@ -129,7 +130,7 @@ async def test_agent_loop_does_not_invent_ttft_without_an_output_event(
         [0, 100_000_000, 1_000_000_000, 2_000_000_000],
         repeat(2_000_000_000),
     )
-    monkeypatch.setattr(loop_module, "monotonic_ns", lambda: next(ticks))
+    monkeypatch.setattr(assistant_stream_module, "monotonic_ns", lambda: next(ticks))
     assistant = AssistantMessage(content="Non-streamed", model="fake")
     provider = FakeProvider([[assistant_start(), assistant_done(assistant)]])
 
@@ -672,7 +673,7 @@ async def test_agent_loop_streams_tool_updates_while_the_tool_runs() -> None:
     events: list[AgentEvent] = []
 
     async def consume() -> None:
-        async for event in _execute_tool_call(
+        async for event in execute_tool_call(
             call=call,
             tools={"work": _tool("work", execute)},
             signal=None,
@@ -719,7 +720,7 @@ async def test_agent_loop_keeps_tool_updates_reported_before_a_failure() -> None
 
     events = [
         event
-        async for event in _execute_tool_call(
+        async for event in execute_tool_call(
             call=ToolCall(id="call-1", name="work", arguments={}),
             tools={"work": _tool("work", execute)},
             signal=None,
