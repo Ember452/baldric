@@ -5,7 +5,7 @@
       "max_function_stmts": 0
     },
     "src/baldric_agent/events.py": {
-      "lines": 85,
+      "lines": 88,
       "max_function_stmts": 0
     },
     "src/baldric_agent/harness.py": {
@@ -13,7 +13,7 @@
       "max_function_stmts": 7
     },
     "src/baldric_agent/loop.py": {
-      "lines": 607,
+      "lines": 612,
       "max_function_stmts": 17
     },
     "src/baldric_agent/messages.py": {
@@ -137,7 +137,7 @@
       "max_function_stmts": 0
     },
     "src/baldric_ai/retry.py": {
-      "lines": 267,
+      "lines": 270,
       "max_function_stmts": 12
     },
     "src/baldric_ai/stream.py": {

@@ -424,6 +424,7 @@ async def _execute_tool_call(
 
     blocked = False
     block_reason: str | None = None
+    duration_ms: int | None = None
     if before_tool_call is not None:
         blocked, block_reason = await before_tool_call(call)
 
@@ -445,6 +446,7 @@ async def _execute_tool_call(
                 is_error = True
             else:
                 outcome: list[tuple[AgentToolResult, bool]] = []
+                started_ns = monotonic_ns()
                 async for update in _run_tool(tool, call, arguments, signal, outcome):
                     yield ToolExecutionUpdateEvent(
                         tool_call_id=call.id,
@@ -452,6 +454,8 @@ async def _execute_tool_call(
                         args=call.arguments,
                         partial_result=update,
                     )
+                # Same boundary Pi reports: the execute step only, not the hooks.
+                duration_ms = (monotonic_ns() - started_ns) // 1_000_000
                 result, is_error = outcome[0]
 
     if after_tool_call is not None:
@@ -462,6 +466,7 @@ async def _execute_tool_call(
         tool_name=call.name,
         result=result,
         is_error=is_error,
+        duration_ms=duration_ms,
     )
     message = ToolResultMessage(
         tool_call_id=call.id,

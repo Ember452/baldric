@@ -68,6 +68,9 @@ class ToolExecutionEndEvent(WireModel):
     tool_name: str
     result: AgentToolResult
     is_error: bool
+    # Milliseconds the tool's execute step took; absent when it never ran
+    # (blocked, cancelled, unknown, or invalid arguments).
+    duration_ms: int | None = None
 
 
 type AgentEvent = Annotated[

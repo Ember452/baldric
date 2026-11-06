@@ -234,6 +234,7 @@ def _agent_events() -> tuple[AgentEvent, ...]:
             tool_name="read",
             result=tool_result,
             is_error=False,
+            duration_ms=250,
         ),
     )
 

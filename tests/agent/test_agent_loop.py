@@ -226,6 +226,9 @@ async def test_agent_loop_executes_tool_and_emits_tool_result_message_lifecycle(
     assert result.tool_name == "read"
     assert result.text == "contents of README.md"
     assert result.details == {"path": "README.md"}
+    end = next(event for event in events if isinstance(event, ToolExecutionEndEvent))
+    assert end.duration_ms is not None
+    assert end.duration_ms >= 0
     result_lifecycle = [
         event.type for event in events if isinstance(event, (MessageEndEvent,)) and event.message is result
     ]
@@ -505,6 +508,10 @@ async def test_hook_that_stops_the_run_issues_no_further_request() -> None:
     )
 
     assert len(provider.calls) == 1
+    blocked_end = next(event for event in events if isinstance(event, ToolExecutionEndEvent))
+    assert blocked_end.is_error is True
+    # A blocked call never runs, so it has no duration to report.
+    assert blocked_end.duration_ms is None
     final = messages[-1]
     assert isinstance(final, AssistantMessage)
     assert final.stop_reason == "aborted"
