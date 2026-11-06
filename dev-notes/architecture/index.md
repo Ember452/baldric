@@ -75,6 +75,7 @@ wrong.
 - [Cancellation that interrupts a stalled stream](./cancellation.md)
 - [Session durability: torn lines and atomic writes](./session-durability.md)
 - [Provider retry policy](./provider-retry-policy.md)
+- [Contract debt: fields with no producer or consumer](./contract-debt.md)
 
 Phase 21 extensions are implemented; see the phase note and the user guide at
 `website/content/guides/extensions.md`.

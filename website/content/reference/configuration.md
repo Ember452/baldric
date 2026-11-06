@@ -334,13 +334,20 @@ Provider preferences live in `~/.baldric/providers.json`:
   defaults to `2`; `max_retry_delay_seconds` defaults to `1` (both ≥ 0).
   Retries cover transient HTTP statuses (`408`, `409`, `425`, `429`, `5xx`),
   transport errors, and transient in-stream SSE errors that arrive on an
-  otherwise successful HTTP 200 response. Anthropic retries `api_error`,
-  `overloaded_error`, and `rate_limit_error`; OpenAI Codex retries transient
-  events such as `server_is_overloaded`. In-stream errors remain terminal after
-  partial content to prevent duplicate output or tool calls. Existing session
-  records that contain a Hugging Face route but predate route-mode metadata are
-  treated as fixed, preventing an upgrade from overriding a potentially explicit
-  user selection.
+  otherwise successful HTTP 200 response. A `Retry-After` header
+  (`retry-after-ms` first, then `retry-after` as seconds or an HTTP date) is
+  honoured exactly, and `x-should-retry: false` turns a retryable status into a
+  terminal one. A server delay above `max_retry_delay_seconds` is not waited
+  out: the request fails with a `retry_after_too_long` diagnostic, so a long
+  limit never blocks the session. Context-overflow and authentication failures
+  are never retried, and every provider failure records a stable code such as
+  `rate_limit`, `context_overflow`, or `auth` in its diagnostic. Anthropic
+  retries `api_error`, `overloaded_error`, and `rate_limit_error`; OpenAI Codex
+  retries transient events such as `server_is_overloaded`. In-stream errors
+  remain terminal after partial content to prevent duplicate output or tool
+  calls. Existing session records that contain a Hugging Face route but predate
+  route-mode metadata are treated as fixed, preventing an upgrade from
+  overriding a potentially explicit user selection.
 - API keys and OAuth credentials are **not** stored here — they live in
   `~/.baldric/credentials.json` (private but not encrypted). OAuth objects may contain
   provider metadata such as a GitHub Enterprise domain and are refreshed
