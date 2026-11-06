@@ -1,4 +1,4 @@
-"""Tests for drag-and-drop file insertion in the TUI prompt."""
+﻿"""Tests for drag-and-drop file insertion in the TUI prompt."""
 
 from pathlib import Path
 
@@ -175,7 +175,7 @@ class TestUnfocusedDropRouting:
 
     @pytest.mark.anyio
     async def test_drop_while_blurred_reaches_prompt(self, tmp_path: Path) -> None:
-        from test_tui_app import FakeSession
+        from tui_helpers import FakeSession
 
         file = tmp_path / "notes.txt"
         file.touch()
@@ -194,7 +194,7 @@ class TestUnfocusedDropRouting:
 
     @pytest.mark.anyio
     async def test_focused_drop_is_not_inserted_twice(self, tmp_path: Path) -> None:
-        from test_tui_app import FakeSession
+        from tui_helpers import FakeSession
 
         file = tmp_path / "notes.txt"
         file.touch()
@@ -209,3 +209,4 @@ class TestUnfocusedDropRouting:
             await pilot.pause()
 
             assert prompt.text == f"{file} "
+

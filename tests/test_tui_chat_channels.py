@@ -4,7 +4,7 @@ import pytest
 
 from baldric_coding.tui.app import BaldricTuiApp
 from baldric_coding.tui.widgets import StreamingTranscriptMessageWidget, TranscriptView
-from test_tui_app import FakeSession
+from tui_helpers import FakeSession
 
 
 @pytest.mark.anyio
