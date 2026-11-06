@@ -709,7 +709,7 @@
       "max_function_stmts": 14
     },
     "src/baldric_coding/tui/app.py": {
-      "lines": 5782,
+      "lines": 5687,
       "max_function_stmts": 61
     },
     "src/baldric_coding/tui/autocomplete.py": {
@@ -731,6 +731,10 @@
     "src/baldric_coding/tui/file_drop.py": {
       "lines": 83,
       "max_function_stmts": 10
+    },
+    "src/baldric_coding/tui/pickers.py": {
+      "lines": 138,
+      "max_function_stmts": 6
     },
     "src/baldric_coding/tui/screens/__init__.py": {
       "lines": 87,
@@ -859,6 +863,6 @@
   },
   "global": {
     "inheritance_depth": 1,
-    "module_fanout": 51
+    "module_fanout": 52
   }
 }
