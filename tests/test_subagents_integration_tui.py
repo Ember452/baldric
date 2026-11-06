@@ -41,7 +41,7 @@ from baldric_coding.tui.app import BaldricTuiApp, PromptInput
 from baldric_coding.tui.widgets import TranscriptMessageWidget, TranscriptView
 
 # Sibling test modules (pytest prepend import mode puts tests/ on sys.path).
-from subagents_shared import (
+from tests.helpers.subagents_shared import (
     # noqa: E402,
     _agent_tool,
     _extension_module,
@@ -49,7 +49,7 @@ from subagents_shared import (
     _patch_provider_factory,
     _text_stream,
 )
-from subagents_ui_helpers import _run, _strip_text  # noqa: E402
+from tests.helpers.subagents_ui_helpers import _run, _strip_text  # noqa: E402
 
 pytestmark = pytest.mark.anyio
 

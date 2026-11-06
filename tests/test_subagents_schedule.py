@@ -16,7 +16,7 @@ from baldric_ai import FakeProvider
 from baldric_coding.config.paths import BaldricPaths
 
 # Reuse the runtime/provider fakes and helpers from the main test module.
-from subagents_shared import (
+from tests.helpers.subagents_shared import (
     BlockingProvider,
     RecordingSession,
     ScriptedUi,

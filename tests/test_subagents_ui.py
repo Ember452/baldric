@@ -37,8 +37,8 @@ from baldric_coding.tui.config import BALDRIC_DARK_THEME
 from baldric_coding.tui.widgets import TranscriptMessageWidget
 
 # Sibling test module (pytest prepend import mode puts tests/ on sys.path).
-from subagents_shared import RecordingSession, _load_runtime
-from subagents_ui_helpers import _run, _strip_text
+from tests.helpers.subagents_shared import RecordingSession, _load_runtime
+from tests.helpers.subagents_ui_helpers import _run, _strip_text
 
 pytestmark = pytest.mark.anyio
 

@@ -35,8 +35,8 @@ from baldric_coding.update.check import (
     UpdateNotice,
 )
 from baldric_coding.update.updater import UpdateResult
-from conftest import isolate_home
-from pi_event_helpers import assistant_done, assistant_error, assistant_start, text_delta
+from tests.helpers.conftest_utils import isolate_home
+from tests.helpers.pi_event_helpers import assistant_done, assistant_error, assistant_start, text_delta
 
 _ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 

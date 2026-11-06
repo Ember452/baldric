@@ -17,7 +17,7 @@ from baldric_agent import (
 )
 from baldric_agent.types import JSONValue
 from baldric_ai import FakeProvider
-from pi_event_helpers import assistant_done, assistant_start, text_delta, tool_call_end
+from tests.helpers.pi_event_helpers import assistant_done, assistant_start, text_delta, tool_call_end
 
 
 def _texts(harness: AgentHarness) -> list[tuple[str, str]]:

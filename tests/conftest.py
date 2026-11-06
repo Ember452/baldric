@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.helpers.conftest_utils import isolate_home
+
 
 @pytest.fixture(autouse=True)
 def prevent_browser_open(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -19,15 +21,6 @@ def prevent_browser_open(monkeypatch: pytest.MonkeyPatch) -> None:
 def skip_idle_garbage_collection(monkeypatch: pytest.MonkeyPatch) -> None:
     """Stub out the TUI's idle-time GC; it acts on the whole pytest process."""
     monkeypatch.setattr("baldric_coding.tui.app._collect_garbage_while_idle", lambda: None)
-
-
-def isolate_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Point home-directory lookups at the pytest temp directory."""
-    monkeypatch.delenv("BALDRIC_HOME", raising=False)
-    monkeypatch.setenv("HOME", str(tmp_path))
-    # Path.home() resolves via USERPROFILE on Windows, so HOME alone does not
-    # isolate tests from the developer's real ~/.baldric settings.
-    monkeypatch.setenv("USERPROFILE", str(tmp_path))
 
 
 @pytest.fixture(autouse=True)

@@ -186,8 +186,8 @@ from baldric_coding.tui.widgets import (
     render_session_sidebar,
     transcript_item_selection_text,
 )
-from conftest import isolate_home
-from tui_helpers import (
+from tests.helpers.conftest_utils import isolate_home
+from tests.helpers.tui_helpers import (
     FakeSession,
     _CustomMessageRuntime,
     _FakeSessionManager,

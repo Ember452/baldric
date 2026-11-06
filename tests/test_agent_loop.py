@@ -25,7 +25,7 @@ from baldric_agent.loop import _execute_tool_call, run_agent_loop
 from baldric_agent.provider_events import ThinkingDeltaEvent
 from baldric_agent.types import JSONValue
 from baldric_ai import CancellationToken, FakeProvider
-from pi_event_helpers import (
+from tests.helpers.pi_event_helpers import (
     assistant_done,
     assistant_error,
     assistant_start,

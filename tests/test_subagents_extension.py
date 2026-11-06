@@ -22,7 +22,7 @@ from baldric_ai import (
     FakeProvider,
 )
 from baldric_coding.extensions import ExtensionRuntime
-from subagents_shared import (
+from tests.helpers.subagents_shared import (
     EXTENSION_DIR,
     BlockingProvider,
     RecordingSession,

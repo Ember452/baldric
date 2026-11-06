@@ -52,7 +52,7 @@ from baldric_coding.extensions import (
     load_extensions,
 )
 from baldric_coding.trust.policy import ProjectTrustRequest, ProjectTrustResolution, TrustChoice
-from pi_event_helpers import assistant_done, assistant_start
+from tests.helpers.pi_event_helpers import assistant_done, assistant_start
 
 pytestmark = pytest.mark.anyio
 

@@ -175,7 +175,7 @@ class TestUnfocusedDropRouting:
 
     @pytest.mark.anyio
     async def test_drop_while_blurred_reaches_prompt(self, tmp_path: Path) -> None:
-        from tui_helpers import FakeSession
+        from tests.helpers.tui_helpers import FakeSession
 
         file = tmp_path / "notes.txt"
         file.touch()
@@ -194,7 +194,7 @@ class TestUnfocusedDropRouting:
 
     @pytest.mark.anyio
     async def test_focused_drop_is_not_inserted_twice(self, tmp_path: Path) -> None:
-        from tui_helpers import FakeSession
+        from tests.helpers.tui_helpers import FakeSession
 
         file = tmp_path / "notes.txt"
         file.touch()

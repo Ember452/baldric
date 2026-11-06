@@ -42,7 +42,7 @@ from baldric_coding.extensions.builtins.llama_cpp.state import (
 )
 from baldric_coding.extensions.providers import ProviderRefreshContext, ResolvedProviderAuth
 from baldric_coding.providers.runtime import create_dynamic_model_provider
-from conftest import isolate_home
+from tests.helpers.conftest_utils import isolate_home
 
 pytestmark = pytest.mark.anyio
 

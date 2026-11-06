@@ -18,7 +18,7 @@ from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.extensions import ExtensionRuntime
 
 EXTENSION_DIR = (
-    Path(__file__).resolve().parents[1] / "src" / "baldric_coding" / "extensions" / "builtins" / "subagents"
+    Path(__file__).resolve().parents[2] / "src" / "baldric_coding" / "extensions" / "builtins" / "subagents"
 )
 
 __all__ = [

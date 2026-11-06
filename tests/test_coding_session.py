@@ -95,8 +95,8 @@ from baldric_coding.session.session import (
     is_retryable_huggingface_route_error,
     parse_terminal_command,
 )
-from conftest import isolate_home
-from pi_event_helpers import assistant_done, assistant_error, assistant_start
+from tests.helpers.conftest_utils import isolate_home
+from tests.helpers.pi_event_helpers import assistant_done, assistant_error, assistant_start
 
 
 async def _collect_session_events(session_stream: object) -> list[object]:

@@ -29,7 +29,7 @@ from baldric_coding import (
 from baldric_coding import cli as cli_module
 from baldric_coding.modes.rpc import RpcServer
 from baldric_coding.providers.config import ProviderModelMetadata
-from pi_event_helpers import assistant_done, assistant_start, text_delta
+from tests.helpers.pi_event_helpers import assistant_done, assistant_start, text_delta
 
 
 async def _session(tmp_path: Path, provider: FakeProvider) -> CodingSession:

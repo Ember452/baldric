@@ -17,7 +17,7 @@ from baldric_coding.tui.app import (
 from baldric_coding.tui.widgets import (
     TranscriptView,
 )
-from tui_helpers import (
+from tests.helpers.tui_helpers import (
     FakeSession,
     _component_bridge,
     _RenderCallRuntime,
