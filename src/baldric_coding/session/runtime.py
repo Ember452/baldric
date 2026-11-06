@@ -407,6 +407,7 @@ async def prompt(
                 isinstance(event, MessageEndEvent)
                 and isinstance(event.message, AssistantMessage)
                 and event.message.stop_reason == "error"
+                and not event.message.is_tool_result_recovery
             ):
                 session._last_diagnostic_log_path = session._diagnostic_logger.log_assistant_error(
                     context=context,
@@ -468,6 +469,7 @@ async def prompt(
                         isinstance(retry_event, MessageEndEvent)
                         and isinstance(retry_event.message, AssistantMessage)
                         and retry_event.message.stop_reason in {"error", "aborted"}
+                        and not retry_event.message.is_tool_result_recovery
                     ):
                         overflow_retry_error = retry_event.message.error_message or "Provider request aborted"
                         if retry_event.message.stop_reason == "error":
@@ -542,6 +544,7 @@ async def continue_(session: CodingSession) -> AsyncGenerator[CodingSessionEvent
                 isinstance(event, MessageEndEvent)
                 and isinstance(event.message, AssistantMessage)
                 and event.message.stop_reason == "error"
+                and not event.message.is_tool_result_recovery
             ):
                 session._last_diagnostic_log_path = session._diagnostic_logger.log_assistant_error(
                     context=context,

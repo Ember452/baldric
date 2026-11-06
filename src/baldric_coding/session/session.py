@@ -1774,7 +1774,11 @@ class CodingSession:
 
     def will_auto_retry(self, message: AssistantMessage) -> bool:
         """Return whether session orchestration will retry this assistant error."""
-        return is_context_overflow_error(message) or self._should_auto_failover_huggingface_route(message)
+        return (
+            message.is_tool_result_recovery
+            or is_context_overflow_error(message)
+            or self._should_auto_failover_huggingface_route(message)
+        )
 
     def _should_auto_failover_huggingface_route(
         self,
