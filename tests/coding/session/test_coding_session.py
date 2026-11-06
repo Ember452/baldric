@@ -1364,6 +1364,30 @@ async def test_agent_bash_tool_uses_configured_shell_command_prefix(tmp_path: Pa
     assert result.details["shell_command_prefix_applied"] is True
 
 
+@requires_posix_shell
+@pytest.mark.anyio
+async def test_session_shell_preference_reaches_bash_tool(tmp_path: Path) -> None:
+    """CodingSessionConfig.shell must select the resolved shell for the bash tool.
+
+    Locks the config -> create_coding_tools -> resolve_shell plumbing so a future
+    refactor cannot silently drop the preference between config and tool.
+    """
+    storage = JsonlSessionStorage(tmp_path / "session.jsonl")
+    session = await CodingSession.load(
+        CodingSessionConfig(
+            provider=FakeProvider([]),
+            model="fake",
+            system="You are Baldric.",
+            storage=storage,
+            cwd=tmp_path,
+            shell="bash",
+        )
+    )
+    bash_tool = next(tool for tool in session.tools if tool.name == "bash")
+
+    assert "bash" in bash_tool.description.lower()
+
+
 def _recent_rows(*roles: str) -> tuple[tuple[str, AgentMessage], ...]:
     def message(role: str) -> AgentMessage:
         if role == "user":

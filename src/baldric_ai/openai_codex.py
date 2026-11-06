@@ -675,6 +675,11 @@ async def _codex_provider_events(
                     tool_builder.set_arguments(arguments)
                 tool_call = tool_builder.build()
                 tool_calls.append(tool_call)
+                # Attach the stream index this builder's argument deltas used, so
+                # the canonicalizer replaces the exact placeholder block. A
+                # builder that never streamed deltas (whole call at done) has no
+                # index and stays a self-contained complete call.
+                stream_index = builder_stream_indices.pop(id(tool_builder), None)
                 _untrack_tool_builder(
                     tool_builder,
                     active_tools=active_tools,
@@ -682,7 +687,7 @@ async def _codex_provider_events(
                     by_call_id=tools_by_call_id,
                     by_output_index=tools_by_output_index,
                 )
-                yield ProviderToolCallEvent(tool_call=tool_call)
+                yield ProviderToolCallEvent(tool_call=tool_call, index=stream_index)
             elif isinstance(item, Mapping) and item.get("type") == "message" and not content_parts:
                 text = _text_from_done_message(item)
                 if text:

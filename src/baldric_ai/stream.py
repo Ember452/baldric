@@ -231,13 +231,20 @@ async def canonicalize_provider_stream(
             channel_indices.clear()
             active_index = None
             active_kind = None
-            if open_tool_order:
-                tool_index = open_tool_order.pop(0)
-                content_index = open_tool_blocks.pop(tool_index)
-                tool_arg_buffers.pop(tool_index, None)
-                partial.content[content_index] = event.tool_call.model_copy(deep=True)
+            # Pair the completion with the block opened for the same stream
+            # index. Providers that stream arguments always carry the index, so
+            # this is exact even when completions arrive out of start order or
+            # when a sibling call never streamed (delta-less). A completion
+            # without an index (complete-only providers) is self-contained and
+            # must never displace an already-open placeholder.
+            index = event.index
+            paired_content_index = open_tool_blocks.pop(index, None) if index is not None else None
+            if index is not None and paired_content_index is not None:
+                open_tool_order.remove(index)
+                tool_arg_buffers.pop(index, None)
+                partial.content[paired_content_index] = event.tool_call.model_copy(deep=True)
                 yield ToolCallEndEvent(
-                    content_index=content_index,
+                    content_index=paired_content_index,
                     tool_call=event.tool_call,
                     partial=_snapshot(partial),
                 )

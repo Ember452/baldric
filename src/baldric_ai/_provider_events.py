@@ -72,12 +72,20 @@ class ProviderToolCallDeltaEvent(BaseModel):
 
 
 class ProviderToolCallEvent(BaseModel):
-    """A complete tool call requested by the model."""
+    """A complete tool call requested by the model.
+
+    ``index`` ties this complete call back to the ``ProviderToolCallStartEvent``
+    / ``ProviderToolCallDeltaEvent`` stream that carried its arguments, so the
+    canonicalizer can replace the exact placeholder block instead of guessing by
+    arrival order. It is ``None`` for providers that deliver the whole call at
+    once (Responses, Google) and never emitted a start event.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     type: Literal["tool_call"] = "tool_call"
     tool_call: ToolCall
+    index: int | None = None
 
 
 class ProviderResponseEndEvent(BaseModel):

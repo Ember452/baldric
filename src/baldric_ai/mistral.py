@@ -267,8 +267,12 @@ class _MistralStreamParser:
         return events, False
 
     def finalize(self) -> list[ProviderEvent]:
-        tool_calls = [builder.build(index) for index, builder in sorted(self._tool_call_builders.items())]
-        events: list[ProviderEvent] = [ProviderToolCallEvent(tool_call=tool_call) for tool_call in tool_calls]
+        ordered = sorted(self._tool_call_builders.items())
+        tool_calls = [builder.build(index) for index, builder in ordered]
+        events: list[ProviderEvent] = [
+            ProviderToolCallEvent(tool_call=tool_call, index=index)
+            for (index, _builder), tool_call in zip(ordered, tool_calls, strict=True)
+        ]
         content = assistant_content("".join(self._content_parts), tool_calls)
         if self._thinking_parts:
             content.insert(0, ThinkingContent(thinking="".join(self._thinking_parts)))

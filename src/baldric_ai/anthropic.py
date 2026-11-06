@@ -316,12 +316,12 @@ class AnthropicProvider:
                             continue
 
                         tool_calls = [
-                            builder.build(index) for index, builder in sorted(tool_builders.items())
+                            (index, builder.build(index)) for index, builder in sorted(tool_builders.items())
                         ]
-                        for tool_call in tool_calls:
-                            yield ProviderToolCallEvent(tool_call=tool_call)
+                        for index, tool_call in tool_calls:
+                            yield ProviderToolCallEvent(tool_call=tool_call, index=index)
 
-                        content = assistant_content("".join(content_parts), tool_calls)
+                        content = assistant_content("".join(content_parts), [tc for _, tc in tool_calls])
                         if thinking_parts:
                             content.insert(
                                 0,
