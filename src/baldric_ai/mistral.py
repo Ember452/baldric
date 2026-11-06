@@ -36,7 +36,7 @@ from baldric_ai.content import (
 )
 from baldric_ai.env import OpenAICompatibleConfig
 from baldric_ai.events import AssistantMessageEvent
-from baldric_ai.http import create_async_client
+from baldric_ai.http import create_async_client, iter_sse_lines
 from baldric_ai.http_errors import provider_http_error_message
 from baldric_ai.provider import CancellationToken
 from baldric_ai.retry import (
@@ -161,9 +161,7 @@ class MistralConversationsProvider:
                             return
 
                         yield ProviderResponseStartEvent(model=model)
-                        async for line in response.aiter_lines():
-                            if signal is not None and signal.is_cancelled():
-                                return
+                        async for line in iter_sse_lines(response, signal):
                             event = _parse_sse_line(line)
                             if event is None:
                                 continue
@@ -172,6 +170,8 @@ class MistralConversationsProvider:
                                 yield parser_event
                             if stop:
                                 break
+                        if signal is not None and signal.is_cancelled():
+                            return
                         for parser_event in parser.finalize():
                             yield parser_event
                         return

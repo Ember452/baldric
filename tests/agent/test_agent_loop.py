@@ -22,7 +22,7 @@ from baldric_agent import (
     UserMessage,
 )
 from baldric_agent.loop import _execute_tool_call, run_agent_loop
-from baldric_agent.provider_events import AssistantDoneEvent, ThinkingDeltaEvent
+from baldric_agent.provider_events import AssistantDoneEvent, AssistantErrorEvent, ThinkingDeltaEvent
 from baldric_agent.types import JSONValue
 from baldric_ai import CancellationToken, FakeProvider
 from tests.helpers.pi_event_helpers import (
@@ -415,6 +415,52 @@ async def test_a_normal_tool_turn_resets_the_truncation_budget() -> None:
     # Two truncations before the successful turn and two after must not reach the
     # budget of three consecutive truncated turns.
     assert len(provider.calls) == 5
+    assert events[-1].type == "agent_end"
+
+
+@pytest.mark.anyio
+async def test_cancel_during_a_stalled_stream_ends_as_aborted() -> None:
+    signal = SimpleCancellationToken()
+    streaming = asyncio.Event()
+
+    class StallingProvider:
+        def stream_response(self, **kwargs: object):
+            token = kwargs["signal"]
+            assert isinstance(token, SimpleCancellationToken)
+
+            async def iterator():
+                yield assistant_start()
+                streaming.set()
+                await token.wait_cancelled()
+                yield AssistantErrorEvent(
+                    reason="error",
+                    error=AssistantMessage(model="fake", stop_reason="error"),
+                )
+
+            return iterator()
+
+    async def cancel_once_streaming() -> None:
+        await streaming.wait()
+        signal.cancel()
+
+    messages: list[AgentMessage] = [UserMessage(content="Say hello")]
+    canceller = asyncio.create_task(cancel_once_streaming())
+    events = await _collect(
+        run_agent_loop(
+            provider=StallingProvider(),
+            model="fake",
+            system="You are Baldric.",
+            messages=messages,
+            tools=[],
+            signal=signal,
+        )
+    )
+    await canceller
+
+    final = messages[-1]
+    assert isinstance(final, AssistantMessage)
+    assert final.stop_reason == "aborted"
+    assert final.error_message == "Operation aborted"
     assert events[-1].type == "agent_end"
 
 

@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
-from collections.abc import Iterator
-from contextlib import contextmanager
+from collections.abc import AsyncIterator, Iterator
+from contextlib import contextmanager, suppress
 from typing import Any
 
 import httpx
+
+from baldric_agent.provider import CancellationToken
 
 _PROXY_ENV_VARS = (
     "HTTP_PROXY",
@@ -67,6 +70,53 @@ def create_async_client(**kwargs: Any) -> httpx.AsyncClient:
 
     with normalized_proxy_environment():
         return httpx.AsyncClient(**kwargs)
+
+
+async def iter_sse_lines(
+    response: httpx.Response,
+    signal: CancellationToken | None,
+) -> AsyncIterator[str]:
+    """Yield response lines, stopping as soon as the run is cancelled.
+
+    Checking the token between lines is not enough: while a provider holds the
+    connection open (a queued request, a stalled upstream) no line arrives, so a
+    cancel would wait for the full read timeout. Racing each read against
+    ``wait_cancelled`` keeps cancellation prompt; the caller still has to stop
+    finalizing once this iterator ends early.
+    """
+
+    if signal is None:
+        async for line in response.aiter_lines():
+            yield line
+        return
+
+    lines = response.aiter_lines().__aiter__()
+    while True:
+        if signal.is_cancelled():
+            return
+        next_line = asyncio.ensure_future(anext(lines))
+        # One waiter per read, cancelled as soon as the read wins: a waiter that
+        # outlived the yield would stay pending for every request that ends
+        # normally, because a caller leaving the loop does not close this
+        # generator.
+        cancelled = asyncio.ensure_future(signal.wait_cancelled())
+        done, _pending = await asyncio.wait(
+            {next_line, cancelled},
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        cancelled.cancel()
+        with suppress(asyncio.CancelledError):
+            await cancelled
+        if next_line not in done:
+            next_line.cancel()
+            with suppress(asyncio.CancelledError):
+                await next_line
+            return
+        try:
+            line = next_line.result()
+        except StopAsyncIteration:
+            return
+        yield line
 
 
 def get_json(url: str, *, timeout: float, follow_redirects: bool = False) -> dict[str, object]:

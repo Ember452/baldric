@@ -15,6 +15,15 @@ class CancellationToken(Protocol):
         """Return whether the current stream should stop."""
         ...
 
+    async def wait_cancelled(self) -> None:
+        """Resolve once the run is cancelled.
+
+        Providers race this against a blocking read so a stalled response (a
+        queued request, a silent upstream) stops promptly instead of waiting for
+        the read timeout.
+        """
+        ...
+
 
 class ModelProvider(Protocol):
     """Provider-neutral Pi-compatible model stream interface."""

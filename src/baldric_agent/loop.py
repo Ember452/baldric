@@ -376,6 +376,12 @@ async def _assistant_events(
                 yield MessageStartEvent(message=event.message)
             yield MessageEndEvent(message=event.message)
         elif isinstance(event, AssistantErrorEvent):
+            if signal is not None and signal.is_cancelled():
+                # A cancelled run ends as aborted, not as a provider failure: the
+                # stream often stops because the response was closed, and users
+                # must not see their own cancellation reported as an error.
+                event.error.stop_reason = "aborted"
+                event.error.error_message = "Operation aborted"
             event.error.timing = _response_timing(
                 first_output_elapsed_ns,
                 provider_elapsed_ns,

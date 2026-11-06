@@ -43,7 +43,7 @@ from baldric_ai.env import (
     DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS,
 )
 from baldric_ai.events import AssistantMessageEvent
-from baldric_ai.http import create_async_client
+from baldric_ai.http import create_async_client, iter_sse_lines
 from baldric_ai.http_errors import provider_http_error_message
 from baldric_ai.model_catalog import RuntimeModel, RuntimeModelCatalog, RuntimeThinkingLevel
 from baldric_ai.model_limits import RuntimeModelLimits
@@ -553,9 +553,7 @@ async def _codex_provider_events(
     finish_reason: str | None = None
     usage: Usage | None = None
 
-    async for event in _iter_sse_objects(response):
-        if signal is not None and signal.is_cancelled():
-            return
+    async for event in _iter_sse_objects(response, signal):
         event_type = event.get("type")
         if not isinstance(event_type, str):
             continue
@@ -693,6 +691,8 @@ async def _codex_provider_events(
             usage = _usage_from_response(event) or usage
             break
 
+    if signal is not None and signal.is_cancelled():
+        return
     content = assistant_content("".join(content_parts), tool_calls)
     if thinking_parts:
         content.insert(
@@ -711,9 +711,12 @@ async def _codex_provider_events(
     )
 
 
-async def _iter_sse_objects(response: httpx.Response) -> AsyncIterator[dict[str, JSONValue]]:
+async def _iter_sse_objects(
+    response: httpx.Response,
+    signal: CancellationToken | None,
+) -> AsyncIterator[dict[str, JSONValue]]:
     data_lines: list[str] = []
-    async for line in response.aiter_lines():
+    async for line in iter_sse_lines(response, signal):
         stripped = line.strip()
         if not stripped:
             if data_lines:

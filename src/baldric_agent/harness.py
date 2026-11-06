@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections import deque
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import suppress
@@ -50,13 +51,16 @@ class AgentHarnessConfig:
 
 class SimpleCancellationToken:
     def __init__(self) -> None:
-        self._cancelled = False
+        self._cancelled = asyncio.Event()
 
     def cancel(self) -> None:
-        self._cancelled = True
+        self._cancelled.set()
 
     def is_cancelled(self) -> bool:
-        return self._cancelled
+        return self._cancelled.is_set()
+
+    async def wait_cancelled(self) -> None:
+        await self._cancelled.wait()
 
 
 class AgentHarness:
