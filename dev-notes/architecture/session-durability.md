@@ -46,6 +46,25 @@ than a partial one. Transcript batch writes already pay for directory fsync wher
 they need it, and the encoding invariant (`tests/invariants/`) counts raw
 `os.open` calls, so a second copy of that helper would be recorded debt.
 
+## Comparison with Pi
+
+Pi's JSONL storage repairs a torn append at open time: `JsonlStorage.recover()`
+runs before the storage is handed out, and its commit markers let it find "a
+shorter complete prefix" (`packages/durable/src/storage/jsonl/storage.ts`), so
+every append afterwards starts from a clean file.
+
+Baldric has no commit markers and no open-time transaction layer, so this change
+splits the same guarantee differently:
+
+- reads tolerate a torn final line instead of a reader mutating the file;
+- the writer repairs the tail under the existing exclusive lock before appending,
+  which is the moment a glued record would otherwise be created.
+
+The safety property is the same (a torn record is dropped, never merged into the
+next one); the difference is that a file stays torn until its next append. Pi's
+open-time repair would also work here, but it would make `read_all` mutate the
+transcript, and export/viewer paths should not write user data.
+
 ## What this does not cover
 
 - A damaged line in the middle of a transcript is still corruption: repair would

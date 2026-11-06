@@ -495,7 +495,7 @@ async def _fail_truncated_tool_calls(
         )
         result = _error_result(
             f'Tool call "{call.name}" was not executed: the response hit the output token '
-            "limit, so its arguments may be truncated. Re-issue the call with complete "
+            "limit, so its arguments may be truncated. Re-issue the tool call with complete "
             "arguments."
         )
         yield ToolExecutionEndEvent(

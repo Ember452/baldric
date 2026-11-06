@@ -28,6 +28,21 @@ Codex's terminal quota errors). Codes travel in `ProviderErrorEvent.data["code"]
 and therefore reach the persisted provider diagnostic, so the loop and the UI can
 branch on them instead of matching message text.
 
+## Reference
+
+Pi's `packages/ai/src/utils/provider-retry.ts` is the shape this follows:
+`retry-after-ms` then `retry-after`, a server delay above the budget failing
+instead of sleeping, `x-should-retry` overriding the status default, and a
+jittered exponential fallback. Two deliberate differences:
+
+- Pi's default budget is 60 seconds; Baldric's is one second, so more server
+  delays fail fast here.
+- Pi keeps 408/409/429/5xx; Baldric also retries 425, which its earlier policy
+  covered.
+
+Pi wraps a request promise (`retryProviderRequest`); Baldric's stream is an async
+generator, so the same decision is applied at each failure site instead.
+
 ## Deliberate choices
 
 - **Fail fast on a long server delay.** Baldric's default

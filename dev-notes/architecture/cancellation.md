@@ -29,6 +29,25 @@ generator, so its `finally` may never run. Creating a waiter per read and
 cancelling it as soon as the read wins keeps the cost proportional to lines read
 and leaves nothing behind.
 
+## Comparison with Pi
+
+Pi passes an `AbortSignal` down into the provider SDK and its SSE iteration
+(`packages/ai/src/api/openai-completions.ts:378`,
+`anthropic-messages.ts:775`), so aborting the signal cancels the transport read
+itself; the SDK also maps it to `stopReason: "aborted"`
+(`openai-completions.ts:700`).
+
+Baldric's transport is `httpx`, which has no per-request abort signal for a
+stream already being read. The two options are closing the response from a
+watcher, which raises `StreamClosed` outside the retryable-transport set and
+would surface as a provider error, or racing the read against the token. This
+change takes the race, which keeps the failure path identical to a normal end of
+stream.
+
+The resulting semantics match Pi: the run ends as `aborted`, not `error`. Only
+the mechanism differs, because it is a transport-layer difference rather than a
+design one.
+
 ## What is still polling
 
 - Tools keep the synchronous `ToolCancellationToken` contract; the loop cancels
