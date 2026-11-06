@@ -142,6 +142,8 @@ class RecordingSession:
         self.session_name: str | None = "Test session"
         self.thinking_level = "medium"
         self.system_prompt = "You are Baldric."
+        self.shell = "auto"
+        self.shell_command_prefix: str | None = None
         self.project_trust_resolution: ProjectTrustResolution | None = ProjectTrustResolution(
             trusted=True, source="saved"
         )
@@ -1564,6 +1566,18 @@ def test_context_exposes_project_trust_decision(tmp_path: Path) -> None:
     session.project_trust_resolution = None
     assert api.context.project_trusted is False  # type: ignore[attr-defined]
     assert api.context.project_trust_resolution is None  # type: ignore[attr-defined]
+
+
+def test_context_exposes_shell_settings(tmp_path: Path) -> None:
+    runtime = ExtensionRuntime()
+    api = _register_inline_extension(runtime, "reader")
+    session = RecordingSession(tmp_path)
+    session.shell = "bash"
+    session.shell_command_prefix = "export INHERITED=1"
+    runtime.bind(session)
+
+    assert api.context.shell == "bash"  # type: ignore[attr-defined]
+    assert api.context.shell_command_prefix == "export INHERITED=1"  # type: ignore[attr-defined]
 
 
 def test_context_exposes_available_provider_and_model_ids(tmp_path: Path) -> None:

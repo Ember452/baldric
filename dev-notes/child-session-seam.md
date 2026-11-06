@@ -48,10 +48,24 @@ the list. `CodingSession.extension_tool_sources` still reports every
 *registered* extension tool, including ones the allow-list removed; callers
 that need the active set intersect it with `session.tools`.
 
+### `ExtensionContext.shell` / `shell_command_prefix`
+
+The `shell` preference (`auto`/`bash`/`pwsh`/`cmd`) and `shell_command_prefix`
+are resolved into the bash tool at construction time, so a child that did not
+receive them rebuilt its bash tool with the default (`auto`, no prefix) even when
+the user had selected e.g. `bash`. `ExtensionContext.shell` and
+`.shell_command_prefix` expose the parent's values (read-only, generation-guarded
+like every other context getter), and the built-in subagents capability forwards
+them into the child `CodingSessionConfig`. Children of children inherit them the
+same way, since the child session carries the values on its own config.
+
+Both fields are also mirrored on the `BoundSession` protocol and on
+`CodingSession` (reading `self._config`), so any frontend that binds a session to
+an `ExtensionRuntime` exposes them without extra plumbing.
+
 ## Why
 
-Since project-input trust (#541), a headless child session resolves trust with
-`trust_default="ask"`, `trust_interactive=False`, `trust_prompt=None`, which
+Since project-input trust (#541), a headless child session resolves trust with`trust_default="ask"`, `trust_interactive=False`, `trust_prompt=None`, which
 lands on `trusted=False`. Every subagent therefore lost the project's skills,
 `AGENTS.md`, and project extensions even when the user had approved the repo for
 the parent. The two bad alternatives were approving unconditionally (reopening
@@ -67,6 +81,8 @@ child = await CodingSession.load(
         ...,  # provider, model, storage, cwd, resource_paths for the child
         trust_override="approve" if baldric.context.project_trusted else "decline",
         allowed_tool_names=frozenset({"read", "bash"}),
+        shell=baldric.context.shell,
+        shell_command_prefix=baldric.context.shell_command_prefix,
         skills_enabled=False,
     )
 )
@@ -81,5 +97,8 @@ child = await CodingSession.load(
   `CodingSession.load` with `trust_override`)
 - `test_allowed_tool_names_caps_composed_tools_and_survives_reload`
 - `test_allowed_tool_names_none_keeps_every_composed_tool`
+- `test_context_exposes_shell_settings` (fake `BoundSession`)
+- `test_child_inherits_parent_shell_settings` (child config captured at the
+  `CodingSession.load` seam)
 
 References: huggingface/tau#729, #541, #643.

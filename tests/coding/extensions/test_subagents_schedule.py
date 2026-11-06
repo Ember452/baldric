@@ -240,6 +240,8 @@ class _FakeApi:
             paths=BaldricPaths(),
             project_trusted=True,
             thinking_level="medium",
+            shell="auto",
+            shell_command_prefix=None,
         )
         self.followed_up: list[str] = []
         self.notifications: list[str] = []

@@ -83,6 +83,8 @@ class FakeSession:
         )
         self.system_prompt = "You are Baldric."
         self.system_prompt_sources: tuple[SystemPromptSource, ...] | None = None
+        self.shell = "auto"
+        self.shell_command_prefix: str | None = None
         self.session_manager = None
         self._session_title: str | None = None
         self.compact_summaries: list[str] = []

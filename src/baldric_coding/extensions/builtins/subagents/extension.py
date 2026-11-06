@@ -690,6 +690,12 @@ class SubagentManager:
                 # own has no way to ask, and the default lands on declined, which
                 # silently drops project skills and context files from it.
                 trust_override=("approve" if self._api.context.project_trusted else "decline"),
+                # Inherit the parent's shell selection so a child runs bash
+                # commands in the same shell the user configured; otherwise the
+                # child's bash tool silently defaults to 'auto' and a user's
+                # explicit choice (e.g. bash on Windows) would not apply.
+                shell=self._api.context.shell,
+                shell_command_prefix=self._api.context.shell_command_prefix,
                 storage=storage,
                 system=prompt_text if append_active else None,
                 custom_system_prompt=None if append_active else prompt_text,

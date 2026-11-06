@@ -974,6 +974,23 @@ class ExtensionContext:
         return self._runtime.session_view.system_prompt
 
     @property
+    def shell(self) -> str:
+        """Return the shell preference (auto/bash/pwsh/cmd) for this session.
+
+        A child session created from this context should pass it back as
+        ``CodingSessionConfig(shell=context.shell)`` so subagents run commands in
+        the same shell the user selected.
+        """
+        self._generation.assert_active()
+        return self._runtime.session_view.shell
+
+    @property
+    def shell_command_prefix(self) -> str | None:
+        """Return the shell command prefix applied to this session's bash tool."""
+        self._generation.assert_active()
+        return self._runtime.session_view.shell_command_prefix
+
+    @property
     def project_trust_resolution(self) -> ProjectTrustResolution | None:
         """Return the completed project-input trust decision for the session cwd.
 

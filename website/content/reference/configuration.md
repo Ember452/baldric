@@ -423,6 +423,8 @@ Then start a new session and try `! gst`. Notes:
 - The snake_case key `shell_command_prefix` is also accepted.
 - Unrecognized fields are ignored for compatibility with newer Baldric versions;
   recognized fields remain strictly validated.
+- Subagents inherit the session's `shell` and `shellCommandPrefix`, so a child
+  runs commands in the same shell you selected.
 
 ## TUI settings
 

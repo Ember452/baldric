@@ -1199,6 +1199,46 @@ async def test_model_and_thinking_param_precedence(tmp_path: Path) -> None:
     assert thinking_levels[-1] == "low"
 
 
+async def test_child_inherits_parent_shell_settings(tmp_path: Path) -> None:
+    """A subagent child runs in the shell the parent session selected.
+
+    Regression: the child CodingSessionConfig never carried shell/
+    shell_command_prefix, so a child's bash tool fell back to 'auto' and the
+    parent's explicit choice (and prefix) did not apply. The child config is
+    captured at the seam to assert both fields are forwarded from the parent
+    context.
+    """
+    runtime = _load_runtime(tmp_path)
+    parent = RecordingSession(tmp_path)
+    # A non-default, platform-resolvable value proves forwarding rather than a
+    # coincidence with the default: 'cmd' on Windows, 'bash' on POSIX.
+    inherited_shell = "cmd" if sys.platform == "win32" else "bash"
+    parent.shell = inherited_shell
+    parent.shell_command_prefix = "export INHERITED=1"
+    runtime.bind(parent)
+    module = _extension_module()
+    _patch_recording_provider(module, [FakeProvider([_text_stream("done")])])
+
+    captured: list[object] = []
+    real_load = module.CodingSession.load
+
+    async def recording_load(config):  # noqa: ANN001, ANN202 - test wrapper
+        captured.append(config)
+        return await real_load(config)
+
+    module.CodingSession.load = recording_load  # type: ignore[method-assign]
+    try:
+        agent_tool = _agent_tool(runtime)
+        await agent_tool.execute("call-1", {"prompt": "x", "description": "x"})
+    finally:
+        module.CodingSession.load = real_load  # type: ignore[method-assign]
+
+    assert captured, "expected the subagent to build a child CodingSessionConfig"
+    child = captured[-1]
+    assert child.shell == inherited_shell  # type: ignore[attr-defined]
+    assert child.shell_command_prefix == "export INHERITED=1"  # type: ignore[attr-defined]
+
+
 async def test_a_child_on_another_model_sends_no_thinking_level(tmp_path: Path) -> None:
     """A model switch leaves the parent's level behind rather than sending it on.
 

@@ -1144,6 +1144,7 @@ async def run_terminal_command(
     bash_tool = create_bash_tool(
         cwd=session.cwd,
         shell_command_prefix=session._config.shell_command_prefix,
+        shell=session._config.shell,
     )
     result = await bash_tool.execute("terminal-command", {"command": normalized_command})
     exit_code = None
