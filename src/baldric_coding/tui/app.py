@@ -5481,7 +5481,7 @@ def _startup_inference_provider(
         return None
     if record is not None and record.model == selection.model:
         return record.inference_provider
-    return provider.inference_providers.get(selection.model)
+    return provider.inference_providers.get(selection.model) or provider.default_inference_provider
 
 
 def _startup_inference_provider_mode(

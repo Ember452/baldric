@@ -992,6 +992,7 @@ async def run_openai_rpc_mode(
         and selection.provider.name == "huggingface"
         and record.model == selection.model
         else selection.provider.inference_providers.get(selection.model)
+        or selection.provider.default_inference_provider
         if isinstance(selection.provider, OpenAICompatibleProviderConfig)
         and selection.provider.name == "huggingface"
         else None
@@ -1129,6 +1130,7 @@ async def run_openai_print_mode(
             )
             else (
                 static_selection.provider.inference_providers.get(static_selection.model)
+                or static_selection.provider.default_inference_provider
                 if isinstance(static_selection.provider, OpenAICompatibleProviderConfig)
                 and static_selection.provider.name == "huggingface"
                 else None
@@ -1227,6 +1229,7 @@ def _print_session_record(
         )
     inference_provider = (
         selection.provider.inference_providers.get(selection.model)
+        or selection.provider.default_inference_provider
         if isinstance(selection.provider, OpenAICompatibleProviderConfig)
         and selection.provider.name == "huggingface"
         else None
