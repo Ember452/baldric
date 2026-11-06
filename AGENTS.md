@@ -69,6 +69,76 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 These guidelines are working if: fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
 
+## Hard Rules
+
+These are not style preferences; each one comes from a real incident in this
+repository's history.
+
+- **Never edit files with scripts, `sed`, or batch replacements.** Use the editor
+  tools one change at a time. A PowerShell rewrite with a wrong escape level once
+  replaced a 3,519-line test file with 45 lines, and another one silently dropped
+  `async def` from a function. If a bulk rewrite is genuinely required, do it in
+  a separate commit and review `--dry-run`-style output first.
+- **Assert whole objects; never weaken an assertion to make it pass.** If a test
+  fails, the implementation or the behavior contract is wrong until proven
+  otherwise. Change an existing assertion only when the behavior intentionally
+  changed, and say so in the commit message. Never delete tests, add `skip`, or
+  loosen a comparison just to get green.
+- **Keep the change face equal to the review face.** A change carries only the
+  lines its stated behavior needs. Do not reformat, rename, or "improve"
+  adjacent code in the same commit.
+- **Read before you write.** Before editing, read the current implementation,
+  the actual function signature, and (for ported behavior) the upstream
+  reference. Guessing an API from memory produced wrong `AgentTool` arguments, a
+  wrong `ImageContent` field type, and a call into the wrong module during recent
+  work here.
+
+## Quality Gates
+
+Everything below runs in CI and blocks a merge. Run the cheap ones locally before
+pushing; run the full suite before claiming completion.
+
+| Gate | Command | Guards |
+| --- | --- | --- |
+| Tests + coverage | `uv run pytest --cov` | behavior; coverage floor 80% |
+| Lint | `uv run ruff check .` | rule violations (fail-on-error) |
+| Format | `uv run ruff format --check .` | formatting drift |
+| Types | `uv run mypy` | `mypy --strict` on Linux |
+| Layer direction | `uv run python scripts/check_import_graph.py` | package import boundaries |
+| Structure ratchet | `uv run python scripts/check_structure.py` | file size, function length, inheritance depth, module fan-out |
+| Suppression ratchet | `uv run python scripts/check_suppressions.py` | `# type: ignore` / `# noqa` counts may only shrink |
+| Agent-guidance ratchet | `uv run python scripts/check_agent_guidance.py` | instruction files and their root-to-module chain may only shrink |
+| Clean worktree | CI only | uncommitted generated files |
+
+The ratchet scripts read committed baselines (`structure-baseline.json`,
+`suppressions-baseline.json`). They fail when a metric grows; when one shrinks,
+rerun the script with `--init` to tighten the baseline. `tests/guards/` proves
+each gate still detects violations - a green gate that no longer fires is worse
+than no gate at all.
+
+## Known Limitations (do not "fix" these)
+
+- **14 mypy errors on Windows only** (`trust/policy.py`, `session/storage.py`):
+  `fcntl` does not exist on Windows. CI runs mypy on Linux where it is green. Do
+  not add platform shims or delete the POSIX code to silence local output.
+- **121 skipped tests on Windows**: POSIX/timing semantics that run on Linux CI.
+  Do not weaken or delete them to reduce the local skip count.
+- **TUI tests are occasionally flaky on Windows**: the whole suite can hang in
+  the asyncio Windows backend. Re-run the domain before treating it as a
+  regression; the same code passes on Linux CI.
+- **94 `# noqa: BLE001`**: broad exception handling is recorded debt, not a
+  target. The suppression ratchet only stops it from growing.
+- **The TUI is a frontend, not the architecture**: do not add Textual imports to
+  `baldric_agent` or `baldric_ai` to make a feature easier.
+
+## Scoped Instructions
+
+Before changing a package, read the nearest scoped instructions:
+
+- `src/baldric_ai/AGENTS.md` - provider and model streaming layer
+- `src/baldric_agent/AGENTS.md` - portable agent harness
+- `src/baldric_coding/AGENTS.md` - CLI, session, TUI, and extensions
+
 ## Project Roadmap
 
 The implementation roadmap is tracked in GitHub issue #2:

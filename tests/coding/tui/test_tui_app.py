@@ -186,6 +186,7 @@ from baldric_coding.tui.widgets import (
     render_session_sidebar,
     transcript_item_selection_text,
 )
+from baldric_coding.version import current_version
 from tests.helpers.conftest_utils import isolate_home
 from tests.helpers.tui_helpers import (
     FakeSession,
@@ -588,7 +589,9 @@ def test_session_sidebar_brand_includes_current_version() -> None:
 
     console.print(_sidebar_brand(theme=BALDRIC_DARK_THEME))
 
-    assert "τ = 2π  0.2.1" in console.export_text()
+    # Assert the version comes from package metadata rather than pinning a
+    # release number here: a release should not require editing this test.
+    assert f"τ = 2π  {current_version()}" in console.export_text()
 
 
 def test_session_sidebar_uses_prominent_title_and_accented_section_headers() -> None:
