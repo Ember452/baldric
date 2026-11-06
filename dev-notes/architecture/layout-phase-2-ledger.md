@@ -327,13 +327,72 @@ Two deferred-but-beneficial widget items were completed after the initial closur
   final rerun timed out in a known async/TUI test (no assertion failure), matching
   the pre-existing Windows TUI flake.
 
-### Test-tree split — assessed, not executed
+### Test-tree split — assessed, partially executed
 
-The large test files (`test_tui_app.py` 13,539 lines, `test_coding_session.py` 7,435,
-`test_baldric_ai.py` 4,000, `test_extensions.py` 3,519) remain the highest-benefit
-future target. This is a separate test migration: it requires shared-fixture modules,
-updating sibling `test_*` imports, and re-verifying ~2.3k tests. It was not rushed into
-the source-layout branch.
+The large test files (`test_tui_app.py`, `test_coding_session.py`, `test_baldric_ai.py`,
+`test_extensions.py`) remain the highest-benefit long-term target. Several safe, verified
+steps were completed on branch `refactor/tests-subagents-shared`:
+
+- Removed every `from test_* import ...` test-to-test dependency (reverse imports).
+- Extracted shared TUI fakes/fixtures into `tests/tui_helpers.py` and shared subagents
+  fakes into `tests/subagents_shared.py` / `tests/subagents_ui_helpers.py`.
+- Split the TUI component/crash tests into `tests/test_tui_app_components.py`.
+
+Full packaging (`tests/__init__.py` + `ai/agent/coding` subdirs mirroring `src/`) is
+**deferred**: it requires first refactoring `isolate_home` from a fixture imported and
+called as a function (40+ call sites) into a real fixture, and is a separate multi-step
+migration.
+
+## Test structure cleanup — shared subagents helpers (executed)
+
+- **Branch:** `refactor/tests-subagents-shared`
+- **Commit:** `072a895` `test: extract shared subagents helpers and remove test-to-test imports`
+- Moved extension-helper closure (15 names + `EXTENSION_DIR`) out of
+  `test_subagents_extension.py` into `tests/subagents_shared.py`.
+- Moved UI-only helpers (`_run`, `_strip_text`) out of `test_subagents_ui.py` into
+  `tests/subagents_ui_helpers.py`.
+- Re-pointed `test_subagents_ui.py`, `test_subagents_schedule.py`,
+  `test_subagents_integration_tui.py` at the shared modules; no `from test_* import ...`
+  remains anywhere under `tests/`.
+- **Not packaged** (`tests/__init__.py` absent) — pytest rootdir/prepend mode still used;
+  full package mirror is the documented follow-up (after `isolate_home` fixture refactor).
+- **Checks:** subagents group `144 passed, 3 skipped`; full suite `2356 passed, 121 skipped`
+  in 158s; `ruff check .` and `ruff format --check .` both clean.
+
+## Full test-tree mirror migration (executed)
+
+- **Branch:** `refactor/tests-subagents-shared`
+- **Commits:** `c3bee74` (package + helpers), `b8107c2` (ai/agent), `a38176a`/`ab43d5e`
+  (coding mirror).
+- **Final structure:**
+  ```text
+  tests/
+  ├── __init__.py
+  ├── conftest.py
+  ├── helpers/        # pi_event_helpers, tui_helpers, subagents_shared,
+  │                   # subagents_ui_helpers, conftest_utils
+  ├── ai/             # mirrors src/baldric_ai
+  ├── agent/          # mirrors src/baldric_agent
+  ├── coding/         # mirrors src/baldric_coding
+  │   ├── session/ commands/ tools/ providers/ extensions/
+  │   ├── cli/ config/ context/ update/ rendering/ trust/ skills/ auth/ tui/
+  └── (4 cross-package tests remain at root: package_metadata,
+      phase6_hardening, public_api_contract, public_surface)
+  ```
+- **Key mechanics:**
+  - `tests` is now a package; `pyproject.toml` sets `pythonpath = ["."]`.
+  - `isolate_home` moved to `tests/helpers/conftest_utils.py`; `conftest.py` imports it,
+    removing the `from conftest import ...` anti-pattern.
+  - All cross-file imports use `tests.helpers.*` / `tests.coding.*` absolute paths.
+  - `_WIN32_SKIPS` nodeid prefixes in `conftest.py` were rewritten to the new
+    `tests/coding/...` paths, so Windows-only skips still bind.
+  - Two fixture/path anchors fixed for the new depth:
+    `test_models_dev*.py` and `test_session.py` (`parents[1/2]`), and
+    `test_example_extensions.py` (`parents[3]`).
+- **Verification:** full suite `2356 passed, 121 skipped` in 177s; per-domain runs
+  ai `173`, agent `37`, coding/session+config+context+rendering+update `472`,
+  providers+tools+trust+auth+cli `382`, extensions `545`, tui `675`; all green.
+  `ruff check .` and `ruff format --check .` clean (332 files).
 
 
 
