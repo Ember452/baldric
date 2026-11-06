@@ -37,7 +37,7 @@
       "max_function_stmts": 2
     },
     "src/baldric_agent/session/jsonl.py": {
-      "lines": 171,
+      "lines": 191,
       "max_function_stmts": 10
     },
     "src/baldric_agent/session/memory.py": {
@@ -45,7 +45,7 @@
       "max_function_stmts": 14
     },
     "src/baldric_agent/session/storage.py": {
-      "lines": 299,
+      "lines": 355,
       "max_function_stmts": 9
     },
     "src/baldric_agent/session/tree.py": {
@@ -101,7 +101,7 @@
       "max_function_stmts": 15
     },
     "src/baldric_ai/http.py": {
-      "lines": 129,
+      "lines": 131,
       "max_function_stmts": 6
     },
     "src/baldric_ai/http_errors.py": {
@@ -577,7 +577,7 @@
       "max_function_stmts": 3
     },
     "src/baldric_coding/session/export/writer.py": {
-      "lines": 95,
+      "lines": 94,
       "max_function_stmts": 5
     },
     "src/baldric_coding/session/lifecycle.py": {
@@ -585,7 +585,7 @@
       "max_function_stmts": 61
     },
     "src/baldric_coding/session/manager.py": {
-      "lines": 519,
+      "lines": 537,
       "max_function_stmts": 11
     },
     "src/baldric_coding/session/model_selection.py": {
@@ -815,6 +815,10 @@
     "src/baldric_coding/utils/__init__.py": {
       "lines": 1,
       "max_function_stmts": 0
+    },
+    "src/baldric_coding/utils/atomic.py": {
+      "lines": 38,
+      "max_function_stmts": 4
     },
     "src/baldric_coding/utils/self_docs.py": {
       "lines": 23,

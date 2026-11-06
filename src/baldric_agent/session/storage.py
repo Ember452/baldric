@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import tempfile
 from collections.abc import Iterator, Sequence
@@ -13,10 +14,13 @@ from typing import BinaryIO, Protocol
 
 from baldric_agent.session.entries import SessionEntry
 from baldric_agent.session.jsonl import (
-    entries_from_json_lines,
+    SessionJsonlError,
+    entries_from_transcript,
     entry_from_json_line,
     entry_to_json_line,
 )
+
+logger = logging.getLogger(__name__)
 
 _BRANCHABLE_ENTRY_TYPES = frozenset({"message", "compaction", "branch_summary"})
 
@@ -78,6 +82,7 @@ class JsonlSessionStorage:
         line = entry_to_json_line(entry)
         with self._locked(exclusive=True):
             self._remove_incomplete_temp()
+            self._repair_torn_tail()
             previous_stamp = self._file_stamp()
             try:
                 with self.path.open("ab") as file:
@@ -101,6 +106,10 @@ class JsonlSessionStorage:
             self._remove_incomplete_temp()
             previous_stamp = self._file_stamp()
             previous = self.path.read_bytes() if previous_stamp is not None else b""
+            previous, repaired = _repair_tail_bytes(previous)
+            if repaired:
+                self._parsed = None
+                logger.warning("Repaired a partial final line before appending to %s", self.path)
             data = previous + encoded
             try:
                 self._atomic_replace(data)
@@ -129,7 +138,9 @@ class JsonlSessionStorage:
         parsed = self._parsed
         if parsed is not None and parsed.stamp == stamp:
             return _isolated_entries(parsed.entries)
-        entries = entries_from_json_lines(self.path.read_text(encoding="utf-8").split("\n"))
+        entries, dropped_tail = entries_from_transcript(self.path.read_text(encoding="utf-8"))
+        if dropped_tail:
+            logger.warning("Dropped a partial final line while reading %s", self.path)
         self._parsed = _ParsedTranscript(stamp=stamp, entries=tuple(entries))
         return _isolated_entries(entries)
 
@@ -195,6 +206,32 @@ class JsonlSessionStorage:
             with _suppress_os_error():
                 candidate.unlink()
 
+    def _repair_torn_tail(self) -> None:
+        """Terminate or drop a partial final line before appending.
+
+        Appending onto an unterminated line would glue the new record onto the
+        old fragment, turning one damaged line into a damaged transcript.
+        """
+        if self._ends_with_newline():
+            return
+        repaired, changed = _repair_tail_bytes(self.path.read_bytes())
+        if not changed:
+            return
+        self._atomic_replace(repaired)
+        self._parsed = None
+        logger.warning("Repaired a partial final line before appending to %s", self.path)
+
+    def _ends_with_newline(self) -> bool:
+        try:
+            with self.path.open(mode="rb") as file:
+                file.seek(0, os.SEEK_END)
+                if file.tell() == 0:
+                    return True
+                file.seek(-1, os.SEEK_END)
+                return file.read(1) == b"\n"
+        except FileNotFoundError:
+            return True
+
     @contextmanager
     def _locked(self, *, exclusive: bool) -> Iterator[None]:
         self.lock_path.parent.mkdir(parents=True, exist_ok=True)
@@ -225,6 +262,25 @@ class InMemorySessionStorage:
     async def read_all(self) -> list[SessionEntry]:
         async with self._lock:
             return list(self.entries)
+
+
+def _repair_tail_bytes(data: bytes) -> tuple[bytes, bool]:
+    """Return a transcript whose final line is terminated, and whether it changed.
+
+    A partial final line is dropped when it cannot be parsed, and terminated with
+    a newline when a complete record simply lost its newline.
+    """
+    if not data or data.endswith(b"\n"):
+        return data, False
+    boundary = data.rfind(b"\n") + 1
+    tail = data[boundary:]
+    if not tail.strip():
+        return data[:boundary], True
+    try:
+        entry_from_json_line(tail.decode("utf-8"))
+    except (SessionJsonlError, UnicodeDecodeError):
+        return data[:boundary], True
+    return data + b"\n", True
 
 
 def _isolated_entries(entries: Sequence[SessionEntry]) -> list[SessionEntry]:

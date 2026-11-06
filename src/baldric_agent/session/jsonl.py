@@ -60,6 +60,26 @@ def entries_from_json_lines(lines: list[str]) -> list[SessionEntry]:
     return entries
 
 
+def entries_from_transcript(text: str) -> tuple[list[SessionEntry], bool]:
+    """Parse a transcript, tolerating only an incomplete final line.
+
+    A process killed mid-append can leave a partial last line. Dropping it is
+    safe because it was never a record; corruption anywhere else is not. The
+    second value reports whether a line was dropped so the caller can log it.
+    """
+    lines = text.split("\n")
+    has_unterminated_tail = bool(lines) and bool(lines[-1].strip())
+    try:
+        return entries_from_json_lines(lines), False
+    except SessionJsonlError:
+        if not has_unterminated_tail:
+            raise
+    try:
+        return entries_from_json_lines(lines[:-1]), True
+    except SessionJsonlError:
+        raise
+
+
 def _migrate_session_entry(value: Any, *, legacy_label_target_id: str | None) -> Any:
     """Return a canonical copy of one decoded persisted entry.
 

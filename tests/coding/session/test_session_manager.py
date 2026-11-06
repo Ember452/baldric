@@ -361,17 +361,20 @@ def test_session_manager_cwd_hint_skips_other_project_indexes(tmp_path: Path) ->
     other.mkdir()
     record = manager.create_session(cwd=project, model="fake", title="Hinted")
     manager.create_session(cwd=other, model="fake")
-    manager.project_index_path(other).write_text("not json\n", encoding="utf-8")
+    other_index = manager.project_index_path(other)
+    other_index.write_text("not json\n", encoding="utf-8")
 
     hinted = manager.get_session(record.id, cwd=project)
 
     assert hinted is not None
     assert hinted.title == "Hinted"
-    with pytest.raises(ValueError):
-        manager.get_session(record.id)
-    with pytest.raises(ValueError):
-        # A wrong hint falls back to scanning every index.
-        manager.get_session(record.id, cwd=tmp_path)
+    # The hint never reads the other project's index, so its damaged line is
+    # still there.
+    assert other_index.read_text(encoding="utf-8") == "not json\n"
+    # Without a hint every index is scanned; one damaged line now drops that
+    # record instead of failing the whole scan.
+    assert manager.get_session(record.id) is not None
+    assert manager.get_session(record.id, cwd=tmp_path) is not None
 
 
 def test_session_manager_archives_session_without_deleting_transcript(tmp_path: Path) -> None:
@@ -431,3 +434,49 @@ def test_session_manager_sorts_newest_updated_first(tmp_path: Path) -> None:
 
     assert [session.id for session in sessions] == ["older", "newer"]
     assert newer in sessions
+
+
+def test_session_manager_recovers_from_a_damaged_index_line(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    manager = SessionManager(BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents"))
+    cwd = tmp_path / "project"
+    cwd.mkdir()
+    record = manager.create_session(cwd=cwd, model="fake", session_id="kept")
+    index_path = manager.project_index_path(cwd)
+    index_path.write_text(
+        index_path.read_text(encoding="utf-8") + '{"id": "broken"\n',
+        encoding="utf-8",
+    )
+
+    with caplog.at_level("WARNING", logger="baldric_coding.session.manager"):
+        sessions = manager.list_sessions()
+
+    assert sessions == [record]
+    assert "damaged" in caplog.text
+    assert "broken" not in index_path.read_text(encoding="utf-8")
+
+
+def test_session_manager_index_write_keeps_the_previous_file_when_replace_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = SessionManager(BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents"))
+    cwd = tmp_path / "project"
+    cwd.mkdir()
+    record = manager.create_session(cwd=cwd, model="fake", session_id="kept")
+    index_path = manager.project_index_path(cwd)
+    before = index_path.read_text(encoding="utf-8")
+
+    def fail_replace(source: object, destination: object) -> None:
+        del source, destination
+        raise OSError("replace failed")
+
+    monkeypatch.setattr("baldric_coding.utils.atomic.os.replace", fail_replace)
+
+    with pytest.raises(OSError, match="replace failed"):
+        manager.touch_session(record.id)
+
+    assert index_path.read_text(encoding="utf-8") == before
+    assert list(index_path.parent.glob("*.tmp")) == []
