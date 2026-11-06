@@ -232,6 +232,7 @@ def test_non_herdr_terminal_keeps_textual_defaults(monkeypatch: pytest.MonkeyPat
     assert "TEXTUAL_SMOOTH_SCROLL" not in tui_app.os.environ
     assert tui_app.textual_constants.SMOOTH_SCROLL is True
 
+
 def _visible_footer_bindings(app: BaldricTuiApp) -> dict[str, str]:
     """Return active bindings that a Textual Footer would render if mounted."""
     return {
@@ -5786,7 +5787,6 @@ async def test_extension_input_dialog_escape_returns_none() -> None:
         result = await task
 
     assert result is None
-
 
 
 @pytest.mark.anyio
@@ -12425,11 +12425,8 @@ async def test_run_tui_app_ignores_uncredentialed_provider_when_matching_resume_
     ]
 
 
-
 # --- component seam pilot tests ---------------------------------------------
 # These drive the generic widget-hosting seam on the real BaldricTuiApp via the
 # host bridge, using an in-test caller with no subagents vocabulary. The legacy
 # agents-strip pilot tests they once coexisted with were deleted in Step 3
 # (the transcript-source seam and host agent UI left core).
-
-

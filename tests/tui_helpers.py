@@ -31,7 +31,6 @@ class FakeSessionState:
     thinking_level = "medium"
 
 
-
 class FakeSession:
     def __init__(self, messages=(), events=()) -> None:
         self.messages = tuple(messages)
@@ -400,7 +399,6 @@ class FakeSession:
             yield event
 
 
-
 class _FakeSessionManager:
     def __init__(
         self,
@@ -456,11 +454,9 @@ class _FakeSessionManager:
         return bool(moved)
 
 
-
 def _component_bridge(app: BaldricTuiApp) -> _TuiExtensionUiBridge:
     """Return a host component bridge bound to a running app."""
     return _TuiExtensionUiBridge(app)
-
 
 
 class _RenderCallRuntime:
@@ -497,9 +493,9 @@ class _CustomMessageRuntime(_RenderCallRuntime):
         return f"[green]✓[/green] {details.get('description')} completed"
 
 
-
 def _strip_ansi(text: str) -> str:
     import re
+
     pattern = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
     return pattern.sub("", text)
 

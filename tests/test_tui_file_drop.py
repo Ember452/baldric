@@ -1,4 +1,4 @@
-﻿"""Tests for drag-and-drop file insertion in the TUI prompt."""
+"""Tests for drag-and-drop file insertion in the TUI prompt."""
 
 from pathlib import Path
 
@@ -209,4 +209,3 @@ class TestUnfocusedDropRouting:
             await pilot.pause()
 
             assert prompt.text == f"{file} "
-
