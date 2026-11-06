@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from typer.testing import CliRunner
@@ -21,6 +22,7 @@ from baldric_coding.context.system_prompt import (
     format_system_prompt_inspection,
 )
 from baldric_coding.extensions import ExtensionRuntime
+from baldric_coding.extensions.installer import ExtensionInstallRecord
 from baldric_coding.providers.config import (
     OpenAICompatibleProviderConfig,
     ProviderSettings,
@@ -167,6 +169,65 @@ def test_install_command_requires_exactly_one_source() -> None:
 
     assert result.exit_code == 2
     assert "Usage: baldric install <source> [--force]" in _panel_text(result.output)
+
+
+def test_extensions_list_distinguishes_managed_and_unmanaged(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    extensions_dir = tmp_path / "extensions"
+    extensions_dir.mkdir()
+    (extensions_dir / "managed").mkdir()
+    (extensions_dir / "manual").mkdir()
+    registry = {
+        "managed": ExtensionInstallRecord(
+            name="managed",
+            kind="git",
+            source="https://github.com/example/demo",
+            ref="v1",
+            commit="abc123def4567890abcd",
+        )
+    }
+    monkeypatch.setattr(cli, "BaldricPaths", lambda: SimpleNamespace(user_extensions_dir=extensions_dir))
+    monkeypatch.setattr(cli, "read_extension_registry", lambda _dir: registry)
+
+    result = CliRunner().invoke(app, ["extensions", "list"])
+
+    assert result.exit_code == 0
+    assert "managed  git https://github.com/example/demo @ v1 (abc123def456)" in result.output
+    assert "manual  unmanaged" in result.output
+
+
+def test_extensions_update_command(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    calls: list[tuple[str, bool]] = []
+    destination = tmp_path / "extensions" / "demo"
+
+    def fake_update(name: str, *, force: bool = False) -> Path:
+        calls.append((name, force))
+        return destination
+
+    monkeypatch.setattr(cli, "update_extension", fake_update)
+
+    result = CliRunner().invoke(app, ["extensions", "update", "demo", "--force"])
+
+    assert result.exit_code == 0
+    assert calls == [("demo", True)]
+    assert f"Updated demo at {destination}" in result.output
+
+
+def test_extensions_remove_command_reports_unmanaged(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_remove(name: str) -> Path:
+        del name
+        raise cli.ExtensionInstallError("not managed by Baldric")
+
+    monkeypatch.setattr(cli, "remove_extension", fail_remove)
+
+    result = CliRunner().invoke(app, ["extensions", "remove", "manual"])
+
+    assert result.exit_code == 1
+    assert "not managed by Baldric" in result.output
 
 
 def test_prompt_inputs_resolve_files_literals_and_append_order(tmp_path: Path) -> None:

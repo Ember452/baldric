@@ -163,6 +163,23 @@ runtime diagnostics appear in the same view. The inventory is intentionally
 read-only: Baldric does not claim ownership of manually placed, project, or
 `-e` extension files and never deletes them.
 
+## Managing installed extensions
+
+`baldric install SOURCE [--force]` copies a local file or package, or clones a
+Git repository, into `~/.baldric/extensions/` after validating that normal
+user-directory discovery will load it. Git installs record their source, ref,
+and commit in a managed-install registry so Baldric can distinguish them from
+manually placed files.
+
+- `baldric extensions [list]` shows every installed extension and whether it is
+  Baldric-managed (with source, ref, and commit) or unmanaged.
+- `baldric extensions update <name> [--force]` re-clones a managed Git
+  extension from its recorded source. It refuses to silently discard a checkout
+  that no longer matches the recorded commit; pass `--force` to discard local
+  modifications.
+- `baldric extensions remove <name>` deletes a managed extension and its
+  registry entry. Unmanaged directories are never touched.
+
 ## The extension API
 
 ```python
