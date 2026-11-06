@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from json import JSONDecodeError, loads
 from typing import Any
+
+from baldric_ai._sse import loads_object as _loads_object
 
 _MAX_ERROR_DETAIL_LENGTH = 1000
 
@@ -55,11 +56,3 @@ def provider_error_detail_from_mapping(value: Mapping[str, Any]) -> str:
             if nested:
                 return nested
     return ""
-
-
-def _loads_object(value: str) -> Mapping[str, Any] | None:
-    try:
-        parsed = loads(value)
-    except JSONDecodeError:
-        return None
-    return parsed if isinstance(parsed, Mapping) else None

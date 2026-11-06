@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Mapping
-from json import loads
-from typing import Any, cast
+from typing import cast
 
 import httpx
 
@@ -33,6 +32,7 @@ from baldric_ai._provider_events import (
     ProviderToolCallEvent,
     ProviderToolCallStartEvent,
 )
+from baldric_ai._sse import loads_object as _loads_object
 from baldric_ai.content import (
     NON_VISION_TOOL_IMAGE_PLACEHOLDER,
     NON_VISION_USER_IMAGE_PLACEHOLDER,
@@ -695,14 +695,6 @@ def _parse_sse_line(line: str) -> str | None:
     if not data or data == "[DONE]":
         return None
     return data
-
-
-def _loads_object(text: str) -> dict[str, Any] | None:
-    try:
-        value = loads(text)
-    except ValueError:
-        return None
-    return value if isinstance(value, dict) else None
 
 
 def _string_or_empty(value: object) -> str:
