@@ -75,6 +75,11 @@ class RecordingSession:
         self.thinking_level = "high"
         self.session_id = "session-1"
         self.system_prompt = "You are Baldric."
+        # Defaults match a plain session so sibling tests are unaffected; the
+        # inheritance test overrides these with a non-default, platform-valid
+        # value to prove forwarding.
+        self.shell = "auto"
+        self.shell_command_prefix: str | None = None
         self.is_running = running
         # The trust gate reads this through the context; these tests place agent
         # definitions and settings in the project directory, so the stand-in

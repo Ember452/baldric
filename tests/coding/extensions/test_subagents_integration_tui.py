@@ -111,6 +111,8 @@ class _FakeSession:
         self.extension_names = ("subagents",)
         self.session_stats = SessionStats()
         self.system_prompt = "You are Baldric."
+        self.shell = "auto"
+        self.shell_command_prefix: str | None = None
         self.session_manager = None
         self._session_title: str | None = None
         self.queued_steering_messages: tuple[str, ...] = ()

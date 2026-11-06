@@ -940,6 +940,16 @@ class CodingSession:
         return self._harness.config.provider
 
     @property
+    def shell(self) -> str:
+        """Return the shell preference used to build this session's bash tool."""
+        return self._config.shell
+
+    @property
+    def shell_command_prefix(self) -> str | None:
+        """Return the shell command prefix applied to this session's bash tool."""
+        return self._config.shell_command_prefix
+
+    @property
     def inference_provider(self) -> str | None:
         """Return the pinned Hugging Face backing provider, if any."""
         return self._inference_provider

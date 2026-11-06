@@ -8,11 +8,12 @@ resumed session (``session/lifecycle.py`` rebuild + staged reload) and the TUI
 each rebuilt the bash tool with the default ``auto`` and silently dropped the
 user's choice.
 
-Rather than pin one file, scan every construction of ``create_coding_tools(`` and
-``CodingSessionConfig(`` under ``src`` and require: if the call forwards
-``shell_command_prefix=`` then it also forwards ``shell=``. A pure unit test
-cannot see an omission at one call site in a large module; this catches the whole
-class.
+Rather than pin one file, scan every construction of ``create_coding_tools(``,
+``create_bash_tool(`` and ``CodingSessionConfig(`` under ``src`` and require: if
+the call forwards ``shell_command_prefix=`` then it also forwards ``shell=``. A
+pure unit test cannot see an omission at one call site in a large module; this
+catches the whole class (it found ``run_terminal_command`` still building its bash
+tool without ``shell`` — the terminal command path ignored the user's shell).
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC = REPO_ROOT / "src"
 
 # Call openers whose arguments may carry the shell settings.
-OPENERS = ("create_coding_tools(", "CodingSessionConfig(")
+OPENERS = ("create_coding_tools(", "create_bash_tool(", "CodingSessionConfig(")
 
 
 def _iter_call_blocks(source: str):
