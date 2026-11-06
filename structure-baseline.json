@@ -85,11 +85,11 @@
       "max_function_stmts": 0
     },
     "src/baldric_ai/_provider_events.py": {
-      "lines": 93,
+      "lines": 114,
       "max_function_stmts": 0
     },
     "src/baldric_ai/anthropic.py": {
-      "lines": 769,
+      "lines": 773,
       "max_function_stmts": 12
     },
     "src/baldric_ai/content.py": {
@@ -121,7 +121,7 @@
       "max_function_stmts": 6
     },
     "src/baldric_ai/mistral.py": {
-      "lines": 522,
+      "lines": 543,
       "max_function_stmts": 13
     },
     "src/baldric_ai/model_catalog.py": {
@@ -137,11 +137,11 @@
       "max_function_stmts": 3
     },
     "src/baldric_ai/openai_codex.py": {
-      "lines": 1187,
-      "max_function_stmts": 15
+      "lines": 1199,
+      "max_function_stmts": 17
     },
     "src/baldric_ai/openai_compatible.py": {
-      "lines": 1438,
+      "lines": 1455,
       "max_function_stmts": 19
     },
     "src/baldric_ai/provider.py": {
@@ -153,8 +153,8 @@
       "max_function_stmts": 12
     },
     "src/baldric_ai/stream.py": {
-      "lines": 238,
-      "max_function_stmts": 10
+      "lines": 295,
+      "max_function_stmts": 13
     },
     "src/baldric_ai/tool_call_ids.py": {
       "lines": 24,

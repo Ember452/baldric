@@ -27,7 +27,9 @@ from baldric_ai._provider_events import (
     ProviderResponseStartEvent,
     ProviderTextDeltaEvent,
     ProviderThinkingDeltaEvent,
+    ProviderToolCallDeltaEvent,
     ProviderToolCallEvent,
+    ProviderToolCallStartEvent,
 )
 from baldric_ai.content import (
     NON_VISION_TOOL_IMAGE_PLACEHOLDER,
@@ -226,6 +228,7 @@ class _MistralStreamParser:
         self._content_parts: list[str] = []
         self._thinking_parts: list[str] = []
         self._tool_call_builders: dict[int, _ToolCallBuilder] = {}
+        self._started_tool_indices: set[int] = set()
         self._finish_reason: str | None = None
 
     def feed(self, event: str) -> tuple[list[ProviderEvent], bool]:
@@ -254,7 +257,13 @@ class _MistralStreamParser:
             self.emitted_content = True
             index = int(tool_call_delta.get("index", 0))
             builder = self._tool_call_builders.setdefault(index, _ToolCallBuilder())
+            if index not in self._started_tool_indices:
+                self._started_tool_indices.add(index)
+                events.append(ProviderToolCallStartEvent(index=index))
             builder.add_delta(tool_call_delta)
+            fragment = _tool_call_argument_fragment(tool_call_delta)
+            if fragment:
+                events.append(ProviderToolCallDeltaEvent(index=index, delta=fragment))
         return events, False
 
     def finalize(self) -> list[ProviderEvent]:
@@ -520,3 +529,15 @@ def _tool_call_deltas(delta: Mapping[str, Any]) -> list[Mapping[str, Any]]:
     if not isinstance(tool_calls, list):
         return []
     return [tool_call for tool_call in tool_calls if isinstance(tool_call, Mapping)]
+
+
+def _tool_call_argument_fragment(tool_call_delta: Mapping[str, Any]) -> str:
+    function = tool_call_delta.get("function")
+    if not isinstance(function, Mapping):
+        return ""
+    arguments = function.get("arguments")
+    if isinstance(arguments, str):
+        return arguments
+    if isinstance(arguments, Mapping):
+        return dumps(arguments)
+    return ""

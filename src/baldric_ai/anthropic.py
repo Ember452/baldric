@@ -29,7 +29,9 @@ from baldric_ai._provider_events import (
     ProviderResponseStartEvent,
     ProviderTextDeltaEvent,
     ProviderThinkingDeltaEvent,
+    ProviderToolCallDeltaEvent,
     ProviderToolCallEvent,
+    ProviderToolCallStartEvent,
 )
 from baldric_ai.content import (
     NON_VISION_TOOL_IMAGE_PLACEHOLDER,
@@ -241,6 +243,7 @@ class AnthropicProvider:
                                     builder.id = _string_or_empty(block.get("id"))
                                     builder.name = _string_or_empty(block.get("name"))
                                     emitted_content = True
+                                    yield ProviderToolCallStartEvent(index=index)
                             elif event_type == "content_block_delta":
                                 delta = chunk.get("delta")
                                 if not isinstance(delta, Mapping):
@@ -265,10 +268,11 @@ class AnthropicProvider:
                                 elif delta_type == "input_json_delta":
                                     index = int(chunk.get("index", 0))
                                     builder = tool_builders.setdefault(index, _AnthropicToolBuilder())
-                                    builder.arguments_parts.append(
-                                        _string_or_empty(delta.get("partial_json"))
-                                    )
+                                    fragment = _string_or_empty(delta.get("partial_json"))
+                                    builder.arguments_parts.append(fragment)
                                     emitted_content = True
+                                    if fragment:
+                                        yield ProviderToolCallDeltaEvent(index=index, delta=fragment)
                             elif event_type == "message_delta":
                                 delta = chunk.get("delta")
                                 if isinstance(delta, Mapping):

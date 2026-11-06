@@ -39,6 +39,7 @@ from baldric_ai import (
     RuntimeModelLimits,
     TextDeltaEvent,
     ThinkingDeltaEvent,
+    ToolCallDeltaEvent,
     ToolCallEndEvent,
     openai_compatible_config_from_env,
 )
@@ -1186,6 +1187,11 @@ async def test_openai_compatible_provider_streams_tool_calls() -> None:
     assert [event.tool_call for event in tool_call_events] == [
         ToolCall(id="call-1", name="read", arguments={"path": "README.md"})
     ]
+    delta_events = [event for event in events if isinstance(event, ToolCallDeltaEvent)]
+    assert "".join(event.delta for event in delta_events) == '{"path":"README.md"}'
+    kinds = [type(event).__name__ for event in events]
+    assert kinds.index("ToolCallStartEvent") < kinds.index("ToolCallDeltaEvent")
+    assert kinds.index("ToolCallDeltaEvent") < kinds.index("ToolCallEndEvent")
     assert isinstance(events[-1], AssistantDoneEvent)
     assert events[-1].message.tool_calls == (
         ToolCall(id="call-1", name="read", arguments={"path": "README.md"}),

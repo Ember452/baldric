@@ -30,7 +30,9 @@ from baldric_ai._provider_events import (
     ProviderResponseStartEvent,
     ProviderTextDeltaEvent,
     ProviderThinkingDeltaEvent,
+    ProviderToolCallDeltaEvent,
     ProviderToolCallEvent,
+    ProviderToolCallStartEvent,
 )
 from baldric_ai.content import (
     NON_VISION_TOOL_IMAGE_PLACEHOLDER,
@@ -545,6 +547,8 @@ async def _codex_provider_events(
     tools_by_item_id: dict[str, _ToolCallBuilder] = {}
     tools_by_call_id: dict[str, _ToolCallBuilder] = {}
     tools_by_output_index: dict[int, _ToolCallBuilder] = {}
+    builder_stream_indices: dict[int, int] = {}
+    next_tool_index = 0
     finish_reason: str | None = None
     usage: Usage | None = None
 
@@ -593,7 +597,15 @@ async def _codex_provider_events(
                 by_output_index=tools_by_output_index,
             )
             if tool_builder is not None and isinstance(delta, str):
+                stream_index = builder_stream_indices.get(id(tool_builder))
+                if stream_index is None:
+                    stream_index = next_tool_index
+                    next_tool_index += 1
+                    builder_stream_indices[id(tool_builder)] = stream_index
+                    yield ProviderToolCallStartEvent(index=stream_index)
                 tool_builder.add_delta(delta)
+                if delta:
+                    yield ProviderToolCallDeltaEvent(index=stream_index, delta=delta)
 
         elif event_type == "response.function_call_arguments.done":
             arguments = event.get("arguments")

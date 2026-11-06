@@ -9,6 +9,7 @@ from baldric_agent.messages import (
     AssistantMessageDiagnostic,
     TextContent,
     ThinkingContent,
+    ToolCall,
     Usage,
 )
 from baldric_ai._provider_events import (
@@ -19,7 +20,9 @@ from baldric_ai._provider_events import (
     ProviderRetryEvent,
     ProviderTextDeltaEvent,
     ProviderThinkingDeltaEvent,
+    ProviderToolCallDeltaEvent,
     ProviderToolCallEvent,
+    ProviderToolCallStartEvent,
 )
 from baldric_ai.events import (
     AssistantDoneEvent,
@@ -33,6 +36,7 @@ from baldric_ai.events import (
     ThinkingDeltaEvent,
     ThinkingEndEvent,
     ThinkingStartEvent,
+    ToolCallDeltaEvent,
     ToolCallEndEvent,
     ToolCallStartEvent,
 )
@@ -40,6 +44,11 @@ from baldric_ai.events import (
 
 def _snapshot(message: AssistantMessage) -> AssistantMessage:
     return message.model_copy(deep=True)
+
+
+def _partial_tool_call(index: int) -> ToolCall:
+    """A placeholder block while a tool call's arguments are still streaming."""
+    return ToolCall(id=f"tool-call-{index}", name="", arguments={})
 
 
 async def _end_active_block(
@@ -107,6 +116,9 @@ async def canonicalize_provider_stream(
     channel_indices: dict[str, int] = {}
     started = False
     terminal = False
+    open_tool_blocks: dict[int, int] = {}
+    open_tool_order: list[int] = []
+    tool_arg_buffers: dict[int, str] = {}
 
     async for event in source:
         if isinstance(event, ProviderRetryEvent):
@@ -177,6 +189,40 @@ async def canonicalize_provider_stream(
                 delta=event.delta,
                 partial=_snapshot(partial),
             )
+        elif isinstance(event, ProviderToolCallStartEvent):
+            indices = list(channel_indices.values()) if independent_channels else [active_index]
+            for index in indices:
+                async for end_event in _end_active_block(partial, index):
+                    yield end_event
+            channel_indices.clear()
+            active_index = None
+            active_kind = None
+            if event.index not in open_tool_blocks:
+                content_index = len(partial.content)
+                partial.content.append(_partial_tool_call(event.index))
+                open_tool_blocks[event.index] = content_index
+                open_tool_order.append(event.index)
+                yield ToolCallStartEvent(content_index=content_index, partial=_snapshot(partial))
+        elif isinstance(event, ProviderToolCallDeltaEvent):
+            if event.index not in open_tool_blocks:
+                indices = list(channel_indices.values()) if independent_channels else [active_index]
+                for index in indices:
+                    async for end_event in _end_active_block(partial, index):
+                        yield end_event
+                channel_indices.clear()
+                active_index = None
+                active_kind = None
+                content_index = len(partial.content)
+                partial.content.append(_partial_tool_call(event.index))
+                open_tool_blocks[event.index] = content_index
+                open_tool_order.append(event.index)
+                yield ToolCallStartEvent(content_index=content_index, partial=_snapshot(partial))
+            tool_arg_buffers[event.index] = tool_arg_buffers.get(event.index, "") + event.delta
+            yield ToolCallDeltaEvent(
+                content_index=open_tool_blocks[event.index],
+                delta=event.delta,
+                partial=_snapshot(partial),
+            )
         elif isinstance(event, ProviderToolCallEvent):
             indices = list(channel_indices.values()) if independent_channels else [active_index]
             for index in indices:
@@ -185,14 +231,25 @@ async def canonicalize_provider_stream(
             channel_indices.clear()
             active_index = None
             active_kind = None
-            index = len(partial.content)
-            partial.content.append(event.tool_call.model_copy(deep=True))
-            yield ToolCallStartEvent(content_index=index, partial=_snapshot(partial))
-            yield ToolCallEndEvent(
-                content_index=index,
-                tool_call=event.tool_call,
-                partial=_snapshot(partial),
-            )
+            if open_tool_order:
+                tool_index = open_tool_order.pop(0)
+                content_index = open_tool_blocks.pop(tool_index)
+                tool_arg_buffers.pop(tool_index, None)
+                partial.content[content_index] = event.tool_call.model_copy(deep=True)
+                yield ToolCallEndEvent(
+                    content_index=content_index,
+                    tool_call=event.tool_call,
+                    partial=_snapshot(partial),
+                )
+            else:
+                content_index = len(partial.content)
+                partial.content.append(event.tool_call.model_copy(deep=True))
+                yield ToolCallStartEvent(content_index=content_index, partial=_snapshot(partial))
+                yield ToolCallEndEvent(
+                    content_index=content_index,
+                    tool_call=event.tool_call,
+                    partial=_snapshot(partial),
+                )
         elif isinstance(event, ProviderResponseEndEvent):
             indices = list(channel_indices.values()) if independent_channels else [active_index]
             for index in indices:
