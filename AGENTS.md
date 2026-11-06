@@ -124,11 +124,10 @@ outside it and run in under a minute.
 | Agent-guidance ratchet | `uv run python scripts/check_agent_guidance.py` | instruction files and their root-to-module chain may only shrink |
 | Clean worktree | CI only | uncommitted generated files |
 
-The ratchet scripts read committed baselines (`structure-baseline.json`,
-`suppressions-baseline.json`). They fail when a metric grows; when one shrinks,
-rerun the script with `--init` to tighten the baseline. `tests/guards/` proves
-each gate still detects violations - a green gate that no longer fires is worse
-than no gate at all.
+The ratchet scripts read committed baselines. The structure ratchet lets small
+units grow freely; above its limits a unit must split or record the growth with
+`--init`. Shrinking tightens a baseline. `tests/guards/` proves each gate still
+detects violations - a green gate that no longer fires is worse than no gate.
 
 ## Known Limitations (do not "fix" these)
 

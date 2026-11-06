@@ -12,10 +12,12 @@ The script parses ``src/`` with ``ast`` and measures four structure metrics:
 * global deepest class-inheritance chain reachable inside the project;
 * global widest module fan-out (distinct in-project modules imported).
 
-A committed JSON baseline records the current values. Checking fails when any
-metric regresses past its baseline, or when a file that has no baseline entry
-exceeds the hard limits. Metrics that improved are reported as suggestions to
-run ``--init`` again; the ratchet only ever tightens.
+A committed JSON baseline records the current values. The ratchet is a
+visibility gate, not a freeze: a file or function at or below the growth-free
+limit may grow without touching the baseline, while growth above that limit
+must split the unit or be recorded in the baseline (``--init``), so the diff
+shows that a large unit got larger. Files with no baseline entry are held to the
+hard limits only.
 
 Line counts use ``splitlines()`` so they are independent of Windows/Unix
 endings and of trailing newlines.
@@ -39,6 +41,12 @@ HARD_LIMITS = {
     "inheritance_depth": 8,
     "module_fanout": 50,
 }
+
+# Growth is free at or below these sizes. Above them a unit that grows must be
+# split or the growth must be recorded in the baseline, so large units cannot
+# drift silently while a three-line addition to a small module stays cheap.
+GROWTH_FREE_LIMIT = 400
+FUNCTION_GROWTH_FREE_LIMIT = 40
 
 
 @dataclass
@@ -170,16 +178,34 @@ def _check(report: Report, baseline: dict[str, object]) -> list[str]:
                     f"(hard limit {HARD_LIMITS['max_function_stmts']})"
                 )
             continue
-        if metrics.lines > entry.get("lines", 0):
-            violations.append(f"{path}: grew to {metrics.lines} lines (baseline {entry.get('lines')})")
-        if metrics.max_function_stmts > entry.get("max_function_stmts", 0):
-            violations.append(
-                f"{path}: longest function grew to {metrics.max_function_stmts} statements "
-                f"(baseline {entry.get('max_function_stmts')})"
-            )
-        if metrics.lines < entry.get("lines", 0) or metrics.max_function_stmts < entry.get(
-            "max_function_stmts", 0
-        ):
+        baseline_lines = entry.get("lines", 0)
+        baseline_stmts = entry.get("max_function_stmts", 0)
+        if metrics.lines > baseline_lines:
+            if baseline_lines > GROWTH_FREE_LIMIT:
+                violations.append(
+                    f"{path}: grew from {baseline_lines} to {metrics.lines} lines "
+                    f"(above {GROWTH_FREE_LIMIT} lines a file must split instead of growing; "
+                    "record a reviewed exception with --init if it truly belongs together)"
+                )
+            elif metrics.lines > GROWTH_FREE_LIMIT:
+                violations.append(
+                    f"{path}: grew from {baseline_lines} to {metrics.lines} lines, past the "
+                    f"{GROWTH_FREE_LIMIT}-line growth-free limit; split the file or record the growth"
+                )
+        if metrics.max_function_stmts > baseline_stmts:
+            if baseline_stmts > FUNCTION_GROWTH_FREE_LIMIT:
+                violations.append(
+                    f"{path}: longest function grew from {baseline_stmts} to "
+                    f"{metrics.max_function_stmts} statements (above "
+                    f"{FUNCTION_GROWTH_FREE_LIMIT} statements a function must be split)"
+                )
+            elif metrics.max_function_stmts > FUNCTION_GROWTH_FREE_LIMIT:
+                violations.append(
+                    f"{path}: longest function grew from {baseline_stmts} to "
+                    f"{metrics.max_function_stmts} statements, past the "
+                    f"{FUNCTION_GROWTH_FREE_LIMIT}-statement growth-free limit; extract a helper"
+                )
+        if metrics.lines < baseline_lines or metrics.max_function_stmts < baseline_stmts:
             improvements.append(path)
 
     baseline_global = baseline.get("global", {})

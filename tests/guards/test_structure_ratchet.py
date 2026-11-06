@@ -10,7 +10,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from scripts.check_structure import HARD_LIMITS, FileMetrics, Report, _check, build_report
+from scripts.check_structure import (
+    FUNCTION_GROWTH_FREE_LIMIT,
+    GROWTH_FREE_LIMIT,
+    HARD_LIMITS,
+    FileMetrics,
+    Report,
+    _check,
+    build_report,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BASELINE = REPO_ROOT / "structure-baseline.json"
@@ -37,7 +45,32 @@ def test_checker_rejects_grown_file() -> None:
 
     violations = _check(report, baseline)
 
-    assert any("grew to 2000 lines" in violation for violation in violations)
+    assert any("past the 400-line growth-free limit" in violation for violation in violations)
+
+
+def test_small_file_may_grow_within_the_growth_free_limit() -> None:
+    report = Report(files={"src/example.py": FileMetrics(lines=GROWTH_FREE_LIMIT, max_function_stmts=10)})
+    baseline = {"files": {"src/example.py": {"lines": 100, "max_function_stmts": 10}}, "global": {}}
+
+    assert _check(report, baseline) == []
+
+
+def test_small_file_cannot_cross_the_growth_free_limit() -> None:
+    report = Report(files={"src/example.py": FileMetrics(lines=GROWTH_FREE_LIMIT + 1, max_function_stmts=10)})
+    baseline = {"files": {"src/example.py": {"lines": 100, "max_function_stmts": 10}}, "global": {}}
+
+    violations = _check(report, baseline)
+
+    assert any("split the file or record the growth" in violation for violation in violations)
+
+
+def test_large_file_may_not_grow() -> None:
+    report = Report(files={"src/big.py": FileMetrics(lines=501, max_function_stmts=10)})
+    baseline = {"files": {"src/big.py": {"lines": 500, "max_function_stmts": 10}}, "global": {}}
+
+    violations = _check(report, baseline)
+
+    assert any("a file must split instead of growing" in violation for violation in violations)
 
 
 def test_checker_rejects_grown_function() -> None:
@@ -46,7 +79,27 @@ def test_checker_rejects_grown_function() -> None:
 
     violations = _check(report, baseline)
 
-    assert any("longest function grew to 400" in violation for violation in violations)
+    assert any("a function must be split" in violation for violation in violations)
+
+
+def test_small_function_may_grow_within_the_growth_free_limit() -> None:
+    report = Report(
+        files={"src/example.py": FileMetrics(lines=10, max_function_stmts=FUNCTION_GROWTH_FREE_LIMIT)}
+    )
+    baseline = {"files": {"src/example.py": {"lines": 10, "max_function_stmts": 10}}, "global": {}}
+
+    assert _check(report, baseline) == []
+
+
+def test_small_function_cannot_cross_the_growth_free_limit() -> None:
+    report = Report(
+        files={"src/example.py": FileMetrics(lines=10, max_function_stmts=FUNCTION_GROWTH_FREE_LIMIT + 1)}
+    )
+    baseline = {"files": {"src/example.py": {"lines": 10, "max_function_stmts": 10}}, "global": {}}
+
+    violations = _check(report, baseline)
+
+    assert any("extract a helper" in violation for violation in violations)
 
 
 def test_checker_rejects_grown_global_metrics() -> None:

@@ -1,7 +1,7 @@
 {
-  "chain_bytes": 12785,
+  "chain_bytes": 12768,
   "files": {
-    "AGENTS.md": 10739,
+    "AGENTS.md": 10722,
     "CLAUDE.md": 168,
     "src/baldric_agent/AGENTS.md": 1828,
     "src/baldric_ai/AGENTS.md": 1621,
