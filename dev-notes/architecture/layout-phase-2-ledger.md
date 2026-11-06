@@ -359,6 +359,41 @@ migration.
 - **Checks:** subagents group `144 passed, 3 skipped`; full suite `2356 passed, 121 skipped`
   in 158s; `ruff check .` and `ruff format --check .` both clean.
 
+## Full test-tree mirror migration (executed)
+
+- **Branch:** `refactor/tests-subagents-shared`
+- **Commits:** `c3bee74` (package + helpers), `b8107c2` (ai/agent), `a38176a`/`ab43d5e`
+  (coding mirror).
+- **Final structure:**
+  ```text
+  tests/
+  ├── __init__.py
+  ├── conftest.py
+  ├── helpers/        # pi_event_helpers, tui_helpers, subagents_shared,
+  │                   # subagents_ui_helpers, conftest_utils
+  ├── ai/             # mirrors src/baldric_ai
+  ├── agent/          # mirrors src/baldric_agent
+  ├── coding/         # mirrors src/baldric_coding
+  │   ├── session/ commands/ tools/ providers/ extensions/
+  │   ├── cli/ config/ context/ update/ rendering/ trust/ skills/ auth/ tui/
+  └── (4 cross-package tests remain at root: package_metadata,
+      phase6_hardening, public_api_contract, public_surface)
+  ```
+- **Key mechanics:**
+  - `tests` is now a package; `pyproject.toml` sets `pythonpath = ["."]`.
+  - `isolate_home` moved to `tests/helpers/conftest_utils.py`; `conftest.py` imports it,
+    removing the `from conftest import ...` anti-pattern.
+  - All cross-file imports use `tests.helpers.*` / `tests.coding.*` absolute paths.
+  - `_WIN32_SKIPS` nodeid prefixes in `conftest.py` were rewritten to the new
+    `tests/coding/...` paths, so Windows-only skips still bind.
+  - Two fixture/path anchors fixed for the new depth:
+    `test_models_dev*.py` and `test_session.py` (`parents[1/2]`), and
+    `test_example_extensions.py` (`parents[3]`).
+- **Verification:** full suite `2356 passed, 121 skipped` in 177s; per-domain runs
+  ai `173`, agent `37`, coding/session+config+context+rendering+update `472`,
+  providers+tools+trust+auth+cli `382`, extensions `545`, tui `675`; all green.
+  `ruff check .` and `ruff format --check .` clean (332 files).
+
 
 
 
