@@ -25,6 +25,7 @@ from baldric_coding.commands.core import (
     _compact_command,
     _exit_command,
     _export_command,
+    _help_command,
     _hotkeys_command,
     _new_command,
     _status_command,
@@ -32,6 +33,7 @@ from baldric_coding.commands.core import (
 )
 from baldric_coding.commands.formatting import format_reload_summary, format_resource_diagnostics
 from baldric_coding.commands.resources import (
+    _context_command,
     _diagnostics_command,
     _extensions_command,
     _prompts_command,
@@ -154,6 +156,27 @@ def create_default_command_registry() -> CommandRegistry:
             description="Show common keyboard shortcuts.",
             handler=_hotkeys_command,
             search_terms=("keys", "shortcuts", "bindings"),
+        )
+    )
+    # Baldric-specific commands: implemented, tested, and now reachable. They are
+    # not pi ports, and `test_non_pi_commands_are_not_registered` used to forbid
+    # them; that test now pins the opposite decision.
+    registry.register(
+        SlashCommand(
+            name="help",
+            usage="/help",
+            description="List the available slash commands.",
+            handler=_help_command,
+            search_terms=("commands", "usage"),
+        )
+    )
+    registry.register(
+        SlashCommand(
+            name="context",
+            usage="/context",
+            description="Show the project context files loaded into this session.",
+            handler=_context_command,
+            search_terms=("instructions", "rules", "agents"),
         )
     )
     registry.register(

@@ -6,6 +6,13 @@ from baldric_coding.commands.base import CommandContext, CommandResult, _parse_e
 from baldric_coding.commands.config import _thinking_status_lines
 
 
+def _help_command(context: CommandContext) -> CommandResult:
+    lines = ["Available commands:"]
+    for command in context.registry.list_commands():
+        lines.append(f"{command.usage}\t{command.description}")
+    return CommandResult(handled=True, message="\n".join(lines))
+
+
 def _exit_command(context: CommandContext) -> CommandResult:
     return CommandResult(handled=True, exit_requested=True, message="Exiting session.")
 
