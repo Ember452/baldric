@@ -737,6 +737,7 @@ async def resume(session: CodingSession, session_id: str) -> str:
             extensions_enabled=session._config.extensions_enabled,
             project_extensions_enabled=session._config.project_extensions_enabled,
             extension_runtime=session._extension_runtime,
+            before_tool_call=session._config.before_tool_call,
             project_trust_coordinator=session._config.project_trust_coordinator,
             trust_override=session._config.trust_override,
             trust_default=session._config.trust_default,

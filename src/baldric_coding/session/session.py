@@ -32,6 +32,7 @@ from baldric_agent.session import (
     ThinkingLevelChangeEntry,
 )
 from baldric_agent.session.entries import SessionEntry
+from baldric_agent.tool_calls import BeforeToolCall
 from baldric_agent.tool_history import ToolHistoryRepair
 from baldric_agent.tools import AgentTool
 from baldric_agent.types import JSONValue
@@ -501,6 +502,13 @@ class CodingSessionConfig:
     extensions_enabled: bool = True
     project_extensions_enabled: bool = False
     extension_runtime: ExtensionRuntime | None = None
+    before_tool_call: BeforeToolCall | None = None
+    """Harness gate run before every tool execution.
+
+    Returns ``(blocked, reason)``; a blocked call never executes and the model
+    sees *reason* as the tool error. This is the seam the opt-in approval mode
+    uses to pause mutating tool calls for an in-terminal decision.
+    """
     project_trust_coordinator: ProjectTrustCoordinator | None = None
     trust_override: TrustOverride | None = None
     trust_default: TrustDefault = "ask"
@@ -844,6 +852,7 @@ class CodingSession:
                 system=system,
                 tools=tools,
                 session_id=config.session_id,
+                before_tool_call=config.before_tool_call,
             ),
             messages=state.messages,
         )

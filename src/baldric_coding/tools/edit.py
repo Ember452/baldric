@@ -140,6 +140,24 @@ def restore_line_endings(text: str, ending: str) -> str:
     return text.replace("\n", "\r\n") if ending == "\r\n" else text
 
 
+def apply_argument_edits_to_content(
+    content: str,
+    arguments: Mapping[str, JSONValue],
+    path: str,
+) -> str:
+    """Apply a tool call's edits (or oldText/newText pair) to content.
+
+    Public so the approval gate can preview the would-be result without
+    executing the tool. Raises `ToolInputError` for invalid arguments.
+    """
+    prepared = _prepare_edit_arguments(arguments)
+    edits = _edits_arg(prepared)
+    _, new_content = apply_edits_to_normalized_content(
+        normalize_to_lf(content), edits, path
+    )
+    return new_content
+
+
 def apply_edits_to_normalized_content(
     normalized_content: str,
     edits: list[dict[str, str]],

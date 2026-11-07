@@ -49,6 +49,7 @@ from baldric_agent.messages import (
     AssistantMessage,
     CustomMessage,
     ThinkingContent,
+    ToolCall,
     UserMessage,
 )
 from baldric_agent.provider import CancellationToken
@@ -134,6 +135,13 @@ from baldric_coding.session.session import (
     jsonl_session_storage,
     parse_terminal_command,
 )
+from baldric_coding.trust.approvals import (
+    MUTATING_TOOL_NAMES,
+    ApprovalPolicy,
+    ApprovalRequest,
+    approval_target,
+    build_approval_preview,
+)
 from baldric_coding.trust.policy import ProjectTrustRequest, TrustChoice, TrustOverride
 from baldric_coding.tui.adapter import EventDispatcher, TuiEventAdapter
 from baldric_coding.tui.autocomplete import (
@@ -178,6 +186,7 @@ from baldric_coding.tui.login_providers import (
     credential_store_has_entry,
 )
 from baldric_coding.tui.pickers import PickerMixin
+from baldric_coding.tui.screens.approval import ApprovalScreen
 from baldric_coding.tui.screens.command_output import CommandOutputScreen
 from baldric_coding.tui.screens.extension import (
     ExtensionConfirmScreen as ExtensionConfirmScreen,
@@ -1407,6 +1416,9 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         # Watchdog heartbeat: refreshed by a timer on the UI loop (see
         # on_mount); a stalled loop stops advancing it.
         self._ui_heartbeat = time.monotonic()
+        # Opt-in approval mode (tui_settings.approval_mode == "ask") pauses
+        # mutating tool calls on this policy's session-scoped Always rules.
+        self.approval_policy = ApprovalPolicy()
         self._prompt_run_id = 0
         self._optimistic_user_messages: list[tuple[int, str]] = []
         self._completion_state = CompletionState()
@@ -1441,6 +1453,46 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         advancing ``_ui_heartbeat`` and the watchdog thread reports a stall.
         """
         self._ui_heartbeat = time.monotonic()
+
+    async def approval_gate(self, tool_call: ToolCall) -> tuple[bool, str | None]:
+        """Harness before_tool_call hook for the opt-in approval mode.
+
+        Runs only when the user turned approval on and the call is mutating
+        (edit/write/bash) without a matching session-scoped Always rule. The
+        card previews the would-be diff or command; a rejection's reason is
+        returned as the tool error so the model can adapt.
+        """
+        if self.tui_settings.approval_mode != "ask":
+            return False, None
+        if tool_call.name not in MUTATING_TOOL_NAMES:
+            return False, None
+        target = approval_target(tool_call.name, tool_call.arguments)
+        if self.approval_policy.decide(tool_call.name, target) is not None:
+            return False, None
+        preview = await asyncio.to_thread(
+            build_approval_preview,
+            tool_call.name,
+            tool_call.arguments,
+            cwd=self.session.cwd,
+        )
+        decision = await self.push_screen_wait(
+            ApprovalScreen(
+                ApprovalRequest(
+                    tool_name=tool_call.name,
+                    target=target,
+                    preview=preview,
+                ),
+                theme=self.tui_settings.resolved_theme,
+                always_rule=self.approval_policy.preview_rule(tool_call.name, target),
+            )
+        )
+        if decision is None:
+            return True, "Rejected by user"
+        if decision.remember:
+            self.approval_policy.remember(tool_call.name, target)
+        if not decision.approved:
+            return True, decision.reason or "Rejected by user"
+        return False, None
 
     async def prompt_project_trust(self, request: ProjectTrustRequest) -> TrustChoice | None:
         """Resolve a trust request through the active Textual modal stack."""
@@ -4356,6 +4408,18 @@ async def run_tui_app(
                 )
             index_on_first_persist = manager.get_session(record.id) is None
 
+        tui_settings = load_tui_settings()
+        # The approval gate is wired before the session loads, but the UI it
+        # needs only exists after the session adopts; the holder closes that
+        # gap and fails closed if a mutating call ever races adoption.
+        approval_app_ref: dict[str, BaldricTuiApp] = {}
+
+        async def approval_gate(tool_call: ToolCall) -> tuple[bool, str | None]:
+            app = approval_app_ref.get("app")
+            if app is None:
+                return True, "Approval UI is not ready; mutating call blocked."
+            return await app.approval_gate(tool_call)
+
         prepared = await prepare_coding_session(
             CodingSessionConfig(
                 provider=initial_provider,
@@ -4388,6 +4452,7 @@ async def run_tui_app(
                 trust_prompt=prompt_project_trust,
                 defer_authoritative_writes=True,
                 owns_initial_provider=initial_provider is not None,
+                before_tool_call=approval_gate,
             ),
             session_loader=CodingSession,
         )
@@ -4423,7 +4488,7 @@ async def run_tui_app(
         startup_alerts = (resource_conflict_alert,) if resource_conflict_alert is not None else ()
         app = BaldricTuiApp(
             session,
-            tui_settings=load_tui_settings(),
+            tui_settings=tui_settings,
             startup_message=startup_message,
             startup_update_notice=startup_update_notice,
             deferred_update_notice=deferred_startup_update_notice,
@@ -4432,6 +4497,7 @@ async def run_tui_app(
             initial_prompt=initial_prompt,
             show_full_output=show_full_output,
         )
+        approval_app_ref["app"] = app
         set_trust_prompt = getattr(session, "set_project_trust_prompt", None)
         if set_trust_prompt is not None:
             prompt_trust = getattr(app, "prompt_project_trust", None)
