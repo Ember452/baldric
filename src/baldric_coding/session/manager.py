@@ -27,6 +27,9 @@ _WINDOWS_RESERVED_FILE_STEMS = frozenset(
     | {f"lpt{index}" for index in range(1, 10)}
 )
 _SESSION_ID_PATTERN = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$")
+# `touch_session` runs once per persisted message; only the timestamp usually
+# changes, and every write is a temp file plus fsync plus replace.
+_TOUCH_INTERVAL_SECONDS = 30.0
 
 InferenceProviderMode = Literal["automatic", "fixed"]
 
@@ -130,6 +133,21 @@ class _IndexSnapshot:
 
     stamp: tuple[int, int, int]
     records: tuple[CodingSessionRecord, ...]
+
+
+def _same_session_metadata(left: CodingSessionRecord, right: CodingSessionRecord) -> bool:
+    """Return whether two records differ only by ``updated_at``."""
+    return (
+        left.id == right.id
+        and left.path == right.path
+        and left.cwd == right.cwd
+        and left.model == right.model
+        and left.title == right.title
+        and left.provider_name == right.provider_name
+        and left.inference_provider == right.inference_provider
+        and left.inference_provider_mode == right.inference_provider_mode
+        and left.created_at == right.created_at
+    )
 
 
 # Frontends look up the active session's record many times per second (titles,
@@ -399,10 +417,18 @@ class SessionManager:
         title: str | None = None,
         cwd: Path | None = None,
     ) -> CodingSessionRecord | None:
-        """Update a session's last-used metadata; ``cwd`` is a lookup hint."""
+        """Update a session's last-used metadata; ``cwd`` is a lookup hint.
+
+        Persisting a message calls this, and every call rewrites the index with a
+        temp file, fsync and replace. A session with a thousand messages therefore
+        paid a thousand index fsyncs for a timestamp nobody had asked about yet.
+        When only the timestamp would change, write at most every
+        ``_TOUCH_INTERVAL_SECONDS``; metadata changes are still written at once.
+        """
         existing = self.get_session(session_id, cwd=cwd)
         if existing is None:
             return None
+        now = time()
         updated = CodingSessionRecord(
             id=existing.id,
             path=existing.path,
@@ -419,8 +445,10 @@ class SessionManager:
             ),
             title=title if title is not None else existing.title,
             created_at=existing.created_at,
-            updated_at=time(),
+            updated_at=now,
         )
+        if _same_session_metadata(existing, updated) and now - existing.updated_at < _TOUCH_INTERVAL_SECONDS:
+            return existing
         self._upsert(updated)
         return updated
 
