@@ -24,7 +24,7 @@ from baldric_coding.context.resources import (
     resource_paths_with_cwd,
     resource_paths_with_project_trust,
 )
-from baldric_coding.rendering.themes import BALDRIC_DARK_THEME
+from baldric_coding.rendering.themes import BALDRIC_DARK_THEME, textual_theme_for_tui_theme
 from baldric_coding.session.session import CodingSession, CodingSessionConfig
 from baldric_coding.trust import policy as project_trust_module
 from baldric_coding.trust.policy import (
@@ -578,6 +578,13 @@ async def test_tui_trust_modal_all_choices_support_arrow_navigation(
     results: list[object | None] = []
 
     class Host(App[None]):
+        # The modal's stylesheet resolves Baldric theme variables, so the host
+        # must register a Baldric theme; real hosts always do.
+        def __init__(self) -> None:
+            super().__init__()
+            self.register_theme(textual_theme_for_tui_theme(BALDRIC_DARK_THEME.name))
+            self.theme = BALDRIC_DARK_THEME.name
+
         def on_mount(self) -> None:
             self.push_screen(ProjectTrustScreen(request), results.append)
 

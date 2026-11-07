@@ -24,7 +24,12 @@ _LABELS: tuple[tuple[TrustChoice, str], ...] = (
 
 
 class ProjectTrustScreen(ModalScreen[TrustChoice | None]):
-    """Baldric-style modal picker rendering one policy-owned request."""
+    """Baldric-style modal picker rendering one policy-owned request.
+
+    The stylesheet resolves Baldric theme variables, so the hosting app must
+    register a Baldric theme (``_ProjectTrustApp`` does for standalone runs;
+    the main TUI registers the resolved session theme).
+    """
 
     BINDINGS: ClassVar[list[BindingType]] = [
         Binding("escape", "cancel", "Cancel"),
@@ -35,7 +40,7 @@ class ProjectTrustScreen(ModalScreen[TrustChoice | None]):
     DEFAULT_CSS = """
     ProjectTrustScreen {
         align: center middle;
-        background: #000000 70%;
+        background: $baldric-chrome-background 70%;
     }
     #project-trust-dialog {
         width: 76;
@@ -43,9 +48,9 @@ class ProjectTrustScreen(ModalScreen[TrustChoice | None]):
         height: auto;
         max-height: 90%;
         padding: 1 2;
-        background: #000000;
-        color: #d8dee9;
-        border: tall #141922;
+        background: $baldric-chrome-background;
+        color: $baldric-chrome-text;
+        border: tall $baldric-border;
     }
     #project-trust-title {
         height: 1;
@@ -55,7 +60,7 @@ class ProjectTrustScreen(ModalScreen[TrustChoice | None]):
     #project-trust-path-label,
     #project-trust-summary-label {
         height: 1;
-        color: #667085;
+        color: $baldric-muted-text;
     }
     #project-trust-path,
     #project-trust-summary,
@@ -64,24 +69,24 @@ class ProjectTrustScreen(ModalScreen[TrustChoice | None]):
         margin-bottom: 1;
     }
     #project-trust-boundary {
-        color: #667085;
+        color: $baldric-muted-text;
     }
     #project-trust-list {
         height: auto;
         max-height: 7;
-        background: #000000;
-        color: #d8dee9;
-        border: tall #141922;
+        background: $baldric-transcript-background;
+        color: $baldric-chrome-text;
+        border: tall $baldric-border;
     }
     #project-trust-list ListItem.-highlight,
     #project-trust-list ListItem.-highlight Label {
-        background: #a7f3f0;
-        color: #061a1a;
+        background: $baldric-highlight-background;
+        color: $baldric-highlight-text;
     }
     #project-trust-help {
         height: 1;
         margin-top: 1;
-        color: #667085;
+        color: $baldric-muted-text;
     }
     """
 
