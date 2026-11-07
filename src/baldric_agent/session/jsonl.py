@@ -3,17 +3,40 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+import types
+from typing import Annotated, Any, TypeAliasType, Union, get_args, get_origin
 
-from pydantic import TypeAdapter, ValidationError
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
-from baldric_agent.session.entries import SessionEntry
+from baldric_agent.session.entries import (
+    CURRENT_SCHEMA_VERSION,
+    SESSION_ENTRY_MODELS,
+    SessionEntry,
+)
 
 _SESSION_ENTRY_ADAPTER: TypeAdapter[SessionEntry] = TypeAdapter(SessionEntry)
+
+_KNOWN_ENTRY_TYPES: frozenset[str] = frozenset(
+    model.model_fields["type"].default for model in SESSION_ENTRY_MODELS
+)
+
+# Union members carry their tag in one of these fields; `AgentMessage` uses
+# `role`, every content block and entry uses `type`.
+_TAG_FIELDS = ("type", "role")
 
 
 class SessionJsonlError(ValueError):
     """Raised when a session JSONL line cannot be decoded."""
+
+
+class SessionVersionError(SessionJsonlError):
+    """Raised when a transcript needs a schema version this build cannot read.
+
+    The message names both versions so the failure is actionable: the session was
+    written by a build that knows a shape this one does not, or by a future build
+    altogether. Refusing to open with a clear error is deliberate; silently
+    dropping entries would corrupt the branch that resumes from them.
+    """
 
 
 def entry_to_json_line(entry: SessionEntry) -> str:
@@ -27,7 +50,9 @@ def entry_from_json_line(line: str, *, line_number: int | None = None) -> Sessio
     try:
         payload = json.loads(line)
         migrated = _migrate_session_entry(payload, legacy_label_target_id=None)
-        return _SESSION_ENTRY_ADAPTER.validate_python(migrated)
+        return _stored_entry(migrated, location=location)
+    except SessionVersionError:
+        raise
     except (json.JSONDecodeError, ValidationError, TypeError, ValueError) as exc:
         raise SessionJsonlError(f"Invalid session entry{location}: {exc}") from exc
 
@@ -52,11 +77,14 @@ def entries_from_json_lines(lines: list[str]) -> list[SessionEntry]:
     legacy_target_id = _legacy_label_target_id([value for _line, value in decoded])
     entries: list[SessionEntry] = []
     for line_number, value in decoded:
+        location = f" on line {line_number}"
         try:
             migrated = _migrate_session_entry(value, legacy_label_target_id=legacy_target_id)
-            entries.append(_SESSION_ENTRY_ADAPTER.validate_python(migrated))
+            entries.append(_stored_entry(migrated, location=location))
+        except SessionVersionError:
+            raise
         except (ValidationError, TypeError, ValueError) as exc:
-            raise SessionJsonlError(f"Invalid session entry on line {line_number}: {exc}") from exc
+            raise SessionJsonlError(f"Invalid session entry{location}: {exc}") from exc
     return entries
 
 
@@ -118,6 +146,107 @@ def _migrate_session_entry(value: Any, *, legacy_label_target_id: str | None) ->
 
     migrated["message"] = message
     return migrated
+
+
+def _stored_entry(value: Any, *, location: str) -> SessionEntry:
+    """Validate one migrated entry, tolerating fields this build does not know."""
+    if not isinstance(value, dict):
+        raise SessionJsonlError(f"Invalid session entry{location}: expected a JSON object")
+    version = value.get("schema_version", CURRENT_SCHEMA_VERSION)
+    if isinstance(version, int) and version > CURRENT_SCHEMA_VERSION:
+        raise SessionVersionError(
+            f"Invalid session entry{location}: schema version {version} is newer than the "
+            f"{CURRENT_SCHEMA_VERSION} this build supports. Upgrade Baldric to read this session."
+        )
+    entry_type = value.get("type")
+    if entry_type not in _KNOWN_ENTRY_TYPES:
+        raise SessionVersionError(
+            f"Invalid session entry{location}: unknown type {entry_type!r}, which was written by a "
+            "newer Baldric. Upgrade Baldric to read this session."
+        )
+    return _SESSION_ENTRY_ADAPTER.validate_python(_strip_unknown_fields(value, SessionEntry))
+
+
+def _strip_unknown_fields(value: Any, annotation: Any) -> Any:
+    """Drop fields the annotated model does not declare, at every depth.
+
+    Pi's durable records carry an explicit kind and version, and readers dispatch
+    on them. This boundary does the equivalent for pydantic unions: resolve the
+    member by its tag, then keep only declared fields. Runtime models stay
+    strict; only the persistence boundary is tolerant, which is what lets an
+    older build read a transcript that gained a field.
+    """
+    annotation = _unwrap_annotated(annotation)
+    origin = get_origin(annotation)
+    if origin in (Union, types.UnionType):
+        member = _tagged_member(value, get_args(annotation))
+        if member is None:
+            return value
+        return _strip_unknown_fields(value, member)
+    if origin in (list, tuple):
+        args = get_args(annotation)
+        if not args or not isinstance(value, list):
+            return value
+        return [_strip_unknown_fields(item, args[0]) for item in value]
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        if not isinstance(value, dict):
+            return value
+        allowed = _allowed_keys(annotation)
+        return {
+            key: _strip_unknown_fields(item, allowed[key]) for key, item in value.items() if key in allowed
+        }
+    return value
+
+
+def _allowed_keys(model: type[BaseModel]) -> dict[str, Any]:
+    """Map every accepted payload key (field name and alias) to its annotation.
+
+    The wire models serialize with camelCase aliases, so keeping only field names
+    would drop ``toolCallId`` and friends. Both spellings are accepted, matching
+    the models' own ``validate_by_name``/``validate_by_alias`` configuration.
+    """
+    allowed: dict[str, Any] = {}
+    for name, field in model.model_fields.items():
+        allowed[name] = field.annotation
+        for alias in (field.alias, field.validation_alias):
+            if isinstance(alias, str):
+                allowed[alias] = field.annotation
+            else:
+                choices = getattr(alias, "choices", ())
+                for choice in choices:
+                    if isinstance(choice, str):
+                        allowed[choice] = field.annotation
+    return allowed
+
+
+def _unwrap_annotated(annotation: Any) -> Any:
+    """Resolve PEP 695 ``type`` aliases and ``Annotated`` wrappers to the shape."""
+    while True:
+        if isinstance(annotation, TypeAliasType):
+            annotation = annotation.__value__
+            continue
+        if get_origin(annotation) is Annotated:
+            annotation = get_args(annotation)[0]
+            continue
+        return annotation
+
+
+def _tagged_member(value: Any, members: tuple[Any, ...]) -> Any | None:
+    """Return the union member whose tag field matches ``value``, if any."""
+    if not isinstance(value, dict):
+        return None
+    for tag_field in _TAG_FIELDS:
+        tag = value.get(tag_field)
+        if not isinstance(tag, str):
+            continue
+        for member in members:
+            member = _unwrap_annotated(member)
+            if not (isinstance(member, type) and issubclass(member, BaseModel)):
+                continue
+            field = member.model_fields.get(tag_field)
+            if field is not None and field.default == tag:
+                return member
+    return None
 
 
 def _legacy_label_target_id(values: list[Any]) -> str | None:

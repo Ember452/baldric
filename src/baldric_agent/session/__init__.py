@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from baldric_agent.session.entries import (
+    CURRENT_SCHEMA_VERSION,
+    SESSION_ENTRY_MODELS,
     BaseSessionEntry,
     BranchSummaryEntry,
     CompactionEntry,
@@ -18,6 +20,7 @@ from baldric_agent.session.entries import (
 )
 from baldric_agent.session.jsonl import (
     SessionJsonlError,
+    SessionVersionError,
     entries_from_json_lines,
     entry_from_json_line,
     entry_to_json_line,
@@ -27,6 +30,8 @@ from baldric_agent.session.storage import InMemorySessionStorage, JsonlSessionSt
 from baldric_agent.session.tree import SessionTreeError, entries_by_id, path_to_entry
 
 __all__ = [
+    "CURRENT_SCHEMA_VERSION",
+    "SESSION_ENTRY_MODELS",
     "BaseSessionEntry",
     "BranchSummaryEntry",
     "CompactionEntry",
@@ -44,6 +49,7 @@ __all__ = [
     "SessionState",
     "SessionStorage",
     "SessionTreeError",
+    "SessionVersionError",
     "ThinkingLevelChangeEntry",
     "entries_by_id",
     "entries_from_json_lines",
