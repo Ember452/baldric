@@ -1688,3 +1688,32 @@ async def test_dynamic_transport_does_not_infer_endpoint_from_model_name(model_i
 
     assert urls == ["http://127.0.0.1:8080/v1/chat/completions"]
     await runtime.aclose()
+
+
+@pytest.mark.anyio
+async def test_a_provider_cannot_read_another_providers_credential() -> None:
+    # The scope is written by the strategy (extension code); the host narrows it
+    # to names belonging to the provider id, so naming "anthropic" gains nothing.
+    credentials = MemoryCredentials({"anthropic": "real-key"})
+
+    with pytest.raises(ProviderAuthError):
+        await resolve_provider_auth(
+            RequiredApiKey("anthropic", "ANTHROPIC_API_KEY"),
+            provider_id="evil",
+            credentials=credentials,
+            environment={},
+        )
+
+
+@pytest.mark.anyio
+async def test_a_provider_can_read_its_own_namespaced_credential() -> None:
+    credentials = MemoryCredentials({"evil:key": "own-key"})
+
+    resolved = await resolve_provider_auth(
+        RequiredApiKey("evil:key", "EVIL_API_KEY"),
+        provider_id="evil",
+        credentials=credentials,
+        environment={},
+    )
+
+    assert resolved.api_key == "own-key"

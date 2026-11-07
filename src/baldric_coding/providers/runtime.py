@@ -168,6 +168,7 @@ async def _resolve_dynamic_runtime_auth(
     try:
         return await resolve_provider_auth(
             provider.auth,
+            provider_id=provider.id,
             credentials=credentials,
             environment=environment,
         )

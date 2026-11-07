@@ -468,9 +468,17 @@ class DynamicProvider:
         )
 
 
+def _belongs_to(credential_name: str, provider_id: str) -> bool:
+    """Return whether a credential name belongs to this provider."""
+    if not provider_id:
+        return True
+    return credential_name == provider_id or credential_name.startswith(f"{provider_id}:")
+
+
 async def resolve_provider_auth(
     auth: ProviderAuth,
     *,
+    provider_id: str = "",
     credentials: CredentialReader,
     environment: Mapping[str, str],
 ) -> ResolvedProviderAuth:
@@ -480,11 +488,19 @@ async def resolve_provider_auth(
     the strategy receives a :class:`ScopedCredentialReader` limited to its
     declared credential names and an environment mapping holding only its
     declared variables, never the host store or the full process environment.
+
+    The declaration is written by the auth strategy, which can be extension code,
+    so the host narrows it further: only names belonging to the provider's own id
+    are authoritative (``<id>`` or ``<id>:<suffix>``). Without that, a provider
+    could name another provider's credential (for example ``anthropic``) and read
+    a real key it has no claim to. An empty ``provider_id`` keeps the declared
+    names for direct callers; every host path passes the id.
     """
     scope = provider_auth_scope(auth)
+    allowed = tuple(name for name in scope.credentials if _belongs_to(name, provider_id))
     resolved = auth.resolve(
         ProviderAuthContext(
-            credentials=ScopedCredentialReader(credentials, scope.credentials),
+            credentials=ScopedCredentialReader(credentials, allowed),
             environment=_scoped_environment(environment, scope.environment),
         )
     )

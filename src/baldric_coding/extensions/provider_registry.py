@@ -489,6 +489,7 @@ class DynamicProviderRegistry:
     ) -> ProviderModelSnapshot:
         auth = await resolve_provider_auth(
             provider.auth,
+            provider_id=provider.id,
             credentials=self._credentials,
             environment=self._environment,
         )
