@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from baldric_agent.messages import (
-    UserMessage,
+    BashExecutionMessage,
 )
 from baldric_ai.model_catalog import ModelCatalogProvider, RuntimeModelCatalog
 from baldric_coding.commands.registry import CommandResult
@@ -113,9 +113,6 @@ from baldric_coding.session.provider_helpers import (
 )
 from baldric_coding.session.provider_helpers import (
     _state_thinking_level as _state_thinking_level,
-)
-from baldric_coding.session.provider_helpers import (
-    _terminal_command_context_message as _terminal_command_context_message,
 )
 from baldric_coding.session.provider_helpers import (
     _unavailable_thinking_message as _unavailable_thinking_message,
@@ -1162,11 +1159,10 @@ async def run_terminal_command(
 
     if add_to_context:
         await session._flush_pending_message_writes(context=session._diagnostic_context())
-        context_message = UserMessage(
-            content=_terminal_command_context_message(
-                normalized_command,
-                result.text,
-            )
+        context_message = BashExecutionMessage(
+            command=normalized_command,
+            output=result.text,
+            exit_code=exit_code,
         )
         session._harness.append_message(context_message)
         session._invalidate_context_usage_cache()

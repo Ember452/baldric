@@ -23,7 +23,7 @@ from baldric_agent import (
     Usage,
     UserMessage,
 )
-from baldric_agent.messages import AssistantMessageDiagnostic, assistant_content
+from baldric_agent.messages import AssistantMessageDiagnostic, BashExecutionMessage, assistant_content
 from baldric_agent.provider_events import AssistantErrorEvent
 from baldric_agent.session import (
     CompactionEntry,
@@ -1301,10 +1301,16 @@ async def test_terminal_command_can_persist_output_to_context(tmp_path: Path) ->
     entries = await storage.read_all()
     messages = [entry.message for entry in entries if isinstance(entry, MessageEntry)]
     assert len(messages) == 1
-    assert isinstance(messages[0], UserMessage)
-    assert "Terminal command executed by the user." in messages[0].content
-    assert "printf hello" in messages[0].content
-    assert "hello" in messages[0].content
+    # A terminal command is persisted as its own message (pi's bashExecution
+    # shape) rather than a user message; the model-facing text is produced by
+    # context projection and is unchanged.
+    assert isinstance(messages[0], BashExecutionMessage)
+    assert messages[0].command == "printf hello"
+    assert messages[0].output == "hello"
+    assert messages[0].exit_code == 0
+    assert "Terminal command executed by the user." in messages[0].text
+    assert "printf hello" in messages[0].text
+    assert "hello" in messages[0].text
 
 
 @pytest.mark.anyio

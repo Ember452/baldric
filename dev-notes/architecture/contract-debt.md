@@ -14,7 +14,7 @@ named owner and an exit condition.
 | `ProviderRetryEvent` (AI internal) | Now surfaced: `stream.py` converts it to `AssistantRetryEvent`, the loop to `RetryAttemptEvent`, coding to `auto_retry_start` / `auto_retry_end` (#47). Since the audit, the event's `data` (HTTP status and body) also lands on the assistant message diagnostics, truncated and never model-visible. |
 | `Usage.cost` | **Still debt.** `sum_usage` and `session/stats.py` read it, nothing produces it: every adapter reports zero. Removing it changes the wire shape; wiring it needs pricing in the provider layer, where it does not live. Exit: the first consumer that needs cost to survive an export. |
 | `EntryAppendedEvent` | **Deleted**, together with its `entry_appended` entry in the extension event whitelist: nothing emitted or consumed it, so extensions were subscribing to an event that could never fire. A guard test now fails if the whitelist names any event the event modules do not declare. |
-| `BashExecutionMessage` | Never constructed. Wire-parity placeholder for Pi's `!!` path, which Baldric implements as a separate flag. |
+| `BashExecutionMessage` | **Wired.** `run_terminal_command(add_to_context=True)` now persists one, `provider_context` renders it into the same plain text the model saw before, `exclude_from_context` keeps an execution in the transcript but out of the request, and the transcript loader renders it on resume. |
 | `sum_usage` | Already wired (`session/branch_summary.py`, `session/session.py`). Not debt. |
 
 ## Rule

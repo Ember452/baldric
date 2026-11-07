@@ -115,9 +115,6 @@ from baldric_coding.session.provider_helpers import (
     _state_thinking_level as _state_thinking_level,
 )
 from baldric_coding.session.provider_helpers import (
-    _terminal_command_context_message as _terminal_command_context_message,
-)
-from baldric_coding.session.provider_helpers import (
     _unavailable_thinking_message as _unavailable_thinking_message,
 )
 from baldric_coding.session.resource_helpers import (  # noqa: F401

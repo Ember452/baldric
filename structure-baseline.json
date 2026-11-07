@@ -9,7 +9,7 @@
       "max_function_stmts": 7
     },
     "src/baldric_agent/context_projection.py": {
-      "lines": 73,
+      "lines": 89,
       "max_function_stmts": 5
     },
     "src/baldric_agent/events.py": {
@@ -25,7 +25,7 @@
       "max_function_stmts": 17
     },
     "src/baldric_agent/messages.py": {
-      "lines": 320,
+      "lines": 338,
       "max_function_stmts": 8
     },
     "src/baldric_agent/provider.py": {
@@ -609,7 +609,7 @@
       "max_function_stmts": 5
     },
     "src/baldric_coding/session/lifecycle.py": {
-      "lines": 1184,
+      "lines": 1180,
       "max_function_stmts": 61
     },
     "src/baldric_coding/session/manager.py": {
@@ -621,7 +621,7 @@
       "max_function_stmts": 14
     },
     "src/baldric_coding/session/model_selection.py": {
-      "lines": 881,
+      "lines": 878,
       "max_function_stmts": 30
     },
     "src/baldric_coding/session/prepare.py": {
@@ -629,7 +629,7 @@
       "max_function_stmts": 7
     },
     "src/baldric_coding/session/provider_helpers.py": {
-      "lines": 485,
+      "lines": 486,
       "max_function_stmts": 17
     },
     "src/baldric_coding/session/resource_helpers.py": {
@@ -641,7 +641,7 @@
       "max_function_stmts": 5
     },
     "src/baldric_coding/session/runtime.py": {
-      "lines": 1222,
+      "lines": 1270,
       "max_function_stmts": 21
     },
     "src/baldric_coding/session/session.py": {
@@ -821,7 +821,7 @@
       "max_function_stmts": 8
     },
     "src/baldric_coding/tui/state.py": {
-      "lines": 988,
+      "lines": 995,
       "max_function_stmts": 15
     },
     "src/baldric_coding/tui/terminal_notification.py": {

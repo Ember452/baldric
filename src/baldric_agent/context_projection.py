@@ -5,9 +5,12 @@ from __future__ import annotations
 from baldric_agent.messages import (
     AgentMessage,
     AssistantMessage,
+    BashExecutionMessage,
     ImageContent,
     TextContent,
     ToolResultMessage,
+    UserMessage,
+    bash_execution_text,
 )
 from baldric_agent.tool_history import repair_tool_history
 
@@ -51,6 +54,19 @@ def provider_context(messages: list[AgentMessage]) -> list[AgentMessage]:
                     image_results = []
                 continue
             image_results = []
+        elif isinstance(message, BashExecutionMessage):
+            # A bash execution is its own durable message (pi parity) but the
+            # provider sees plain text, and `exclude_from_context` keeps it out of
+            # the request entirely while staying in the transcript.
+            if not message.exclude_from_context:
+                replayable.append(
+                    UserMessage(
+                        content=bash_execution_text(message),
+                        timestamp=message.timestamp,
+                    )
+                )
+            image_results = []
+            continue
         elif isinstance(message, ToolResultMessage):
             if any(isinstance(block, ImageContent) for block in message.content):
                 image_results.append((len(replayable), message))

@@ -11,6 +11,7 @@ from typing import Literal
 from baldric_agent.messages import (
     AgentMessage,
     AssistantMessage,
+    BashExecutionMessage,
     BranchSummaryMessage,
     CompactionSummaryMessage,
     CustomMessage,
@@ -18,6 +19,7 @@ from baldric_agent.messages import (
     ThinkingContent,
     ToolResultMessage,
     UserMessage,
+    bash_execution_text,
 )
 from baldric_agent.tools import AgentToolResult, ToolCall
 from baldric_agent.types import JSONValue
@@ -738,6 +740,11 @@ class TuiState:
                     self.add_assistant_error(message)
                 else:
                     self.add_assistant_message(message)
+            elif isinstance(message, BashExecutionMessage):
+                # pi keeps bash executions as their own message; show the same
+                # text the user saw when it ran, so a resumed transcript still
+                # carries the command output.
+                self.add_user_message(bash_execution_text(message))
             elif isinstance(message, ToolResultMessage):
                 self.record_tool_result(
                     message.tool_call_id,
