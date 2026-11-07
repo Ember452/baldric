@@ -32,6 +32,7 @@ from baldric_coding.context.system_prompt import (
 )
 from baldric_coding.rendering.diffs import render_patch
 from baldric_coding.rendering.grouping import format_tool_run_summary, should_summarize
+from baldric_coding.rendering.thinking import format_hidden_thinking_summary
 from baldric_coding.rendering.tool_calls import format_tool_call_invocation
 from baldric_coding.tui.autocomplete import CompletionState
 from baldric_coding.tui.config import BALDRIC_DARK_THEME, TuiRoleStyle, TuiTheme
@@ -580,6 +581,8 @@ class TranscriptView(VerticalScroll):
         self._active_thinking_widget: StreamingTranscriptMessageWidget | None = None
         self._active_message_widgets: list[Widget] = []
         self._hidden_thinking_placeholder_visible = False
+        self._hidden_thinking_placeholder_widget: TranscriptMessageWidget | None = None
+        self._hidden_thinking_stream_text = ""
         self._follow_output = True
         self._follow_scroll_pending = False
         self._window_start = 0
@@ -698,9 +701,38 @@ class TranscriptView(VerticalScroll):
         """Stop streaming for a completed thinking block before another block starts."""
         widget = self._active_thinking_widget
         if widget is None:
+            await self._finalize_hidden_thinking_placeholder()
             return
         await widget.finalize()
         self._active_thinking_widget = None
+
+    async def _finalize_hidden_thinking_placeholder(self) -> None:
+        """Swap the streamed hidden-thinking placeholder for its summary line.
+
+        While deltas stream in hidden, the placeholder is a static "Thinking…"
+        row; once the block ends, the accumulated text is known and the row
+        becomes the token-count summary, matching restored transcripts.
+        """
+        widget = self._hidden_thinking_placeholder_widget
+        if widget is None or not self._hidden_thinking_placeholder_visible:
+            return
+        replacement = TranscriptMessageWidget(
+            ChatItem(
+                role="thinking",
+                text=format_hidden_thinking_summary([self._hidden_thinking_stream_text]),
+            ),
+            theme=self._render_theme,
+            show_tool_results=False,
+        )
+        await self.mount(replacement, before=widget)
+        await widget.remove()
+        self._active_message_widgets[:] = [
+            replacement if active is widget else active
+            for active in self._active_message_widgets
+        ]
+        self._hidden_thinking_placeholder_widget = None
+        self._hidden_thinking_placeholder_visible = False
+        self._hidden_thinking_stream_text = ""
 
     async def _finalize_active_assistant_message(self) -> None:
         """Stop streaming for a completed assistant block before another block starts."""
@@ -755,6 +787,7 @@ class TranscriptView(VerticalScroll):
             if widget in thinking_children:
                 del self._item_widgets[item_id]
 
+        hidden_run_summaries = _hidden_thinking_run_summaries(window_items, state.show_thinking)
         non_thinking_index = 0
         pending: list[tuple[ChatItem, TranscriptMessageWidget]] = []
         hidden_run = False
@@ -784,7 +817,10 @@ class TranscriptView(VerticalScroll):
                     )
                 elif not hidden_run:
                     placeholder = TranscriptMessageWidget(
-                        ChatItem(role="thinking", text=_HIDDEN_THINKING_PLACEHOLDER),
+                        ChatItem(
+                            role="thinking",
+                            text=hidden_run_summaries.get(id(item), _HIDDEN_THINKING_PLACEHOLDER),
+                        ),
                         theme=theme,
                         show_tool_results=state.show_tool_results,
                     )
@@ -856,12 +892,17 @@ class TranscriptView(VerticalScroll):
             self._top_boundary = TranscriptWindowBoundary("earlier", self._window_start)
             widgets.append(self._top_boundary)
 
+        window_items = state.items[self._window_start : self._window_end]
+        hidden_run_summaries = _hidden_thinking_run_summaries(window_items, state.show_thinking)
         hidden_thinking_widget: TranscriptMessageWidget | None = None
-        for item in state.items[self._window_start : self._window_end]:
+        for item in window_items:
             if item.role == "thinking" and not state.show_thinking:
                 if hidden_thinking_widget is None:
                     hidden_thinking_widget = TranscriptMessageWidget(
-                        ChatItem(role="thinking", text=_HIDDEN_THINKING_PLACEHOLDER),
+                        ChatItem(
+                            role="thinking",
+                            text=hidden_run_summaries.get(id(item), _HIDDEN_THINKING_PLACEHOLDER),
+                        ),
                         theme=theme,
                         show_tool_results=state.show_tool_results,
                     )
@@ -1095,6 +1136,7 @@ class TranscriptView(VerticalScroll):
                 return
         should_follow = self._should_follow_output if not scroll_end else True
         if not show_thinking:
+            self._hidden_thinking_stream_text += delta
             if self._hidden_thinking_placeholder_visible:
                 return
             widget = TranscriptMessageWidget(
@@ -1108,6 +1150,7 @@ class TranscriptView(VerticalScroll):
             await self.mount(widget, before=self._active_assistant_widget or self._bottom_boundary)
             self._active_message_widgets.append(widget)
             self._active_thinking_widget = None
+            self._hidden_thinking_placeholder_widget = widget
             self._hidden_thinking_placeholder_visible = True
             self.refresh(layout=True)
             if should_follow:
@@ -1135,6 +1178,9 @@ class TranscriptView(VerticalScroll):
         item: ChatItem | None = None,
     ) -> None:
         """Finalize the active assistant widget after the provider sends the full message."""
+        # A hidden-thinking placeholder streamed for this message now has its
+        # full text; swap it for the summary line whatever branch runs below.
+        await self._finalize_hidden_thinking_placeholder()
         widget = self._active_assistant_widget
         if widget is None:
             if item is not None:
@@ -1205,13 +1251,17 @@ class TranscriptView(VerticalScroll):
         state = self._render_state
         if state is not None:
             self._window_end = len(state.items)
+        hidden_run_summaries = _hidden_thinking_run_summaries(list(items), show_thinking)
         hidden_widget: TranscriptMessageWidget | None = None
         mounted: list[Widget] = []
         for item in items:
             if item.role == "thinking" and not show_thinking:
                 if hidden_widget is None:
                     hidden_widget = TranscriptMessageWidget(
-                        ChatItem(role="thinking", text=_HIDDEN_THINKING_PLACEHOLDER),
+                        ChatItem(
+                            role="thinking",
+                            text=hidden_run_summaries.get(id(item), _HIDDEN_THINKING_PLACEHOLDER),
+                        ),
                         theme=theme,
                         show_tool_results=False,
                     )
@@ -1590,6 +1640,28 @@ def _tool_batch_selection_text(item: ChatItem, *, expanded: bool) -> str:
             text = f"{text}\n… {row.update_text}"
         rows.append(text)
     return ("\n\n" if expanded else "\n").join(rows)
+
+
+def _hidden_thinking_run_summaries(
+    window_items: list[ChatItem], show_thinking: bool
+) -> dict[int, str]:
+    """Map the first item of each hidden thinking run to its one-line summary."""
+    summaries: dict[int, str] = {}
+    run: list[ChatItem] = []
+    for item in window_items:
+        if item.role == "thinking" and not show_thinking:
+            run.append(item)
+            continue
+        if run:
+            summaries[id(run[0])] = format_hidden_thinking_summary(
+                [run_item.text for run_item in run]
+            )
+            run = []
+    if run:
+        summaries[id(run[0])] = format_hidden_thinking_summary(
+            [run_item.text for run_item in run]
+        )
+    return summaries
 
 
 def _render_transcript_tool_batch(

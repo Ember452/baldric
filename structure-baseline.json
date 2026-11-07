@@ -845,7 +845,7 @@
       "max_function_stmts": 0
     },
     "src/baldric_coding/tui/widgets/core.py": {
-      "lines": 1860,
+      "lines": 1932,
       "max_function_stmts": 23
     },
     "src/baldric_coding/tui/widgets/markdown.py": {

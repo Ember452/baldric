@@ -1470,7 +1470,8 @@ async def test_collapsed_thinking_block_keeps_one_blank_line() -> None:
         thinking, assistant = rows
         gap = assistant.region.y - (thinking.region.y + thinking.region.height)
 
-    assert thinking.selection_text == "Thinking… Press Ctrl+T to show thinking tokens."
+    assert thinking.selection_text.startswith("Thought: ")
+    assert "secret plan" not in thinking.selection_text
     assert [widget.item.role for widget in rows] == ["thinking", "assistant"]
     assert gap == 1
 
@@ -10832,7 +10833,7 @@ async def test_tui_app_toggles_thinking_tokens_from_keybinding_while_running() -
 
         assert app.state.show_thinking is False
         assert "final answer" in transcript_text()
-        assert "Thinking… Press Ctrl+T to show thinking tokens." in transcript_text()
+        assert "Thought:" in transcript_text()
         assert "internal plan" not in transcript_text()
 
         await pilot.press("ctrl+t")
@@ -10840,12 +10841,12 @@ async def test_tui_app_toggles_thinking_tokens_from_keybinding_while_running() -
         assert app.state.show_thinking is True
         assert app.state.running is True
         assert "internal plan" in transcript_text()
-        assert "Thinking… Press Ctrl+T to show thinking tokens." not in transcript_text()
+        assert "Thought:" not in transcript_text()
 
         await pilot.press("ctrl+t")
         await pilot.pause()
         assert app.state.show_thinking is False
-        assert "Thinking… Press Ctrl+T to show thinking tokens." in transcript_text()
+        assert "Thought:" in transcript_text()
         assert "internal plan" not in transcript_text()
 
     assert notifications == []
@@ -10881,10 +10882,11 @@ async def test_tui_app_hidden_thinking_placeholder_stays_before_streamed_answer(
         await pilot.pause()
 
         transcript = app.query_one("#transcript", TranscriptView)
-        assert [line.text for line in transcript.lines] == [
-            "Thinking… Press Ctrl+T to show thinking tokens.",
-            "public answer",
-        ]
+        lines = [line.text for line in transcript.lines]
+        assert len(lines) == 2
+        assert lines[0].startswith("Thought: ")
+        assert "private plan" not in lines[0]
+        assert lines[1] == "public answer"
 
 
 @pytest.mark.anyio
@@ -10908,13 +10910,12 @@ async def test_tui_app_restored_thinking_toggles_in_persisted_order() -> None:
     async with app.run_test() as pilot:
         await pilot.pause()
         transcript = app.query_one("#transcript", TranscriptView)
-        assert [line.text for line in transcript.lines] == [
-            "prompt",
-            "Thinking… Press Ctrl+T to show thinking tokens.",
-            "first answer",
-            "Thinking… Press Ctrl+T to show thinking tokens.",
-            "second answer",
-        ]
+        lines = [line.text for line in transcript.lines]
+        assert lines[0] == "prompt"
+        assert lines[1].startswith("Thought: ")
+        assert lines[2] == "first answer"
+        assert lines[3].startswith("Thought: ")
+        assert lines[4] == "second answer"
 
         await pilot.press("ctrl+t")
         await pilot.pause()
@@ -10928,13 +10929,14 @@ async def test_tui_app_restored_thinking_toggles_in_persisted_order() -> None:
 
         await pilot.press("ctrl+t")
         await pilot.pause()
-        assert [line.text for line in transcript.lines] == [
-            "prompt",
-            "Thinking… Press Ctrl+T to show thinking tokens.",
-            "first answer",
-            "Thinking… Press Ctrl+T to show thinking tokens.",
-            "second answer",
-        ]
+        lines = [line.text for line in transcript.lines]
+        assert lines[0] == "prompt"
+        assert lines[1].startswith("Thought: ")
+        assert "first plan" not in lines[1]
+        assert lines[2] == "first answer"
+        assert lines[3].startswith("Thought: ")
+        assert "second plan" not in lines[3]
+        assert lines[4] == "second answer"
 
 
 @pytest.mark.anyio
@@ -10968,15 +10970,16 @@ async def test_tui_app_thinking_toggle_preserves_unrelated_items() -> None:
         await pilot.pause()
         await pilot.press("ctrl+t")
         await pilot.pause()
-        assert [line.text for line in transcript.lines] == [
-            "first prompt",
-            "Thinking… Press Ctrl+T to show thinking tokens.",
-            "first answer",
-            "second prompt",
-            "Thinking… Press Ctrl+T to show thinking tokens.",
-            "second answer",
-            "late status",
-        ]
+        lines = [line.text for line in transcript.lines]
+        assert lines[0] == "first prompt"
+        assert lines[1].startswith("Thought: ")
+        assert "plan one" not in lines[1]
+        assert lines[2] == "first answer"
+        assert lines[3] == "second prompt"
+        assert lines[4].startswith("Thought: ")
+        assert "plan two" not in lines[4]
+        assert lines[5] == "second answer"
+        assert lines[6] == "late status"
 
 
 @pytest.mark.anyio
