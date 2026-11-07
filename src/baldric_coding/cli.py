@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import faulthandler
 import sys
 from collections.abc import Callable, Sequence
 from functools import partial
@@ -36,6 +37,7 @@ from baldric_coding.extensions.installer import (
     update_extension,
 )
 from baldric_coding.modes.rpc import RpcServer
+from baldric_coding.observability.doctor import render_doctor_report
 from baldric_coding.providers.config import (
     DEFAULT_MODEL,
     DEFAULT_PROVIDER_NAME,
@@ -258,6 +260,17 @@ def setup_command(
         typer.echo(f"Set {provider.api_key_env} before running Baldric with this provider.", err=True)
 
 
+def _cli_preflight(*, doctor: bool) -> None:
+    """Start best-effort crash diagnostics, then honor the `--doctor` early exit."""
+    # CliRunner and other embedded hosts use fileno-less streams where
+    # faulthandler cannot attach; diagnostics stay best-effort there.
+    with contextlib.suppress(ValueError, OSError):
+        faulthandler.enable()
+    if doctor:
+        render_doctor_report()
+        raise typer.Exit()
+
+
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
@@ -461,8 +474,13 @@ def main(
         bool,
         typer.Option("--models", help="With `baldric update`, refresh model catalogs only."),
     ] = False,
+    doctor: Annotated[
+        bool,
+        typer.Option("--doctor", help="Print a terminal capability report and exit."),
+    ] = False,
 ) -> None:
     """Run the Baldric CLI."""
+    _cli_preflight(doctor=doctor)
     current_version = _current_version()
     if version:
         typer.echo(f"baldric {current_version}")

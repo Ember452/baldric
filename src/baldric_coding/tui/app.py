@@ -8,6 +8,7 @@ import os
 import signal
 import sys
 import threading
+import time
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import suppress
 from dataclasses import replace
@@ -92,6 +93,7 @@ from baldric_coding.events import (
 from baldric_coding.extensions.api import (
     KeyInterceptor,
 )
+from baldric_coding.observability.watchdog import LoopWatchdog
 from baldric_coding.providers.catalog import (
     ProviderCatalogEntry,
     builtin_provider_entry,
@@ -1402,6 +1404,9 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         self._compaction_worker: Worker[None] | None = None
         self._compacting = False
         self._compaction_run_id = 0
+        # Watchdog heartbeat: refreshed by a timer on the UI loop (see
+        # on_mount); a stalled loop stops advancing it.
+        self._ui_heartbeat = time.monotonic()
         self._prompt_run_id = 0
         self._optimistic_user_messages: list[tuple[int, str]] = []
         self._completion_state = CompletionState()
@@ -1428,6 +1433,14 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         self._dom_dispatcher = EventDispatcher(on_unhandled=lambda _: self._refresh_chrome())
         for event_type, handler_name in DOM_EVENT_HANDLERS.items():
             self._dom_dispatcher.register(event_type, getattr(self, handler_name))
+
+    def _beat_ui_heartbeat(self) -> None:
+        """Refresh the watchdog heartbeat from the UI loop.
+
+        Textual timers fire on the event loop, so a blocked loop stops
+        advancing ``_ui_heartbeat`` and the watchdog thread reports a stall.
+        """
+        self._ui_heartbeat = time.monotonic()
 
     async def prompt_project_trust(self, request: ProjectTrustRequest) -> TrustChoice | None:
         """Resolve a trust request through the active Textual modal stack."""
@@ -1585,6 +1598,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         prompt.shell_mode_style = self.tui_settings.resolved_theme.role_styles["tool"].border
         self._sync_prompt_shell_mode(prompt.text)
         prompt.focus()
+        self.set_interval(1.0, self._beat_ui_heartbeat, name="ui-heartbeat")
         self._update_responsive_layout(self.size.width, self.size.height)
         self._apply_sidebar_position()
         self._refresh()
@@ -4423,7 +4437,12 @@ async def run_tui_app(
             prompt_trust = getattr(app, "prompt_project_trust", None)
             if prompt_trust is not None:
                 set_trust_prompt(prompt_trust)
-        await app.run_async()
+        watchdog = LoopWatchdog(lambda: app._ui_heartbeat)
+        watchdog.start()
+        try:
+            await app.run_async()
+        finally:
+            watchdog.stop()
     finally:
         if session is not None:
             close_session = getattr(session, "aclose", None)

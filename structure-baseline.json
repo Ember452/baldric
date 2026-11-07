@@ -213,8 +213,8 @@
       "max_function_stmts": 15
     },
     "src/baldric_coding/cli.py": {
-      "lines": 1524,
-      "max_function_stmts": 43
+      "lines": 1542,
+      "max_function_stmts": 44
     },
     "src/baldric_coding/commands/__init__.py": {
       "lines": 1,
@@ -721,8 +721,8 @@
       "max_function_stmts": 16
     },
     "src/baldric_coding/tui/app.py": {
-      "lines": 4477,
-      "max_function_stmts": 61
+      "lines": 4461,
+      "max_function_stmts": 62
     },
     "src/baldric_coding/tui/autocomplete.py": {
       "lines": 658,
@@ -895,6 +895,6 @@
   },
   "global": {
     "inheritance_depth": 1,
-    "module_fanout": 54
+    "module_fanout": 55
   }
 }
