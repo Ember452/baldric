@@ -41,7 +41,11 @@ listed here with the trigger that would bring it back.
 | Windows `os.kill(pid, 0)` "kills processes" | **Not a defect.** Verified on this platform: the child kept writing heartbeats (4 → 19) and stayed alive. Recorded so it is not re-investigated. |
 | Extension credential scope is declared by the extension | A hostile extension can still name another provider's credential. Closing it needs a host-owned provider-to-credential map and a `resolve_provider_auth` signature change. |
 | `CodingSession` still owns ~33 mutable fields that other modules write | The structural split is a separate piece of work; this branch only stopped the field-copying bugs that leak from it. |
-| Event dispatch still has three consumers | The single-dispatcher refactor is the next slice; it touches the whole TUI event surface and deserves its own branch. |
+| `SessionInfoChangedEvent` / `ThinkingLevelChangedEvent` do not reach a frontend | The TUI now has handlers for both (dispatcher test proves they work), but the events are only published to extensions through `extension_runtime.emit_event`; they never enter the `prompt()` async stream. Pi publishes session-level events to session subscribers instead of only to the prompt stream. Trigger: the first extension that renames a session or changes thinking outside the command path. |
+| `Usage.cost` has no producer | Pi prices responses inside the provider adapter because the model object carries the rates; this project keeps pricing in the provider catalog, so the durable message is the first place both are known. Fix: fill it in `_persist_message` from `pricing_for_response` before the entry is written. |
+| `BashExecutionMessage` is never constructed | Pi's `!` executions are `bashExecution` messages with command/output/exit code. `run_terminal_command(add_to_context=True)` currently stores a formatted `UserMessage`. Fix: persist a `BashExecutionMessage` and teach context projection to honour `exclude_from_context`. |
+| `before_tool_call` has no call site | The extension `tool_call` hook already blocks tools by wrapping `execute_fn`, so the harness seam duplicates it. Either wire the seam and drop the wrapping, or delete the fields from `AgentHarnessConfig`/loop. |
+| Extension credential scope is declared by the extension | ... |
 
 ## Verification
 
