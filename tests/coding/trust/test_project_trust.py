@@ -310,6 +310,11 @@ async def test_tui_trust_modal_shows_boundary_parent_and_keyboard_cancel(
 
     class Host(App[None]):
         def on_mount(self) -> None:
+            # ProjectTrustScreen's stylesheet resolves $baldric-* variables, so
+            # the host has to register and select a Baldric theme first.
+            baldric_dark = textual_theme_for_tui_theme(BALDRIC_DARK_THEME.name)
+            self.register_theme(baldric_dark)
+            self.theme = baldric_dark.name
             self.push_screen(ProjectTrustScreen(request), results.append)
 
     host = Host()

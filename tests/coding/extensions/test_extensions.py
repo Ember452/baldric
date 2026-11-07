@@ -150,6 +150,9 @@ class RecordingSession:
             trusted=True, source="saved"
         )
         self.is_running = running
+        # Part of the BoundSession surface the runtime reads (child sessions
+        # inherit the approval gate through it); None means approval mode off.
+        self.before_tool_call = None
         self.messages: tuple[AgentMessage, ...] = ()
         self.steered: list[str] = []
         self.followed_up: list[str] = []
@@ -692,7 +695,7 @@ async def test_hidden_built_in_registers_real_runtime_surfaces_despite_no_extens
     command = registry.get("fake-built-in")
     assert command is not None
     result = command.handler(_command_context(registry, "/fake-built-in ok", "fake-built-in", "ok"))
-    assert result.message == "built-in: ok"
+    assert result.outcome.message == "built-in: ok"
     provider = runtime.provider_registry.effective("fake-built-in-provider")
     assert provider is not None
     assert provider.source_id == "built-in:fake-built-in"
@@ -775,7 +778,7 @@ def setup(baldric):
     command = registry.get("fake-built-in")
     assert command is not None
     result = command.handler(_command_context(registry, "/fake-built-in", "fake-built-in", ""))
-    assert result.message == "built-in: "
+    assert result.outcome.message == "built-in: "
     provider = runtime.provider_registry.effective("fake-built-in-provider")
     assert provider is not None
     assert provider.source_id.startswith("extension:file:")
@@ -977,7 +980,7 @@ def setup(baldric):
     command = registry.get("shared-command")
     assert command is not None
     result = command.handler(_command_context(registry, "/shared-command", "shared-command", ""))
-    assert result.message == "first"
+    assert result.outcome.message == "first"
     assert any("already registered" in diag.message for diag in runtime.diagnostics)
 
 
@@ -1081,7 +1084,7 @@ def test_extension_commands_layer_onto_default_registry(tmp_path: Path) -> None:
     assert command is not None
     result = command.handler(_command_context(registry, "/echo hi", "echo", "hi"))
     assert result.handled is True
-    assert result.message == "echo: hi"
+    assert result.outcome.message == "echo: hi"
 
 
 def test_extension_command_cannot_shadow_builtin(tmp_path: Path) -> None:
@@ -1122,7 +1125,7 @@ def test_extension_command_errors_are_contained(tmp_path: Path) -> None:
     result = command.handler(_command_context(registry, "/boom", "boom", ""))
 
     assert result.handled is True
-    assert result.message is not None and "failed" in result.message
+    assert result.outcome.message is not None and "failed" in result.outcome.message
     assert any("command:/boom" in diag.message for diag in runtime.diagnostics)
 
 
@@ -2066,7 +2069,7 @@ async def test_sync_command_spawns_task_that_awaits_dialog(tmp_path: Path) -> No
 
     result = command.handler(_command_context(registry, "/menu", "menu", ""))  # type: ignore[arg-type]
     assert result.handled is True
-    assert result.message == "opening menu..."
+    assert result.outcome.message == "opening menu..."
 
     # Let the spawned dialog task run to completion.
     for _ in range(4):
@@ -2284,7 +2287,7 @@ async def test_session_exposes_extension_tools_and_commands(tmp_path: Path) -> N
 
     result = session.handle_command("/hi")
     assert result.handled is True
-    assert result.message == "extension says hi"
+    assert result.outcome.message == "extension says hi"
 
     assert "hello" in session.system_prompt
 

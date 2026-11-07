@@ -79,6 +79,9 @@ class _FakeSession:
         self.cwd = cwd
         self.session_id = "itest-session"
         self.is_running = False
+        # Child sessions inherit the parent's approval gate through
+        # ExtensionContext.before_tool_call; None models approval mode off.
+        self.before_tool_call = None
         self.messages: tuple[object, ...] = ()
         self.events: tuple[object, ...] = ()
         self.provider_name = "openai"
