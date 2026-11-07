@@ -18,6 +18,7 @@ from baldric_agent.messages import AssistantMessage, CustomMessage, ToolCall
 from baldric_ai.events import TextDeltaEvent
 from baldric_coding.events import AutoRetryEndEvent, AutoRetryStartEvent, CodingSessionEvent
 from baldric_coding.extensions.api import CustomMessageMarkup
+from baldric_coding.rendering.base import is_failed_stop_reason
 from baldric_coding.rendering.tool_calls import format_tool_call_block
 
 
@@ -93,10 +94,14 @@ class TranscriptRenderer:
                         style="bright_black",
                     )
                 )
-            elif event.message.stop_reason == "error":
+            elif is_failed_stop_reason(event.message.stop_reason):
                 self._failed = True
                 self._newline()
-                self._console.print(Text(f"Error: {event.message.error_message or 'Error'}", style="red"))
+                if event.message.stop_reason == "length":
+                    message = "Response was truncated: the model reached its output token limit."
+                else:
+                    message = f"Error: {event.message.error_message or event.message.stop_reason}"
+                self._console.print(Text(message, style="red"))
             self._newline(final=True)
             return
         if isinstance(event, AgentEndEvent):
