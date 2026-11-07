@@ -135,7 +135,6 @@ async def test_tui_approval_gate_is_silent_in_auto_mode() -> None:
 
 @pytest.mark.anyio
 async def test_tui_approval_gate_asks_then_allows_once() -> None:
-    import asyncio
 
     from baldric_agent.messages import ToolCall
     from baldric_coding.tui.app import BaldricTuiApp
@@ -162,7 +161,6 @@ async def test_tui_approval_gate_asks_then_allows_once() -> None:
 
 @pytest.mark.anyio
 async def test_tui_approval_gate_reject_reason_blocks_the_call() -> None:
-    import asyncio
 
     from baldric_agent.messages import ToolCall
     from baldric_coding.tui.app import BaldricTuiApp
