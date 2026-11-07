@@ -13,6 +13,7 @@ from baldric_agent.messages import (
     TextContent,
     ThinkingContent,
     ToolResultMessage,
+    Usage,
     UserMessage,
     assistant_content,
     message_to_user,
@@ -28,6 +29,7 @@ from baldric_ai._provider_events import (
     ProviderThinkingDeltaEvent,
     ProviderToolCallEvent,
 )
+from baldric_ai._sse import iter_sse_events
 from baldric_ai._sse import loads_object as _loads_object
 from baldric_ai.content import (
     NON_VISION_TOOL_IMAGE_PLACEHOLDER,
@@ -162,11 +164,8 @@ class GoogleGenerativeAIProvider:
                             return
 
                         yield ProviderResponseStartEvent(model=model)
-                        async for line in iter_sse_lines(response, signal):
-                            event = _parse_sse_line(line)
-                            if event is None:
-                                continue
-                            for parser_event in parser.feed(event):
+                        async for sse_event in iter_sse_events(iter_sse_lines(response, signal)):
+                            for parser_event in parser.feed(sse_event.data):
                                 yield parser_event
                             if parser.fatal:
                                 return
@@ -230,6 +229,7 @@ class _GoogleStreamParser:
         self._thinking_parts: list[str] = []
         self._tool_calls: list[ToolCall] = []
         self._finish_reason: str | None = None
+        self._usage: Usage | None = None
 
     @property
     def has_finish_reason(self) -> bool:
@@ -241,6 +241,11 @@ class _GoogleStreamParser:
             self.fatal = True
             return [ProviderErrorEvent(message="Google returned an invalid JSON stream chunk")]
         events: list[ProviderEvent] = []
+        # Usage is cumulative and can arrive on a chunk that carries no
+        # candidates (the final metadata-only chunk), so read it first.
+        usage_metadata = chunk.get("usageMetadata")
+        if isinstance(usage_metadata, Mapping):
+            self._usage = _parse_google_usage(usage_metadata)
         candidates = chunk.get("candidates")
         if not isinstance(candidates, list) or not candidates:
             return []
@@ -291,7 +296,7 @@ class _GoogleStreamParser:
             content.insert(0, ThinkingContent(thinking="".join(self._thinking_parts)))
         return [
             ProviderResponseEndEvent(
-                message=AssistantMessage(content=content),
+                message=AssistantMessage(content=content, usage=self._usage or Usage()),
                 finish_reason=_normalize_finish_reason(
                     self._finish_reason, has_tool_calls=bool(self._tool_calls)
                 ),
@@ -536,12 +541,31 @@ def _sanitize_google_schema(value: JSONValue) -> JSONValue:
     return value
 
 
-def _parse_sse_line(line: str) -> str | None:
-    line = line.strip()
-    if not line or not line.startswith("data:"):
-        return None
-    data = line.removeprefix("data:").strip()
-    return data or None
+def _parse_google_usage(raw: Mapping[str, object]) -> Usage:
+    """Parse Gemini's cumulative ``usageMetadata`` into a Usage.
+
+    Mirrors Pi's ``google-generative-ai.ts`` mapping: cached prompt tokens are a
+    cache read and are removed from the fresh input, thinking tokens are billed
+    as output and reported separately as reasoning, and the total is the sum of
+    the normalised parts (matching the Anthropic and OpenAI-compatible adapters).
+    """
+    prompt_tokens = _nonnegative_int(raw.get("promptTokenCount")) or 0
+    cached_tokens = _nonnegative_int(raw.get("cachedContentTokenCount")) or 0
+    thoughts = _nonnegative_int(raw.get("thoughtsTokenCount"))
+    output_tokens = (_nonnegative_int(raw.get("candidatesTokenCount")) or 0) + (thoughts or 0)
+    input_tokens = max(0, prompt_tokens - cached_tokens)
+    return Usage(
+        input=input_tokens,
+        output=output_tokens,
+        cache_read=cached_tokens,
+        cache_write=0,
+        reasoning=thoughts,
+        total_tokens=input_tokens + output_tokens + cached_tokens,
+    )
+
+
+def _nonnegative_int(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
 
 
 def _string_or_default(value: object, default: str) -> str:

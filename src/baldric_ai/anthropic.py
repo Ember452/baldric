@@ -32,6 +32,7 @@ from baldric_ai._provider_events import (
     ProviderToolCallEvent,
     ProviderToolCallStartEvent,
 )
+from baldric_ai._sse import iter_sse_events
 from baldric_ai._sse import loads_object as _loads_object
 from baldric_ai.content import (
     NON_VISION_TOOL_IMAGE_PLACEHOLDER,
@@ -221,11 +222,12 @@ class AnthropicProvider:
                         finish_reason: str | None = None
                         usage: Usage | None = None
 
-                        async for line in iter_sse_lines(response, signal):
-                            event = _parse_sse_line(line)
-                            if event is None:
+                        async for sse_event in iter_sse_events(iter_sse_lines(response, signal)):
+                            # Anthropic-compatible gateways sometimes append an
+                            # OpenAI-style ``[DONE]`` sentinel; it is not a chunk.
+                            if sse_event.data == "[DONE]":
                                 continue
-                            chunk = _loads_object(event)
+                            chunk = _loads_object(sse_event.data)
                             if chunk is None:
                                 yield ProviderErrorEvent(message="Provider returned invalid JSON chunk")
                                 return
@@ -685,16 +687,6 @@ def _anthropic_tool(
     if cache_control is not None:
         payload["cache_control"] = dict(cache_control)
     return payload
-
-
-def _parse_sse_line(line: str) -> str | None:
-    line = line.strip()
-    if not line or not line.startswith("data:"):
-        return None
-    data = line.removeprefix("data:").strip()
-    if not data or data == "[DONE]":
-        return None
-    return data
 
 
 def _string_or_empty(value: object) -> str:

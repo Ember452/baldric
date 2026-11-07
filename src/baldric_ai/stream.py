@@ -12,6 +12,7 @@ from baldric_agent.messages import (
     ToolCall,
     Usage,
 )
+from baldric_agent.types import JSONValue
 from baldric_ai._provider_events import (
     ProviderErrorEvent,
     ProviderEvent,
@@ -44,6 +45,33 @@ from baldric_ai.events import (
 
 def _snapshot(message: AssistantMessage) -> AssistantMessage:
     return message.model_copy(deep=True)
+
+
+# Retry diagnostics are persisted with the assistant message, so an HTTP error
+# body must be bounded before it reaches durable history.
+_PROVIDER_DIAGNOSTIC_MAX_TEXT_LENGTH = 500
+
+
+def _truncate_diagnostic_data(data: dict[str, JSONValue]) -> dict[str, JSONValue]:
+    """Bound the text fields of provider retry details for durable diagnostics."""
+    return {
+        key: (
+            value[:_PROVIDER_DIAGNOSTIC_MAX_TEXT_LENGTH]
+            if isinstance(value, str) and len(value) > _PROVIDER_DIAGNOSTIC_MAX_TEXT_LENGTH
+            else value
+        )
+        for key, value in data.items()
+    }
+
+
+def _retry_diagnostic(event: ProviderRetryEvent) -> AssistantMessageDiagnostic | None:
+    """Turn a retry event's provider details into a message diagnostic."""
+    if event.data is None:
+        return None
+    return AssistantMessageDiagnostic(
+        type="provider_retry",
+        details=_truncate_diagnostic_data(event.data),
+    )
 
 
 def _partial_tool_call(index: int) -> ToolCall:
@@ -119,11 +147,18 @@ async def canonicalize_provider_stream(
     open_tool_blocks: dict[int, int] = {}
     open_tool_order: list[int] = []
     tool_arg_buffers: dict[int, str] = {}
+    retry_diagnostics: list[AssistantMessageDiagnostic] = []
 
     async for event in source:
         if isinstance(event, ProviderRetryEvent):
             # Surface the retry so a frontend can show it instead of a hang; the
-            # agent layer turns this into a provider_retry event.
+            # agent layer turns this into a provider_retry event. The public retry
+            # events have no details slot, so attach the provider's status/body to
+            # the diagnostics path instead (same mechanism as ProviderErrorEvent).
+            diagnostic = _retry_diagnostic(event)
+            if diagnostic is not None:
+                retry_diagnostics.append(diagnostic)
+                partial.diagnostics = list(retry_diagnostics)
             yield AssistantRetryEvent(
                 attempt=event.attempt,
                 max_attempts=event.max_attempts,
@@ -276,6 +311,8 @@ async def canonicalize_provider_stream(
             final.content = [block.model_copy(deep=True) for block in partial.content]
             if not final.content and event.message.content:
                 final.content = [block.model_copy(deep=True) for block in event.message.content]
+            if retry_diagnostics:
+                final.diagnostics = [*(final.diagnostics or []), *retry_diagnostics]
             _copy_replay_metadata(final, event.message)
             final.stop_reason = _finish_reason(
                 event.finish_reason,
@@ -288,7 +325,10 @@ async def canonicalize_provider_stream(
             error.response_provider = event.response_provider or partial.response_provider
             error.stop_reason = "error"
             error.error_message = event.message
-            error.diagnostics = [AssistantMessageDiagnostic(type="provider_error", details=event.data)]
+            error.diagnostics = [
+                AssistantMessageDiagnostic(type="provider_error", details=event.data),
+                *retry_diagnostics,
+            ]
             yield AssistantErrorEvent(reason="error", error=error)
             terminal = True
 
@@ -299,4 +339,5 @@ async def canonicalize_provider_stream(
         error.stop_reason = "error"
         error.error_message = "Provider stream ended without a terminal event"
         error.usage = Usage()
+        error.diagnostics = list(retry_diagnostics) or None
         yield AssistantErrorEvent(reason="error", error=error)

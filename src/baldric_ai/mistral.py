@@ -14,6 +14,7 @@ from baldric_agent.messages import (
     ImageContent,
     ThinkingContent,
     ToolResultMessage,
+    Usage,
     UserMessage,
     assistant_content,
     message_to_user,
@@ -31,6 +32,7 @@ from baldric_ai._provider_events import (
     ProviderToolCallEvent,
     ProviderToolCallStartEvent,
 )
+from baldric_ai._sse import iter_sse_events
 from baldric_ai._sse import loads_object as _loads_object
 from baldric_ai.content import (
     NON_VISION_TOOL_IMAGE_PLACEHOLDER,
@@ -173,11 +175,8 @@ class MistralConversationsProvider:
                             return
 
                         yield ProviderResponseStartEvent(model=model)
-                        async for line in iter_sse_lines(response, signal):
-                            event = _parse_sse_line(line)
-                            if event is None:
-                                continue
-                            events, stop = parser.feed(event)
+                        async for sse_event in iter_sse_events(iter_sse_lines(response, signal)):
+                            events, stop = parser.feed(sse_event.data)
                             for parser_event in events:
                                 yield parser_event
                             if stop:
@@ -231,6 +230,7 @@ class _MistralStreamParser:
         self._tool_call_builders: dict[int, _ToolCallBuilder] = {}
         self._started_tool_indices: set[int] = set()
         self._finish_reason: str | None = None
+        self._usage: Usage | None = None
 
     def feed(self, event: str) -> tuple[list[ProviderEvent], bool]:
         if event == "[DONE]":
@@ -238,6 +238,11 @@ class _MistralStreamParser:
         chunk = _loads_object(event)
         if chunk is None:
             return [], False
+        # Usage rides on a chunk that can also carry the final choice; read it
+        # before any early return so the metadata-only final chunk is not lost.
+        usage = chunk.get("usage")
+        if isinstance(usage, Mapping):
+            self._usage = _parse_mistral_usage(usage)
         choice = _first_choice(chunk)
         if choice is None:
             return [], False
@@ -279,7 +284,7 @@ class _MistralStreamParser:
             content.insert(0, ThinkingContent(thinking="".join(self._thinking_parts)))
         events.append(
             ProviderResponseEndEvent(
-                message=AssistantMessage(content=content),
+                message=AssistantMessage(content=content, usage=self._usage or Usage()),
                 finish_reason=self._finish_reason or ("tool_calls" if tool_calls else "stop"),
             )
         )
@@ -469,11 +474,45 @@ def _uses_reasoning_effort(model: str) -> bool:
     return model in {"mistral-small-2603", "mistral-small-latest", "mistral-medium-3.5"}
 
 
-def _parse_sse_line(line: str) -> str | None:
-    line = line.strip()
-    if not line or not line.startswith("data:"):
-        return None
-    return line.removeprefix("data:").strip()
+def _parse_mistral_usage(raw: Mapping[str, Any]) -> Usage:
+    """Parse Mistral's streamed ``usage`` into a Usage.
+
+    Ports Pi's ``mistral-conversations.ts`` mapping: cached prompt tokens are a
+    cache read and are removed from the fresh input, and the provider-reported
+    total is kept when present. Mistral bills no cache writes.
+    """
+    prompt_tokens = _nonnegative_int(raw.get("prompt_tokens")) or 0
+    cached_tokens = min(prompt_tokens, _mistral_cached_prompt_tokens(raw))
+    output_tokens = _nonnegative_int(raw.get("completion_tokens")) or 0
+    input_tokens = prompt_tokens - cached_tokens
+    total_tokens = _nonnegative_int(raw.get("total_tokens")) or (input_tokens + output_tokens + cached_tokens)
+    return Usage(
+        input=input_tokens,
+        output=output_tokens,
+        cache_read=cached_tokens,
+        cache_write=0,
+        total_tokens=total_tokens,
+    )
+
+
+def _mistral_cached_prompt_tokens(raw: Mapping[str, Any]) -> int:
+    """Return the cached prompt token count across Mistral's field spellings."""
+    for container, field in (
+        ("prompt_tokens_details", "cached_tokens"),
+        ("promptTokensDetails", "cachedTokens"),
+        ("prompt_token_details", "cached_tokens"),
+        ("promptTokenDetails", "cachedTokens"),
+    ):
+        details = raw.get(container)
+        if isinstance(details, Mapping):
+            cached = _nonnegative_int(details.get(field))
+            if cached is not None:
+                return cached
+    return _nonnegative_int(raw.get("num_cached_tokens")) or _nonnegative_int(raw.get("numCachedTokens")) or 0
+
+
+def _nonnegative_int(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
 
 
 def _first_choice(chunk: Mapping[str, Any]) -> Mapping[str, Any] | None:

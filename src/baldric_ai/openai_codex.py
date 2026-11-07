@@ -34,6 +34,7 @@ from baldric_ai._provider_events import (
     ProviderToolCallEvent,
     ProviderToolCallStartEvent,
 )
+from baldric_ai._sse import iter_sse_events
 from baldric_ai._sse import loads_object as _loads_object
 from baldric_ai.content import (
     NON_VISION_TOOL_IMAGE_PLACEHOLDER,
@@ -61,6 +62,7 @@ from baldric_ai.retry import (
     wait_for_retry,
 )
 from baldric_ai.stream import canonicalize_provider_stream
+from baldric_ai.tool_call_ids import portable_tool_call_id
 
 DEFAULT_OPENAI_CODEX_BASE_URL = "https://chatgpt.com/backend-api"
 DEFAULT_OPENAI_CODEX_CLIENT_VERSION = "0.153.4"
@@ -116,6 +118,11 @@ class OpenAICodexProvider:
         self._discovered_model_catalog: RuntimeModelCatalog | None = None
         self._discovered_model_limits: dict[str, RuntimeModelLimits] | None = None
         self._account_id: str | None = None
+        # Codex returns a response item id alongside the call id for each
+        # function call. The durable ToolCall carries only the portable call id,
+        # so replay looks the private item id up here instead of encoding it in
+        # the provider-neutral id.
+        self._item_ids_by_call_id: dict[str, str] = {}
 
     @property
     def account_id(self) -> str | None:
@@ -220,6 +227,7 @@ class OpenAICodexProvider:
                 reasoning_summary=self._config.reasoning_summary,
                 supports_images=self._config.supports_images,
                 prompt_cache_key=cache_key,
+                item_ids_by_call_id=self._item_ids_by_call_id,
             )
             url = _resolve_codex_url(self._config.base_url)
 
@@ -289,7 +297,11 @@ class OpenAICodexProvider:
 
                         yield ProviderResponseStartEvent(model=model)
                         stream_error: dict[str, JSONValue] | None = None
-                        async for event in _codex_provider_events(response, signal=signal):
+                        async for event in _codex_provider_events(
+                            response,
+                            signal=signal,
+                            item_ids_by_call_id=self._item_ids_by_call_id,
+                        ):
                             if isinstance(
                                 event,
                                 ProviderTextDeltaEvent | ProviderToolCallEvent,
@@ -395,9 +407,8 @@ class _ToolCallBuilder:
         arguments = _loads_object(arguments_text) if arguments_text else {}
         if arguments is None:
             arguments = {"_raw_arguments": arguments_text}
-        item_id = self.item_id or f"fc_{self.call_id}"
         return ToolCall(
-            id=f"{self.call_id}|{item_id}",
+            id=portable_tool_call_id(self.call_id),
             name=self.name,
             arguments=arguments,
         )
@@ -413,13 +424,18 @@ def _build_codex_payload(
     reasoning_summary: str = "auto",
     supports_images: bool = False,
     prompt_cache_key: str | None = None,
+    item_ids_by_call_id: Mapping[str, str] | None = None,
 ) -> dict[str, JSONValue]:
     payload: dict[str, JSONValue] = {
         "model": model,
         "store": False,
         "stream": True,
         "instructions": system or "You are a helpful assistant.",
-        "input": _messages_to_responses_input(messages, supports_images=supports_images),
+        "input": _messages_to_responses_input(
+            messages,
+            supports_images=supports_images,
+            item_ids_by_call_id=item_ids_by_call_id,
+        ),
         "text": {"verbosity": "low"},
         "include": ["reasoning.encrypted_content"],
         "tool_choice": "auto",
@@ -438,7 +454,10 @@ def _build_codex_payload(
 
 
 def _messages_to_responses_input(
-    messages: list[AgentMessage], *, supports_images: bool = False
+    messages: list[AgentMessage],
+    *,
+    supports_images: bool = False,
+    item_ids_by_call_id: Mapping[str, str] | None = None,
 ) -> list[JSONValue]:
     items: list[JSONValue] = []
     assistant_index = 0
@@ -481,18 +500,19 @@ def _messages_to_responses_input(
                     )
                     assistant_index += 1
             for tool_call in message.tool_calls:
-                call_id, item_id = _split_tool_call_id(tool_call.id)
+                call_id = portable_tool_call_id(tool_call.id)
                 item: dict[str, JSONValue] = {
                     "type": "function_call",
                     "call_id": call_id,
                     "name": tool_call.name,
                     "arguments": dumps(tool_call.arguments),
                 }
+                item_id = item_ids_by_call_id.get(call_id) if item_ids_by_call_id is not None else None
                 if item_id:
                     item["id"] = item_id
                 items.append(item)
         elif isinstance(message, ToolResultMessage):
-            call_id, _item_id = _split_tool_call_id(message.tool_call_id)
+            call_id = portable_tool_call_id(message.tool_call_id)
             text, images = text_and_images(
                 message.content,
                 supports_images=supports_images,
@@ -539,6 +559,7 @@ async def _codex_provider_events(
     response: httpx.Response,
     *,
     signal: CancellationToken | None,
+    item_ids_by_call_id: dict[str, str] | None = None,
 ) -> AsyncIterator[ProviderEvent]:
     content_parts: list[str] = []
     thinking_parts: list[str] = []
@@ -675,6 +696,8 @@ async def _codex_provider_events(
                 if isinstance(arguments, str):
                     tool_builder.set_arguments(arguments)
                 tool_call = tool_builder.build()
+                if item_ids_by_call_id is not None and tool_builder.item_id:
+                    item_ids_by_call_id[portable_tool_call_id(tool_builder.call_id)] = tool_builder.item_id
                 tool_calls.append(tool_call)
                 # Attach the stream index this builder's argument deltas used, so
                 # the canonicalizer replaces the exact placeholder block. A
@@ -728,26 +751,12 @@ async def _iter_sse_objects(
     response: httpx.Response,
     signal: CancellationToken | None,
 ) -> AsyncIterator[dict[str, JSONValue]]:
-    data_lines: list[str] = []
-    async for line in iter_sse_lines(response, signal):
-        stripped = line.strip()
-        if not stripped:
-            if data_lines:
-                data = "\n".join(data_lines).strip()
-                data_lines = []
-                parsed = _loads_object(data)
-                if parsed is not None:
-                    yield parsed
-            continue
-        if not stripped.startswith("data:"):
-            continue
-        value = stripped.removeprefix("data:").strip()
-        if value == "[DONE]":
+    async for sse_event in iter_sse_events(iter_sse_lines(response, signal)):
+        # Codex uses the OpenAI-style sentinel; the shared parser leaves its
+        # meaning to the caller.
+        if sse_event.data == "[DONE]":
             break
-        data_lines.append(value)
-
-    if data_lines:
-        parsed = _loads_object("\n".join(data_lines).strip())
+        parsed = _loads_object(sse_event.data)
         if parsed is not None:
             yield parsed
 
@@ -1171,13 +1180,6 @@ def _positive_int(value: object) -> int | None:
     if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
         return None
     return value
-
-
-def _split_tool_call_id(value: str) -> tuple[str, str | None]:
-    if "|" not in value:
-        return value, None
-    call_id, item_id = value.split("|", 1)
-    return call_id, item_id or None
 
 
 def _is_terminal_rate_limit(body: str) -> bool:

@@ -4,16 +4,9 @@
 
 Provider transcripts contain tool-call identifiers that correlate an assistant's
 request with the later tool result. Those identifiers are not portable by
-default. OpenAI Codex, for example, needs both a `call_id` and a response item ID,
-so Baldric's persisted compatibility representation joins them with `|`:
-
-```text
-call_XwFnGCtoQNIN2ID9ahtpLvsI|fc_0ca1b059695ff22f
-```
-
-Anthropic only accepts letters, digits, `_`, and `-` in `tool_use.id`. Switching a
-session with Codex tool history to Claude therefore produced an HTTP 400 before
-Claude could answer.
+default. Anthropic only accepts letters, digits, `_`, and `-` in `tool_use.id`,
+so switching a session with provider-native IDs to Claude produced an HTTP 400
+before Claude could answer.
 
 ## Implementation
 
@@ -30,6 +23,15 @@ Hashing rather than replacing punctuation prevents IDs such as `a|b` and `a_b`
 from collapsing to the same value. Because conversion is deterministic, each
 provider adapter can translate a tool call and its later result independently
 and still emit matching IDs. Parallel calls remain distinct.
+
+**Codex keeps its response item ID out of the neutral field.** An earlier
+version joined `call_id` and `item_id` with `|` and stored that in
+`ToolCall.id`, which leaked a provider-private encoding into the shared
+transcript, skipped the normalisation above, and lost the item ID on any replay
+through another provider. The Codex adapter now stores only the portable
+`call_id` and keeps its own `call_id -> item_id` map for the requests it builds.
+The cost is that a Codex conversation persisted by an older build replays with
+the item ID dropped rather than encoded; the session stays readable.
 
 The Anthropic, Google, Mistral, OpenAI Responses, and OpenAI-compatible Chat
 serializers apply this conversion at their provider boundary. Persisted JSONL is
