@@ -47,7 +47,6 @@ from baldric_agent.messages import (
     AgentMessage,
     AssistantMessage,
     CustomMessage,
-    TextContent,
     ThinkingContent,
     UserMessage,
 )
@@ -80,11 +79,15 @@ from baldric_coding.context.system_prompt import SystemPromptInspection
 from baldric_coding.context.thinking import ThinkingLevel
 from baldric_coding.events import (
     AgentSettledEvent,
+    AutoRetryEndEvent,
     AutoRetryStartEvent,
     CodingSessionEvent,
     CompactionEndEvent,
     CompactionStartEvent,
     QueueUpdateEvent,
+    SessionAgentEndEvent,
+    SessionInfoChangedEvent,
+    ThinkingLevelChangedEvent,
 )
 from baldric_coding.extensions.api import (
     KeyInterceptor,
@@ -126,12 +129,11 @@ from baldric_coding.session.session import (
     CodingSessionConfig,
     ModelChoice,
     SessionTreeBranchResult,
-    is_context_overflow_error,
     jsonl_session_storage,
     parse_terminal_command,
 )
 from baldric_coding.trust.policy import ProjectTrustRequest, TrustChoice, TrustOverride
-from baldric_coding.tui.adapter import TuiEventAdapter
+from baldric_coding.tui.adapter import EventDispatcher, TuiEventAdapter
 from baldric_coding.tui.autocomplete import (
     CompletionItem,
     CompletionKind,
@@ -262,7 +264,7 @@ from baldric_coding.tui.screens.tree_picker import (
 from baldric_coding.tui.session_records import session_options, session_records, short_path
 from baldric_coding.tui.state import (
     TuiState,
-    assistant_block_is_visible,
+    assistant_visible_blocks,
     format_terminal_command_result_block,
 )
 from baldric_coding.tui.terminal_notification import TerminalNotificationController
@@ -321,6 +323,30 @@ COMPLETION_MAX_VISIBLE_LINES = 16
 COMPLETION_INITIAL_TERMINAL_FRACTION = 3
 COMPLETION_MIN_TRANSCRIPT_LINES = 4
 COMPLETION_WIDGET_CHROME_LINES = 3
+
+#: Session event type -> DOM handler method on ``BaldricTuiApp``. This table is
+#: the only place that decides which event updates the mounted transcript; the
+#: dispatcher's fallback refreshes chrome for anything absent (see
+#: ``TuiEventAdapter.INTENTIONAL_NOOP`` for the events that use it by design).
+DOM_EVENT_HANDLERS: dict[type[object], str] = {
+    AgentStartEvent: "_dom_agent_start",
+    AgentEndEvent: "_dom_agent_end",
+    MessageStartEvent: "_dom_message_start",
+    MessageUpdateEvent: "_dom_message_update",
+    MessageEndEvent: "_dom_message_end",
+    ToolExecutionStartEvent: "_dom_tool_execution_start",
+    ToolExecutionUpdateEvent: "_dom_tool_execution_update",
+    ToolExecutionEndEvent: "_dom_tool_execution_end",
+    SessionAgentEndEvent: "_dom_refresh_chrome",
+    AgentSettledEvent: "_dom_refresh_chrome",
+    QueueUpdateEvent: "_dom_refresh_chrome",
+    CompactionStartEvent: "_dom_compaction_start",
+    CompactionEndEvent: "_dom_compaction_end",
+    AutoRetryStartEvent: "_dom_auto_retry_start",
+    AutoRetryEndEvent: "_dom_auto_retry_end",
+    SessionInfoChangedEvent: "_dom_session_info_changed",
+    ThinkingLevelChangedEvent: "_dom_thinking_level_changed",
+}
 
 
 def _configure_herdr_textual_mouse() -> None:
@@ -1320,7 +1346,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
             )
         self._prompt_history: tuple[str, ...] = ()
         self._load_session_messages_from_session()
-        self.adapter = TuiEventAdapter(self.state)
+        self._wire_event_consumers(session)
         # Component seam: host-owned tracking of extension
         # widgets so a reload/rebind can force-clear them and a crash can
         # quarantine them. Must exist before _connect_extension_runtime, which
@@ -1372,6 +1398,16 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         self._supports_pyperclip: bool | None = None
         self._terminal_session_title: str | None = None
         self._sync_session_title()
+
+    def _wire_event_consumers(self, session: CodingSession) -> None:
+        """Build the projection and mounted-widget event dispatchers for this run."""
+        self.adapter = TuiEventAdapter(self.state, session=session)
+        # Incremental transcript updates use the same dispatcher type as the
+        # state projection; the fallback refreshes chrome for event types that
+        # have no dedicated DOM handler.
+        self._dom_dispatcher = EventDispatcher(on_unhandled=lambda _: self._refresh_chrome())
+        for event_type, handler_name in DOM_EVENT_HANDLERS.items():
+            self._dom_dispatcher.register(event_type, getattr(self, handler_name))
 
     async def prompt_project_trust(self, request: ProjectTrustRequest) -> TrustChoice | None:
         """Resolve a trust request through the active Textual modal stack."""
@@ -2346,22 +2382,6 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
                 if not (_is_user_message_end_event(event) and self.screen_stack):
                     self.adapter.apply(event)
                 self._sync_text_selection_state()
-                if (
-                    isinstance(event, MessageEndEvent)
-                    and isinstance(event.message, AssistantMessage)
-                    and event.message.stop_reason == "error"
-                    and not event.message.is_tool_result_recovery
-                ):
-                    _attach_diagnostic_log_path_to_error(self.state, self.session)
-                    will_auto_retry = getattr(self.session, "will_auto_retry", None)
-                    if not (callable(will_auto_retry) and will_auto_retry(event.message)):
-                        _attach_retry_hint_to_error(self.state, event.message)
-                elif (
-                    isinstance(event, CompactionEndEvent)
-                    and event.reason == "overflow"
-                    and (event.aborted or event.error_message)
-                ):
-                    _attach_diagnostic_log_path_to_error(self.state, self.session)
                 await self._apply_streaming_transcript_event(event)
                 if isinstance(event, AgentSettledEvent):
                     self.call_after_refresh(_collect_garbage_while_idle)
@@ -2399,152 +2419,164 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         if not self.screen_stack:
             self._refresh()
             return
-        theme = self.tui_settings.resolved_theme
         try:
-            transcript = self.query_one("#transcript", TranscriptView)
+            self.query_one("#transcript", TranscriptView)
         except NoMatches:
             self._refresh()
             return
-        if isinstance(event, AgentStartEvent):
+        for result in self._dom_dispatcher.dispatch(event):
+            if isawaitable(result):
+                await result
+
+    def _dom_transcript(self) -> TranscriptView:
+        """Return the mounted transcript view; the caller has checked it exists."""
+        return self.query_one("#transcript", TranscriptView)
+
+    async def _dom_agent_start(self, event: AgentStartEvent) -> None:
+        self._refresh_chrome()
+
+    async def _dom_agent_end(self, event: AgentEndEvent) -> None:
+        await self._dom_transcript().finish_assistant_message()
+        self._refresh_chrome()
+
+    async def _dom_message_start(self, event: MessageStartEvent) -> None:
+        """Streaming deltas mount their widgets on their first update."""
+
+    async def _dom_message_update(self, event: MessageUpdateEvent) -> None:
+        theme = self.tui_settings.resolved_theme
+        transcript = self._dom_transcript()
+        nested = event.assistant_message_event
+        if isinstance(nested, TextDeltaEvent):
+            await transcript.append_assistant_delta(nested.delta, theme=theme)
+        elif isinstance(nested, ThinkingEndEvent):
+            await transcript.finish_thinking_message()
+        elif isinstance(nested, ThinkingDeltaEvent):
+            await transcript.append_thinking_delta(
+                nested.delta,
+                theme=theme,
+                show_thinking=self.state.show_thinking,
+            )
+
+    async def _dom_message_end(self, event: MessageEndEvent) -> None:
+        message = event.message
+        if isinstance(message, (UserMessage, CustomMessage)):
+            await self._append_confirmed_user_message(message)
+            self._sync_session_title()
+            return
+        if not isinstance(message, AssistantMessage):
+            return
+        if message.stop_reason in {"error", "aborted"}:
+            # The adapter projected any partial response plus the error into
+            # canonical display state. Rebuild once at this terminal boundary so
+            # the mounted transcript cannot drop the error.
+            self._refresh()
+            return
+        await self._finish_assistant_message(message)
+        self._refresh_chrome()
+
+    async def _finish_assistant_message(self, message: AssistantMessage) -> None:
+        theme = self.tui_settings.resolved_theme
+        transcript = self._dom_transcript()
+        # The canonical-item slice below uses the same visibility filter as
+        # ``TuiState.add_assistant_message``; a disagreement misaligns the slice.
+        visible_blocks = assistant_visible_blocks(message)
+        canonical_items = self.state.items[-len(visible_blocks) :] if visible_blocks else []
+        if not visible_blocks:
+            # Tool-only message: it streamed a blank buffer (providers emit
+            # "\n\n" next to calls), so drop its provisional widgets without
+            # remounting the window, which would yank a user who scrolled back.
+            await transcript.discard_provisional_assistant_message()
+        elif any(isinstance(block, ThinkingContent) for block in message.content) or len(visible_blocks) > 1:
+            # Replace only this message's provisional streaming widgets,
+            # including thinking filtered out as whitespace-only; unrelated
+            # history remains mounted and selectable.
+            await transcript.finish_structured_assistant_message(
+                canonical_items,
+                theme=theme,
+                show_thinking=self.state.show_thinking,
+            )
+        else:
+            canonical_item = canonical_items[-1] if canonical_items else None
+            await transcript.finish_assistant_message(message.text, item=canonical_item)
+
+    async def _dom_tool_execution_start(self, event: ToolExecutionStartEvent) -> None:
+        await self._dom_transcript().finish_assistant_message()
+        await self._refresh_tool_widget(event.tool_call_id, append=True)
+        self._refresh_chrome()
+
+    async def _dom_tool_execution_update(self, event: ToolExecutionUpdateEvent) -> None:
+        await self._dom_transcript().finish_assistant_message()
+        await self._refresh_tool_widget(event.tool_call_id)
+        self._refresh_chrome()
+
+    async def _dom_tool_execution_end(self, event: ToolExecutionEndEvent) -> None:
+        await self._refresh_tool_widget(event.tool_call_id)
+        self._refresh_chrome()
+
+    async def _refresh_tool_widget(self, tool_call_id: str, *, append: bool = False) -> None:
+        """Update a mounted tool row in place, appending it when it is new."""
+        item = self.state.find_tool_item(tool_call_id)
+        if item is None:
+            return
+        theme = self.tui_settings.resolved_theme
+        expanded = self.state.show_tool_results or item.always_show_tool_result
+        transcript = self._dom_transcript()
+        updated = await transcript.update_item(
+            item,
+            theme=theme,
+            show_tool_results=expanded,
+            invocation=self.state.resolve_tool_invocation(item, expanded=expanded),
+            result_markup=self.state.resolve_tool_result(item, expanded=expanded),
+        )
+        if append and not updated:
+            await transcript.append_item(
+                item,
+                theme=theme,
+                show_tool_results=expanded,
+                invocation=self.state.resolve_tool_invocation(item, expanded=expanded),
+            )
+
+    async def _dom_compaction_start(self, event: CompactionStartEvent) -> None:
+        await self._dom_transcript().finish_assistant_message()
+        if event.reason in {"overflow", "threshold"}:
+            await self._dom_append_latest_item()
+        self._refresh_chrome()
+
+    async def _dom_auto_retry_start(self, event: AutoRetryStartEvent) -> None:
+        await self._dom_transcript().finish_assistant_message()
+        await self._dom_append_latest_item()
+        self._refresh_chrome()
+
+    async def _dom_append_latest_item(self) -> None:
+        """Mount the adapter's newest status row when there is one."""
+        if self.state.items:
+            await self._dom_transcript().append_item(
+                self.state.items[-1],
+                theme=self.tui_settings.resolved_theme,
+                show_tool_results=self.state.show_tool_results,
+            )
+
+    async def _dom_compaction_end(self, event: CompactionEndEvent) -> None:
+        if event.reason == "threshold" or (
+            event.reason == "overflow" and (event.aborted or event.error_message)
+        ):
+            self._refresh()
+        else:
             self._refresh_chrome()
-            return
-        if isinstance(event, AgentEndEvent):
-            await transcript.finish_assistant_message()
-            self._refresh_chrome()
-            return
-        if isinstance(event, MessageStartEvent):
-            return
-        if isinstance(event, MessageUpdateEvent):
-            nested = event.assistant_message_event
-            if isinstance(nested, TextDeltaEvent):
-                await transcript.append_assistant_delta(nested.delta, theme=theme)
-            elif isinstance(nested, ThinkingEndEvent):
-                await transcript.finish_thinking_message()
-            elif isinstance(nested, ThinkingDeltaEvent):
-                await transcript.append_thinking_delta(
-                    nested.delta,
-                    theme=theme,
-                    show_thinking=self.state.show_thinking,
-                )
-            return
-        if isinstance(event, MessageEndEvent):
-            if isinstance(event.message, (UserMessage, CustomMessage)):
-                await self._append_confirmed_user_message(event.message)
-                self._sync_session_title()
-                return
-            if isinstance(event.message, AssistantMessage):
-                if event.message.stop_reason in {"error", "aborted"}:
-                    # The adapter projected any partial response plus the error
-                    # into canonical display state. Rebuild once at this terminal
-                    # boundary so the mounted transcript cannot drop the error.
-                    self._refresh()
-                    return
-                # Mirrors ``TuiState.add_assistant_message``: the two filters
-                # must agree, or the canonical-item slice below misaligns.
-                visible_blocks = [
-                    block
-                    for block in event.message.content
-                    if isinstance(block, TextContent | ThinkingContent) and assistant_block_is_visible(block)
-                ]
-                canonical_items = self.state.items[-len(visible_blocks) :] if visible_blocks else []
-                if not visible_blocks:
-                    # Tool-only message: it streamed a blank buffer (providers
-                    # emit "\n\n" next to calls), so drop its provisional
-                    # widgets without remounting the window, which would yank a
-                    # user who scrolled back to earlier output.
-                    await transcript.discard_provisional_assistant_message()
-                elif (
-                    any(isinstance(block, ThinkingContent) for block in event.message.content)
-                    or len(visible_blocks) > 1
-                ):
-                    # Replace only this message's provisional streaming widgets,
-                    # including thinking filtered out as whitespace-only;
-                    # unrelated history remains mounted and selectable.
-                    await transcript.finish_structured_assistant_message(
-                        canonical_items,
-                        theme=theme,
-                        show_thinking=self.state.show_thinking,
-                    )
-                else:
-                    canonical_item = canonical_items[-1] if canonical_items else None
-                    await transcript.finish_assistant_message(
-                        event.message.text,
-                        item=canonical_item,
-                    )
-                self._refresh_chrome()
-                return
-            return
-        if isinstance(event, ToolExecutionStartEvent):
-            await transcript.finish_assistant_message()
-            item = self.state.find_tool_item(event.tool_call_id)
-            if item is not None:
-                expanded = self.state.show_tool_results or item.always_show_tool_result
-                updated = await transcript.update_item(
-                    item,
-                    theme=theme,
-                    show_tool_results=expanded,
-                    invocation=self.state.resolve_tool_invocation(item, expanded=expanded),
-                    result_markup=self.state.resolve_tool_result(item, expanded=expanded),
-                )
-                if not updated:
-                    await transcript.append_item(
-                        item,
-                        theme=theme,
-                        show_tool_results=expanded,
-                        invocation=self.state.resolve_tool_invocation(item, expanded=expanded),
-                    )
-            self._refresh_chrome()
-            return
-        if isinstance(event, ToolExecutionUpdateEvent):
-            await transcript.finish_assistant_message()
-            updated_item = self.state.find_tool_item(event.tool_call_id)
-            if updated_item is not None:
-                expanded = self.state.show_tool_results or updated_item.always_show_tool_result
-                await transcript.update_item(
-                    updated_item,
-                    theme=theme,
-                    show_tool_results=expanded,
-                    invocation=self.state.resolve_tool_invocation(updated_item, expanded=expanded),
-                    result_markup=self.state.resolve_tool_result(updated_item, expanded=expanded),
-                )
-            self._refresh_chrome()
-            return
-        if isinstance(event, (AutoRetryStartEvent, CompactionStartEvent)):
-            await transcript.finish_assistant_message()
-            if self.state.items and (
-                isinstance(event, AutoRetryStartEvent) or event.reason in {"overflow", "threshold"}
-            ):
-                await transcript.append_item(
-                    self.state.items[-1],
-                    theme=theme,
-                    show_tool_results=self.state.show_tool_results,
-                )
-            self._refresh_chrome()
-            return
-        if isinstance(event, CompactionEndEvent):
-            if event.reason == "threshold" or (
-                event.reason == "overflow" and (event.aborted or event.error_message)
-            ):
-                self._refresh()
-            else:
-                self._refresh_chrome()
-            return
-        if isinstance(event, ToolExecutionEndEvent):
-            updated_item = self.state.find_tool_item(event.tool_call_id)
-            if updated_item is not None:
-                expanded = self.state.show_tool_results or updated_item.always_show_tool_result
-                await transcript.update_item(
-                    updated_item,
-                    theme=theme,
-                    show_tool_results=expanded,
-                    invocation=self.state.resolve_tool_invocation(updated_item, expanded=expanded),
-                    result_markup=self.state.resolve_tool_result(updated_item, expanded=expanded),
-                )
-            self._refresh_chrome()
-            return
-        if isinstance(event, QueueUpdateEvent):
-            self._refresh_chrome()
-            return
+
+    async def _dom_auto_retry_end(self, event: AutoRetryEndEvent) -> None:
+        # The adapter settles the transient retry row; remount so it disappears.
+        self._refresh()
+
+    async def _dom_session_info_changed(self, event: SessionInfoChangedEvent) -> None:
+        """A session rename has no transcript event; refresh the title-bearing chrome."""
+        self._refresh_chrome()
+
+    async def _dom_thinking_level_changed(self, event: ThinkingLevelChangedEvent) -> None:
+        """A thinking-level change updates the sidebar/model chrome, not the transcript."""
+        self._refresh_chrome()
+
+    async def _dom_refresh_chrome(self, event: CodingSessionEvent) -> None:
         self._refresh_chrome()
 
     def action_cancel(self) -> None:
@@ -4021,39 +4053,6 @@ def _format_prompt_error(exc: BaseException, session: CodingSession) -> str:
     if isinstance(log_path, Path):
         return f"{message}\nLog: {log_path}"
     return message
-
-
-_TERMINAL_ERROR_RETRY_HINT = "Run ended before completion. Send a message to retry."
-
-
-def _attach_retry_hint_to_error(state: TuiState, message: AssistantMessage) -> None:
-    """Clarify that a terminal provider error ended the run and can be retried.
-
-    Context-overflow errors are auto-compacted and retried by the session, so
-    they are skipped to avoid asking the user to retry while Baldric already is.
-    """
-    if is_context_overflow_error(message):
-        return
-    if state.error is not None and _TERMINAL_ERROR_RETRY_HINT not in state.error:
-        state.error = f"{state.error}\n{_TERMINAL_ERROR_RETRY_HINT}"
-    for item in reversed(state.items):
-        if item.role == "error":
-            if _TERMINAL_ERROR_RETRY_HINT not in item.text:
-                item.text = f"{item.text}\n{_TERMINAL_ERROR_RETRY_HINT}"
-            return
-
-
-def _attach_diagnostic_log_path_to_error(state: TuiState, session: CodingSession) -> None:
-    log_path = getattr(session, "last_diagnostic_log_path", None)
-    if not isinstance(log_path, Path) or state.error is None:
-        return
-    message = f"Error: {state.error}\nLog: {log_path}"
-    state.error = message
-    for item in reversed(state.items):
-        if item.role == "error":
-            item.text = message
-            return
-    state.add_item("error", message)
 
 
 def _explicit_resume_record(

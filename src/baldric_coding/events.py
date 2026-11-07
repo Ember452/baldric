@@ -74,7 +74,6 @@ type SessionOwnEvent = Annotated[
     | QueueUpdateEvent
     | CompactionStartEvent
     | CompactionEndEvent
-   
     | SessionInfoChangedEvent
     | ThinkingLevelChangedEvent
     | AutoRetryStartEvent
