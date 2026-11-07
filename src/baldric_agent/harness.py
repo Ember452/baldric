@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
-from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field
 from inspect import isawaitable
@@ -62,6 +62,62 @@ class SimpleCancellationToken:
 
     async def wait_cancelled(self) -> None:
         await self._cancelled.wait()
+
+
+class _RunIterator:
+    """One harness run: yields events and owns the run's lifecycle state.
+
+    Pi registers `activeRun` (with its AbortController) before awaiting the
+    executor, so an abort issued immediately after starting still lands. An
+    async generator cannot do that on its own - its body does not run until the
+    first `__anext__` - so the harness registers the run itself and hands back
+    this iterator. The iterator, not the generator, is the thing that clears
+    `_running`, which also covers a run that is created and then dropped.
+    """
+
+    def __init__(
+        self,
+        harness: AgentHarness,
+        events: AsyncGenerator[AgentEvent, None],
+        signal: SimpleCancellationToken,
+    ) -> None:
+        self._harness = harness
+        self._events = events
+        self._signal = signal
+        self._finished = False
+
+    def __aiter__(self) -> _RunIterator:
+        return self
+
+    async def __anext__(self) -> AgentEvent:
+        try:
+            return await anext(self._events)
+        except StopAsyncIteration:
+            self._finish()
+            raise
+        except BaseException:
+            self._finish()
+            raise
+
+    async def aclose(self) -> None:
+        """Close the run and release the harness.
+
+        Closing the generator lets ``_run``'s ``finally`` repair interrupted tool
+        calls; clearing the state afterwards also covers a run that never started.
+        """
+        try:
+            await self._events.aclose()
+        finally:
+            self._finish()
+
+    def _finish(self) -> None:
+        if self._finished:
+            return
+        self._finished = True
+        self._harness._finish_run(self._signal)
+
+    def __del__(self) -> None:
+        self._finish()
 
 
 class AgentHarness:
@@ -151,24 +207,40 @@ class AgentHarness:
 
     def prompt_message(self, message: AgentMessage) -> AsyncIterator[AgentEvent]:
         self._ensure_not_running()
-        self._running = True
-        return self._run(prompts=(message,))
+        return self._start_run(prompts=(message,))
 
     def prompt(self, content: str) -> AsyncIterator[AgentEvent]:
         return self.prompt_message(UserMessage(content=content))
 
     def continue_(self) -> AsyncIterator[AgentEvent]:
         self._ensure_not_running()
+        return self._start_run()
+
+    def _start_run(self, *, prompts: Sequence[AgentMessage] = ()) -> AsyncIterator[AgentEvent]:
+        """Register the run and its cancel token before the body can run.
+
+        ``_run`` is an async generator: nothing in its body executes until the
+        first ``__anext__``. Registering the signal here is what makes
+        ``cancel()`` work immediately after ``prompt()``, and handing lifecycle
+        ownership to the iterator is what keeps an abandoned run from leaving the
+        harness permanently busy.
+        """
+        signal = SimpleCancellationToken()
         self._running = True
-        return self._run()
+        self._current_signal = signal
+        return _RunIterator(self, self._run(prompts=prompts, signal=signal), signal)
+
+    def _finish_run(self, signal: SimpleCancellationToken) -> None:
+        if self._current_signal is signal:
+            self._current_signal = None
+            self._running = False
 
     async def _run(
         self,
         *,
         prompts: Sequence[AgentMessage] = (),
-    ) -> AsyncIterator[AgentEvent]:
-        signal = SimpleCancellationToken()
-        self._current_signal = signal
+        signal: SimpleCancellationToken,
+    ) -> AsyncGenerator[AgentEvent, None]:
         try:
             # Repair dangling tool calls here, not in prompt()/continue_(),
             # so the synthetic results flow through events and reach push
@@ -205,9 +277,9 @@ class AgentHarness:
                     with suppress(Exception):
                         await self._notify(MessageStartEvent(message=message))
                         await self._notify(MessageEndEvent(message=message))
-            if self._current_signal is signal:
-                self._current_signal = None
-            self._running = False
+            # `_running`/`_current_signal` are owned by `_RunIterator`: clearing
+            # them here would release the harness before the consumer has seen
+            # the run end, and would not run at all for a never-started run.
 
     async def _notify(self, event: AgentEvent) -> None:
         for listener in list(self._listeners):
