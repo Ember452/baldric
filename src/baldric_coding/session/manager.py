@@ -353,7 +353,7 @@ class SessionManager:
             ),
             title=title,
             created_at=now,
-            updated_at=now,
+            updated_at=time(),
         )
 
     def index_session(self, record: CodingSessionRecord) -> CodingSessionRecord:
@@ -382,7 +382,7 @@ class SessionManager:
             provider_name=provider_name,
             title="Default session",
             created_at=now,
-            updated_at=now,
+            updated_at=time(),
         )
         self._upsert(record)
         return record
@@ -399,7 +399,12 @@ class SessionManager:
         title: str | None = None,
         cwd: Path | None = None,
     ) -> CodingSessionRecord | None:
-        """Update a session's last-used metadata; ``cwd`` is a lookup hint."""
+        """Update a session's last-used metadata; ``cwd`` is a lookup hint.
+
+        Ordering by ``updated_at`` is the contract, so this always writes. The
+        per-message caller throttles its own calls instead (see
+        ``session/runtime._touch_session_record``).
+        """
         existing = self.get_session(session_id, cwd=cwd)
         if existing is None:
             return None

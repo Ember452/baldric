@@ -2252,11 +2252,11 @@ async def test_openai_codex_provider_streams_tool_calls() -> None:
     tool_call_events = [event for event in events if isinstance(event, ToolCallEndEvent)]
 
     assert [event.tool_call for event in tool_call_events] == [
-        ToolCall(id="call-1|fc-1", name="read", arguments={"path": "README.md"})
+        ToolCall(id="call-1", name="read", arguments={"path": "README.md"})
     ]
     assert isinstance(events[-1], AssistantDoneEvent)
     assert events[-1].message.tool_calls == (
-        ToolCall(id="call-1|fc-1", name="read", arguments={"path": "README.md"}),
+        ToolCall(id="call-1", name="read", arguments={"path": "README.md"}),
     )
 
 
@@ -2311,13 +2311,13 @@ async def test_openai_codex_provider_routes_parallel_tool_argument_streams() -> 
     tool_call_events = [event for event in events if isinstance(event, ToolCallEndEvent)]
 
     assert [event.tool_call for event in tool_call_events] == [
-        ToolCall(id="call-1|fc-1", name="read", arguments={"path": "README.md"}),
-        ToolCall(id="call-2|fc-2", name="run", arguments={"cmd": "pwd"}),
+        ToolCall(id="call-1", name="read", arguments={"path": "README.md"}),
+        ToolCall(id="call-2", name="run", arguments={"cmd": "pwd"}),
     ]
     assert isinstance(events[-1], AssistantDoneEvent)
     assert events[-1].message.tool_calls == (
-        ToolCall(id="call-1|fc-1", name="read", arguments={"path": "README.md"}),
-        ToolCall(id="call-2|fc-2", name="run", arguments={"cmd": "pwd"}),
+        ToolCall(id="call-1", name="read", arguments={"path": "README.md"}),
+        ToolCall(id="call-2", name="run", arguments={"cmd": "pwd"}),
     )
 
 

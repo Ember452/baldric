@@ -8,7 +8,6 @@ from pydantic import Field
 
 from baldric_agent.events import AgentEvent
 from baldric_agent.messages import AgentMessage, WireModel
-from baldric_agent.session.entries import SessionEntry
 
 
 class SessionAgentEndEvent(WireModel):
@@ -44,11 +43,6 @@ class CompactionEndEvent(WireModel):
     error_message: str | None = Field(None)
 
 
-class EntryAppendedEvent(WireModel):
-    type: Literal["entry_appended"] = "entry_appended"
-    entry: SessionEntry
-
-
 class SessionInfoChangedEvent(WireModel):
     type: Literal["session_info_changed"] = "session_info_changed"
     name: str | None = None
@@ -80,7 +74,6 @@ type SessionOwnEvent = Annotated[
     | QueueUpdateEvent
     | CompactionStartEvent
     | CompactionEndEvent
-    | EntryAppendedEvent
     | SessionInfoChangedEvent
     | ThinkingLevelChangedEvent
     | AutoRetryStartEvent

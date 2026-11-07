@@ -247,6 +247,24 @@ class BashExecutionMessage(WireModel):
     timestamp: int = Field(default_factory=current_timestamp_ms)
     exclude_from_context: bool = False
 
+    @property
+    def text(self) -> str:
+        return bash_execution_text(self)
+
+
+def bash_execution_text(message: BashExecutionMessage) -> str:
+    """Return the model-facing text for one bash execution.
+
+    Pi stores a bash execution as its own message and renders it into context as
+    plain text; the wording lives here so the transcript and the provider
+    projection cannot drift apart.
+    """
+    return (
+        "Terminal command executed by the user.\n\n"
+        f"Command:\n```bash\n{message.command}\n```\n\n"
+        f"Output:\n```text\n{message.output}\n```"
+    )
+
 
 class CustomMessage(WireModel):
     role: Literal["custom"] = "custom"

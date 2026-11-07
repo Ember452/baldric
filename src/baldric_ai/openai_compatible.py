@@ -42,6 +42,7 @@ from baldric_ai._provider_events import (
     ProviderToolCallEvent,
     ProviderToolCallStartEvent,
 )
+from baldric_ai._sse import iter_sse_events
 from baldric_ai._sse import loads_object as _loads_object
 from baldric_ai.content import (
     NON_VISION_TOOL_IMAGE_PLACEHOLDER,
@@ -327,12 +328,8 @@ class OpenAICompatibleProvider:
                             response_provider=response_provider,
                         )
 
-                        async for line in iter_sse_lines(response, signal):
-                            event = _parse_sse_line(line)
-                            if event is None:
-                                continue
-
-                            events, stop = parser.feed(event)
+                        async for sse_event in iter_sse_events(iter_sse_lines(response, signal)):
+                            events, stop = parser.feed(sse_event.data)
                             for parser_event in events:
                                 yield parser_event
                             if stop:
@@ -1328,14 +1325,6 @@ def _tool_call_to_openai(tool_call: ToolCall) -> dict[str, JSONValue]:
             "arguments": dumps(tool_call.arguments),
         },
     }
-
-
-def _parse_sse_line(line: str) -> str | None:
-    line = line.strip()
-    if not line or not line.startswith("data:"):
-        return None
-    data = line.removeprefix("data:").strip()
-    return data or None
 
 
 def _first_choice(chunk: Mapping[str, Any]) -> Mapping[str, Any] | None:

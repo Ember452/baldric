@@ -65,6 +65,7 @@ from baldric_coding.session.export import (
     normalize_export_format,
 )
 from baldric_coding.session.manager import CodingSessionRecord, SessionManager, validate_session_id
+from baldric_coding.session.model_selection import ModelChoice
 from baldric_coding.session.prepare import prepare_coding_session
 from baldric_coding.session.session import (
     CodingSession,
@@ -1437,6 +1438,28 @@ async def run_print_mode(
         command = session.handle_command(prompt)
         if command.handled:
             message = command.message
+            # Intents the TUI performs through its own screens are applied here
+            # instead of being dropped: `/model X` used to return "handled" with
+            # no message, so print mode printed nothing and exited 0 without
+            # changing the model.
+            if command.model_selection_provider is not None and command.model_selection_model is not None:
+                choice = ModelChoice(
+                    provider_name=command.model_selection_provider,
+                    model=command.model_selection_model,
+                )
+                try:
+                    await session.select_provider_model(choice)
+                except (ProviderConfigError, ValueError) as exc:
+                    message = f"Could not switch model: {exc}"
+                else:
+                    message = f"Current model: {choice.provider_name}:{choice.model}"
+            if command.thinking_level is not None:
+                try:
+                    level = await session.set_thinking_level(command.thinking_level)
+                except ValueError as exc:
+                    message = f"Could not set thinking mode: {exc}"
+                else:
+                    message = f"Thinking mode: {level}"
             if command.local_requested:
                 message = (
                     "The /local command is interactive-only. In print mode, configure a "
@@ -1458,8 +1481,11 @@ async def run_print_mode(
                     message = f"Could not rename session: {exc}"
                 else:
                     message = f"Session renamed: {renamed}"
-            if message:
-                typer.echo(message)
+            if message is None:
+                # A command whose only outcome is a screen has nothing to print.
+                # Say so instead of exiting silently as if it had worked.
+                message = f"{_command_name(prompt)} is interactive-only in print mode."
+            typer.echo(message)
             return True
         async for event in session.prompt(prompt):
             renderer.render(event)
@@ -1487,3 +1513,12 @@ class _MemorySessionStorage:
 def _format_terminal_command_result(result: TerminalCommandResult) -> str:
     context_status = "added to context" if result.added_to_context else "not added to context"
     return f"$ {result.command}\n[{context_status}]\n{result.output}"
+
+
+def _command_name(prompt: str) -> str:
+    """Return the slash command named by ``prompt``, for an explanatory message."""
+    stripped = prompt.strip()
+    if not stripped:
+        return "This command"
+    name = stripped.split(maxsplit=1)[0]
+    return name if name.startswith("/") else "This command"

@@ -11,6 +11,16 @@ from pydantic import BaseModel, ConfigDict, Field
 from baldric_agent.messages import AgentMessage, Usage, UserContent
 from baldric_agent.types import JSONValue
 
+CURRENT_SCHEMA_VERSION = 1
+"""Shape version of the persisted session-entry protocol.
+
+Version 1 is the original Baldric shape and is never written to disk, so a
+transcript produced by this build stays byte-identical to one produced before
+the version field existed. A future incompatible change bumps this constant and
+starts writing ``schema_version`` on new entries; readers refuse a transcript
+newer than they support instead of failing with a pydantic validation dump.
+"""
+
 
 def new_entry_id() -> str:
     """Return a unique session entry id."""
@@ -30,6 +40,12 @@ class BaseSessionEntry(BaseModel):
     id: str = Field(default_factory=new_entry_id)
     parent_id: str | None = None
     timestamp: float = Field(default_factory=current_timestamp)
+    # Omitted at the current version so existing readers keep working; present on
+    # disk only once the shape changes incompatibly.
+    schema_version: int = Field(
+        default=CURRENT_SCHEMA_VERSION,
+        exclude_if=lambda value: value == CURRENT_SCHEMA_VERSION,
+    )
 
 
 class MessageEntry(BaseSessionEntry):
@@ -142,3 +158,18 @@ type SessionEntry = Annotated[
     | CustomEntry,
     Field(discriminator="type"),
 ]
+
+SESSION_ENTRY_MODELS: tuple[type[BaseSessionEntry], ...] = (
+    MessageEntry,
+    CustomMessageEntry,
+    ModelChangeEntry,
+    ThinkingLevelChangeEntry,
+    CompactionEntry,
+    BranchSummaryEntry,
+    LabelEntry,
+    LeafEntry,
+    SessionInfoEntry,
+    CustomEntry,
+)
+"""Every persisted entry model, so the persistence boundary can name the
+supported ``type`` values without restating the union by hand."""

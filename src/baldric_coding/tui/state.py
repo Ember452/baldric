@@ -11,6 +11,7 @@ from typing import Literal
 from baldric_agent.messages import (
     AgentMessage,
     AssistantMessage,
+    BashExecutionMessage,
     BranchSummaryMessage,
     CompactionSummaryMessage,
     CustomMessage,
@@ -18,6 +19,7 @@ from baldric_agent.messages import (
     ThinkingContent,
     ToolResultMessage,
     UserMessage,
+    bash_execution_text,
 )
 from baldric_agent.tools import AgentToolResult, ToolCall
 from baldric_agent.types import JSONValue
@@ -738,6 +740,11 @@ class TuiState:
                     self.add_assistant_error(message)
                 else:
                     self.add_assistant_message(message)
+            elif isinstance(message, BashExecutionMessage):
+                # pi keeps bash executions as their own message; show the same
+                # text the user saw when it ran, so a resumed transcript still
+                # carries the command output.
+                self.add_user_message(bash_execution_text(message))
             elif isinstance(message, ToolResultMessage):
                 self.record_tool_result(
                     message.tool_call_id,
@@ -767,12 +774,13 @@ class TuiState:
         """Project canonical assistant blocks into display state in order."""
         batch_id = self.new_tool_batch_id() if include_tool_calls and message.tool_calls else None
         allows_tool_continuation = _is_tool_only_message(message)
+        visible_blocks = assistant_visible_blocks(message)
         for block in message.content:
             if isinstance(block, ThinkingContent):
-                if assistant_block_is_visible(block):
+                if block in visible_blocks:
                     self.add_item("thinking", block.thinking)
             elif isinstance(block, TextContent):
-                if assistant_block_is_visible(block):
+                if block in visible_blocks:
                     self.add_item("assistant", block.text)
             elif include_tool_calls:
                 self.add_tool_call(
@@ -838,23 +846,22 @@ def assistant_block_is_visible(block: TextContent | ThinkingContent) -> bool:
     return has_visible_assistant_text(text)
 
 
+def assistant_visible_blocks(message: AssistantMessage) -> list[TextContent | ThinkingContent]:
+    """Return the message's transcript-visible text and thinking blocks, in order."""
+    blocks = (block for block in message.content if isinstance(block, TextContent | ThinkingContent))
+    return [block for block in blocks if assistant_block_is_visible(block)]
+
+
 def _is_tool_only_message(message: AssistantMessage) -> bool:
     """Return whether a message holds tool calls and no visible prose/thinking.
 
     Such a message contributes nothing between two tool runs, so its calls may
     join the previous run. Any block the transcript would render (prose, or
-    thinking when the user expands it) ends the run, because block order is
-    preserved exactly as persisted.
+    thinking when expanded) ends the run, because block order is preserved.
     """
     if not message.tool_calls:
         return False
-    for block in message.content:
-        if isinstance(block, ToolCall):
-            continue
-        if isinstance(block, TextContent | ThinkingContent) and not assistant_block_is_visible(block):
-            continue
-        return False
-    return True
+    return not assistant_visible_blocks(message)
 
 
 def _parse_branch_summary_message(content: str) -> str | None:

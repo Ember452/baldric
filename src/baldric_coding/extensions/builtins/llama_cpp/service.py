@@ -51,10 +51,12 @@ from baldric_coding.extensions.providers import (
     OpenAICompatibleTransport,
     ProviderAuthContext,
     ProviderAuthError,
+    ProviderAuthScope,
     ProviderModel,
     ProviderModelSnapshot,
     ProviderRefreshContext,
     ResolvedProviderAuth,
+    resolve_provider_auth,
 )
 
 from .huggingface import (
@@ -130,6 +132,12 @@ class _LlamaCppAuth:
 
     credential_ref: str | None = None
     env_var: str = LLAMA_CPP_API_KEY_ENV
+
+    @property
+    def scope(self) -> ProviderAuthScope:
+        """Return the credential ref and API-key env var this auth may read."""
+        credentials = (self.credential_ref,) if self.credential_ref is not None else ()
+        return ProviderAuthScope(credentials=credentials, environment=(self.env_var,))
 
     async def resolve(self, context: ProviderAuthContext) -> ResolvedProviderAuth:
         if self.credential_ref:
@@ -1484,11 +1492,10 @@ def _auth_headers(auth: ResolvedProviderAuth) -> dict[str, str]:
 
 async def _resolve_auth_for_backend(service: LlamaCppService) -> ResolvedProviderAuth:
     active = service._active_state
-    return await _LlamaCppAuth(active.credential_ref if active else None).resolve(
-        ProviderAuthContext(
-            credentials=service.credential_store,
-            environment=service.environment,
-        )
+    return await resolve_provider_auth(
+        _LlamaCppAuth(active.credential_ref if active else None),
+        credentials=service.credential_store,
+        environment=service.environment,
     )
 
 

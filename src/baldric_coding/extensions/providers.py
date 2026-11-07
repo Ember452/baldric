@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from inspect import isawaitable
 from types import MappingProxyType
@@ -57,8 +57,71 @@ class CredentialReader(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
+class ProviderAuthScope:
+    """Credential and environment names one auth strategy is allowed to read.
+
+    :func:`resolve_provider_auth` builds the secret-bearing
+    :class:`ProviderAuthContext` from this declaration, so a strategy can only
+    read the provider's own credential names and the environment variables it
+    declares. A custom strategy that needs either must expose a ``scope``
+    attribute returning this value; without one it receives empty views, so the
+    full credential store and process environment are never exposed to
+    extension code by accident.
+    """
+
+    credentials: tuple[str, ...] = ()
+    environment: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        for label, names in (
+            ("credential", self.credentials),
+            ("environment variable", self.environment),
+        ):
+            if not isinstance(names, tuple) or any(
+                not isinstance(name, str) or not name.strip() for name in names
+            ):
+                raise DynamicProviderError(
+                    f"Provider auth scope {label} names must be a tuple of non-empty strings"
+                )
+            if len(set(names)) != len(names):
+                raise DynamicProviderError(f"Provider auth scope {label} names must be unique")
+
+
+class ScopedCredentialReader:
+    """Read-only credential view limited to one provider's declared names.
+
+    An auth strategy resolves with this view instead of the host store, so
+    asking for another provider's credential name returns ``None`` rather than
+    leaking it.
+    """
+
+    __slots__ = ("_allowed", "_reader")
+
+    def __init__(self, reader: CredentialReader, allowed_names: Sequence[str]) -> None:
+        self._reader = reader
+        self._allowed = frozenset(allowed_names)
+
+    @property
+    def allowed_names(self) -> tuple[str, ...]:
+        """Return the credential names this view may read, in sorted order."""
+        return tuple(sorted(self._allowed))
+
+    def get(self, name: str) -> str | None:
+        """Return the credential only when ``name`` is inside the provider scope."""
+        if not isinstance(name, str) or name not in self._allowed:
+            return None
+        return self._reader.get(name)
+
+
+@dataclass(frozen=True, slots=True)
 class ProviderAuthContext:
-    """Secret-bearing inputs available only while resolving provider auth."""
+    """Provider-scoped, secret-bearing inputs available only while resolving auth.
+
+    ``credentials`` is a :class:`ScopedCredentialReader` and ``environment``
+    only contains the names the auth strategy's :class:`ProviderAuthScope`
+    declares; :func:`resolve_provider_auth` is the single place that builds
+    them, so extension auth never sees the full store or process environment.
+    """
 
     credentials: CredentialReader = field(repr=False)
     environment: Mapping[str, str] = field(repr=False)
@@ -108,6 +171,14 @@ class RequiredApiKey:
         _require_non_empty(self.credential_name, "Credential name")
         _require_non_empty(self.env_var, "Environment variable")
 
+    @property
+    def scope(self) -> ProviderAuthScope:
+        """Return the single credential and environment name this strategy reads."""
+        return ProviderAuthScope(
+            credentials=(self.credential_name,),
+            environment=(self.env_var,),
+        )
+
     async def resolve(self, context: ProviderAuthContext) -> ResolvedProviderAuth:
         stored = context.credentials.get(self.credential_name)
         if stored:
@@ -140,6 +211,14 @@ class OptionalApiKey:
         _require_non_empty(self.credential_name, "Credential name")
         _require_non_empty(self.env_var, "Environment variable")
 
+    @property
+    def scope(self) -> ProviderAuthScope:
+        """Return the single credential and environment name this strategy reads."""
+        return ProviderAuthScope(
+            credentials=(self.credential_name,),
+            environment=(self.env_var,),
+        )
+
     async def resolve(self, context: ProviderAuthContext) -> ResolvedProviderAuth:
         stored = context.credentials.get(self.credential_name)
         if stored:
@@ -161,6 +240,11 @@ class OptionalApiKey:
 @dataclass(frozen=True, slots=True)
 class NoAuth:
     """Authentication strategy that never reads credentials or environment."""
+
+    @property
+    def scope(self) -> ProviderAuthScope:
+        """Return an empty scope: this strategy reads no secret sources."""
+        return ProviderAuthScope()
 
     async def resolve(self, context: ProviderAuthContext) -> ResolvedProviderAuth:
         del context
@@ -384,18 +468,70 @@ class DynamicProvider:
         )
 
 
+def _belongs_to(credential_name: str, provider_id: str) -> bool:
+    """Return whether a credential name belongs to this provider."""
+    if not provider_id:
+        return True
+    return credential_name == provider_id or credential_name.startswith(f"{provider_id}:")
+
+
 async def resolve_provider_auth(
     auth: ProviderAuth,
     *,
+    provider_id: str = "",
     credentials: CredentialReader,
     environment: Mapping[str, str],
 ) -> ResolvedProviderAuth:
-    """Resolve one auth strategy and validate its runtime-only result."""
-    resolved = auth.resolve(ProviderAuthContext(credentials=credentials, environment=environment))
+    """Resolve one auth strategy against a provider-scoped secret view.
+
+    This is the single choke point that hands secrets to extension auth code:
+    the strategy receives a :class:`ScopedCredentialReader` limited to its
+    declared credential names and an environment mapping holding only its
+    declared variables, never the host store or the full process environment.
+
+    The declaration is written by the auth strategy, which can be extension code,
+    so the host narrows it further: only names belonging to the provider's own id
+    are authoritative (``<id>`` or ``<id>:<suffix>``). Without that, a provider
+    could name another provider's credential (for example ``anthropic``) and read
+    a real key it has no claim to. An empty ``provider_id`` keeps the declared
+    names for direct callers; every host path passes the id.
+    """
+    scope = provider_auth_scope(auth)
+    allowed = tuple(name for name in scope.credentials if _belongs_to(name, provider_id))
+    resolved = auth.resolve(
+        ProviderAuthContext(
+            credentials=ScopedCredentialReader(credentials, allowed),
+            environment=_scoped_environment(environment, scope.environment),
+        )
+    )
     value = await resolved if isawaitable(resolved) else resolved
     if not isinstance(value, ResolvedProviderAuth):
         raise ProviderAuthError("Provider auth returned an unsupported result")
     return value
+
+
+def provider_auth_scope(auth: ProviderAuth) -> ProviderAuthScope:
+    """Return the declared scope of an auth strategy; undeclared means empty.
+
+    Built-in strategies expose a ``scope`` property. A custom strategy that
+    reads credentials or environment must expose the same property; without it
+    :func:`resolve_provider_auth` gives it empty views (fail closed) instead of
+    the host's full secret sources.
+    """
+    declared = getattr(auth, "scope", None)
+    if declared is None:
+        return ProviderAuthScope()
+    if not isinstance(declared, ProviderAuthScope):
+        raise ProviderAuthError("Provider auth scope is unsupported")
+    return declared
+
+
+def _scoped_environment(
+    environment: Mapping[str, str],
+    allowed_names: tuple[str, ...],
+) -> Mapping[str, str]:
+    """Return an immutable environment view holding only ``allowed_names``."""
+    return MappingProxyType({name: environment[name] for name in allowed_names if name in environment})
 
 
 def _validate_model_snapshot(

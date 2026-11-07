@@ -959,7 +959,7 @@ def test_openai_compatible_config_from_provider_uses_configured_env_var(
     assert config.headers == {}
     assert config.timeout_seconds == 60.0
     assert config.max_retries == 2
-    assert config.max_retry_delay_seconds == 1.0
+    assert config.max_retry_delay_seconds == 15.0
     assert config.response_provider_header is None
 
 

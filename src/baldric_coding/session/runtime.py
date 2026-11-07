@@ -14,6 +14,7 @@ from baldric_agent.messages import (
     AssistantMessage,
     CustomMessage,
     Usage,
+    UsageCost,
     UserMessage,
     sum_usage,
 )
@@ -112,9 +113,6 @@ from baldric_coding.session.provider_helpers import (
 )
 from baldric_coding.session.provider_helpers import (
     _state_thinking_level as _state_thinking_level,
-)
-from baldric_coding.session.provider_helpers import (
-    _terminal_command_context_message as _terminal_command_context_message,
 )
 from baldric_coding.session.provider_helpers import (
     _unavailable_thinking_message as _unavailable_thinking_message,
@@ -328,6 +326,11 @@ async def prompt(
     initiated the turn for the `input` hook (``"extension"`` when an
     extension started it, ``"interactive"`` otherwise).
     """
+    # Session-level events (title, thinking level) have no stream of their own;
+    # hand anything queued to this frontend before the run starts.
+    for pending_event in session.drain_frontend_events():
+        yield pending_event
+
     context = session._diagnostic_context()
     input_outcome = await session._extension_runtime.run_input_hooks(
         content, source=source, streaming_behavior=streaming_behavior
@@ -661,12 +664,12 @@ async def _persist_active_tool_history_repairs(session: CodingSession) -> ToolHi
         parent_id = copied_entry.id
     if session._config.defer_authoritative_writes:
         session._prepared_entries.extend(staged)
-        session._last_parent_id = parent_id
+        session.set_active_leaf_id(parent_id)
         replay_entries = [*session._state.entries, *staged]
         session._state = SessionState.from_entries(replay_entries, leaf_id=parent_id)
     else:
         await session._append_session_batch(staged)
-        session._last_parent_id = parent_id
+        session.set_active_leaf_id(parent_id)
         await session._refresh_persisted_state(leaf_id=parent_id)
     session._harness.replace_messages(session._state.messages)
     session._invalidate_context_usage_cache()
@@ -699,8 +702,15 @@ async def _persist_message(session: CodingSession, message: AgentMessage) -> Non
 
     Message lifecycle events are the durable-message boundary. A stable entry
     id lets a retry recognize an append that reached disk before raising.
-    Only retries pay for a full-file read.
+
+    A message appended at the tip only extends the derived state, so derive it
+    instead of re-reading and replaying the transcript: the read hands out a deep
+    copy of every entry and the replay walks them, which made each persisted
+    message quadratic in session length. A retry, a non-tip parent or any other
+    entry kind still pays the full read, because those are the cases where the
+    transcript may not match the in-memory state.
     """
+    _fill_response_cost(session, message)
     message_id = id(message)
     pending = session._pending_message_writes.get(message_id)
     is_retry = pending is not None
@@ -710,14 +720,68 @@ async def _persist_message(session: CodingSession, message: AgentMessage) -> Non
         session._pending_message_writes[message_id] = pending
 
     durable_ids = {entry.id for entry in await session._read_session_entries()} if is_retry else frozenset()
-    if pending.entry.id not in durable_ids:
+    appended = pending.entry.id not in durable_ids
+    if appended:
         await session._append_session_entry(pending.entry)
-    session._last_parent_id = pending.entry.id
+    session.set_active_leaf_id(pending.entry.id)
 
-    await session._refresh_persisted_state(leaf_id=session._last_parent_id)
+    if appended and not is_retry and session._state.accepts_appended_message(pending.entry):
+        session._state = session._state.with_appended_message(pending.entry, leaf_id=pending.entry.id)
+        _touch_session_record(session, throttle=True)
+    else:
+        await session._refresh_persisted_state(leaf_id=session._last_parent_id)
     session._persisted_message_ids.add(message_id)
     session._pending_message_writes.pop(message_id, None)
     session._invalidate_context_usage_cache()
+
+
+def _fill_response_cost(session: CodingSession, message: AgentMessage) -> None:
+    """Price one assistant response when the provider reported no cost.
+
+    Pi prices inside the adapter because its model objects carry the rates. This
+    project keeps pricing in the provider catalog, so the durable message is the
+    first place where both the response and its rates are known. Only the
+    already-declared ``usage.cost`` is filled, so the wire shape is unchanged and
+    a provider-reported cost always wins.
+    """
+    if not isinstance(message, AssistantMessage):
+        return
+    usage = message.usage
+    if usage.cost.total > 0:
+        return
+    if usage.input == 0 and usage.output == 0 and usage.cache_read == 0 and usage.cache_write == 0:
+        return
+    # Imported here: `model_runtime` reaches back into the session package, and
+    # module-level import would make the cycle eager.
+    from baldric_coding.session import model_runtime as _model_runtime
+
+    provider_name = message.provider or session.provider_name
+    model = message.model or session.model
+    prompt_tokens = usage.input + usage.cache_read + usage.cache_write
+    rates = _model_runtime.pricing_for_response(session, provider_name, model, prompt_tokens)
+    if not rates:
+        return
+
+    million = 1_000_000.0
+    input_cost = usage.input * rates.get("input", 0.0) / million
+    output_cost = usage.output * rates.get("output", 0.0) / million
+    cache_read_cost = usage.cache_read * rates.get("cacheRead", 0.0) / million
+    write_1h = min(usage.cache_write_1h or 0, usage.cache_write)
+    cache_write_cost = (
+        (usage.cache_write - write_1h) * rates.get("cacheWrite", 0.0)
+        + write_1h * rates.get("cacheWrite1h", rates.get("cacheWrite", 0.0))
+    ) / million
+    message.usage = usage.model_copy(
+        update={
+            "cost": UsageCost(
+                input=input_cost,
+                output=output_cost,
+                cache_read=cache_read_cost,
+                cache_write=cache_write_cost,
+                total=input_cost + output_cost + cache_read_cost + cache_write_cost,
+            )
+        }
+    )
 
 
 async def _reconcile_run_persistence(
@@ -782,7 +846,31 @@ def _invalidate_context_usage_cache(session: CodingSession) -> None:
 async def _refresh_persisted_state(session: CodingSession, *, leaf_id: str | None) -> None:
     entries = await session._read_session_entries()
     session._state = SessionState.from_entries(entries, leaf_id=leaf_id)
+    _touch_session_record(session)
+
+
+_RECORD_TOUCH_INTERVAL_SECONDS = 30.0
+"""How often a message append may rewrite the session index.
+
+`SessionManager.touch_session` always writes because `updated_at` is its ordering
+contract. Persisting a message calls it once per message, and each write is a temp
+file plus fsync plus replace, so the caller throttles when nothing but the
+timestamp would change.
+"""
+
+
+def _touch_session_record(session: CodingSession, *, throttle: bool = False) -> None:
+    """Publish the session's last-used metadata for the index."""
     if session._config.session_id is not None and session._config.session_manager is not None:
+        if throttle:
+            key = (
+                session.model,
+                session.provider_name,
+                session._inference_provider,
+                session._inference_provider_mode,
+            )
+            if not session.should_touch_record(key, interval=_RECORD_TOUCH_INTERVAL_SECONDS):
+                return
         session._config.session_manager.touch_session(
             session._config.session_id,
             model=session.model,
@@ -1198,7 +1286,7 @@ async def _append_compaction(
         response_provider=response_provider,
     )
     await session._append_session_entry(compaction)
-    session._last_parent_id = compaction.id
+    session.set_active_leaf_id(compaction.id)
 
     await session._refresh_persisted_state(leaf_id=compaction.id)
     session._harness.replace_messages(session._state.messages)

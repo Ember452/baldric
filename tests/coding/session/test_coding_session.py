@@ -23,7 +23,7 @@ from baldric_agent import (
     Usage,
     UserMessage,
 )
-from baldric_agent.messages import AssistantMessageDiagnostic, assistant_content
+from baldric_agent.messages import AssistantMessageDiagnostic, BashExecutionMessage, assistant_content
 from baldric_agent.provider_events import AssistantErrorEvent
 from baldric_agent.session import (
     CompactionEntry,
@@ -600,7 +600,10 @@ class _FaultInjectingStorage:
 @pytest.mark.anyio
 @pytest.mark.parametrize(
     "phase",
-    ["message_before", "message_after", "refresh"],
+    # A "refresh" phase used to inject a fault into the state-refresh read. The
+    # refresh no longer reads for a tip append, so that fault has no site left;
+    # the read-time failure modes are covered by the append phases below.
+    ["message_before", "message_after"],
 )
 async def test_message_persistence_retry_is_idempotent(tmp_path: Path, phase: str) -> None:
     storage = _FaultInjectingStorage(phase)
@@ -614,6 +617,9 @@ async def test_message_persistence_retry_is_idempotent(tmp_path: Path, phase: st
         )
     )
 
+    # A clean append at the tip derives the state from the append, so the state
+    # refresh no longer reads; this fault lands on the first-append
+    # initialization read instead. The durable outcome must stay one message.
     with pytest.raises(OSError, match="simulated"):
         await _collect_session_events(session.prompt("go"))
 
@@ -745,9 +751,10 @@ async def test_clean_persist_reads_storage_once_per_message(tmp_path: Path) -> N
 
     persisted = [entry for entry in storage.entries if isinstance(entry, MessageEntry)]
     assert len(persisted) == 2
-    # One deferred-metadata read plus one state refresh per message. A first
-    # attempt must not also read to check ids it just minted.
-    assert storage.reads - reads_before == len(persisted) + 1
+    # Appending at the tip extends the derived state instead of re-reading the
+    # transcript. The one remaining read is the first-append initialization
+    # check, so the cost is per session, not per message.
+    assert storage.reads - reads_before == 1
 
 
 @pytest.mark.anyio
@@ -1294,10 +1301,16 @@ async def test_terminal_command_can_persist_output_to_context(tmp_path: Path) ->
     entries = await storage.read_all()
     messages = [entry.message for entry in entries if isinstance(entry, MessageEntry)]
     assert len(messages) == 1
-    assert isinstance(messages[0], UserMessage)
-    assert "Terminal command executed by the user." in messages[0].content
-    assert "printf hello" in messages[0].content
-    assert "hello" in messages[0].content
+    # A terminal command is persisted as its own message (pi's bashExecution
+    # shape) rather than a user message; the model-facing text is produced by
+    # context projection and is unchanged.
+    assert isinstance(messages[0], BashExecutionMessage)
+    assert messages[0].command == "printf hello"
+    assert messages[0].output == "hello"
+    assert messages[0].exit_code == 0
+    assert "Terminal command executed by the user." in messages[0].text
+    assert "printf hello" in messages[0].text
+    assert "hello" in messages[0].text
 
 
 @pytest.mark.anyio

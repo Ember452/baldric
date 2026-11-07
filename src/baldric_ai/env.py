@@ -13,7 +13,9 @@ DEFAULT_OPENAI_COMPATIBLE_BASE_URL = "https://api.openai.com/v1"
 DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com/v1"
 DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS = 60.0
 DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES = 2
-DEFAULT_OPENAI_COMPATIBLE_MAX_RETRY_DELAY_SECONDS = 1.0
+# A Retry-After from a real 429 is routinely longer than one second; a lower cap
+# silently truncates it and turns provider-requested backoff into a fast retry.
+DEFAULT_OPENAI_COMPATIBLE_MAX_RETRY_DELAY_SECONDS = 15.0
 
 # Prompt-cache retention preferences. "short" uses the provider default TTL
 # (5 minutes on Anthropic), "long" requests the 1 hour TTL, and "none" disables

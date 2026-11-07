@@ -127,9 +127,11 @@ def test_registered_commands_are_expected(tmp_path: Path) -> None:
 
     assert [command.name for command in commands] == [
         "compact",
+        "context",
         "diagnostics",
         "export",
         "extensions",
+        "help",
         "hotkeys",
         "local",
         "login",
@@ -488,7 +490,10 @@ def test_non_pi_commands_are_not_registered(tmp_path: Path) -> None:
     registry = create_default_command_registry()
     session = FakeSession(tmp_path)
 
-    for command in ("/provider", "/resources", "/context", "/help"):
+    # `/context` and `/help` are Baldric commands (implemented, tested, useful);
+    # they were once forbidden here for pi-parity reasons. `/provider` and
+    # `/resources` remain unregistered because the session commands cover them.
+    for command in ("/provider", "/resources"):
         result = registry.execute(session, command)
         assert result.handled is False
         assert result.message is None

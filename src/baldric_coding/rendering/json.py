@@ -5,6 +5,7 @@ import typer
 from baldric_agent.events import MessageEndEvent
 from baldric_agent.messages import AssistantMessage
 from baldric_coding.events import AutoRetryEndEvent, CodingSessionEvent
+from baldric_coding.rendering.base import is_failed_stop_reason
 
 
 class JsonEventRenderer:
@@ -17,7 +18,7 @@ class JsonEventRenderer:
         if (
             isinstance(event, MessageEndEvent)
             and isinstance(event.message, AssistantMessage)
-            and event.message.stop_reason == "error"
+            and is_failed_stop_reason(event.message.stop_reason)
             and not event.message.is_tool_result_recovery
         ):
             self._failed = True

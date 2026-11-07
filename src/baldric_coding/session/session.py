@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field, replace
@@ -594,9 +595,17 @@ class CodingSession:
         self._project_trust_resolution = project_trust_resolution
         self._project_trust_commit_pending = False
         self._persistence_unsubscribe: Callable[[], None] | None = None
+        # Per-message index writes are throttled by their caller; the record's
+        # own ordering contract still writes on every explicit touch.
+        self._last_record_touch_key: tuple[object, ...] | None = None
+        self._last_record_touch_at: float = 0.0
         self._persisted_message_ids: set[int] = set()
         self._ended_message_ids: set[int] = set()
         self._pending_message_writes: dict[int, _PendingMessageWrite] = {}
+        # Session-level events (title, thinking level) are published to
+        # extensions immediately but have no stream of their own; queue them so
+        # the next prompt's event stream can hand them to a frontend.
+        self._pending_frontend_events: deque[CodingSessionEvent] = deque()
         self._attach_persistence_listener()
 
     @classmethod
@@ -879,7 +888,20 @@ class CodingSession:
             session._apply_runtime_model_catalogs()
             session._apply_thinking_level_override()
             session._sync_thinking_level_to_active_model()
-            if not config.owns_initial_provider and config.provider is not None:
+            # A frontend that bootstraps its own provider cannot pass the routing
+            # observer: the observer is a method of the session, which does not
+            # exist yet. Rebuild through the path the print and RPC frontends use,
+            # or Hugging Face sticky routing and failover silently never engage.
+            # Only Hugging Face reads the observer, so every other provider keeps
+            # the provider its frontend built.
+            owns_provider_without_observer = (
+                config.owns_initial_provider
+                and config.provider is not None
+                and session.provider_name == "huggingface"
+            )
+            if config.provider is not None and (
+                not config.owns_initial_provider or owns_provider_without_observer
+            ):
                 session._refresh_runtime_provider()
             await session._refresh_runtime_model_limits()
             extension_runtime.bind(session)
@@ -1527,6 +1549,16 @@ class CodingSession:
         """Cancel the currently running agent turn, if any."""
         self._harness.cancel()
 
+    def queue_frontend_event(self, event: CodingSessionEvent) -> None:
+        """Queue one session-level event for the next frontend stream."""
+        self._pending_frontend_events.append(event)
+
+    def drain_frontend_events(self) -> tuple[CodingSessionEvent, ...]:
+        """Return and clear the session-level events queued for a frontend."""
+        drained = tuple(self._pending_frontend_events)
+        self._pending_frontend_events.clear()
+        return drained
+
     def queue_update_event(self) -> QueueUpdateEvent:
         """Return the current queue state as a coding-session event."""
         return QueueUpdateEvent(
@@ -1547,6 +1579,41 @@ class CodingSession:
         """Remove and return the most recently queued steering message."""
         message = self._harness.pop_latest_steering()
         return None if message is None else message_text(message)
+
+    def set_thinking_state(self, level: ThinkingLevel) -> None:
+        """Set the active thinking level.
+
+        Internal state writer: the command path goes through
+        :meth:`set_thinking_level`, which also persists the choice.
+        """
+        self._thinking_level = level
+
+    def should_touch_record(self, key: tuple[object, ...], *, interval: float) -> bool:
+        """Return whether a record touch should write, and remember the attempt.
+
+        The per-message caller touches the session index; a write is a temp file
+        plus fsync plus replace, so an unchanged key inside ``interval`` skips it.
+        """
+        from time import monotonic
+
+        now = monotonic()
+        if key == self._last_record_touch_key and now - self._last_record_touch_at < interval:
+            return False
+        self._last_record_touch_key = key
+        self._last_record_touch_at = now
+        return True
+
+    def set_active_leaf_id(self, entry_id: str | None) -> None:
+        """Point the session at the entry the next append attaches to."""
+        self._last_parent_id = entry_id
+
+    def set_preview_model(self, choice: ModelChoice | None) -> None:
+        """Set or clear the model a preview (picker) currently shows."""
+        self._preview_model = choice
+
+    def set_preview_thinking(self, level: ThinkingLevel | None) -> None:
+        """Set or clear the thinking level a preview currently shows."""
+        self._preview_thinking = level
 
     def set_model(self, model: str) -> None:
         return _model_selection.set_model(self, model)

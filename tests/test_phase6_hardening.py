@@ -132,7 +132,7 @@ async def test_refresh_from_retired_generation_cannot_publish() -> None:
     )
     pending = asyncio.create_task(registry.refresh("second"))
     await entered.wait()
-    runtime.reset_for_reload()
+    runtime.retire()
     release.set()
     result = await pending
 

@@ -5,6 +5,7 @@ import typer
 from baldric_agent.events import MessageEndEvent
 from baldric_agent.messages import AssistantMessage
 from baldric_coding.events import AutoRetryEndEvent, CodingSessionEvent
+from baldric_coding.rendering.base import is_failed_stop_reason
 
 
 class FinalTextRenderer:
@@ -23,9 +24,13 @@ class FinalTextRenderer:
         if event.message.is_tool_result_recovery:
             return
         self._last_assistant_text = event.message.text
-        if event.message.stop_reason in {"error", "aborted"}:
-            self._failed = event.message.stop_reason == "error"
-            if event.message.error_message:
+        if is_failed_stop_reason(event.message.stop_reason):
+            self._failed = True
+            if event.message.stop_reason == "length" and not event.message.error_message:
+                self._error_messages.append(
+                    "Response was truncated: the model reached its output token limit."
+                )
+            elif event.message.error_message:
                 self._error_messages.append(event.message.error_message)
 
     def finish(self) -> bool:

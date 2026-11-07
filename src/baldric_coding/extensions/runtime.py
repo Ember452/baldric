@@ -40,6 +40,7 @@ from baldric_coding.context.system_prompt import PromptSection
 from baldric_coding.extensions.api import (
     AGENT_EVENT_TYPES,
     AGENT_EVENT_WILDCARD,
+    EXTENSION_API_VERSION,
     LIFECYCLE_EVENT_TYPES,
     CustomMessageView,
     ExtensionAPI,
@@ -275,9 +276,14 @@ class ExtensionRuntime:
             self._provider_registry,
             generation_id=self._generation.id,
         )
-        self._retired_provider_registries: list[DynamicProviderRegistry] = []
-        self._retired_local_backend_registries: list[LocalBackendRegistry] = []
+        # Modules imported by this runtime's own loads, recorded so ``retire``
+        # can remove exactly its generation from ``sys.modules``.
+        self._loaded_module_names: list[str] = []
         self._extensions: list[RegisteredExtension] = []
+        # Extensions whose ``setup`` raised after registering handlers. They are
+        # not active, but they stay here until the next ``session_shutdown``
+        # reaches the handlers they installed before failing (see retire path).
+        self._failed_extensions: list[RegisteredExtension] = []
         self._tools: dict[str, RegisteredExtensionTool] = {}
         self._commands: dict[str, ExtensionCommand] = {}
         self._prompt_guidelines: list[tuple[str, str, str]] = []
@@ -322,6 +328,9 @@ class ExtensionRuntime:
             include_user_dir=include_user_dir,
         )
         self._load_diagnostics.extend(result.diagnostics)
+        self._loaded_module_names.extend(
+            extension.module_name for extension in result.extensions if extension.module_name is not None
+        )
         self._project_extensions_dir = (
             paths.cwd / ".baldric" / "extensions" if paths.cwd is not None else None
         )
@@ -377,6 +386,7 @@ class ExtensionRuntime:
             self._harness_unsubscribe()
             self._harness_unsubscribe = None
         self._extensions.clear()
+        self._failed_extensions.clear()
         self._tools.clear()
         self._commands.clear()
         self._prompt_guidelines.clear()
@@ -385,87 +395,46 @@ class ExtensionRuntime:
         self._renderer_failures_reported.clear()
         self._turn_requested = None
         self._session = None
+        self._unload_loaded_modules()
 
     async def aclose(self) -> ProviderRegistryCloseResult:
         """Retire this generation and report drain or bounded containment."""
         self.retire()
-        provider_registries = (*self._retired_provider_registries, self._provider_registry)
-        backend_registries = (
-            *self._retired_local_backend_registries,
-            self._local_backend_registry,
-        )
         try:
-            _, provider_results = await asyncio.gather(
-                asyncio.gather(*(registry.aclose() for registry in backend_registries)),
-                asyncio.gather(*(registry.aclose() for registry in provider_registries)),
+            _, result = await asyncio.gather(
+                self._local_backend_registry.aclose(),
+                self._provider_registry.aclose(),
             )
-            self._retired_provider_registries = [
-                registry
-                for registry, result in zip(provider_registries, provider_results, strict=True)
-                if not result.drained and registry is not self._provider_registry
-            ]
-            self._retired_local_backend_registries = []
-            contained = sum(result.contained_discovery_tasks for result in provider_results)
-            return ProviderRegistryCloseResult(
-                drained=contained == 0,
-                contained_discovery_tasks=contained,
-            )
+            return result
         finally:
             self._generation.invalidate()
             if self._harness_unsubscribe is not None:
                 self._harness_unsubscribe()
                 self._harness_unsubscribe = None
 
-    def reset_for_reload(self) -> None:
-        """Drop all registrations and imported modules ahead of a re-load.
-
-        Also invalidates the current extension generation (Pi's ``invalidate``
-        parity): any `baldric` API object, context, or ui facade captured before
-        the reload — including one held by a still-running background task —
-        raises :class:`ExtensionError` on its next use instead of acting
-        against the fresh registration set. Session rebinding does not come
-        through here and never invalidates.
-        """
-        # Host-side extension UI (slot widgets, main views, key interceptors)
-        # belongs to the outgoing generation. Tear it down while that generation
-        # is still active so host cleanup triggered by component disposal can
-        # safely use its API; only then make every captured API/context stale.
-        self.clear_ui_components()
-        self._local_backend_registry.retire()
-        self._retired_local_backend_registries.append(self._local_backend_registry)
-        self._provider_registry.retire()
-        self._retired_provider_registries.append(self._provider_registry)
-        self._generation.invalidate()
-        self._generation = ExtensionGeneration()
-        self._built_ins_loaded = False
-        self._provider_registry = DynamicProviderRegistry(
-            self._durable_providers,
-            generation_id=self._generation.id,
-            credentials=self._provider_credentials,
-            environment=self._provider_environment,
-        )
-        self._local_backend_registry = LocalBackendRegistry(
-            self._provider_registry,
-            generation_id=self._generation.id,
-        )
-        if self._harness_unsubscribe is not None:
-            self._harness_unsubscribe()
-            self._harness_unsubscribe = None
-        self._extensions.clear()
-        self._tools.clear()
-        self._commands.clear()
-        self._prompt_guidelines.clear()
-        self._prompt_sections.clear()
-        self._message_renderers.clear()
-        self._renderer_failures_reported.clear()
-        self._load_diagnostics.clear()
-        self._runtime_diagnostics.clear()
-        self._project_extensions_dir = None
-        self._user_extensions_dir = BaldricPaths().home / "extensions"
-        unload_extension_modules()
+    def _unload_loaded_modules(self) -> None:
+        """Remove exactly the extension modules this runtime imported."""
+        if not self._loaded_module_names:
+            return
+        unload_extension_modules(tuple(self._loaded_module_names))
+        self._loaded_module_names.clear()
 
     def _setup_extension(self, extension: LoadedExtension) -> None:
         source_id = extension.source_id
+        if extension.api_version != EXTENSION_API_VERSION:
+            self._load_diagnostics.append(
+                ResourceDiagnostic(
+                    kind="extension",
+                    name=extension.name,
+                    path=extension.path,
+                    message=(
+                        f"extension declares API_VERSION {extension.api_version}, but this host"
+                        f" implements extension API version {EXTENSION_API_VERSION}; refusing to load it"
+                    ),
+                    severity="error",
+                )
+            )
+            return
         if self._extension_by_source(source_id) is not None:
             self._load_diagnostics.append(
                 ResourceDiagnostic(
@@ -489,13 +458,22 @@ class ExtensionRuntime:
             api=api,
             source=extension.source,
             hidden=extension.hidden,
+            api_version=extension.api_version,
+            capabilities=extension.capabilities,
         )
         self._extensions.append(registered)
         try:
             extension.setup(api)
         except Exception as exc:  # noqa: BLE001 - extensions are an isolation boundary
+            # A failed setup may already have started tasks, timers, or threads
+            # and may have registered `session_shutdown` handlers before raising.
+            # Keep the registration in a shutdown-only roster so the host's
+            # awaited `session_shutdown` (the real reload/quit path) reaches
+            # those handlers before retirement drops the extension, instead of
+            # silently orphaning its resources.
             self._extensions.remove(registered)
             self._remove_registrations(source_id)
+            self._failed_extensions.append(registered)
             self._load_diagnostics.append(
                 ResourceDiagnostic(
                     kind="extension",
@@ -850,9 +828,10 @@ class ExtensionRuntime:
     def clear_ui_components(self) -> None:
         """Ask the host frontend to tear down all extension-owned UI.
 
-        Invoked on `/reload` (via ``reset_for_reload``) and by session
-        replacement flows (resume/new) before ``session_start`` fires, so
-        widgets and key interceptors never outlive the world that mounted
+        Invoked on the real `/reload` path by ``session/lifecycle.py`` (after
+        ``emit_session_shutdown("reload")`` and before ``retire()``), and by
+        session replacement flows (resume/new) before ``session_start`` fires,
+        so widgets and key interceptors never outlive the world that mounted
         them while handlers keep the chance to re-mount.
         """
         self._ui.clear_components()
@@ -929,6 +908,8 @@ class ExtensionRuntime:
                 source=extension.source,
                 hidden=extension.hidden,
                 path=extension.path,
+                api_version=extension.api_version,
+                capabilities=extension.capabilities,
             )
             for extension in self._extensions
         )
@@ -1292,11 +1273,23 @@ class ExtensionRuntime:
             self._extension_turn_index += 1
 
     async def _emit_lifecycle(self, event_name: str, payload: object) -> None:
-        for owner, handler in self._handlers_for(event_name):
+        # Extensions whose setup raised never reached session_start, but they may
+        # already own tasks/timers/threads and registered shutdown handlers
+        # before failing. For ``session_shutdown`` they join this same dispatch
+        # loop (and are dropped afterwards), so the host's awaited shutdown is
+        # their retire path instead of an orphaned registration.
+        failed = tuple(self._failed_extensions) if event_name == "session_shutdown" else ()
+        handlers = [
+            *self._handlers_for(event_name),
+            *((owner, handler) for owner in failed for handler in owner.handlers.get(event_name, ())),
+        ]
+        for owner, handler in handlers:
             try:
                 await _resolve(handler(payload, self._fresh_context(owner.source_id)))
             except Exception as exc:  # noqa: BLE001 - extensions are an isolation boundary
                 self._record_runtime_failure(owner.name, event_name, exc)
+        if failed:
+            self._failed_extensions.clear()
 
     # -- internals -------------------------------------------------------------
 
@@ -1307,6 +1300,11 @@ class ExtensionRuntime:
 
     def _extension_by_source(self, source_id: str) -> RegisteredExtension | None:
         for extension in self._extensions:
+            if extension.source_id == source_id:
+                return extension
+        # Failed-setup registrations stay addressable until their shutdown runs,
+        # so a shutdown handler can still read its own context.
+        for extension in self._failed_extensions:
             if extension.source_id == source_id:
                 return extension
         return None

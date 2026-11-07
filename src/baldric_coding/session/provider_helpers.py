@@ -8,6 +8,10 @@ from dataclasses import dataclass, replace
 from os import environ
 from typing import TYPE_CHECKING, Any, cast
 
+from baldric_agent.messages import (
+    BashExecutionMessage,
+    bash_execution_text,
+)
 from baldric_agent.session import (
     SessionState,
 )
@@ -395,6 +399,11 @@ def _create_runtime_provider(
     )
 
 
+def _terminal_command_context_message(command: str, output: str) -> str:
+    """Return the model-facing text for one persisted bash execution."""
+    return bash_execution_text(BashExecutionMessage(command=command, output=output))
+
+
 def _configured_inference_provider(
     provider: ProviderConfig | None,
     model: str,
@@ -475,11 +484,3 @@ def _sanitize_session_name(text: str) -> str | None:
 
 def _fallback_session_name(first_message: str) -> str | None:
     return _sanitize_session_name(first_message)
-
-
-def _terminal_command_context_message(command: str, output: str) -> str:
-    return (
-        "Terminal command executed by the user.\n\n"
-        f"Command:\n```bash\n{command}\n```\n\n"
-        f"Output:\n```text\n{output}\n```"
-    )

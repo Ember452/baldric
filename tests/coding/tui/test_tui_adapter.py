@@ -23,6 +23,7 @@ from baldric_agent.provider_events import TextDeltaEvent, ThinkingDeltaEvent
 from baldric_coding.context.skills.skills import Skill, format_skill_invocation
 from baldric_coding.events import (
     AgentSettledEvent,
+    AutoRetryEndEvent,
     AutoRetryStartEvent,
     CompactionEndEvent,
     CompactionStartEvent,
@@ -875,6 +876,75 @@ def test_tui_adapter_records_retry_and_queue_status() -> None:
     assert state.error is None
     assert state.queued_steering == ("adjust",)
     assert state.queued_follow_up == ("after",)
+
+
+def test_tui_adapter_settles_retry_status_when_the_retry_succeeds() -> None:
+    state = TuiState()
+    adapter = TuiEventAdapter(state)
+    adapter.apply(
+        AutoRetryStartEvent(
+            attempt=1,
+            max_attempts=3,
+            delay_ms=0,
+            error_message="Retrying provider request 1/3 after HTTP 503.",
+        )
+    )
+
+    adapter.apply(AutoRetryEndEvent(success=True, attempt=1))
+
+    assert [(item.role, item.text) for item in state.items] == []
+    assert state.error is None
+
+
+def test_tui_adapter_replaces_the_retry_notice_on_the_next_attempt() -> None:
+    state = TuiState()
+    adapter = TuiEventAdapter(state)
+    adapter.apply(
+        AutoRetryStartEvent(
+            attempt=1,
+            max_attempts=3,
+            delay_ms=0,
+            error_message="Retrying provider request 1/3 after HTTP 503.",
+        )
+    )
+    adapter.apply(
+        AutoRetryStartEvent(
+            attempt=2,
+            max_attempts=3,
+            delay_ms=0,
+            error_message="Retrying provider request 2/3 after HTTP 503.",
+        )
+    )
+
+    assert [(item.role, item.text) for item in state.items] == [
+        ("status", "… Retrying provider request 2/3 after HTTP 503.")
+    ]
+
+
+def test_tui_adapter_surfaces_retry_error_that_never_became_a_message() -> None:
+    state = TuiState()
+    adapter = TuiEventAdapter(state)
+    adapter.apply(
+        AutoRetryStartEvent(
+            attempt=1,
+            max_attempts=3,
+            delay_ms=0,
+            error_message="Retrying provider request 1/3 after HTTP 503.",
+        )
+    )
+
+    adapter.apply(
+        AutoRetryEndEvent(
+            success=False,
+            attempt=1,
+            final_error="Provider retry did not complete",
+        )
+    )
+
+    assert [(item.role, item.text) for item in state.items] == [
+        ("error", "Error: Provider retry did not complete")
+    ]
+    assert state.error == "Provider retry did not complete"
 
 
 def test_tui_adapter_records_assistant_error_and_aborted_message() -> None:

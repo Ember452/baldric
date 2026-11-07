@@ -101,9 +101,6 @@ from baldric_coding.session.provider_helpers import (
     _state_thinking_level as _state_thinking_level,
 )
 from baldric_coding.session.provider_helpers import (
-    _terminal_command_context_message as _terminal_command_context_message,
-)
-from baldric_coding.session.provider_helpers import (
     _unavailable_thinking_message as _unavailable_thinking_message,
 )
 from baldric_coding.session.resource_helpers import (  # noqa: F401
@@ -321,7 +318,7 @@ async def apply_startup_model_override(session: CodingSession, model: str) -> No
         provider=session.provider_name,
     )
     await session._append_session_entry(entry)
-    session._last_parent_id = entry.id
+    session.set_active_leaf_id(entry.id)
     await session._refresh_persisted_state(leaf_id=entry.id)
 
 
@@ -429,9 +426,9 @@ async def select_provider_model(
         runtime_provider_config=selected_config,
         dynamic_provider=selected_dynamic,
     )
-    session._thinking_level = selected_thinking
+    session.set_thinking_state(selected_thinking)
     session._image_support.supported = selected_image_support
-    session._last_parent_id = entry.id
+    session.set_active_leaf_id(entry.id)
     session._invalidate_runtime_model_limits()
     session._invalidate_context_usage_cache()
     try:
@@ -553,12 +550,12 @@ def preview_model_choice(session: CodingSession, choice: ModelChoice) -> None:
         raise RuntimeError("Cannot switch models while Baldric is working")
     if choice not in session.available_model_choices:
         raise ProviderConfigError(f"Model is not available: {choice.provider_name}:{choice.model}")
-    session._preview_model = choice
+    session.set_preview_model(choice)
     levels = session.available_thinking_levels
     if not levels:
-        session._preview_thinking = "off"
+        session.set_preview_thinking("off")
     elif session.thinking_level not in levels:
-        session._preview_thinking = levels[0]
+        session.set_preview_thinking(levels[0])
     session._invalidate_runtime_model_limits()
 
 
@@ -570,7 +567,7 @@ def preview_thinking_level(session: CodingSession, level: str) -> str:
         raise ValueError(_unavailable_thinking_message(session))
     if normalized not in levels:
         raise ValueError(f"Thinking mode {normalized} is not available. Available: {', '.join(levels)}")
-    session._preview_thinking = normalized
+    session.set_preview_thinking(normalized)
     return f"Thinking mode: {normalized}"
 
 
@@ -601,15 +598,15 @@ async def _commit_preview(session: CodingSession) -> None:
     choice, thinking = session._preview_model, session._preview_thinking
     if choice is None and thinking is None:
         return
-    session._preview_model = None
-    session._preview_thinking = None
+    session.set_preview_model(None)
+    session.set_preview_thinking(None)
     try:
         if choice is not None:
             await session.select_provider_model(choice, persist_default=False)
         if thinking is not None and thinking != session._state.thinking_level:
             if thinking == "off" and not session.available_thinking_levels:
                 # A non-reasoning model has no effort control to rebuild.
-                session._thinking_level = "off"
+                session.set_thinking_state("off")
             if thinking != session._thinking_level and session.available_thinking_levels:
                 await session.set_thinking_level(thinking, persist_preference=False)
             elif thinking == session._thinking_level:
@@ -617,12 +614,13 @@ async def _commit_preview(session: CodingSession) -> None:
                 # runs. Record that effective change on the same branch.
                 entry = ThinkingLevelChangeEntry(parent_id=session._last_parent_id, thinking_level=thinking)
                 await session._append_session_entry(entry)
-                session._last_parent_id = entry.id
+                session.set_active_leaf_id(entry.id)
                 await session._refresh_persisted_state(leaf_id=entry.id)
+                session.queue_frontend_event(ThinkingLevelChangedEvent(level=thinking))
                 await session._extension_runtime.emit_event(ThinkingLevelChangedEvent(level=thinking))
     except Exception:
-        session._preview_model = choice
-        session._preview_thinking = thinking
+        session.set_preview_model(choice)
+        session.set_preview_thinking(thinking)
         raise
 
 
@@ -691,7 +689,7 @@ def _set_provider_model(
     session._runtime_provider_config = provider_config
     session._invalidate_runtime_model_limits()
     session._harness.config.model = model
-    session._thinking_level = thinking_level
+    session.set_thinking_state(thinking_level)
     session._sync_image_support()
     if persist_default:
         session._persist_default_model_choice()
@@ -722,11 +720,11 @@ async def set_thinking_level(session: CodingSession, level: str, *, persist_pref
         return f"Thinking mode: {normalized}"
 
     previous = session._thinking_level
-    session._thinking_level = normalized
+    session.set_thinking_state(normalized)
     try:
         session._refresh_runtime_provider()
     except ProviderConfigError:
-        session._thinking_level = previous
+        session.set_thinking_state(previous)
         raise
 
     entry = ThinkingLevelChangeEntry(
@@ -734,11 +732,12 @@ async def set_thinking_level(session: CodingSession, level: str, *, persist_pref
         thinking_level=normalized,
     )
     await session._append_session_entry(entry)
-    session._last_parent_id = entry.id
+    session.set_active_leaf_id(entry.id)
 
     if persist_preference:
         session._persist_thinking_level_choice()
     await session._refresh_persisted_state(leaf_id=entry.id)
+    session.queue_frontend_event(ThinkingLevelChangedEvent(level=normalized))
     await session._extension_runtime.emit_event(ThinkingLevelChangedEvent(level=normalized))
     return f"Thinking mode: {normalized}"
 
@@ -809,15 +808,15 @@ def _apply_thinking_level_override(session: CodingSession) -> None:
                 f'Thinking mode "{override}" is not available for '
                 f"{dynamic.id}:{session.model}. Available modes: {allowed}"
             )
-        session._thinking_level = override
+        session.set_thinking_state(override)
         return
     provider = session._active_provider_config()
     if provider is None:
-        session._thinking_level = override
+        session.set_thinking_state(override)
         return
     resolved = resolve_startup_thinking_level(provider, session.model, cli_override=override)
     if resolved is not None:
-        session._thinking_level = resolved
+        session.set_thinking_state(resolved)
 
 
 def _sync_thinking_level_to_active_model(session: CodingSession) -> None:
@@ -825,11 +824,13 @@ def _sync_thinking_level_to_active_model(session: CodingSession) -> None:
     if provider is None:
         return
     committed_model = session._harness.config.model
-    session._thinking_level = _coerced_thinking_level(
-        provider,
-        model=committed_model,
-        current=session._thinking_level,
-        preferred=provider.thinking_defaults.get(committed_model),
+    session.set_thinking_state(
+        _coerced_thinking_level(
+            provider,
+            model=committed_model,
+            current=session._thinking_level,
+            preferred=provider.thinking_defaults.get(committed_model),
+        )
     )
 
 

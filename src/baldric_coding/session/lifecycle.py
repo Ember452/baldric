@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from baldric_agent.messages import (
-    UserMessage,
+    BashExecutionMessage,
 )
 from baldric_ai.model_catalog import ModelCatalogProvider, RuntimeModelCatalog
 from baldric_coding.commands.registry import CommandResult
@@ -113,9 +113,6 @@ from baldric_coding.session.provider_helpers import (
 )
 from baldric_coding.session.provider_helpers import (
     _state_thinking_level as _state_thinking_level,
-)
-from baldric_coding.session.provider_helpers import (
-    _terminal_command_context_message as _terminal_command_context_message,
 )
 from baldric_coding.session.provider_helpers import (
     _unavailable_thinking_message as _unavailable_thinking_message,
@@ -639,7 +636,7 @@ def reload_provider_settings(session: CodingSession) -> None:
     except ProviderConfigError:
         session._provider_settings = previous_settings
         session._durable_provider_settings = previous_durable_settings
-        session._thinking_level = previous_thinking_level
+        session.set_thinking_state(previous_thinking_level)
         raise
 
 
@@ -699,6 +696,12 @@ async def resume(session: CodingSession, session_id: str) -> str:
                     else:
                         validate_provider_model(runtime_provider_config, model)
 
+    # Every field the caller can set has to survive the swap. `tools` is the one
+    # that bites: a host that narrowed the tool set through config would silently
+    # get the default catalogue back on resume. `dynamic_provider`,
+    # `thinking_level_override` and `index_on_first_persist` are deliberately not
+    # carried: the first is re-derived from live discovery, the second is a
+    # per-launch flag, and the third belongs to the new storage.
     replacement = await type(session).load(
         _session_module().CodingSessionConfig(
             provider=None if dynamic_resume else session._harness.config.provider,
@@ -709,11 +712,13 @@ async def resume(session: CodingSession, session_id: str) -> str:
             custom_system_prompt=session._config.custom_system_prompt,
             append_system_prompt=session._config.append_system_prompt,
             context_files=session._config.context_files,
+            tools=session._config.tools,
             resource_paths=session._config.resource_paths,
             session_id=record.id,
             session_manager=manager,
             command_registry=session._config.command_registry,
             provider_name=provider_name,
+            runtime_model_catalogs=dict(session._runtime_model_catalogs),
             inference_provider=None if dynamic_resume else record.inference_provider,
             inference_provider_mode=record.inference_provider_mode,
             requested_provider=provider_name if dynamic_resume else None,
@@ -768,6 +773,7 @@ async def set_session_name(session: CodingSession, name: str) -> str:
     )
     if persisted is None:
         return normalized
+    session.queue_frontend_event(SessionInfoChangedEvent(name=persisted))
     await session._extension_runtime.emit_event(SessionInfoChangedEvent(name=persisted))
     return persisted
 
@@ -935,8 +941,8 @@ async def _adopt_replacement(
     session._config = replacement._config
     session._state = replacement._state
     session._harness = replacement._harness
-    session._preview_model = None
-    session._preview_thinking = None
+    session.set_preview_model(None)
+    session.set_preview_thinking(None)
     # Detach the replacement's persistence listener so writes advance
     # this session's parent pointers, not the discarded replacement's.
     if replacement._persistence_unsubscribe is not None:
@@ -944,7 +950,7 @@ async def _adopt_replacement(
         replacement._persistence_unsubscribe = None
     session._attach_persistence_listener()
     session._invalidate_context_usage_cache()
-    session._last_parent_id = replacement._last_parent_id
+    session.set_active_leaf_id(replacement._last_parent_id)
     session._skills = replacement._skills
     session._prompt_templates = replacement._prompt_templates
     session._context_files = replacement._context_files
@@ -966,7 +972,7 @@ async def _adopt_replacement(
     session._resource_paths = replacement._resource_paths
     session._auto_compact_token_threshold = replacement._auto_compact_token_threshold
     session._auto_compact_enabled = replacement._auto_compact_enabled
-    session._thinking_level = replacement._thinking_level
+    session.set_thinking_state(replacement._thinking_level)
     session._pending_initial_entries = replacement._pending_initial_entries
     session._pending_message_writes = replacement._pending_message_writes
     session._extension_runtime = replacement._extension_runtime
@@ -1154,11 +1160,10 @@ async def run_terminal_command(
 
     if add_to_context:
         await session._flush_pending_message_writes(context=session._diagnostic_context())
-        context_message = UserMessage(
-            content=_terminal_command_context_message(
-                normalized_command,
-                result.text,
-            )
+        context_message = BashExecutionMessage(
+            command=normalized_command,
+            output=result.text,
+            exit_code=exit_code,
         )
         session._harness.append_message(context_message)
         session._invalidate_context_usage_cache()
