@@ -664,12 +664,12 @@ async def _persist_active_tool_history_repairs(session: CodingSession) -> ToolHi
         parent_id = copied_entry.id
     if session._config.defer_authoritative_writes:
         session._prepared_entries.extend(staged)
-        session._last_parent_id = parent_id
+        session.set_active_leaf_id(parent_id)
         replay_entries = [*session._state.entries, *staged]
         session._state = SessionState.from_entries(replay_entries, leaf_id=parent_id)
     else:
         await session._append_session_batch(staged)
-        session._last_parent_id = parent_id
+        session.set_active_leaf_id(parent_id)
         await session._refresh_persisted_state(leaf_id=parent_id)
     session._harness.replace_messages(session._state.messages)
     session._invalidate_context_usage_cache()
@@ -723,7 +723,7 @@ async def _persist_message(session: CodingSession, message: AgentMessage) -> Non
     appended = pending.entry.id not in durable_ids
     if appended:
         await session._append_session_entry(pending.entry)
-    session._last_parent_id = pending.entry.id
+    session.set_active_leaf_id(pending.entry.id)
 
     if appended and not is_retry and session._state.accepts_appended_message(pending.entry):
         session._state = session._state.with_appended_message(pending.entry, leaf_id=pending.entry.id)
@@ -1267,7 +1267,7 @@ async def _append_compaction(
         response_provider=response_provider,
     )
     await session._append_session_entry(compaction)
-    session._last_parent_id = compaction.id
+    session.set_active_leaf_id(compaction.id)
 
     await session._refresh_persisted_state(leaf_id=compaction.id)
     session._harness.replace_messages(session._state.messages)

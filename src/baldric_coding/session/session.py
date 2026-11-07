@@ -1576,6 +1576,26 @@ class CodingSession:
         message = self._harness.pop_latest_steering()
         return None if message is None else message_text(message)
 
+    def set_thinking_state(self, level: ThinkingLevel) -> None:
+        """Set the active thinking level.
+
+        Internal state writer: the command path goes through
+        :meth:`set_thinking_level`, which also persists the choice.
+        """
+        self._thinking_level = level
+
+    def set_active_leaf_id(self, entry_id: str | None) -> None:
+        """Point the session at the entry the next append attaches to."""
+        self._last_parent_id = entry_id
+
+    def set_preview_model(self, choice: ModelChoice | None) -> None:
+        """Set or clear the model a preview (picker) currently shows."""
+        self._preview_model = choice
+
+    def set_preview_thinking(self, level: ThinkingLevel | None) -> None:
+        """Set or clear the thinking level a preview currently shows."""
+        self._preview_thinking = level
+
     def set_model(self, model: str) -> None:
         return _model_selection.set_model(self, model)
 

@@ -121,9 +121,9 @@ async def branch_to_entry(
         target_id = selected_entry.parent_id
         input_prefill = selected_entry.message.text
 
-    session._preview_model = None
-    session._preview_thinking = None
-    session._last_parent_id = target_id
+    session.set_preview_model(None)
+    session.set_preview_thinking(None)
+    session.set_active_leaf_id(target_id)
 
     # Plain navigation is in-memory only. A summary above is the sole write,
     # and becomes the file-order tip when present.
@@ -132,9 +132,11 @@ async def branch_to_entry(
     if history_repair is None:
         session._harness.replace_messages(session._state.messages)
     session._invalidate_context_usage_cache()
-    session._thinking_level = _state_thinking_level(
-        session._state,
-        default=_default_thinking_level_for_active_model(session),
+    session.set_thinking_state(
+        _state_thinking_level(
+            session._state,
+            default=_default_thinking_level_for_active_model(session),
+        )
     )
     session._sync_thinking_level_to_active_model()
     session._refresh_runtime_provider()
@@ -184,7 +186,7 @@ async def set_label(session: CodingSession, target_id: str, label: str | None) -
         label=normalized or None,
     )
     await session._append_session_entry(entry)
-    session._last_parent_id = entry.id
+    session.set_active_leaf_id(entry.id)
     await session._refresh_persisted_state(leaf_id=entry.id)
     return entry
 

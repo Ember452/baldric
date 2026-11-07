@@ -636,7 +636,7 @@ def reload_provider_settings(session: CodingSession) -> None:
     except ProviderConfigError:
         session._provider_settings = previous_settings
         session._durable_provider_settings = previous_durable_settings
-        session._thinking_level = previous_thinking_level
+        session.set_thinking_state(previous_thinking_level)
         raise
 
 
@@ -941,8 +941,8 @@ async def _adopt_replacement(
     session._config = replacement._config
     session._state = replacement._state
     session._harness = replacement._harness
-    session._preview_model = None
-    session._preview_thinking = None
+    session.set_preview_model(None)
+    session.set_preview_thinking(None)
     # Detach the replacement's persistence listener so writes advance
     # this session's parent pointers, not the discarded replacement's.
     if replacement._persistence_unsubscribe is not None:
@@ -950,7 +950,7 @@ async def _adopt_replacement(
         replacement._persistence_unsubscribe = None
     session._attach_persistence_listener()
     session._invalidate_context_usage_cache()
-    session._last_parent_id = replacement._last_parent_id
+    session.set_active_leaf_id(replacement._last_parent_id)
     session._skills = replacement._skills
     session._prompt_templates = replacement._prompt_templates
     session._context_files = replacement._context_files
@@ -972,7 +972,7 @@ async def _adopt_replacement(
     session._resource_paths = replacement._resource_paths
     session._auto_compact_token_threshold = replacement._auto_compact_token_threshold
     session._auto_compact_enabled = replacement._auto_compact_enabled
-    session._thinking_level = replacement._thinking_level
+    session.set_thinking_state(replacement._thinking_level)
     session._pending_initial_entries = replacement._pending_initial_entries
     session._pending_message_writes = replacement._pending_message_writes
     session._extension_runtime = replacement._extension_runtime

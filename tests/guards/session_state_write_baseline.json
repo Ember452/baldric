@@ -1,0 +1,73 @@
+{
+  "files": {
+    "src/baldric_coding/session/lifecycle.py": {
+      "_append_system_prompt": 2,
+      "_append_system_prompt_paths": 2,
+      "_append_system_prompts": 2,
+      "_auto_compact_enabled": 1,
+      "_auto_compact_token_threshold": 1,
+      "_close_task": 1,
+      "_command_registry": 2,
+      "_config": 3,
+      "_context_files": 2,
+      "_credential_store": 1,
+      "_custom_system_prompt": 2,
+      "_custom_system_prompt_path": 2,
+      "_diagnostic_logger": 1,
+      "_durable_provider_settings": 3,
+      "_extension_runtime": 2,
+      "_harness": 1,
+      "_image_support": 1,
+      "_inference_provider": 1,
+      "_inference_provider_mode": 1,
+      "_model_catalog_discovery_errors": 1,
+      "_model_limits_discovery_error": 1,
+      "_pending_initial_entries": 1,
+      "_pending_message_writes": 1,
+      "_prepared_entries": 1,
+      "_project_trust_commit_pending": 1,
+      "_project_trust_resolution": 2,
+      "_prompt_templates": 2,
+      "_provider_name": 1,
+      "_provider_registry": 2,
+      "_provider_settings": 4,
+      "_resource_diagnostics": 2,
+      "_resource_paths": 2,
+      "_runtime_model_catalogs": 1,
+      "_runtime_model_limits": 1,
+      "_runtime_model_limits_key": 1,
+      "_runtime_provider_config": 1,
+      "_session_start_pending": 1,
+      "_skills": 2,
+      "_state": 1
+    },
+    "src/baldric_coding/session/model_runtime.py": {
+      "_config": 2,
+      "_inference_provider": 2,
+      "_last_diagnostic_log_path": 2,
+      "_model_limits_discovery_error": 3,
+      "_runtime_model_limits": 4,
+      "_runtime_model_limits_key": 2,
+      "_runtime_provider_config": 1
+    },
+    "src/baldric_coding/session/model_selection.py": {
+      "_config": 2,
+      "_durable_provider_settings": 3,
+      "_inference_provider": 5,
+      "_inference_provider_mode": 5,
+      "_provider_name": 2,
+      "_provider_settings": 1,
+      "_resource_diagnostics": 1,
+      "_runtime_provider_config": 2
+    },
+    "src/baldric_coding/session/runtime.py": {
+      "_config": 1,
+      "_context_usage_cache": 1,
+      "_last_diagnostic_log_path": 11,
+      "_pending_initial_entries": 3,
+      "_persistence_unsubscribe": 2,
+      "_resource_diagnostics": 1,
+      "_state": 3
+    }
+  }
+}
