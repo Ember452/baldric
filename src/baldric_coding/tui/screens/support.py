@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from rich.text import Text
 
@@ -179,3 +179,31 @@ class SessionCompletionRecord(Protocol):
     model: str
     cwd: Path
     updated_at: float
+
+
+@runtime_checkable
+class CursorListScreen(Protocol):
+    """A modal list screen the app may drive with arrow keys.
+
+    The app binds Up/Down with priority for prompt-completion navigation, so
+    ``action_completion_next/previous`` forward to any active screen that
+    exposes cursor actions. Implementing these actions is the whole contract:
+    a new list modal gets arrow-key support without any registration.
+    """
+
+    def action_cursor_up(self) -> None: ...
+
+    def action_cursor_down(self) -> None: ...
+
+
+@runtime_checkable
+class SelectableListScreen(Protocol):
+    """A modal list screen whose highlighted entry Enter may accept.
+
+    The app binds Enter with priority for prompt-completion acceptance, so
+    ``action_accept_completion`` forwards to any active screen that exposes a
+    select action. Screens needing different Enter behavior (for example a
+    mode toggle) are special-cased before this check in the app.
+    """
+
+    def action_select_cursor(self) -> None: ...

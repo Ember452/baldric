@@ -143,9 +143,15 @@ from baldric_coding.tui.autocomplete import (
 from baldric_coding.tui.backends import (
     LocalBackendPickerScreen,
     LocalBackendScreen,
-    LocalChoiceConfirmScreen,
-    LocalConfirmScreen,
-    LocalSearchResultsScreen,
+)
+from baldric_coding.tui.backends import (
+    LocalChoiceConfirmScreen as LocalChoiceConfirmScreen,
+)
+from baldric_coding.tui.backends import (
+    LocalConfirmScreen as LocalConfirmScreen,
+)
+from baldric_coding.tui.backends import (
+    LocalSearchResultsScreen as LocalSearchResultsScreen,
 )
 from baldric_coding.tui.config import (
     BALDRIC_DARK_THEME,
@@ -172,19 +178,25 @@ from baldric_coding.tui.login_providers import (
 from baldric_coding.tui.pickers import PickerMixin
 from baldric_coding.tui.screens.command_output import CommandOutputScreen
 from baldric_coding.tui.screens.extension import (
-    ExtensionConfirmScreen,
-    ExtensionSelectScreen,
+    ExtensionConfirmScreen as ExtensionConfirmScreen,
 )
 from baldric_coding.tui.screens.extension import (
     ExtensionInputScreen as ExtensionInputScreen,
+)
+from baldric_coding.tui.screens.extension import (
+    ExtensionSelectScreen as ExtensionSelectScreen,
 )
 from baldric_coding.tui.screens.extensions import ExtensionsScreen
 from baldric_coding.tui.screens.login import (
     CustomProviderLoginResult,
     CustomProviderLoginScreen,
-    LoginMethodPickerScreen,
-    LoginProviderPickerScreen,
     _LoginFlowAction,
+)
+from baldric_coding.tui.screens.login import (
+    LoginMethodPickerScreen as LoginMethodPickerScreen,
+)
+from baldric_coding.tui.screens.login import (
+    LoginProviderPickerScreen as LoginProviderPickerScreen,
 )
 from baldric_coding.tui.screens.login import (
     LoginScreen as LoginScreen,
@@ -215,7 +227,13 @@ from baldric_coding.tui.screens.sidebar import (
     _write_staged_utf8 as _write_staged_utf8,
 )
 from baldric_coding.tui.screens.skill_picker import (
-    SkillPickerScreen,
+    SkillPickerScreen as SkillPickerScreen,
+)
+from baldric_coding.tui.screens.support import (
+    CursorListScreen as CursorListScreen,
+)
+from baldric_coding.tui.screens.support import (
+    SelectableListScreen as SelectableListScreen,
 )
 from baldric_coding.tui.screens.support import (
     SessionCompletionRecord as SessionCompletionRecord,
@@ -256,10 +274,12 @@ from baldric_coding.tui.screens.support import (
 from baldric_coding.tui.screens.support import (
     _tree_picker_label as _tree_picker_label,
 )
-from baldric_coding.tui.screens.theme import ThemePickerScreen
+from baldric_coding.tui.screens.theme import (
+    ThemePickerScreen as ThemePickerScreen,
+)
 from baldric_coding.tui.screens.tools_reference import ToolsReferenceScreen
 from baldric_coding.tui.screens.tree_picker import (
-    TreePickerScreen,
+    TreePickerScreen as TreePickerScreen,
 )
 from baldric_coding.tui.session_records import session_options, session_records, short_path
 from baldric_coding.tui.state import (
@@ -2641,24 +2661,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         if isinstance(self.screen, ToolsReferenceScreen):
             self.screen.action_open_selected()
             return
-        if isinstance(
-            self.screen,
-            SessionPickerScreen
-            | PromptTemplatePickerScreen
-            | SkillPickerScreen
-            | TreePickerScreen
-            | LoginMethodPickerScreen
-            | LoginProviderPickerScreen
-            | ThemePickerScreen
-            | ExtensionSelectScreen
-            | ExtensionConfirmScreen
-            | LocalBackendPickerScreen
-            | LocalBackendScreen
-            | LocalChoiceConfirmScreen
-            | LocalConfirmScreen
-            | LocalSearchResultsScreen
-            | ProjectTrustScreen,
-        ):
+        if isinstance(self.screen, SelectableListScreen):
             self.screen.action_select_cursor()
             return
         prompt = self.query_one("#prompt", PromptInput)
@@ -2693,26 +2696,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         if isinstance(self.screen, CommandOutputScreen):
             self.screen.action_scroll_down()
             return
-        if isinstance(
-            self.screen,
-            SessionPickerScreen
-            | PromptTemplatePickerScreen
-            | SkillPickerScreen
-            | TreePickerScreen
-            | LoginMethodPickerScreen
-            | LoginProviderPickerScreen
-            | ThemePickerScreen
-            | ModelPickerScreen
-            | ToolsReferenceScreen
-            | ExtensionSelectScreen
-            | ExtensionConfirmScreen
-            | LocalBackendPickerScreen
-            | LocalBackendScreen
-            | LocalChoiceConfirmScreen
-            | LocalConfirmScreen
-            | LocalSearchResultsScreen
-            | ProjectTrustScreen,
-        ):
+        if isinstance(self.screen, CursorListScreen):
             self.screen.action_cursor_down()
             return
         if not self._completion_state.items:
@@ -2732,26 +2716,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         if isinstance(self.screen, CommandOutputScreen):
             self.screen.action_scroll_up()
             return
-        if isinstance(
-            self.screen,
-            SessionPickerScreen
-            | PromptTemplatePickerScreen
-            | SkillPickerScreen
-            | TreePickerScreen
-            | LoginMethodPickerScreen
-            | LoginProviderPickerScreen
-            | ThemePickerScreen
-            | ModelPickerScreen
-            | ToolsReferenceScreen
-            | ExtensionSelectScreen
-            | ExtensionConfirmScreen
-            | LocalBackendPickerScreen
-            | LocalBackendScreen
-            | LocalChoiceConfirmScreen
-            | LocalConfirmScreen
-            | LocalSearchResultsScreen
-            | ProjectTrustScreen,
-        ):
+        if isinstance(self.screen, CursorListScreen):
             self.screen.action_cursor_up()
             return
         if not self._completion_state.items:

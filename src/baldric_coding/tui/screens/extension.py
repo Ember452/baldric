@@ -32,11 +32,10 @@ type BindingEntry = Binding | tuple[str, str] | tuple[str, str, str]
 class ExtensionSelectScreen(ModalScreen[str | None]):
     """Modal option picker backing `context.ui.select`.
 
-    Binding/key wiring mirrors `SessionPickerScreen`. Note: the app binds
-    Up/Down globally with priority (completion navigation), so this screen
-    must also be listed in the `action_completion_next/previous` and
-    `action_accept_completion` screen allowlists for arrow keys to reach
-    the option list.
+    Binding/key wiring mirrors `SessionPickerScreen`. The app binds Up/Down/
+    Enter with priority for prompt completions but forwards them to any active
+    screen exposing cursor actions (`CursorListScreen`/`SelectableListScreen`
+    in `screens/support.py`), so no per-screen registration is needed.
     """
 
     BINDINGS: ClassVar[list[BindingEntry]] = [
