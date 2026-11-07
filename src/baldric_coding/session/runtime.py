@@ -14,6 +14,7 @@ from baldric_agent.messages import (
     AssistantMessage,
     CustomMessage,
     Usage,
+    UsageCost,
     UserMessage,
     sum_usage,
 )
@@ -707,6 +708,7 @@ async def _persist_message(session: CodingSession, message: AgentMessage) -> Non
     entry kind still pays the full read, because those are the cases where the
     transcript may not match the in-memory state.
     """
+    _fill_response_cost(session, message)
     message_id = id(message)
     pending = session._pending_message_writes.get(message_id)
     is_retry = pending is not None
@@ -729,6 +731,55 @@ async def _persist_message(session: CodingSession, message: AgentMessage) -> Non
     session._persisted_message_ids.add(message_id)
     session._pending_message_writes.pop(message_id, None)
     session._invalidate_context_usage_cache()
+
+
+def _fill_response_cost(session: CodingSession, message: AgentMessage) -> None:
+    """Price one assistant response when the provider reported no cost.
+
+    Pi prices inside the adapter because its model objects carry the rates. This
+    project keeps pricing in the provider catalog, so the durable message is the
+    first place where both the response and its rates are known. Only the
+    already-declared ``usage.cost`` is filled, so the wire shape is unchanged and
+    a provider-reported cost always wins.
+    """
+    if not isinstance(message, AssistantMessage):
+        return
+    usage = message.usage
+    if usage.cost.total > 0:
+        return
+    if usage.input == 0 and usage.output == 0 and usage.cache_read == 0 and usage.cache_write == 0:
+        return
+    # Imported here: `model_runtime` reaches back into the session package, and
+    # module-level import would make the cycle eager.
+    from baldric_coding.session import model_runtime as _model_runtime
+
+    provider_name = message.provider or session.provider_name
+    model = message.model or session.model
+    prompt_tokens = usage.input + usage.cache_read + usage.cache_write
+    rates = _model_runtime.pricing_for_response(session, provider_name, model, prompt_tokens)
+    if not rates:
+        return
+
+    million = 1_000_000.0
+    input_cost = usage.input * rates.get("input", 0.0) / million
+    output_cost = usage.output * rates.get("output", 0.0) / million
+    cache_read_cost = usage.cache_read * rates.get("cacheRead", 0.0) / million
+    write_1h = min(usage.cache_write_1h or 0, usage.cache_write)
+    cache_write_cost = (
+        (usage.cache_write - write_1h) * rates.get("cacheWrite", 0.0)
+        + write_1h * rates.get("cacheWrite1h", rates.get("cacheWrite", 0.0))
+    ) / million
+    message.usage = usage.model_copy(
+        update={
+            "cost": UsageCost(
+                input=input_cost,
+                output=output_cost,
+                cache_read=cache_read_cost,
+                cache_write=cache_write_cost,
+                total=input_cost + output_cost + cache_read_cost + cache_write_cost,
+            )
+        }
+    )
 
 
 async def _reconcile_run_persistence(
