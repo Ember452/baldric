@@ -879,7 +879,20 @@ class CodingSession:
             session._apply_runtime_model_catalogs()
             session._apply_thinking_level_override()
             session._sync_thinking_level_to_active_model()
-            if not config.owns_initial_provider and config.provider is not None:
+            # A frontend that bootstraps its own provider cannot pass the routing
+            # observer: the observer is a method of the session, which does not
+            # exist yet. Rebuild through the path the print and RPC frontends use,
+            # or Hugging Face sticky routing and failover silently never engage.
+            # Only Hugging Face reads the observer, so every other provider keeps
+            # the provider its frontend built.
+            owns_provider_without_observer = (
+                config.owns_initial_provider
+                and config.provider is not None
+                and session.provider_name == "huggingface"
+            )
+            if config.provider is not None and (
+                not config.owns_initial_provider or owns_provider_without_observer
+            ):
                 session._refresh_runtime_provider()
             await session._refresh_runtime_model_limits()
             extension_runtime.bind(session)
