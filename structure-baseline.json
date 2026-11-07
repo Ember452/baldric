@@ -821,7 +821,7 @@
       "max_function_stmts": 8
     },
     "src/baldric_coding/tui/state.py": {
-      "lines": 995,
+      "lines": 1024,
       "max_function_stmts": 15
     },
     "src/baldric_coding/tui/terminal_notification.py": {

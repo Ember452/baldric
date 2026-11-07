@@ -39,6 +39,7 @@ default = true
 dev = [
     "mypy>=1.10",
     "pre-commit>=3.7",
+    "pyte>=0.8.2",
     "pytest>=8.0",
     "pytest-cov>=6.0",
     "pytest-timeout>=2.4.0",

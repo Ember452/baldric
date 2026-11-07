@@ -34,11 +34,14 @@ from baldric_coding.rendering.tool_calls import (
     format_tool_call_block,
     format_tool_call_invocation,
 )
+from baldric_coding.rendering.widths import cell_width, truncate_to_cells
 
 ChatItemRole = TranscriptRole
 TOOL_RESULT_PREVIEW_LINES = 8
 TOOL_PATCH_PREVIEW_LINES = 32
-TOOL_RESULT_PREVIEW_CHARS = 2_000
+# Budget is terminal cells, not characters: a double-width CJK character
+# spends two, so the same budget renders at a consistent visual size.
+TOOL_RESULT_PREVIEW_CELLS = 2_000
 TERMINAL_COMMAND_OUTPUT_PREVIEW_LINES = 120
 # Show live elapsed time on an executing tool row once it stops being instant;
 # quick reads/edits never flash a "(0s)".
@@ -966,30 +969,56 @@ def _result_patch(
 def _preview_text(text: str, *, max_lines: int, full: bool = False) -> str:
     """Return *text* previewed to the TUI limits, or verbatim when *full*.
 
-    The preview is lossy: it drops whole trailing lines and (once the character
-    budget is spent) the tail of the last kept line. ``full`` bypasses both so a
-    caller can retain the exact result alongside its preview.
+    The preview is lossy: it drops whole trailing lines and (once the cell
+    budget is spent) the tail of the last kept line. ``full`` bypasses both so
+    a caller can retain the exact result alongside its preview.
     """
     if full:
         return text
 
     lines = text.splitlines()
     if not lines:
-        return text[:TOOL_RESULT_PREVIEW_CHARS]
+        return truncate_to_cells(text, TOOL_RESULT_PREVIEW_CELLS)
 
     preview_lines = lines[:max_lines]
     preview = "\n".join(preview_lines)
     hidden_lines = max(0, len(lines) - len(preview_lines))
 
-    truncated_by_chars = len(preview) > TOOL_RESULT_PREVIEW_CHARS
-    if truncated_by_chars:
-        preview = preview[:TOOL_RESULT_PREVIEW_CHARS].rstrip()
+    truncated_by_cells = (
+        sum(cell_width(line) for line in preview_lines) > TOOL_RESULT_PREVIEW_CELLS
+    )
+    if truncated_by_cells:
+        preview = _cut_to_cell_budget(preview_lines, TOOL_RESULT_PREVIEW_CELLS)
 
-    if hidden_lines or truncated_by_chars:
+    if hidden_lines or truncated_by_cells:
         details: list[str] = []
         if hidden_lines:
             details.append(f"{hidden_lines} more line{'s' if hidden_lines != 1 else ''}")
-        if truncated_by_chars:
+        if truncated_by_cells:
             details.append("additional text")
         preview = f"{preview}\n\n[Preview only: {', '.join(details)} hidden from the TUI.]"
     return preview
+
+
+def _cut_to_cell_budget(lines: list[str], budget: int) -> str:
+    """Return *lines* joined with the first budget overflow cut mid-line.
+
+    Whole lines that fit are kept; the line that crosses the budget is cut to
+    the remaining columns with an ellipsis, and everything after it is dropped
+    (parity with the old character-budget slice).
+    """
+    kept: list[str] = []
+    used = 0
+    for line in lines:
+        width = cell_width(line)
+        if used + width <= budget:
+            kept.append(line)
+            used += width
+            continue
+        remaining = budget - used
+        if remaining > 0:
+            cut = truncate_to_cells(line, remaining)
+            if cut:
+                kept.append(cut)
+        break
+    return "\n".join(kept).rstrip()
