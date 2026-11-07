@@ -616,6 +616,7 @@ async def _commit_preview(session: CodingSession) -> None:
                 await session._append_session_entry(entry)
                 session._last_parent_id = entry.id
                 await session._refresh_persisted_state(leaf_id=entry.id)
+                session.queue_frontend_event(ThinkingLevelChangedEvent(level=thinking))
                 await session._extension_runtime.emit_event(ThinkingLevelChangedEvent(level=thinking))
     except Exception:
         session._preview_model = choice
@@ -736,6 +737,7 @@ async def set_thinking_level(session: CodingSession, level: str, *, persist_pref
     if persist_preference:
         session._persist_thinking_level_choice()
     await session._refresh_persisted_state(leaf_id=entry.id)
+    session.queue_frontend_event(ThinkingLevelChangedEvent(level=normalized))
     await session._extension_runtime.emit_event(ThinkingLevelChangedEvent(level=normalized))
     return f"Thinking mode: {normalized}"
 

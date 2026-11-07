@@ -773,6 +773,7 @@ async def set_session_name(session: CodingSession, name: str) -> str:
     )
     if persisted is None:
         return normalized
+    session.queue_frontend_event(SessionInfoChangedEvent(name=persisted))
     await session._extension_runtime.emit_event(SessionInfoChangedEvent(name=persisted))
     return persisted
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field, replace
@@ -597,6 +598,10 @@ class CodingSession:
         self._persisted_message_ids: set[int] = set()
         self._ended_message_ids: set[int] = set()
         self._pending_message_writes: dict[int, _PendingMessageWrite] = {}
+        # Session-level events (title, thinking level) are published to
+        # extensions immediately but have no stream of their own; queue them so
+        # the next prompt's event stream can hand them to a frontend.
+        self._pending_frontend_events: deque[CodingSessionEvent] = deque()
         self._attach_persistence_listener()
 
     @classmethod
@@ -1539,6 +1544,16 @@ class CodingSession:
     def cancel(self) -> None:
         """Cancel the currently running agent turn, if any."""
         self._harness.cancel()
+
+    def queue_frontend_event(self, event: CodingSessionEvent) -> None:
+        """Queue one session-level event for the next frontend stream."""
+        self._pending_frontend_events.append(event)
+
+    def drain_frontend_events(self) -> tuple[CodingSessionEvent, ...]:
+        """Return and clear the session-level events queued for a frontend."""
+        drained = tuple(self._pending_frontend_events)
+        self._pending_frontend_events.clear()
+        return drained
 
     def queue_update_event(self) -> QueueUpdateEvent:
         """Return the current queue state as a coding-session event."""

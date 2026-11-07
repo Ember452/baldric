@@ -326,6 +326,11 @@ async def prompt(
     initiated the turn for the `input` hook (``"extension"`` when an
     extension started it, ``"interactive"`` otherwise).
     """
+    # Session-level events (title, thinking level) have no stream of their own;
+    # hand anything queued to this frontend before the run starts.
+    for pending_event in session.drain_frontend_events():
+        yield pending_event
+
     context = session._diagnostic_context()
     input_outcome = await session._extension_runtime.run_input_hooks(
         content, source=source, streaming_behavior=streaming_behavior
