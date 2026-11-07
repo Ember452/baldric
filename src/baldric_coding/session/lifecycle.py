@@ -699,6 +699,12 @@ async def resume(session: CodingSession, session_id: str) -> str:
                     else:
                         validate_provider_model(runtime_provider_config, model)
 
+    # Every field the caller can set has to survive the swap. `tools` is the one
+    # that bites: a host that narrowed the tool set through config would silently
+    # get the default catalogue back on resume. `dynamic_provider`,
+    # `thinking_level_override` and `index_on_first_persist` are deliberately not
+    # carried: the first is re-derived from live discovery, the second is a
+    # per-launch flag, and the third belongs to the new storage.
     replacement = await type(session).load(
         _session_module().CodingSessionConfig(
             provider=None if dynamic_resume else session._harness.config.provider,
@@ -709,11 +715,13 @@ async def resume(session: CodingSession, session_id: str) -> str:
             custom_system_prompt=session._config.custom_system_prompt,
             append_system_prompt=session._config.append_system_prompt,
             context_files=session._config.context_files,
+            tools=session._config.tools,
             resource_paths=session._config.resource_paths,
             session_id=record.id,
             session_manager=manager,
             command_registry=session._config.command_registry,
             provider_name=provider_name,
+            runtime_model_catalogs=dict(session._runtime_model_catalogs),
             inference_provider=None if dynamic_resume else record.inference_provider,
             inference_provider_mode=record.inference_provider_mode,
             requested_provider=provider_name if dynamic_resume else None,
