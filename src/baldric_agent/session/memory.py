@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Final, cast
+from typing import Final, TypeGuard, cast
 
 from baldric_agent.messages import AgentMessage, CustomMessage, UserMessage
 from baldric_agent.session.entries import (
@@ -129,7 +129,7 @@ class SessionState:
             entries=tuple(replay_entries),
         )
 
-    def accepts_appended_message(self, entry: SessionEntry) -> bool:
+    def accepts_appended_message(self, entry: SessionEntry) -> TypeGuard[MessageEntry]:
         """Return whether :meth:`with_appended_message` can derive this append."""
         if entry.type != "message":
             return False
