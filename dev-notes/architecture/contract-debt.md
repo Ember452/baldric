@@ -8,12 +8,12 @@ named owner and an exit condition.
 
 | Field / type | State after review |
 | --- | --- |
-| `AgentTool.execution_mode` | Default is `"sequential"`, which is what the loop does. `"parallel"` is accepted for Pi compatibility but still has no consumer. Unchanged by the 2026-11 audit: implementing parallel execution is a feature, not a fix. |
+| `AgentTool.execution_mode` | **Wired as a rejection.** Pi's loop runs a `parallel` batch concurrently through its `toolExecution` option; this harness runs tools one at a time, so `AgentHarness` now refuses a tool that declares `parallel` instead of silently serialising it. Implementing parallel execution is still a separate feature. |
 | `AgentToolResult.added_tool_names` | Propagated end to end (`tools.py` → `ToolResultMessage` → JSONL). Pi carries the same field to mark where late tools become available; the consumer here lands with dynamic tool loadout. Kept as wire parity. |
 | `ToolCallDeltaEvent` | **Producer landed** (#52): `openai_compatible`, `openai_codex`, `anthropic` and `mistral` all emit it while streamed arguments arrive, and `tests/ai/test_stream_tool_deltas.py` covers it. The earlier "no producer" row was stale. |
 | `ProviderRetryEvent` (AI internal) | Now surfaced: `stream.py` converts it to `AssistantRetryEvent`, the loop to `RetryAttemptEvent`, coding to `auto_retry_start` / `auto_retry_end` (#47). Since the audit, the event's `data` (HTTP status and body) also lands on the assistant message diagnostics, truncated and never model-visible. |
 | `Usage.cost` | **Still debt.** `sum_usage` and `session/stats.py` read it, nothing produces it: every adapter reports zero. Removing it changes the wire shape; wiring it needs pricing in the provider layer, where it does not live. Exit: the first consumer that needs cost to survive an export. |
-| `EntryAppendedEvent` | Declared and listed in the extension event whitelist, but nothing emits or consumes it. Exit: delete it, or emit it from the entry-append path with a test. |
+| `EntryAppendedEvent` | **Deleted**, together with its `entry_appended` entry in the extension event whitelist: nothing emitted or consumed it, so extensions were subscribing to an event that could never fire. A guard test now fails if the whitelist names any event the event modules do not declare. |
 | `BashExecutionMessage` | Never constructed. Wire-parity placeholder for Pi's `!!` path, which Baldric implements as a separate flag. |
 | `sum_usage` | Already wired (`session/branch_summary.py`, `session/session.py`). Not debt. |
 

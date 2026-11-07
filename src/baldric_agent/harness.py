@@ -129,6 +129,16 @@ class AgentHarness:
         *,
         messages: Sequence[AgentMessage] = (),
     ) -> None:
+        # Pi runs a `parallel` tool batch concurrently; this harness only runs
+        # tools one at a time. Accepting the declaration and then running it
+        # sequentially would silently change the caller's semantics, so a tool
+        # that asks for parallel execution is rejected where it is registered.
+        parallel_tools = [tool.name for tool in config.tools if tool.execution_mode == "parallel"]
+        if parallel_tools:
+            raise ValueError(
+                "This harness runs tools sequentially; parallel execution is not implemented. "
+                f"Declared by: {', '.join(sorted(parallel_tools))}"
+            )
         self._config = config
         self._messages = list(messages)
         self._listeners: list[EventListener] = []

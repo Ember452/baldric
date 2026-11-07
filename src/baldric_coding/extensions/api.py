@@ -42,7 +42,6 @@ AGENT_EVENT_TYPES: frozenset[str] = frozenset(
         "tool_execution_end",
         "compaction_start",
         "compaction_end",
-        "entry_appended",
         "session_info_changed",
         "thinking_level_changed",
         "auto_retry_start",

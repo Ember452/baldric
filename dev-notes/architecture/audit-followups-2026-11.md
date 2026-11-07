@@ -33,10 +33,10 @@ listed here with the trigger that would bring it back.
 | Finding | Why it is still open |
 | --- | --- |
 | `Usage.cost` has a reader and no producer | Removing it changes the wire shape; wiring it needs pricing in the provider layer, where it does not exist today. Decision pending on `deferred-decisions.md` terms. Trigger: the first consumer that needs cost to survive an export. |
-| `execution_mode="parallel"` is accepted and ignored | Implementing parallel tool execution is a feature, not a fix. Trigger: that feature. Until then the field is a documented reservation, not a promise. |
-| `EntryAppendedEvent` has no producer and no consumer | It is listed in the extension event whitelist, so extensions may already expect it. Removing it is a small, separate contract change. |
+| `execution_mode="parallel"` | **Fixed as a rejection**: `AgentHarness` refuses a tool that declares `parallel`, because this loop runs tools sequentially. Pi implements the parallel batch through `toolExecution`; that remains a feature. |
+| `EntryAppendedEvent` | **Deleted** with its whitelist entry; a guard test now rejects any whitelisted type that no event module declares. |
 | `BashExecutionMessage` is never constructed | Wire-parity placeholder for Pi's `!!` path, which Baldric implements differently. Trigger: implementing `!!` as a message. |
-| `/help` and `/context` command functions are unregistered | Registering `/help` is a product decision; `/context` overlaps `/compact` and the sidebar. |
+| `/help` and `/context` command functions were unregistered | **Fixed by deletion.** Pi has no such commands and `test_non_pi_commands_are_not_registered` pins that they must stay unregistered, so the dead handlers were removed rather than wired. |
 | Tool-level authorization does not exist (`before_tool_call` has no call sites) | The trust model is project-level by design; tool gating is a new feature. Trigger: the first request to restrict a specific tool. |
 | Windows `os.kill(pid, 0)` "kills processes" | **Not a defect.** Verified on this platform: the child kept writing heartbeats (4 → 19) and stayed alive. Recorded so it is not re-investigated. |
 | Extension credential scope is declared by the extension | A hostile extension can still name another provider's credential. Closing it needs a host-owned provider-to-credential map and a `resolve_provider_auth` signature change. |
