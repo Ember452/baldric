@@ -213,7 +213,7 @@
       "max_function_stmts": 15
     },
     "src/baldric_coding/cli.py": {
-      "lines": 1542,
+      "lines": 1538,
       "max_function_stmts": 44
     },
     "src/baldric_coding/commands/__init__.py": {
@@ -225,11 +225,11 @@
       "max_function_stmts": 10
     },
     "src/baldric_coding/commands/config.py": {
-      "lines": 172,
+      "lines": 215,
       "max_function_stmts": 7
     },
     "src/baldric_coding/commands/core.py": {
-      "lines": 118,
+      "lines": 131,
       "max_function_stmts": 15
     },
     "src/baldric_coding/commands/formatting.py": {
@@ -237,15 +237,15 @@
       "max_function_stmts": 5
     },
     "src/baldric_coding/commands/registry.py": {
-      "lines": 304,
+      "lines": 314,
       "max_function_stmts": 30
     },
     "src/baldric_coding/commands/resources.py": {
-      "lines": 94,
+      "lines": 110,
       "max_function_stmts": 6
     },
     "src/baldric_coding/commands/session.py": {
-      "lines": 75,
+      "lines": 92,
       "max_function_stmts": 7
     },
     "src/baldric_coding/config/__init__.py": {
@@ -609,7 +609,7 @@
       "max_function_stmts": 5
     },
     "src/baldric_coding/session/lifecycle.py": {
-      "lines": 1182,
+      "lines": 1183,
       "max_function_stmts": 61
     },
     "src/baldric_coding/session/manager.py": {
@@ -721,7 +721,7 @@
       "max_function_stmts": 16
     },
     "src/baldric_coding/tui/app.py": {
-      "lines": 4527,
+      "lines": 4573,
       "max_function_stmts": 63
     },
     "src/baldric_coding/tui/autocomplete.py": {

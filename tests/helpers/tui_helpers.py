@@ -11,6 +11,14 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from baldric_agent import AgentEvent, UserMessage
+from baldric_coding.commands.base import (
+    CommandKind,
+    CommandOutcome,
+    MessageDisplay,
+    PickerKind,
+    message_outcome,
+    not_handled,
+)
 from baldric_coding.commands.registry import CommandResult, format_resource_diagnostics
 from baldric_coding.context.skills.skills import Skill
 from baldric_coding.context.system_prompt import (
@@ -115,10 +123,7 @@ class FakeSession:
 
     def handle_command(self, text: str) -> CommandResult:
         if text == "/session":
-            return CommandResult(
-                handled=True,
-                message="Session info",
-            )
+            return CommandResult(outcome=message_outcome("Session info"))
         if text == "/reload":
             self.reload_count += 1
             self.skills = (
@@ -129,8 +134,11 @@ class FakeSession:
                 ),
             )
             return CommandResult(
-                handled=True,
-                message="Reloaded local coding resources and project context.",
+                outcome=CommandOutcome(
+                    kind=CommandKind.MESSAGE,
+                    message="Reloaded local coding resources and project context.",
+                    display=MessageDisplay.TRANSCRIPT,
+                )
             )
         if text == "/system":
             inspection = SystemPromptInspection(
@@ -146,84 +154,166 @@ class FakeSession:
                 ),
             )
             return CommandResult(
-                handled=True,
-                message=format_system_prompt_inspection(inspection),
-                system_prompt_inspection=inspection,
+                outcome=CommandOutcome(
+                    kind=CommandKind.MESSAGE,
+                    message=format_system_prompt_inspection(inspection),
+                    display=MessageDisplay.TRANSCRIPT,
+                    system_prompt_inspection=inspection,
+                )
             )
         if text == "/diagnostics":
             return CommandResult(
-                handled=True,
-                message=format_resource_diagnostics(self.resource_diagnostics),
+                outcome=message_outcome(format_resource_diagnostics(self.resource_diagnostics))
             )
         if text == "/skills":
-            return CommandResult(handled=True, skills_picker_requested=True)
+            return CommandResult(
+                outcome=CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.SKILLS)
+            )
         if text == "/new":
-            return CommandResult(handled=True, new_session_requested=True)
+            return CommandResult(outcome=CommandOutcome(kind=CommandKind.NEW_SESSION))
         if text == "/compact":
-            return CommandResult(handled=True, compact_summary="")
+            return CommandResult(outcome=CommandOutcome(kind=CommandKind.COMPACT, text=""))
         if text.startswith("/compact "):
-            return CommandResult(handled=True, compact_summary=text.removeprefix("/compact "))
+            return CommandResult(
+                outcome=CommandOutcome(
+                    kind=CommandKind.COMPACT,
+                    text=text.removeprefix("/compact "),
+                )
+            )
         if text == "/export":
-            return CommandResult(handled=True, export_requested=True)
+            return CommandResult(outcome=CommandOutcome(kind=CommandKind.EXPORT))
         if text.startswith("/export "):
             return CommandResult(
-                handled=True,
-                export_requested=True,
-                export_destination=Path("out.jsonl"),
-                export_format="jsonl",
+                outcome=CommandOutcome(
+                    kind=CommandKind.EXPORT,
+                    text="out.jsonl",
+                    format="jsonl",
+                )
             )
         if text.startswith("/resume "):
-            return CommandResult(handled=True, resume_session_id=text.removeprefix("/resume "))
+            return CommandResult(
+                outcome=CommandOutcome(
+                    kind=CommandKind.OPEN_PICKER,
+                    picker=PickerKind.SESSION_RESUME,
+                    session_id=text.removeprefix("/resume "),
+                )
+            )
         if text == "/resume":
-            return CommandResult(handled=True, resume_picker_requested=True)
+            return CommandResult(
+                outcome=CommandOutcome(
+                    kind=CommandKind.OPEN_PICKER,
+                    picker=PickerKind.SESSION_RESUME,
+                )
+            )
         if text == "/prompts":
-            return CommandResult(handled=True, prompts_picker_requested=True)
+            return CommandResult(
+                outcome=CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.PROMPTS)
+            )
         if text == "/tree":
-            return CommandResult(handled=True, tree_picker_requested=True)
+            return CommandResult(
+                outcome=CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.TREE)
+            )
         if text == "/login":
-            return CommandResult(handled=True, login_picker_requested=True)
+            return CommandResult(
+                outcome=CommandOutcome(
+                    kind=CommandKind.OPEN_PICKER,
+                    picker=PickerKind.LOGIN_METHOD,
+                )
+            )
         if text in {"/login custom", "/login new", "/login add"}:
-            return CommandResult(handled=True, custom_provider_login_requested=True)
+            return CommandResult(
+                outcome=CommandOutcome(
+                    kind=CommandKind.OPEN_PICKER,
+                    picker=PickerKind.CUSTOM_PROVIDER_LOGIN,
+                )
+            )
         if text == "/login anthropic-api":
             return CommandResult(
-                handled=True,
-                login_provider="anthropic",
-                login_method="api-key",
+                outcome=CommandOutcome(
+                    kind=CommandKind.OPEN_PICKER,
+                    picker=PickerKind.LOGIN_PROVIDER,
+                    provider="anthropic",
+                    method="api-key",
+                )
             )
         if text == "/login anthropic-subscription":
             return CommandResult(
-                handled=True,
-                login_provider="anthropic",
-                login_method="subscription",
+                outcome=CommandOutcome(
+                    kind=CommandKind.OPEN_PICKER,
+                    picker=PickerKind.LOGIN_PROVIDER,
+                    provider="anthropic",
+                    method="subscription",
+                )
             )
         if text.startswith("/login "):
-            return CommandResult(handled=True, login_provider=text.removeprefix("/login "))
+            return CommandResult(
+                outcome=CommandOutcome(
+                    kind=CommandKind.OPEN_PICKER,
+                    picker=PickerKind.LOGIN_PROVIDER,
+                    provider=text.removeprefix("/login "),
+                )
+            )
         if text == "/logout":
-            return CommandResult(handled=True, logout_picker_requested=True)
+            return CommandResult(
+                outcome=CommandOutcome(
+                    kind=CommandKind.OPEN_PICKER,
+                    picker=PickerKind.LOGOUT_PROVIDER,
+                )
+            )
         if text.startswith("/logout "):
-            return CommandResult(handled=True, logout_provider=text.removeprefix("/logout "))
+            return CommandResult(
+                outcome=CommandOutcome(
+                    kind=CommandKind.OPEN_PICKER,
+                    picker=PickerKind.LOGOUT_PROVIDER,
+                    provider=text.removeprefix("/logout "),
+                )
+            )
         if text == "/model":
-            return CommandResult(handled=True, model_picker_requested=True)
+            return CommandResult(
+                outcome=CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.MODEL)
+            )
         if text == "/tools":
-            return CommandResult(handled=True, tools_picker_requested=True)
+            return CommandResult(
+                outcome=CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.TOOLS)
+            )
         if text in {"/scoped-models", "/scoped models"}:
-            return CommandResult(handled=True, scoped_models_picker_requested=True)
+            return CommandResult(
+                outcome=CommandOutcome(
+                    kind=CommandKind.OPEN_PICKER,
+                    picker=PickerKind.SCOPED_MODELS,
+                )
+            )
         if text.startswith("/thinking "):
-            return CommandResult(handled=True, thinking_level=text.removeprefix("/thinking "))
+            return CommandResult(
+                outcome=CommandOutcome(
+                    kind=CommandKind.THINKING_SET,
+                    text=text.removeprefix("/thinking "),
+                )
+            )
         if text == "/theme":
-            return CommandResult(handled=True, theme_picker_requested=True)
+            return CommandResult(
+                outcome=CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.THEME)
+            )
         if text == "/sidebar":
-            return CommandResult(handled=True, sidebar_toggle_requested=True)
+            return CommandResult(outcome=CommandOutcome(kind=CommandKind.TOGGLE_SIDEBAR))
         if text.startswith("/theme "):
-            return CommandResult(handled=True, theme=text.removeprefix("/theme "))
+            return CommandResult(
+                outcome=CommandOutcome(
+                    kind=CommandKind.THEME_SET,
+                    text=text.removeprefix("/theme "),
+                )
+            )
         if text.startswith("/name "):
             name = text.removeprefix("/name ")
             return CommandResult(
-                handled=True,
-                session_name=name,
-                message=f"Session renamed: {name}",
+                outcome=CommandOutcome(
+                    kind=CommandKind.SESSION_NAMED,
+                    message=f"Session renamed: {name}",
+                    display=MessageDisplay.NOTIFICATION,
+                    text=name,
+                )
             )
-        return CommandResult(handled=False)
+        return CommandResult(outcome=not_handled())
 
     def set_model(self, model: str) -> None:
         self.model = model

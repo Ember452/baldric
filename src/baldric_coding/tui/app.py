@@ -68,6 +68,12 @@ from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
 # ``_app_module().get_oauth_provider(name)`` so tests (and the app) can patch it
 # here. Removing this import breaks the OAuth login flow at runtime.
 from baldric_coding.auth.registry import get_oauth_provider as get_oauth_provider
+from baldric_coding.commands.base import (
+    CommandKind,
+    CommandOutcome,
+    MessageDisplay,
+    PickerKind,
+)
 from baldric_coding.commands.registry import (
     LOGIN_PROVIDER_ALIASES,
     CommandRegistry,
@@ -1888,129 +1894,9 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
 
         command = self.session.handle_command(text)
         if command.handled:
-            if command.model_picker_requested:
-                self._open_model_picker()
-                return
-            if command.scoped_models_picker_requested:
-                self._open_scoped_models_picker()
-                return
-            if command.clear_requested:
-                self.state.clear()
-            if command.reload_requested:
-                try:
-                    summary = await self.session.reload()
-                except ValueError as exc:
-                    command = replace(command, message=f"Could not reload: {exc}")
-                else:
-                    self._reload_session_themes()
-                    command = replace(command, message=format_reload_summary(summary))
-            if command.new_session_requested:
-                await self._new_session()
-            if command.compact_summary is not None:
-                if self._is_compaction_active():
-                    self._notify("A compaction is already running.", severity="warning")
-                elif self._is_agent_or_queue_active():
-                    prompt.text = raw_text
-                    prompt.move_cursor(text_end_location(raw_text))
-                    self._notify(
-                        "Wait for the current agent turn and queued messages to finish before compacting.",
-                        severity="warning",
-                    )
-                    return
-                else:
-                    self._compaction_worker = self.run_worker(
-                        self._run_compaction(command.compact_summary),
-                        exclusive=False,
-                    )
-            if command.export_requested:
-                try:
-                    exported_path = await self.session.export(
-                        command.export_destination,
-                        format=command.export_format,
-                    )
-                    self._append_command_message(
-                        text,
-                        f"Exported session to {exported_path}",
-                    )
-                except Exception as exc:  # noqa: BLE001 - surface command failures in the TUI
-                    self._notify(f"Could not export session: {exc}", severity="error")
-            if command.resume_session_id is not None:
-                await self._resume_session(command.resume_session_id)
-            if command.resume_picker_requested:
-                self.action_open_session_picker()
-            if command.prompts_picker_requested:
-                self._open_prompt_template_picker()
-            if command.tree_picker_requested:
-                if self._is_agent_or_queue_active():
-                    prompt.text = raw_text
-                    prompt.move_cursor(text_end_location(raw_text))
-                    self._notify(TREE_RUNNING_MESSAGE, severity="warning")
-                    return
-                await self._open_tree_picker()
-            if command.login_picker_requested:
-                self._open_login_picker()
-            if command.custom_provider_login_requested:
-                self._open_custom_provider_login()
-            if command.local_requested:
-                self._open_local_backend_picker()
-            if command.sidebar_toggle_requested:
-                self._toggle_sidebar_visibility()
-            if command.login_provider is not None:
-                self._open_login(command.login_provider, method=command.login_method)
-            if command.logout_picker_requested:
-                self._open_logout_picker()
-            if command.logout_provider is not None:
-                self._logout(command.logout_provider)
-            if command.model_selection_model is not None:
-                self.run_worker(
-                    self._switch_model(
-                        ModelChoice(
-                            provider_name=command.model_selection_provider or self.session.provider_name,
-                            model=command.model_selection_model,
-                        )
-                    ),
-                    exclusive=False,
-                )
-            if command.tools_picker_requested:
-                self._open_tools_reference()
-            if command.skills_picker_requested:
-                self._open_skills_picker()
-            if command.theme_picker_requested:
-                self._open_theme_picker()
-            if command.extensions_picker_requested:
-                self.push_screen(
-                    ExtensionsScreen(
-                        self.session.extension_runtime,
-                        theme=self.tui_settings.resolved_theme,
-                    )
-                )
-            if command.session_name is not None:
-                try:
-                    await self.session.set_session_name(command.session_name)
-                except ValueError as exc:
-                    self._notify(f"Could not rename session: {exc}", severity="error")
-                    self._refresh()
-                    return
-                self._sync_session_title()
-            if command.thinking_level is not None:
-                await self._set_thinking_level(command.thinking_level)
-            if command.theme is not None:
-                self._set_tui_theme(command.theme)
-            self.state.set_skills(self.session.skills)
-            if command.message:
-                if _command_message_uses_notification(text, command.message):
-                    self._notify(command.message)
-                elif _command_message_uses_transcript(text):
-                    self._append_command_message(
-                        text,
-                        command.message,
-                        system_prompt_inspection=command.system_prompt_inspection,
-                    )
-                else:
-                    self._show_command_message(text, command.message)
-            self._refresh()
-            if command.exit_requested:
-                self.exit()
+            await self._dispatch_command_outcome(
+                text, command.outcome, prompt=prompt, raw_text=raw_text
+            )
             return
 
         if self._pending_prompt_run_id is not None:
@@ -2032,6 +1918,178 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
 
         self._remember_prompt(text)
         await self._submit_prompt(text)
+
+    async def _dispatch_command_outcome(
+        self,
+        text: str,
+        outcome: CommandOutcome,
+        *,
+        prompt: PromptInput,
+        raw_text: str,
+    ) -> None:
+        """Interpret one command outcome: run its effect, then show its message."""
+        if outcome.kind is CommandKind.OPEN_PICKER:
+            proceed = await self._open_command_picker(outcome, prompt=prompt, raw_text=raw_text)
+            if not proceed:
+                return
+        elif outcome.kind is CommandKind.RELOAD:
+            try:
+                summary = await self.session.reload()
+            except ValueError as exc:
+                self._notify(f"Could not reload: {exc}", severity="error")
+                self._refresh()
+                return
+            self._reload_session_themes()
+            outcome = replace(
+                outcome,
+                message=format_reload_summary(summary),
+                display=MessageDisplay.TRANSCRIPT,
+            )
+        elif outcome.kind is CommandKind.NEW_SESSION:
+            await self._new_session()
+        elif outcome.kind is CommandKind.COMPACT:
+            if not await self._run_compact_outcome(outcome, prompt=prompt, raw_text=raw_text):
+                return
+        elif outcome.kind is CommandKind.EXPORT:
+            destination = Path(outcome.text) if outcome.text else None
+            try:
+                exported_path = await self.session.export(
+                    destination,
+                    format=outcome.format,
+                )
+                self._append_command_message(text, f"Exported session to {exported_path}")
+            except Exception as exc:  # noqa: BLE001 - surface command failures in the TUI
+                self._notify(f"Could not export session: {exc}", severity="error")
+                return
+        elif outcome.kind is CommandKind.MODEL_SELECTED:
+            self.run_worker(
+                self._switch_model(
+                    ModelChoice(
+                        provider_name=outcome.provider or self.session.provider_name,
+                        model=outcome.text or "",
+                    )
+                ),
+                exclusive=False,
+            )
+        elif outcome.kind is CommandKind.THINKING_SET:
+            await self._set_thinking_level(outcome.text or "")
+        elif outcome.kind is CommandKind.THEME_SET:
+            self._set_tui_theme(outcome.text or "")
+        elif outcome.kind is CommandKind.TOGGLE_APPROVALS:
+            new_mode = "auto" if self.tui_settings.approval_mode == "ask" else "ask"
+            self.tui_settings.approval_mode = new_mode
+            save_tui_settings(self.tui_settings)
+            self._notify(f"Approval prompts: {new_mode}")
+        elif outcome.kind is CommandKind.TOGGLE_SIDEBAR:
+            self._toggle_sidebar_visibility()
+        elif outcome.kind is CommandKind.SESSION_NAMED:
+            try:
+                await self.session.set_session_name(outcome.text or "")
+            except ValueError as exc:
+                self._notify(f"Could not rename session: {exc}", severity="error")
+                self._refresh()
+                return
+            self._sync_session_title()
+
+        self.state.set_skills(self.session.skills)
+        self._show_command_message_by_display(text, outcome)
+        self._refresh()
+        if outcome.kind is CommandKind.EXIT:
+            self.exit()
+
+    async def _open_command_picker(
+        self,
+        outcome: CommandOutcome,
+        *,
+        prompt: PromptInput,
+        raw_text: str,
+    ) -> bool:
+        """Open the picker an outcome requests; False stops later display steps."""
+        picker = outcome.picker
+        if picker is PickerKind.MODEL:
+            self._open_model_picker()
+        elif picker is PickerKind.SCOPED_MODELS:
+            self._open_scoped_models_picker()
+        elif picker is PickerKind.LOCAL_BACKEND:
+            self._open_local_backend_picker()
+        elif picker is PickerKind.THEME:
+            self._open_theme_picker()
+        elif picker is PickerKind.SESSION_RESUME:
+            if outcome.session_id:
+                await self._resume_session(outcome.session_id)
+            else:
+                self.action_open_session_picker()
+        elif picker is PickerKind.PROMPTS:
+            self._open_prompt_template_picker()
+        elif picker is PickerKind.TREE:
+            if self._is_agent_or_queue_active():
+                prompt.text = raw_text
+                prompt.move_cursor(text_end_location(raw_text))
+                self._notify(TREE_RUNNING_MESSAGE, severity="warning")
+                return False
+            await self._open_tree_picker()
+        elif picker is PickerKind.LOGIN_METHOD:
+            self._open_login_picker()
+        elif picker is PickerKind.CUSTOM_PROVIDER_LOGIN:
+            self._open_custom_provider_login()
+        elif picker is PickerKind.LOGIN_PROVIDER:
+            self._open_login(outcome.provider or "", method=outcome.method)
+        elif picker is PickerKind.LOGOUT_PROVIDER:
+            if outcome.provider:
+                self._logout(outcome.provider)
+            else:
+                self._open_logout_picker()
+        elif picker is PickerKind.SKILLS:
+            self._open_skills_picker()
+        elif picker is PickerKind.TOOLS:
+            self._open_tools_reference()
+        elif picker is PickerKind.EXTENSIONS:
+            self.push_screen(
+                ExtensionsScreen(
+                    self.session.extension_runtime,
+                    theme=self.tui_settings.resolved_theme,
+                )
+            )
+        return True
+
+    async def _run_compact_outcome(
+        self,
+        outcome: CommandOutcome,
+        *,
+        prompt: PromptInput,
+        raw_text: str,
+    ) -> bool:
+        """Start compaction; False stops later display steps (matches old guards)."""
+        if self._is_compaction_active():
+            self._notify("A compaction is already running.", severity="warning")
+            return True
+        if self._is_agent_or_queue_active():
+            prompt.text = raw_text
+            prompt.move_cursor(text_end_location(raw_text))
+            self._notify(
+                "Wait for the current agent turn and queued messages to finish before compacting.",
+                severity="warning",
+            )
+            return False
+        self._compaction_worker = self.run_worker(
+            self._run_compaction(outcome.text or ""),
+            exclusive=False,
+        )
+        return True
+
+    def _show_command_message_by_display(self, text: str, outcome: CommandOutcome) -> None:
+        if not outcome.message:
+            return
+        if outcome.display is MessageDisplay.NOTIFICATION:
+            self._notify(outcome.message)
+        elif outcome.display is MessageDisplay.TRANSCRIPT:
+            self._append_command_message(
+                text,
+                outcome.message,
+                system_prompt_inspection=outcome.system_prompt_inspection,
+            )
+        else:
+            self._show_command_message(text, outcome.message)
 
     def _remember_prompt(self, text: str) -> None:
         """Remember a submitted user prompt for lightweight input recall."""
@@ -3985,18 +4043,6 @@ async def _run_in_daemon_thread[T](function: Callable[[], T]) -> T:
 
     threading.Thread(target=run, name="baldric-background-check", daemon=True).start()
     return await future
-
-
-def _command_message_uses_transcript(command_text: str) -> bool:
-    """Return whether slash-command output should appear inline in the transcript."""
-    command_name = command_text.split(maxsplit=1)[0].casefold()
-    return command_name in {"/reload", "/system"}
-
-
-def _command_message_uses_notification(command_text: str, message: str) -> bool:
-    """Return whether slash-command output should appear as a notification."""
-    command_name = command_text.split(maxsplit=1)[0].casefold()
-    return command_name == "/name" and message.startswith("Session renamed: ")
 
 
 def _command_output_title(command_text: str) -> str:

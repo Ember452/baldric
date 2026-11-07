@@ -2,7 +2,16 @@
 
 from __future__ import annotations
 
-from baldric_coding.commands.base import CommandContext, CommandResult, CommandSession
+from baldric_coding.commands.base import (
+    CommandContext,
+    CommandKind,
+    CommandOutcome,
+    CommandResult,
+    CommandSession,
+    PickerKind,
+    handled_result,
+    message_outcome,
+)
 from baldric_coding.context.thinking import normalize_thinking_level
 from baldric_coding.providers.catalog import BUILTIN_PROVIDER_CATALOG, builtin_provider_entry
 
@@ -20,27 +29,34 @@ def _model_command(context: CommandContext) -> CommandResult:
         available_models = set(context.session.available_models)
         if available_models and model not in available_models:
             models = ", ".join(sorted(available_models))
-            return CommandResult(
-                handled=True,
-                message=f"Unknown model for provider {context.session.provider_name}: {model}\n"
-                f"Available models: {models}",
+            return handled_result(
+                message_outcome(
+                    f"Unknown model for provider {context.session.provider_name}: {model}\n"
+                    f"Available models: {models}"
+                )
             )
         if callable(getattr(context.session, "select_provider_model", None)):
-            return CommandResult(
-                handled=True,
-                model_selection_provider=context.session.provider_name,
-                model_selection_model=model,
+            return handled_result(
+                CommandOutcome(
+                    kind=CommandKind.MODEL_SELECTED,
+                    provider=context.session.provider_name,
+                    text=model,
+                )
             )
         context.session.set_model(model)
-        return CommandResult(handled=True, message=f"Current model: {model}")
+        return handled_result(message_outcome(f"Current model: {model}"))
 
-    return CommandResult(handled=True, model_picker_requested=True)
+    return handled_result(
+        CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.MODEL)
+    )
 
 
 def _scoped_models_command(context: CommandContext) -> CommandResult:
     if context.args:
-        return CommandResult(handled=True, message="Usage: /scoped-models")
-    return CommandResult(handled=True, scoped_models_picker_requested=True)
+        return handled_result(message_outcome("Usage: /scoped-models"))
+    return handled_result(
+        CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.SCOPED_MODELS)
+    )
 
 
 def _thinking_command(context: CommandContext) -> CommandResult:
@@ -52,32 +68,29 @@ def _thinking_command(context: CommandContext) -> CommandResult:
             lines.append(f"Available modes: {', '.join(available)}")
         else:
             lines.insert(1, f"Current model: {session.provider_name}:{session.model}")
-        return CommandResult(handled=True, message="\n".join(lines))
+        return handled_result(message_outcome("\n".join(lines)))
 
     if not available:
         message = f"Thinking controls are unavailable for {session.provider_name}:{session.model}"
         reason = _thinking_unavailable_reason(session)
         if reason:
             message = f"{message}: {reason}"
-        return CommandResult(
-            handled=True,
-            message=message,
-        )
+        return handled_result(message_outcome(message))
+
     try:
         level = normalize_thinking_level(context.args)
     except ValueError as exc:
-        return CommandResult(handled=True, message=str(exc))
+        return handled_result(message_outcome(str(exc)))
     if level not in available:
         modes = ", ".join(available)
-        return CommandResult(
-            handled=True,
-            message=(
+        return handled_result(
+            message_outcome(
                 f"Thinking mode {level} is not available for "
                 f"{session.provider_name}:{session.model}\n"
                 f"Available modes: {modes}"
-            ),
+            )
         )
-    return CommandResult(handled=True, thinking_level=level)
+    return handled_result(CommandOutcome(kind=CommandKind.THINKING_SET, text=level))
 
 
 def _thinking_status_lines(session: CommandSession) -> list[str]:
@@ -97,7 +110,9 @@ def _thinking_unavailable_reason(session: CommandSession) -> str | None:
 
 def _theme_command(context: CommandContext) -> CommandResult:
     if not context.args:
-        return CommandResult(handled=True, theme_picker_requested=True)
+        return handled_result(
+            CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.THEME)
+        )
 
     # Imported lazily so importing this module never pulls in `baldric_coding.tui`
     # (whose package __init__ imports Textual) until /theme actually executes.
@@ -107,29 +122,42 @@ def _theme_command(context: CommandContext) -> CommandResult:
     available = available_tui_theme_names()
     if theme_name not in available:
         themes = ", ".join(available)
-        return CommandResult(
-            handled=True,
-            message=f"Unknown theme: {theme_name}\nAvailable themes: {themes}",
+        return handled_result(
+            message_outcome(f"Unknown theme: {theme_name}\nAvailable themes: {themes}")
         )
-    return CommandResult(handled=True, theme=theme_name)
+    return handled_result(CommandOutcome(kind=CommandKind.THEME_SET, text=theme_name))
 
 
 def _local_command(context: CommandContext) -> CommandResult:
     if context.args:
-        return CommandResult(handled=True, message="Usage: /local")
-    return CommandResult(handled=True, local_requested=True)
+        return handled_result(message_outcome("Usage: /local"))
+    return handled_result(
+        CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.LOCAL_BACKEND)
+    )
 
 
 def _sidebar_command(context: CommandContext) -> CommandResult:
     if context.args:
-        return CommandResult(handled=True, message="Usage: /sidebar")
-    return CommandResult(handled=True, sidebar_toggle_requested=True)
+        return handled_result(message_outcome("Usage: /sidebar"))
+    return handled_result(CommandOutcome(kind=CommandKind.TOGGLE_SIDEBAR))
+
+
+def _approvals_command(context: CommandContext) -> CommandResult:
+    if context.args:
+        return handled_result(message_outcome("Usage: /approvals"))
+    # The frontend owns the durable setting and reports the new mode; the
+    # registry only records the toggle intent.
+    return handled_result(CommandOutcome(kind=CommandKind.TOGGLE_APPROVALS))
 
 
 def _login_command(context: CommandContext) -> CommandResult:
     provider_name = context.args.strip()
     if provider_name in {"custom", "new", "add"}:
-        return CommandResult(handled=True, custom_provider_login_requested=True)
+        return handled_result(
+            CommandOutcome(
+                kind=CommandKind.OPEN_PICKER, picker=PickerKind.CUSTOM_PROVIDER_LOGIN
+            )
+        )
     if provider_name:
         aliased_provider = LOGIN_PROVIDER_ALIASES.get(provider_name)
         if aliased_provider is not None:
@@ -144,17 +172,23 @@ def _login_command(context: CommandContext) -> CommandResult:
                     *LOGIN_PROVIDER_ALIASES,
                 ]
             )
-            return CommandResult(
-                handled=True,
-                message=(f"Unknown login provider: {provider_name}\nAvailable providers: {providers}"),
+            return handled_result(
+                message_outcome(
+                    f"Unknown login provider: {provider_name}\nAvailable providers: {providers}"
+                )
             )
-        return CommandResult(
-            handled=True,
-            login_provider=entry.name,
-            login_method=login_method,
+        return handled_result(
+            CommandOutcome(
+                kind=CommandKind.OPEN_PICKER,
+                picker=PickerKind.LOGIN_PROVIDER,
+                provider=entry.name,
+                method=login_method,
+            )
         )
 
-    return CommandResult(handled=True, login_picker_requested=True)
+    return handled_result(
+        CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.LOGIN_METHOD)
+    )
 
 
 def _logout_command(context: CommandContext) -> CommandResult:
@@ -163,10 +197,19 @@ def _logout_command(context: CommandContext) -> CommandResult:
         entry = builtin_provider_entry(provider_name)
         if entry is None:
             providers = ", ".join(entry.name for entry in BUILTIN_PROVIDER_CATALOG)
-            return CommandResult(
-                handled=True,
-                message=(f"Unknown logout provider: {provider_name}\nAvailable providers: {providers}"),
+            return handled_result(
+                message_outcome(
+                    f"Unknown logout provider: {provider_name}\nAvailable providers: {providers}"
+                )
             )
-        return CommandResult(handled=True, logout_provider=entry.name)
+        return handled_result(
+            CommandOutcome(
+                kind=CommandKind.OPEN_PICKER,
+                picker=PickerKind.LOGOUT_PROVIDER,
+                provider=entry.name,
+            )
+        )
 
-    return CommandResult(handled=True, logout_picker_requested=True)
+    return handled_result(
+        CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.LOGOUT_PROVIDER)
+    )

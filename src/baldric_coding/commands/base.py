@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 from typing import Protocol
 
@@ -83,44 +84,109 @@ class CommandSession(Protocol):
     def set_model(self, model: str) -> None: ...
 
 
+class PickerKind(StrEnum):
+    """Interactive pickers a command can request; frontends map each to a screen."""
+
+    MODEL = "model"
+    SCOPED_MODELS = "scoped-models"
+    SESSION_RESUME = "session-resume"
+    PROMPTS = "prompts"
+    TREE = "tree"
+    SKILLS = "skills"
+    TOOLS = "tools"
+    THEME = "theme"
+    EXTENSIONS = "extensions"
+    LOGIN_METHOD = "login-method"
+    LOGIN_PROVIDER = "login-provider"
+    CUSTOM_PROVIDER_LOGIN = "custom-provider-login"
+    LOGOUT_PROVIDER = "logout-provider"
+    LOCAL_BACKEND = "local-backend"
+
+
+class MessageDisplay(StrEnum):
+    """How a command's message wants to be shown; the command declares it.
+
+    This replaces the old text-prefix sniffing (``text == "/name"``) that
+    coupled message presentation to the literal command the user typed.
+    """
+
+    POPUP = "popup"
+    TRANSCRIPT = "transcript"
+    NOTIFICATION = "notification"
+
+
+class CommandKind(StrEnum):
+    """Closed set of semantic command results; frontends dispatch on this."""
+
+    NOT_HANDLED = "not_handled"
+    MESSAGE = "message"
+    EXIT = "exit"
+    OPEN_PICKER = "open_picker"
+    MODEL_SELECTED = "model_selected"
+    THINKING_SET = "thinking_set"
+    THEME_SET = "theme_set"
+    SESSION_NAMED = "session_named"
+    RELOAD = "reload"
+    NEW_SESSION = "new_session"
+    COMPACT = "compact"
+    EXPORT = "export"
+    TOGGLE_SIDEBAR = "toggle_sidebar"
+    TOGGLE_APPROVALS = "toggle_approvals"
+
+
+@dataclass(frozen=True, slots=True)
+class CommandOutcome:
+    """The semantic result of one slash command.
+
+    One command maps to exactly one outcome. ``message`` may accompany any
+    kind (e.g. ``/name`` reports and renames). Frontends dispatch on ``kind``
+    and render ``message`` according to ``display`` — neither interprets
+    payload fields outside their kind's contract.
+    """
+
+    kind: CommandKind
+    message: str | None = None
+    display: MessageDisplay = MessageDisplay.POPUP
+    picker: PickerKind | None = None
+    provider: str | None = None
+    method: str | None = None
+    session_id: str | None = None
+    text: str | None = None
+    format: str | None = None
+    system_prompt_inspection: SystemPromptInspection | None = None
+
+
+def not_handled() -> CommandOutcome:
+    """Return the canonical unhandled outcome."""
+    return CommandOutcome(kind=CommandKind.NOT_HANDLED)
+
+
+def message_outcome(
+    message: str, *, display: MessageDisplay = MessageDisplay.POPUP
+) -> CommandOutcome:
+    """Return an informational outcome rendered per *display*."""
+    return CommandOutcome(kind=CommandKind.MESSAGE, message=message, display=display)
+
+
 @dataclass(frozen=True, slots=True)
 class CommandResult:
     """Result of handling a coding-session slash command."""
 
-    handled: bool
-    exit_requested: bool = False
-    clear_requested: bool = False
-    reload_requested: bool = False
-    new_session_requested: bool = False
-    compact_summary: str | None = None
-    export_requested: bool = False
-    export_destination: Path | None = None
-    export_format: str | None = None
-    resume_session_id: str | None = None
-    resume_picker_requested: bool = False
-    prompts_picker_requested: bool = False
-    tree_picker_requested: bool = False
-    login_picker_requested: bool = False
-    custom_provider_login_requested: bool = False
-    local_requested: bool = False
-    sidebar_toggle_requested: bool = False
-    login_provider: str | None = None
-    login_method: str | None = None
-    logout_picker_requested: bool = False
-    logout_provider: str | None = None
-    model_picker_requested: bool = False
-    model_selection_provider: str | None = None
-    model_selection_model: str | None = None
-    tools_picker_requested: bool = False
-    scoped_models_picker_requested: bool = False
-    skills_picker_requested: bool = False
-    theme_picker_requested: bool = False
-    extensions_picker_requested: bool = False
-    thinking_level: str | None = None
-    theme: str | None = None
-    message: str | None = None
-    system_prompt_inspection: SystemPromptInspection | None = None
-    session_name: str | None = None
+    outcome: CommandOutcome
+
+    @property
+    def handled(self) -> bool:
+        return self.outcome.kind is not CommandKind.NOT_HANDLED
+
+
+def handled_result(outcome: CommandOutcome) -> CommandResult:
+    """Wrap a semantic outcome as a handled command result."""
+    return CommandResult(outcome=outcome)
+
+
+def unhandled_result() -> CommandResult:
+    """Return the canonical result for text that is not a command."""
+    return CommandResult(outcome=not_handled())
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,14 +248,14 @@ class CommandRegistry:
         """Execute a slash command, or return unhandled for ordinary prompts."""
         stripped = text.strip()
         if not stripped.startswith("/"):
-            return CommandResult(handled=False)
+            return unhandled_result()
 
         if stripped.startswith("/skill:"):
-            return CommandResult(handled=False)
+            return unhandled_result()
 
         name, args = _parse_command(stripped)
         if not name:
-            return CommandResult(handled=False)
+            return unhandled_result()
 
         command = self.get(name)
         if command is None and name == "scoped" and args.lower() == "models":
@@ -197,7 +263,7 @@ class CommandRegistry:
             name = "scoped-models"
             args = ""
         if command is None:
-            return CommandResult(handled=False)
+            return unhandled_result()
 
         return command.handler(
             CommandContext(session=session, registry=self, text=stripped, name=name, args=args)

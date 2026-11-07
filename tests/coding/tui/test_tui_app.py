@@ -58,6 +58,7 @@ from baldric_agent import (
 from baldric_agent.messages import assistant_content
 from baldric_agent.provider_events import TextDeltaEvent, ThinkingDeltaEvent, ThinkingEndEvent
 from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
+from baldric_coding.commands.base import CommandKind, CommandOutcome, MessageDisplay
 from baldric_coding.commands.registry import CommandResult
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.prompts import PromptTemplate
@@ -8772,7 +8773,13 @@ async def test_tui_app_diagnostics_modal_reflects_post_reload_details() -> None:
         def handle_command(self, text: str) -> CommandResult:
             if text == "/reload":
                 self.resource_diagnostics = (diagnostic,)
-                return CommandResult(handled=True, message="Reloaded resources.")
+                return CommandResult(
+                    outcome=CommandOutcome(
+                        kind=CommandKind.MESSAGE,
+                        message="Reloaded resources.",
+                        display=MessageDisplay.TRANSCRIPT,
+                    )
+                )
             return super().handle_command(text)
 
     app = BaldricTuiApp(ReloadingDiagnosticSession())

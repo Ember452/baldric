@@ -66,6 +66,7 @@ from baldric_coding import (
     load_provider_settings,
     save_provider_settings,
 )
+from baldric_coding.commands.base import CommandKind, CommandOutcome, PickerKind
 from baldric_coding.context.prompts import PromptTemplate
 from baldric_coding.events import (
     AgentSettledEvent,
@@ -3465,8 +3466,8 @@ async def test_system_command_shows_prompt_without_persisting_or_adding_context(
 
     result = session.handle_command("/system")
 
-    assert result.handled is True
-    assert result.message == (
+    assert result.outcome.kind is CommandKind.MESSAGE
+    assert result.outcome.message == (
         "#### 01 · System prompt override\n\n**Source:** `CodingSessionConfig.system`\n\nYou are Baldric."
     )
     assert session.messages == before_messages
@@ -3530,8 +3531,9 @@ async def test_reserved_prompts_template_cannot_shadow_picker_command(tmp_path: 
 
     result = session.handle_command("/prompts")
 
-    assert result.handled is True
-    assert result.prompts_picker_requested is True
+    assert result.outcome == CommandOutcome(
+        kind=CommandKind.OPEN_PICKER, picker=PickerKind.PROMPTS
+    )
     assert session.prompt_templates == ()
     assert any(
         diagnostic.path == reserved_path and "reserved by the built-in /prompts command" in diagnostic.message
@@ -3559,8 +3561,9 @@ async def test_reserved_tools_template_cannot_shadow_picker_command(tmp_path: Pa
 
     result = session.handle_command("/tools")
 
-    assert result.handled is True
-    assert result.tools_picker_requested is True
+    assert result.outcome == CommandOutcome(
+        kind=CommandKind.OPEN_PICKER, picker=PickerKind.TOOLS
+    )
     assert session.prompt_templates == ()
     assert any(
         diagnostic.path == reserved_path and "reserved by the built-in /tools command" in diagnostic.message
@@ -3589,8 +3592,7 @@ async def test_reserved_new_template_cannot_shadow_new_command(tmp_path: Path) -
 
     result = session.handle_command("/new")
 
-    assert result.handled is True
-    assert result.new_session_requested is True
+    assert result.outcome.kind is CommandKind.NEW_SESSION
     # Autocomplete and the /prompts picker consume session.prompt_templates, so the
     # rejected template is never advertised while non-conflicting ones still expand.
     assert [template.name for template in session.prompt_templates] == ["review"]
@@ -3626,10 +3628,8 @@ async def test_reserved_quit_and_exit_templates_cannot_shadow_quit_command(
     quit_result = session.handle_command("/quit")
     exit_result = session.handle_command("/exit")
 
-    assert quit_result.handled is True
-    assert quit_result.exit_requested is True
-    assert exit_result.handled is True
-    assert exit_result.exit_requested is True
+    assert quit_result.outcome.kind is CommandKind.EXIT
+    assert exit_result.outcome.kind is CommandKind.EXIT
     assert session.prompt_templates == ()
     assert any(
         diagnostic.path == quit_path and "reserved by the built-in /quit command" in diagnostic.message
@@ -3662,7 +3662,7 @@ async def test_reserved_prompt_templates_stay_ignored_after_reload(tmp_path: Pat
     await session.reload()
 
     assert session.prompt_templates == ()
-    assert session.handle_command("/new").new_session_requested is True
+    assert session.handle_command("/new").outcome.kind is CommandKind.NEW_SESSION
     assert any(
         diagnostic.path == reserved_path and "reserved by the built-in /new command" in diagnostic.message
         for diagnostic in session.resource_diagnostics
@@ -3745,7 +3745,9 @@ async def test_session_loads_with_resource_diagnostics_instead_of_failing(
     assert "good" in {skill.name for skill in session.skills}
     assert len(session.resource_diagnostics) == 1
     assert "bare .md files are no longer treated as skills" in session.resource_diagnostics[0].message
-    assert "Resource diagnostics: 1" in (session.handle_command("/session").message or "")
+    assert (
+        "Resource diagnostics: 1" in (session.handle_command("/session").outcome.message or "")
+    )
 
 
 @pytest.mark.anyio
@@ -3979,7 +3981,7 @@ async def test_session_reload_refreshes_resources_and_system_prompt(tmp_path: Pa
 
     entries_before = await storage.read_all()
     command = session.handle_command("/reload")
-    assert command.reload_requested is True
+    assert command.outcome.kind is CommandKind.RELOAD
     summary = await session.reload()
     entries_after = await storage.read_all()
     _events = await _collect_session_events(session.prompt("Hello"))
@@ -4054,7 +4056,7 @@ async def test_session_reload_skips_provider_settings_refresh(
     )
 
     command = session.handle_command("/reload")
-    assert command.reload_requested is True
+    assert command.outcome.kind is CommandKind.RELOAD
     await session.reload()
 
 
@@ -4084,7 +4086,7 @@ async def test_session_reload_leaves_system_prompt_when_inputs_are_unchanged(
     )
 
     command = session.handle_command("/reload")
-    assert command.reload_requested is True
+    assert command.outcome.kind is CommandKind.RELOAD
     summary = await session.reload()
 
     assert summary.system_prompt_rebuilt is False
@@ -4859,7 +4861,9 @@ async def test_provider_reload_keeps_committed_runtime_when_catalog_drops_active
     assert session.model == ("qwen" if preview_other_provider else "gpt-6-sol")
     assert session.provider_config("huggingface").models == refreshed_models
     assert ModelChoice("huggingface", "gpt-6-sol") not in session.available_model_choices
-    assert session.handle_command("/model").model_picker_requested is True
+    assert session.handle_command("/model").outcome == CommandOutcome(
+        kind=CommandKind.OPEN_PICKER, picker=PickerKind.MODEL
+    )
     assert await session._config.storage.read_all() == before
 
 
@@ -6197,11 +6201,12 @@ async def test_cross_provider_preview_uses_previewed_models_and_thinking_capabil
     assert session.available_thinking_levels == ("off", "low")
     assert session.preview_thinking_level("low") == "Thinking mode: low"
     result = session.handle_command("/model beta")
-    assert result.model_selection_provider == "provider-b"
-    assert result.model_selection_model == "beta"
+    assert result.outcome == CommandOutcome(
+        kind=CommandKind.MODEL_SELECTED, provider="provider-b", text="beta"
+    )
     unknown = session.handle_command("/model alpha")
-    assert "Unknown model for provider provider-b: alpha" in (unknown.message or "")
-    assert "Available models: beta, no-think" in (unknown.message or "")
+    assert "Unknown model for provider provider-b: alpha" in (unknown.outcome.message or "")
+    assert "Available models: beta, no-think" in (unknown.outcome.message or "")
     assert session._harness.config.model == "alpha"
     assert await storage.read_all() == before
 
@@ -7017,11 +7022,11 @@ async def test_session_name_indexes_pending_session_without_prompt(
     assert manager.get_session(pending_id) is None
 
     result = session.handle_command("/name Customer bugfix")
-    assert result.session_name == "Customer bugfix"
-    renamed = await session.set_session_name(result.session_name)
+    assert result.outcome.text == "Customer bugfix"
+    renamed = await session.set_session_name(result.outcome.text)
 
     indexed = manager.get_session(pending_id)
-    assert result.message == "Session renamed: Customer bugfix"
+    assert result.outcome.message == "Session renamed: Customer bugfix"
     assert renamed == "Customer bugfix"
     assert indexed is not None
     assert indexed.title == "Customer bugfix"
@@ -7334,10 +7339,10 @@ def test_minimal_commands_are_handled(tmp_path: Path) -> None:
     )
 
     assert session.handle_command("hello").handled is False
-    assert session.handle_command("/new").new_session_requested is True
+    assert session.handle_command("/new").outcome.kind is CommandKind.NEW_SESSION
     assert session.handle_command("/clear").handled is False
-    assert session.handle_command("/quit").exit_requested is True
-    assert session.handle_command("/exit").exit_requested is True
+    assert session.handle_command("/quit").outcome.kind is CommandKind.EXIT
+    assert session.handle_command("/exit").outcome.kind is CommandKind.EXIT
     assert session.handle_command("/unknown").handled is False
 
 

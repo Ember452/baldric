@@ -27,6 +27,7 @@ from baldric_agent.tools import (
 from baldric_agent.types import JSONValue
 from baldric_coding.auth.credentials import CredentialStore, FileCredentialStore, credentials_path
 from baldric_coding.backends.contracts import LocalBackend, LocalBackendRegistry
+from baldric_coding.commands.base import handled_result, message_outcome
 from baldric_coding.commands.registry import (
     CommandContext,
     CommandRegistry,
@@ -1161,11 +1162,10 @@ class ExtensionRuntime:
                 message = command.handler(context.args, extension_context)
             except Exception as exc:  # noqa: BLE001 - extensions are an isolation boundary
                 self._record_runtime_failure(command.extension, f"command:/{command.name}", exc)
-                return CommandResult(
-                    handled=True,
-                    message=f"Extension command /{command.name} failed: {exc}",
+                return handled_result(
+                    message_outcome(f"Extension command /{command.name} failed: {exc}")
                 )
-            return CommandResult(handled=True, message=message)
+            return handled_result(message_outcome(message))
 
         return handler
 

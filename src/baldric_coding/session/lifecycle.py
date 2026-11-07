@@ -13,6 +13,7 @@ from baldric_agent.messages import (
     BashExecutionMessage,
 )
 from baldric_ai.model_catalog import ModelCatalogProvider, RuntimeModelCatalog
+from baldric_coding.commands.base import unhandled_result
 from baldric_coding.commands.registry import CommandResult
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.prompts import (
@@ -1110,7 +1111,7 @@ def handle_command(session: CodingSession, text: str) -> CommandResult:
     unhandled here and flow through `prompt()` for on-the-fly replacement.
     """
     if expand_prompt_template_command(text, session._prompt_templates) is not None:
-        return CommandResult(handled=False)
+        return unhandled_result()
     return session._command_registry.execute(session, text)
 
 

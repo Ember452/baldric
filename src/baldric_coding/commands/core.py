@@ -2,7 +2,16 @@
 
 from __future__ import annotations
 
-from baldric_coding.commands.base import CommandContext, CommandResult, _parse_export_args
+from baldric_coding.commands.base import (
+    CommandContext,
+    CommandKind,
+    CommandOutcome,
+    CommandResult,
+    PickerKind,
+    _parse_export_args,
+    handled_result,
+    message_outcome,
+)
 from baldric_coding.commands.config import _thinking_status_lines
 
 
@@ -10,21 +19,22 @@ def _help_command(context: CommandContext) -> CommandResult:
     lines = ["Available commands:"]
     for command in context.registry.list_commands():
         lines.append(f"{command.usage}\t{command.description}")
-    return CommandResult(handled=True, message="\n".join(lines))
+    return handled_result(message_outcome("\n".join(lines)))
 
 
 def _exit_command(context: CommandContext) -> CommandResult:
-    return CommandResult(handled=True, exit_requested=True, message="Exiting session.")
+    return CommandResult(
+        outcome=CommandOutcome(kind=CommandKind.EXIT, message="Exiting session.")
+    )
 
 
 def _new_command(context: CommandContext) -> CommandResult:
-    return CommandResult(handled=True, new_session_requested=True)
+    return CommandResult(outcome=CommandOutcome(kind=CommandKind.NEW_SESSION))
 
 
 def _compact_command(context: CommandContext) -> CommandResult:
     return CommandResult(
-        handled=True,
-        compact_summary=context.args.strip(),
+        outcome=CommandOutcome(kind=CommandKind.COMPACT, text=context.args.strip())
     )
 
 
@@ -32,12 +42,13 @@ def _export_command(context: CommandContext) -> CommandResult:
     try:
         export_format, destination = _parse_export_args(context.args)
     except ValueError as exc:
-        return CommandResult(handled=True, message=str(exc))
+        return handled_result(message_outcome(str(exc)))
     return CommandResult(
-        handled=True,
-        export_requested=True,
-        export_destination=destination,
-        export_format=export_format,
+        outcome=CommandOutcome(
+            kind=CommandKind.EXPORT,
+            text=str(destination) if destination is not None else None,
+            format=export_format,
+        )
     )
 
 
@@ -91,7 +102,7 @@ def _status_command(context: CommandContext) -> CommandResult:
         lines.append(f"Session: {session.session_id}")
     if session.session_title:
         lines.append(f"Session name: {session.session_title}")
-    return CommandResult(handled=True, message="\n".join(lines))
+    return handled_result(message_outcome("\n".join(lines)))
 
 
 def _hotkeys_command(context: CommandContext) -> CommandResult:
@@ -111,8 +122,10 @@ def _hotkeys_command(context: CommandContext) -> CommandResult:
         "- Ctrl+C: clear prompt input",
         "- Ctrl+D: quit",
     ]
-    return CommandResult(handled=True, message="\n".join(lines))
+    return handled_result(message_outcome("\n".join(lines)))
 
 
 def _tools_command(context: CommandContext) -> CommandResult:
-    return CommandResult(handled=True, tools_picker_requested=True)
+    return CommandResult(
+        outcome=CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.TOOLS)
+    )
