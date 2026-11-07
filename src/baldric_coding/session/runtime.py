@@ -722,9 +722,7 @@ async def _persist_message(session: CodingSession, message: AgentMessage) -> Non
     session._last_parent_id = pending.entry.id
 
     if appended and not is_retry and session._state.accepts_appended_message(pending.entry):
-        session._state = session._state.with_appended_message(
-            pending.entry, leaf_id=pending.entry.id
-        )
+        session._state = session._state.with_appended_message(pending.entry, leaf_id=pending.entry.id)
         _touch_session_record(session)
     else:
         await session._refresh_persisted_state(leaf_id=session._last_parent_id)

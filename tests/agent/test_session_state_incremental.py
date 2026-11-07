@@ -40,9 +40,7 @@ def test_incremental_appends_match_a_full_replay() -> None:
 def test_incremental_appends_match_a_full_replay_after_compaction() -> None:
     first = _message("one", None)
     second = _message("two", first.id)
-    compaction = CompactionEntry(
-        parent_id=second.id, summary="summary", first_kept_entry_id=second.id
-    )
+    compaction = CompactionEntry(parent_id=second.id, summary="summary", first_kept_entry_id=second.id)
     entries = [first, second, compaction]
     state = SessionState.from_entries(list(entries))
 
