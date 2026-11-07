@@ -595,6 +595,10 @@ class CodingSession:
         self._project_trust_resolution = project_trust_resolution
         self._project_trust_commit_pending = False
         self._persistence_unsubscribe: Callable[[], None] | None = None
+        # Per-message index writes are throttled by their caller; the record's
+        # own ordering contract still writes on every explicit touch.
+        self._last_record_touch_key: tuple[object, ...] | None = None
+        self._last_record_touch_at: float = 0.0
         self._persisted_message_ids: set[int] = set()
         self._ended_message_ids: set[int] = set()
         self._pending_message_writes: dict[int, _PendingMessageWrite] = {}
@@ -1583,6 +1587,21 @@ class CodingSession:
         :meth:`set_thinking_level`, which also persists the choice.
         """
         self._thinking_level = level
+
+    def should_touch_record(self, key: tuple[object, ...], *, interval: float) -> bool:
+        """Return whether a record touch should write, and remember the attempt.
+
+        The per-message caller touches the session index; a write is a temp file
+        plus fsync plus replace, so an unchanged key inside ``interval`` skips it.
+        """
+        from time import monotonic
+
+        now = monotonic()
+        if key == self._last_record_touch_key and now - self._last_record_touch_at < interval:
+            return False
+        self._last_record_touch_key = key
+        self._last_record_touch_at = now
+        return True
 
     def set_active_leaf_id(self, entry_id: str | None) -> None:
         """Point the session at the entry the next append attaches to."""

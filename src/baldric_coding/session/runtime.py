@@ -727,7 +727,7 @@ async def _persist_message(session: CodingSession, message: AgentMessage) -> Non
 
     if appended and not is_retry and session._state.accepts_appended_message(pending.entry):
         session._state = session._state.with_appended_message(pending.entry, leaf_id=pending.entry.id)
-        _touch_session_record(session)
+        _touch_session_record(session, throttle=True)
     else:
         await session._refresh_persisted_state(leaf_id=session._last_parent_id)
     session._persisted_message_ids.add(message_id)
@@ -849,9 +849,28 @@ async def _refresh_persisted_state(session: CodingSession, *, leaf_id: str | Non
     _touch_session_record(session)
 
 
-def _touch_session_record(session: CodingSession) -> None:
+_RECORD_TOUCH_INTERVAL_SECONDS = 30.0
+"""How often a message append may rewrite the session index.
+
+`SessionManager.touch_session` always writes because `updated_at` is its ordering
+contract. Persisting a message calls it once per message, and each write is a temp
+file plus fsync plus replace, so the caller throttles when nothing but the
+timestamp would change.
+"""
+
+
+def _touch_session_record(session: CodingSession, *, throttle: bool = False) -> None:
     """Publish the session's last-used metadata for the index."""
     if session._config.session_id is not None and session._config.session_manager is not None:
+        if throttle:
+            key = (
+                session.model,
+                session.provider_name,
+                session._inference_provider,
+                session._inference_provider_mode,
+            )
+            if not session.should_touch_record(key, interval=_RECORD_TOUCH_INTERVAL_SECONDS):
+                return
         session._config.session_manager.touch_session(
             session._config.session_id,
             model=session.model,

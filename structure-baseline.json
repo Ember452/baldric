@@ -613,7 +613,7 @@
       "max_function_stmts": 61
     },
     "src/baldric_coding/session/manager.py": {
-      "lines": 565,
+      "lines": 542,
       "max_function_stmts": 11
     },
     "src/baldric_coding/session/model_runtime.py": {
@@ -641,12 +641,12 @@
       "max_function_stmts": 5
     },
     "src/baldric_coding/session/runtime.py": {
-      "lines": 1275,
+      "lines": 1294,
       "max_function_stmts": 22
     },
     "src/baldric_coding/session/session.py": {
-      "lines": 1979,
-      "max_function_stmts": 52
+      "lines": 1998,
+      "max_function_stmts": 54
     },
     "src/baldric_coding/session/stats.py": {
       "lines": 206,

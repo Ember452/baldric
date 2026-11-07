@@ -6,6 +6,7 @@ import pytest
 from typer.testing import CliRunner
 
 from baldric_agent import AssistantMessage, UserMessage
+from baldric_agent.messages import BashExecutionMessage
 from baldric_agent.session import JsonlSessionStorage, MessageEntry, ModelChangeEntry
 from baldric_ai import (
     FakeProvider,
@@ -1096,7 +1097,12 @@ async def test_run_print_mode_terminal_command_adds_context(
     assert "[added to context]" in captured.out
     assert "hello" in captured.out
     assert len(messages) == 1
-    assert "Terminal command executed by the user." in messages[0].content
+    # A terminal command persists as its own message; the model-facing text is
+    # produced by context projection and still carries the command and output.
+    assert isinstance(messages[0], BashExecutionMessage)
+    assert messages[0].command == "printf hello"
+    assert messages[0].output == "hello"
+    assert "Terminal command executed by the user." in messages[0].text
     assert provider.calls == []
 
 
