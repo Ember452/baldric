@@ -960,7 +960,7 @@ def _result_patch(
     ok: bool,
     data: dict[str, JSONValue] | None,
 ) -> str | None:
-    if name != "edit" or not ok or data is None:
+    if name not in {"edit", "write"} or not ok or data is None:
         return None
     patch = data.get("patch")
     return patch if isinstance(patch, str) and patch.strip() else None
