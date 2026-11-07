@@ -8,6 +8,7 @@ import os
 import signal
 import sys
 import threading
+import time
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import suppress
 from dataclasses import replace
@@ -48,6 +49,7 @@ from baldric_agent.messages import (
     AssistantMessage,
     CustomMessage,
     ThinkingContent,
+    ToolCall,
     UserMessage,
 )
 from baldric_agent.provider import CancellationToken
@@ -66,6 +68,12 @@ from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
 # ``_app_module().get_oauth_provider(name)`` so tests (and the app) can patch it
 # here. Removing this import breaks the OAuth login flow at runtime.
 from baldric_coding.auth.registry import get_oauth_provider as get_oauth_provider
+from baldric_coding.commands.base import (
+    CommandKind,
+    CommandOutcome,
+    MessageDisplay,
+    PickerKind,
+)
 from baldric_coding.commands.registry import (
     LOGIN_PROVIDER_ALIASES,
     CommandRegistry,
@@ -92,6 +100,7 @@ from baldric_coding.events import (
 from baldric_coding.extensions.api import (
     KeyInterceptor,
 )
+from baldric_coding.observability.watchdog import LoopWatchdog
 from baldric_coding.providers.catalog import (
     ProviderCatalogEntry,
     builtin_provider_entry,
@@ -113,7 +122,10 @@ from baldric_coding.providers.config import (
     upsert_saved_provider,
 )
 from baldric_coding.providers.loader import save_user_catalog_entries
-from baldric_coding.providers.runtime import ClosableModelProvider, create_model_provider
+from baldric_coding.providers.runtime import (
+    ClosableModelProvider,
+    create_model_provider,
+)
 from baldric_coding.rendering.themes import (
     available_tui_theme_names,
     load_custom_tui_themes,
@@ -132,6 +144,13 @@ from baldric_coding.session.session import (
     jsonl_session_storage,
     parse_terminal_command,
 )
+from baldric_coding.trust.approvals import (
+    MUTATING_TOOL_NAMES,
+    ApprovalPolicy,
+    ApprovalRequest,
+    approval_target,
+    build_approval_preview,
+)
 from baldric_coding.trust.policy import ProjectTrustRequest, TrustChoice, TrustOverride
 from baldric_coding.tui.adapter import EventDispatcher, TuiEventAdapter
 from baldric_coding.tui.autocomplete import (
@@ -143,9 +162,15 @@ from baldric_coding.tui.autocomplete import (
 from baldric_coding.tui.backends import (
     LocalBackendPickerScreen,
     LocalBackendScreen,
-    LocalChoiceConfirmScreen,
-    LocalConfirmScreen,
-    LocalSearchResultsScreen,
+)
+from baldric_coding.tui.backends import (
+    LocalChoiceConfirmScreen as LocalChoiceConfirmScreen,
+)
+from baldric_coding.tui.backends import (
+    LocalConfirmScreen as LocalConfirmScreen,
+)
+from baldric_coding.tui.backends import (
+    LocalSearchResultsScreen as LocalSearchResultsScreen,
 )
 from baldric_coding.tui.config import (
     BALDRIC_DARK_THEME,
@@ -170,21 +195,28 @@ from baldric_coding.tui.login_providers import (
     credential_store_has_entry,
 )
 from baldric_coding.tui.pickers import PickerMixin
+from baldric_coding.tui.screens.approval import ApprovalScreen
 from baldric_coding.tui.screens.command_output import CommandOutputScreen
 from baldric_coding.tui.screens.extension import (
-    ExtensionConfirmScreen,
-    ExtensionSelectScreen,
+    ExtensionConfirmScreen as ExtensionConfirmScreen,
 )
 from baldric_coding.tui.screens.extension import (
     ExtensionInputScreen as ExtensionInputScreen,
+)
+from baldric_coding.tui.screens.extension import (
+    ExtensionSelectScreen as ExtensionSelectScreen,
 )
 from baldric_coding.tui.screens.extensions import ExtensionsScreen
 from baldric_coding.tui.screens.login import (
     CustomProviderLoginResult,
     CustomProviderLoginScreen,
-    LoginMethodPickerScreen,
-    LoginProviderPickerScreen,
     _LoginFlowAction,
+)
+from baldric_coding.tui.screens.login import (
+    LoginMethodPickerScreen as LoginMethodPickerScreen,
+)
+from baldric_coding.tui.screens.login import (
+    LoginProviderPickerScreen as LoginProviderPickerScreen,
 )
 from baldric_coding.tui.screens.login import (
     LoginScreen as LoginScreen,
@@ -215,7 +247,13 @@ from baldric_coding.tui.screens.sidebar import (
     _write_staged_utf8 as _write_staged_utf8,
 )
 from baldric_coding.tui.screens.skill_picker import (
-    SkillPickerScreen,
+    SkillPickerScreen as SkillPickerScreen,
+)
+from baldric_coding.tui.screens.support import (
+    CursorListScreen as CursorListScreen,
+)
+from baldric_coding.tui.screens.support import (
+    SelectableListScreen as SelectableListScreen,
 )
 from baldric_coding.tui.screens.support import (
     SessionCompletionRecord as SessionCompletionRecord,
@@ -256,12 +294,18 @@ from baldric_coding.tui.screens.support import (
 from baldric_coding.tui.screens.support import (
     _tree_picker_label as _tree_picker_label,
 )
-from baldric_coding.tui.screens.theme import ThemePickerScreen
+from baldric_coding.tui.screens.theme import (
+    ThemePickerScreen as ThemePickerScreen,
+)
 from baldric_coding.tui.screens.tools_reference import ToolsReferenceScreen
 from baldric_coding.tui.screens.tree_picker import (
-    TreePickerScreen,
+    TreePickerScreen as TreePickerScreen,
 )
-from baldric_coding.tui.session_records import session_options, session_records, short_path
+from baldric_coding.tui.session_records import (
+    session_options,
+    session_records,
+    short_path,
+)
 from baldric_coding.tui.state import (
     TuiState,
     assistant_visible_blocks,
@@ -1382,6 +1426,12 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         self._compaction_worker: Worker[None] | None = None
         self._compacting = False
         self._compaction_run_id = 0
+        # Watchdog heartbeat: refreshed by a timer on the UI loop (see
+        # on_mount); a stalled loop stops advancing it.
+        self._ui_heartbeat = time.monotonic()
+        # Opt-in approval mode (tui_settings.approval_mode == "ask") pauses
+        # mutating tool calls on this policy's session-scoped Always rules.
+        self.approval_policy = ApprovalPolicy()
         self._prompt_run_id = 0
         self._optimistic_user_messages: list[tuple[int, str]] = []
         self._completion_state = CompletionState()
@@ -1409,6 +1459,63 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         for event_type, handler_name in DOM_EVENT_HANDLERS.items():
             self._dom_dispatcher.register(event_type, getattr(self, handler_name))
 
+    def _beat_ui_heartbeat(self) -> None:
+        """Refresh the watchdog heartbeat from the UI loop.
+
+        Textual timers fire on the event loop, so a blocked loop stops
+        advancing ``_ui_heartbeat`` and the watchdog thread reports a stall.
+        """
+        self._ui_heartbeat = time.monotonic()
+
+    async def approval_gate(self, tool_call: ToolCall) -> tuple[bool, str | None]:
+        """Harness before_tool_call hook for the opt-in approval mode.
+
+        Runs only when the user turned approval on and the call is mutating
+        (edit/write/bash) without a matching session-scoped Always rule. The
+        card previews the would-be diff or command; a rejection's reason is
+        returned as the tool error so the model can adapt.
+        """
+        if self.tui_settings.approval_mode != "ask":
+            return False, None
+        if tool_call.name not in MUTATING_TOOL_NAMES:
+            return False, None
+        target = approval_target(tool_call.name, tool_call.arguments)
+        if self.approval_policy.decide(tool_call.name, target) is not None:
+            return False, None
+        try:
+            preview = await asyncio.to_thread(
+                build_approval_preview,
+                tool_call.name,
+                tool_call.arguments,
+                cwd=self.session.cwd,
+            )
+            decision = await self.push_screen_wait(
+                ApprovalScreen(
+                    ApprovalRequest(
+                        tool_name=tool_call.name,
+                        target=target,
+                        preview=preview,
+                    ),
+                    theme=self.tui_settings.resolved_theme,
+                    always_rule=self.approval_policy.preview_rule(tool_call.name, target),
+                )
+            )
+        except Exception as exc:
+            # The approval gate is a safety boundary: if the card cannot be
+            # shown, fail closed and give the model a reason instead of
+            # crashing the turn.
+            return (
+                True,
+                f"Approval UI failed ({type(exc).__name__}: {exc}); call blocked.",
+            )
+        if decision is None:
+            return True, "Rejected by user"
+        if decision.remember:
+            self.approval_policy.remember(tool_call.name, target)
+        if not decision.approved:
+            return True, decision.reason or "Rejected by user"
+        return False, None
+
     async def prompt_project_trust(self, request: ProjectTrustRequest) -> TrustChoice | None:
         """Resolve a trust request through the active Textual modal stack."""
         return await self.push_screen_wait(ProjectTrustScreen(request))
@@ -1420,7 +1527,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
 
     def _is_working(self) -> bool:
         """Return whether the app should show working affordances (agent turn or compaction)."""
-        return self.state.running or self.state.compacting or self._compacting
+        return self.state.running or self._is_compaction_active()
 
     def _sync_terminal_title(self) -> None:
         """Reflect the active session name and running state in the terminal tab title."""
@@ -1565,6 +1672,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         prompt.shell_mode_style = self.tui_settings.resolved_theme.role_styles["tool"].border
         self._sync_prompt_shell_mode(prompt.text)
         prompt.focus()
+        self.set_interval(1.0, self._beat_ui_heartbeat, name="ui-heartbeat")
         self._update_responsive_layout(self.size.width, self.size.height)
         self._apply_sidebar_position()
         self._refresh()
@@ -1802,129 +1910,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
 
         command = self.session.handle_command(text)
         if command.handled:
-            if command.model_picker_requested:
-                self._open_model_picker()
-                return
-            if command.scoped_models_picker_requested:
-                self._open_scoped_models_picker()
-                return
-            if command.clear_requested:
-                self.state.clear()
-            if command.reload_requested:
-                try:
-                    summary = await self.session.reload()
-                except ValueError as exc:
-                    command = replace(command, message=f"Could not reload: {exc}")
-                else:
-                    self._reload_session_themes()
-                    command = replace(command, message=format_reload_summary(summary))
-            if command.new_session_requested:
-                await self._new_session()
-            if command.compact_summary is not None:
-                if self._is_compaction_active():
-                    self._notify("A compaction is already running.", severity="warning")
-                elif self._is_agent_or_queue_active():
-                    prompt.text = raw_text
-                    prompt.move_cursor(text_end_location(raw_text))
-                    self._notify(
-                        "Wait for the current agent turn and queued messages to finish before compacting.",
-                        severity="warning",
-                    )
-                    return
-                else:
-                    self._compaction_worker = self.run_worker(
-                        self._run_compaction(command.compact_summary),
-                        exclusive=False,
-                    )
-            if command.export_requested:
-                try:
-                    exported_path = await self.session.export(
-                        command.export_destination,
-                        format=command.export_format,
-                    )
-                    self._append_command_message(
-                        text,
-                        f"Exported session to {exported_path}",
-                    )
-                except Exception as exc:  # noqa: BLE001 - surface command failures in the TUI
-                    self._notify(f"Could not export session: {exc}", severity="error")
-            if command.resume_session_id is not None:
-                await self._resume_session(command.resume_session_id)
-            if command.resume_picker_requested:
-                self.action_open_session_picker()
-            if command.prompts_picker_requested:
-                self._open_prompt_template_picker()
-            if command.tree_picker_requested:
-                if self._is_agent_or_queue_active():
-                    prompt.text = raw_text
-                    prompt.move_cursor(text_end_location(raw_text))
-                    self._notify(TREE_RUNNING_MESSAGE, severity="warning")
-                    return
-                await self._open_tree_picker()
-            if command.login_picker_requested:
-                self._open_login_picker()
-            if command.custom_provider_login_requested:
-                self._open_custom_provider_login()
-            if command.local_requested:
-                self._open_local_backend_picker()
-            if command.sidebar_toggle_requested:
-                self._toggle_sidebar_visibility()
-            if command.login_provider is not None:
-                self._open_login(command.login_provider, method=command.login_method)
-            if command.logout_picker_requested:
-                self._open_logout_picker()
-            if command.logout_provider is not None:
-                self._logout(command.logout_provider)
-            if command.model_selection_model is not None:
-                self.run_worker(
-                    self._switch_model(
-                        ModelChoice(
-                            provider_name=command.model_selection_provider or self.session.provider_name,
-                            model=command.model_selection_model,
-                        )
-                    ),
-                    exclusive=False,
-                )
-            if command.tools_picker_requested:
-                self._open_tools_reference()
-            if command.skills_picker_requested:
-                self._open_skills_picker()
-            if command.theme_picker_requested:
-                self._open_theme_picker()
-            if command.extensions_picker_requested:
-                self.push_screen(
-                    ExtensionsScreen(
-                        self.session.extension_runtime,
-                        theme=self.tui_settings.resolved_theme,
-                    )
-                )
-            if command.session_name is not None:
-                try:
-                    await self.session.set_session_name(command.session_name)
-                except ValueError as exc:
-                    self._notify(f"Could not rename session: {exc}", severity="error")
-                    self._refresh()
-                    return
-                self._sync_session_title()
-            if command.thinking_level is not None:
-                await self._set_thinking_level(command.thinking_level)
-            if command.theme is not None:
-                self._set_tui_theme(command.theme)
-            self.state.set_skills(self.session.skills)
-            if command.message:
-                if _command_message_uses_notification(text, command.message):
-                    self._notify(command.message)
-                elif _command_message_uses_transcript(text):
-                    self._append_command_message(
-                        text,
-                        command.message,
-                        system_prompt_inspection=command.system_prompt_inspection,
-                    )
-                else:
-                    self._show_command_message(text, command.message)
-            self._refresh()
-            if command.exit_requested:
-                self.exit()
+            await self._dispatch_command_outcome(text, command.outcome, prompt=prompt, raw_text=raw_text)
             return
 
         if self._pending_prompt_run_id is not None:
@@ -1947,6 +1933,180 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         self._remember_prompt(text)
         await self._submit_prompt(text)
 
+    async def _dispatch_command_outcome(
+        self,
+        text: str,
+        outcome: CommandOutcome,
+        *,
+        prompt: PromptInput,
+        raw_text: str,
+    ) -> None:
+        """Interpret one command outcome: run its effect, then show its message."""
+        if outcome.kind is CommandKind.OPEN_PICKER:
+            proceed = await self._open_command_picker(outcome, prompt=prompt, raw_text=raw_text)
+            if not proceed:
+                return
+        elif outcome.kind is CommandKind.RELOAD:
+            try:
+                summary = await self.session.reload()
+            except ValueError as exc:
+                self._notify(f"Could not reload: {exc}", severity="error")
+                self._refresh()
+                return
+            self._reload_session_themes()
+            outcome = replace(
+                outcome,
+                message=format_reload_summary(summary),
+                display=MessageDisplay.TRANSCRIPT,
+            )
+        elif outcome.kind is CommandKind.NEW_SESSION:
+            await self._new_session()
+        elif outcome.kind is CommandKind.COMPACT:
+            if not await self._run_compact_outcome(outcome, prompt=prompt, raw_text=raw_text):
+                return
+        elif outcome.kind is CommandKind.EXPORT:
+            destination = Path(outcome.text) if outcome.text else None
+            try:
+                exported_path = await self.session.export(
+                    destination,
+                    format=outcome.format,
+                )
+                self._append_command_message(text, f"Exported session to {exported_path}")
+            except Exception as exc:  # noqa: BLE001 - surface command failures in the TUI
+                self._notify(f"Could not export session: {exc}", severity="error")
+                return
+        elif outcome.kind is CommandKind.MODEL_SELECTED:
+            self.run_worker(
+                self._switch_model(
+                    ModelChoice(
+                        provider_name=outcome.provider or self.session.provider_name,
+                        model=outcome.text or "",
+                    )
+                ),
+                exclusive=False,
+            )
+        elif outcome.kind is CommandKind.THINKING_SET:
+            await self._set_thinking_level(outcome.text or "")
+        elif outcome.kind is CommandKind.THEME_SET:
+            self._set_tui_theme(outcome.text or "")
+        elif outcome.kind is CommandKind.TOGGLE_APPROVALS:
+            new_mode: Literal["auto", "ask"] = "auto" if self.tui_settings.approval_mode == "ask" else "ask"
+            # TuiSettings is a frozen dataclass, so a toggle replaces the value
+            # instead of mutating it in place.
+            self.tui_settings = replace(self.tui_settings, approval_mode=new_mode)
+            save_tui_settings(self.tui_settings)
+            self._notify(f"Approval prompts: {new_mode}")
+        elif outcome.kind is CommandKind.TOGGLE_SIDEBAR:
+            self._toggle_sidebar_visibility()
+        elif outcome.kind is CommandKind.SESSION_NAMED:
+            try:
+                await self.session.set_session_name(outcome.text or "")
+            except ValueError as exc:
+                self._notify(f"Could not rename session: {exc}", severity="error")
+                self._refresh()
+                return
+            self._sync_session_title()
+
+        self.state.set_skills(self.session.skills)
+        self._show_command_message_by_display(text, outcome)
+        self._refresh()
+        if outcome.kind is CommandKind.EXIT:
+            self.exit()
+
+    async def _open_command_picker(
+        self,
+        outcome: CommandOutcome,
+        *,
+        prompt: PromptInput,
+        raw_text: str,
+    ) -> bool:
+        """Open the picker an outcome requests; False stops later display steps."""
+        picker = outcome.picker
+        if picker is PickerKind.MODEL:
+            self._open_model_picker()
+        elif picker is PickerKind.SCOPED_MODELS:
+            self._open_scoped_models_picker()
+        elif picker is PickerKind.LOCAL_BACKEND:
+            self._open_local_backend_picker()
+        elif picker is PickerKind.THEME:
+            self._open_theme_picker()
+        elif picker is PickerKind.SESSION_RESUME:
+            if outcome.session_id:
+                await self._resume_session(outcome.session_id)
+            else:
+                self.action_open_session_picker()
+        elif picker is PickerKind.PROMPTS:
+            self._open_prompt_template_picker()
+        elif picker is PickerKind.TREE:
+            if self._is_agent_or_queue_active():
+                prompt.text = raw_text
+                prompt.move_cursor(text_end_location(raw_text))
+                self._notify(TREE_RUNNING_MESSAGE, severity="warning")
+                return False
+            await self._open_tree_picker()
+        elif picker is PickerKind.LOGIN_METHOD:
+            self._open_login_picker()
+        elif picker is PickerKind.CUSTOM_PROVIDER_LOGIN:
+            self._open_custom_provider_login()
+        elif picker is PickerKind.LOGIN_PROVIDER:
+            self._open_login(outcome.provider or "", method=outcome.method)
+        elif picker is PickerKind.LOGOUT_PROVIDER:
+            if outcome.provider:
+                self._logout(outcome.provider)
+            else:
+                self._open_logout_picker()
+        elif picker is PickerKind.SKILLS:
+            self._open_skills_picker()
+        elif picker is PickerKind.TOOLS:
+            self._open_tools_reference()
+        elif picker is PickerKind.EXTENSIONS:
+            self.push_screen(
+                ExtensionsScreen(
+                    self.session.extension_runtime,
+                    theme=self.tui_settings.resolved_theme,
+                )
+            )
+        return True
+
+    async def _run_compact_outcome(
+        self,
+        outcome: CommandOutcome,
+        *,
+        prompt: PromptInput,
+        raw_text: str,
+    ) -> bool:
+        """Start compaction; False stops later display steps (matches old guards)."""
+        if self._is_compaction_active():
+            self._notify("A compaction is already running.", severity="warning")
+            return True
+        if self._is_agent_or_queue_active():
+            prompt.text = raw_text
+            prompt.move_cursor(text_end_location(raw_text))
+            self._notify(
+                "Wait for the current agent turn and queued messages to finish before compacting.",
+                severity="warning",
+            )
+            return False
+        self._compaction_worker = self.run_worker(
+            self._run_compaction(outcome.text or ""),
+            exclusive=False,
+        )
+        return True
+
+    def _show_command_message_by_display(self, text: str, outcome: CommandOutcome) -> None:
+        if not outcome.message:
+            return
+        if outcome.display is MessageDisplay.NOTIFICATION:
+            self._notify(outcome.message)
+        elif outcome.display is MessageDisplay.TRANSCRIPT:
+            self._append_command_message(
+                text,
+                outcome.message,
+                system_prompt_inspection=outcome.system_prompt_inspection,
+            )
+        else:
+            self._show_command_message(text, outcome.message)
+
     def _remember_prompt(self, text: str) -> None:
         """Remember a submitted user prompt for lightweight input recall."""
         if not text.strip():
@@ -1963,14 +2123,19 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         )
 
     def _is_compaction_active(self) -> bool:
-        """Return whether a manual compaction worker is still running."""
-        worker = self._compaction_worker
-        if worker is not None and not worker.is_finished and not worker.is_cancelled:
+        """Return whether a compaction (manual worker or automatic) is still running.
+
+        Automatic compaction is tracked by the adapter as ``state.compacting``;
+        only consulting the manual worker here let submissions and session
+        mutations race an in-flight threshold compaction.
+        """
+        if self.state.compacting or self._compacting:
             return True
-        return self._compacting
+        worker = self._compaction_worker
+        return worker is not None and not worker.is_finished and not worker.is_cancelled
 
     def _is_agent_or_queue_active(self) -> bool:
-        """Return whether compaction would race an active or queued agent turn."""
+        """Return whether a session mutation would race agent, queued, or compaction work."""
         self._sync_queue_state()
         worker = self._prompt_worker
         is_worker_active = worker is not None and not worker.is_finished and not worker.is_cancelled
@@ -1980,6 +2145,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
             or is_session_running
             or is_worker_active
             or self.state.queued_message_count > 0
+            or self._is_compaction_active()
         )
 
     async def _run_compaction(self, summary: str) -> None:
@@ -2635,24 +2801,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         if isinstance(self.screen, ToolsReferenceScreen):
             self.screen.action_open_selected()
             return
-        if isinstance(
-            self.screen,
-            SessionPickerScreen
-            | PromptTemplatePickerScreen
-            | SkillPickerScreen
-            | TreePickerScreen
-            | LoginMethodPickerScreen
-            | LoginProviderPickerScreen
-            | ThemePickerScreen
-            | ExtensionSelectScreen
-            | ExtensionConfirmScreen
-            | LocalBackendPickerScreen
-            | LocalBackendScreen
-            | LocalChoiceConfirmScreen
-            | LocalConfirmScreen
-            | LocalSearchResultsScreen
-            | ProjectTrustScreen,
-        ):
+        if isinstance(self.screen, SelectableListScreen):
             self.screen.action_select_cursor()
             return
         prompt = self.query_one("#prompt", PromptInput)
@@ -2687,26 +2836,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         if isinstance(self.screen, CommandOutputScreen):
             self.screen.action_scroll_down()
             return
-        if isinstance(
-            self.screen,
-            SessionPickerScreen
-            | PromptTemplatePickerScreen
-            | SkillPickerScreen
-            | TreePickerScreen
-            | LoginMethodPickerScreen
-            | LoginProviderPickerScreen
-            | ThemePickerScreen
-            | ModelPickerScreen
-            | ToolsReferenceScreen
-            | ExtensionSelectScreen
-            | ExtensionConfirmScreen
-            | LocalBackendPickerScreen
-            | LocalBackendScreen
-            | LocalChoiceConfirmScreen
-            | LocalConfirmScreen
-            | LocalSearchResultsScreen
-            | ProjectTrustScreen,
-        ):
+        if isinstance(self.screen, CursorListScreen):
             self.screen.action_cursor_down()
             return
         if not self._completion_state.items:
@@ -2726,26 +2856,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         if isinstance(self.screen, CommandOutputScreen):
             self.screen.action_scroll_up()
             return
-        if isinstance(
-            self.screen,
-            SessionPickerScreen
-            | PromptTemplatePickerScreen
-            | SkillPickerScreen
-            | TreePickerScreen
-            | LoginMethodPickerScreen
-            | LoginProviderPickerScreen
-            | ThemePickerScreen
-            | ModelPickerScreen
-            | ToolsReferenceScreen
-            | ExtensionSelectScreen
-            | ExtensionConfirmScreen
-            | LocalBackendPickerScreen
-            | LocalBackendScreen
-            | LocalChoiceConfirmScreen
-            | LocalConfirmScreen
-            | LocalSearchResultsScreen
-            | ProjectTrustScreen,
-        ):
+        if isinstance(self.screen, CursorListScreen):
             self.screen.action_cursor_up()
             return
         if not self._completion_state.items:
@@ -3950,18 +4061,6 @@ async def _run_in_daemon_thread[T](function: Callable[[], T]) -> T:
     return await future
 
 
-def _command_message_uses_transcript(command_text: str) -> bool:
-    """Return whether slash-command output should appear inline in the transcript."""
-    command_name = command_text.split(maxsplit=1)[0].casefold()
-    return command_name in {"/reload", "/system"}
-
-
-def _command_message_uses_notification(command_text: str, message: str) -> bool:
-    """Return whether slash-command output should appear as a notification."""
-    command_name = command_text.split(maxsplit=1)[0].casefold()
-    return command_name == "/name" and message.startswith("Session renamed: ")
-
-
 def _command_output_title(command_text: str) -> str:
     command_name = command_text.split(maxsplit=1)[0].removeprefix("/")
     return f"/{command_name or 'help'}"
@@ -4371,6 +4470,18 @@ async def run_tui_app(
                 )
             index_on_first_persist = manager.get_session(record.id) is None
 
+        tui_settings = load_tui_settings()
+        # The approval gate is wired before the session loads, but the UI it
+        # needs only exists after the session adopts; the holder closes that
+        # gap and fails closed if a mutating call ever races adoption.
+        approval_app_ref: dict[str, BaldricTuiApp] = {}
+
+        async def approval_gate(tool_call: ToolCall) -> tuple[bool, str | None]:
+            app = approval_app_ref.get("app")
+            if app is None:
+                return True, "Approval UI is not ready; mutating call blocked."
+            return await app.approval_gate(tool_call)
+
         prepared = await prepare_coding_session(
             CodingSessionConfig(
                 provider=initial_provider,
@@ -4403,6 +4514,7 @@ async def run_tui_app(
                 trust_prompt=prompt_project_trust,
                 defer_authoritative_writes=True,
                 owns_initial_provider=initial_provider is not None,
+                before_tool_call=approval_gate,
             ),
             session_loader=CodingSession,
         )
@@ -4438,7 +4550,7 @@ async def run_tui_app(
         startup_alerts = (resource_conflict_alert,) if resource_conflict_alert is not None else ()
         app = BaldricTuiApp(
             session,
-            tui_settings=load_tui_settings(),
+            tui_settings=tui_settings,
             startup_message=startup_message,
             startup_update_notice=startup_update_notice,
             deferred_update_notice=deferred_startup_update_notice,
@@ -4447,12 +4559,18 @@ async def run_tui_app(
             initial_prompt=initial_prompt,
             show_full_output=show_full_output,
         )
+        approval_app_ref["app"] = app
         set_trust_prompt = getattr(session, "set_project_trust_prompt", None)
         if set_trust_prompt is not None:
             prompt_trust = getattr(app, "prompt_project_trust", None)
             if prompt_trust is not None:
                 set_trust_prompt(prompt_trust)
-        await app.run_async()
+        watchdog = LoopWatchdog(lambda: app._ui_heartbeat)
+        watchdog.start()
+        try:
+            await app.run_async()
+        finally:
+            watchdog.stop()
     finally:
         if session is not None:
             close_session = getattr(session, "aclose", None)

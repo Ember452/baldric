@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import faulthandler
 import sys
 from collections.abc import Callable, Sequence
 from functools import partial
@@ -22,6 +23,7 @@ from baldric_ai.env import (
     DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS,
 )
 from baldric_coding.auth.credentials import FileCredentialStore
+from baldric_coding.commands.base import CommandKind
 from baldric_coding.commands.registry import format_reload_summary
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.config.shell_config import load_shell_settings
@@ -36,6 +38,7 @@ from baldric_coding.extensions.installer import (
     update_extension,
 )
 from baldric_coding.modes.rpc import RpcServer
+from baldric_coding.observability.doctor import render_doctor_report
 from baldric_coding.providers.config import (
     DEFAULT_MODEL,
     DEFAULT_PROVIDER_NAME,
@@ -258,6 +261,17 @@ def setup_command(
         typer.echo(f"Set {provider.api_key_env} before running Baldric with this provider.", err=True)
 
 
+def _cli_preflight(*, doctor: bool) -> None:
+    """Start best-effort crash diagnostics, then honor the `--doctor` early exit."""
+    # CliRunner and other embedded hosts use fileno-less streams where
+    # faulthandler cannot attach; diagnostics stay best-effort there.
+    with contextlib.suppress(ValueError, OSError):
+        faulthandler.enable()
+    if doctor:
+        render_doctor_report()
+        raise typer.Exit()
+
+
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
@@ -461,8 +475,13 @@ def main(
         bool,
         typer.Option("--models", help="With `baldric update`, refresh model catalogs only."),
     ] = False,
+    doctor: Annotated[
+        bool,
+        typer.Option("--doctor", help="Print a terminal capability report and exit."),
+    ] = False,
 ) -> None:
     """Run the Baldric CLI."""
+    _cli_preflight(doctor=doctor)
     current_version = _current_version()
     if version:
         typer.echo(f"baldric {current_version}")
@@ -1410,8 +1429,8 @@ async def run_print_mode(
     if (stripped_prompt := prompt.strip()) == "/system" or stripped_prompt.startswith("/system "):
         command = prepared.session.handle_command(prompt)
         await prepared.abort()
-        if command.message:
-            typer.echo(command.message)
+        if command.outcome.message:
+            typer.echo(command.outcome.message)
         return True
     session = await prepared.adopt()
     if startup_model_override:
@@ -1437,15 +1456,16 @@ async def run_print_mode(
             return result.ok
         command = session.handle_command(prompt)
         if command.handled:
-            message = command.message
+            outcome = command.outcome
+            message: str | None = outcome.message
             # Intents the TUI performs through its own screens are applied here
             # instead of being dropped: `/model X` used to return "handled" with
             # no message, so print mode printed nothing and exited 0 without
             # changing the model.
-            if command.model_selection_provider is not None and command.model_selection_model is not None:
+            if outcome.kind is CommandKind.MODEL_SELECTED:
                 choice = ModelChoice(
-                    provider_name=command.model_selection_provider,
-                    model=command.model_selection_model,
+                    provider_name=outcome.provider or session.provider_name,
+                    model=outcome.text or "",
                 )
                 try:
                     await session.select_provider_model(choice)
@@ -1453,39 +1473,33 @@ async def run_print_mode(
                     message = f"Could not switch model: {exc}"
                 else:
                     message = f"Current model: {choice.provider_name}:{choice.model}"
-            if command.thinking_level is not None:
+            elif outcome.kind is CommandKind.THINKING_SET:
                 try:
-                    level = await session.set_thinking_level(command.thinking_level)
+                    level = await session.set_thinking_level(outcome.text or "")
                 except ValueError as exc:
                     message = f"Could not set thinking mode: {exc}"
                 else:
                     message = f"Thinking mode: {level}"
-            if command.local_requested:
-                message = (
-                    "The /local command is interactive-only. In print mode, configure a "
-                    "backend in the TUI, then use --provider and --model."
-                )
-            if command.sidebar_toggle_requested:
-                message = "The /sidebar command is interactive-only."
-            if command.reload_requested:
+            elif outcome.kind is CommandKind.SESSION_NAMED:
+                try:
+                    renamed = await session.set_session_name(outcome.text or "")
+                except ValueError as exc:
+                    message = f"Could not rename session: {exc}"
+                else:
+                    message = f"Session renamed: {renamed}"
+            elif outcome.kind is CommandKind.RELOAD:
                 try:
                     summary = await session.reload()
                 except ValueError as exc:
                     message = f"Could not reload: {exc}"
                 else:
                     message = format_reload_summary(summary)
-            if command.session_name is not None:
-                try:
-                    renamed = await session.set_session_name(command.session_name)
-                except ValueError as exc:
-                    message = f"Could not rename session: {exc}"
-                else:
-                    message = f"Session renamed: {renamed}"
-            if message is None:
-                # A command whose only outcome is a screen has nothing to print.
-                # Say so instead of exiting silently as if it had worked.
+            elif outcome.kind is not CommandKind.MESSAGE:
+                # One central sentence for every screen-only intent (pickers,
+                # /new, /export, /compact, /quit in a one-shot print run), so a
+                # new command can never silently no-op here again.
                 message = f"{_command_name(prompt)} is interactive-only in print mode."
-            typer.echo(message)
+            typer.echo(message or "")
             return True
         async for event in session.prompt(prompt):
             renderer.render(event)

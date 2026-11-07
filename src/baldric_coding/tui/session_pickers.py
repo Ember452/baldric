@@ -54,6 +54,9 @@ if TYPE_CHECKING:
 
 __all__ = ["SessionPickerMixin"]
 
+_PICKER_MOUNT_POLL_SECONDS = 0.02
+_PICKER_MOUNT_WAIT_SECONDS = 5.0
+
 
 class SessionPickerMixin:
     """Session / tree / skill / login / logout pickers; ``self`` is the app."""
@@ -100,17 +103,27 @@ class SessionPickerMixin:
             picker.update_records(records, archived_records=archived_records)
 
     async def _wait_for_open_session_picker(self: Any, picker: SessionPickerScreen) -> bool:
-        """Wait until this picker is mounted, or report that it was closed."""
-        if self.screen is not picker:
-            return False
-        while not picker.is_mounted:
-            await asyncio.sleep(0)
-            if self.screen is not picker:
+        """Wait until this picker is mounted, or report that it was closed.
+
+        Polling with a real sleep instead of ``asyncio.sleep(0)`` keeps this
+        wait from spinning the event loop, and the deadline keeps a picker
+        that never mounts (observed as Windows test hangs) from holding the
+        refresh worker forever.
+        """
+        deadline = asyncio.get_running_loop().time() + _PICKER_MOUNT_WAIT_SECONDS
+        while self.screen is picker and not picker.is_mounted:
+            if asyncio.get_running_loop().time() >= deadline:
                 return False
-        return True
+            await asyncio.sleep(_PICKER_MOUNT_POLL_SECONDS)
+        return self.screen is picker and bool(picker.is_mounted)
 
     def _handle_session_picker_result(self: Any, session_id: str | None) -> None:
         if session_id is None:
+            return
+        if self._is_agent_or_queue_active():
+            # Browsing the picker stays allowed while busy; resuming would
+            # race the in-flight agent turn or compaction, so refuse here.
+            self._notify("Baldric is already working. Press Escape to cancel.", severity="warning")
             return
         self.run_worker(self._resume_session(session_id), exclusive=False)
 

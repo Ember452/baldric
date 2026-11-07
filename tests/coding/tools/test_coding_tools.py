@@ -346,6 +346,45 @@ async def test_write_tool_creates_parent_directories(tmp_path: Path) -> None:
 
 
 @pytest.mark.anyio
+async def test_write_tool_overwrite_records_diff_against_old_content(tmp_path: Path) -> None:
+    path = tmp_path / "hello.txt"
+    path.write_text("old text\n", encoding="utf-8")
+    tool = create_write_tool(cwd=tmp_path)
+
+    result = await tool.execute("test-call", {"path": "hello.txt", "content": "new text\n"})
+
+    patch = result.details["patch"]
+    assert isinstance(patch, str)
+    assert "@@ -1 +1 @@" in patch
+    assert "-old text" in patch
+    assert "+new text" in patch
+
+
+@pytest.mark.anyio
+async def test_write_tool_create_records_all_additions_patch(tmp_path: Path) -> None:
+    tool = create_write_tool(cwd=tmp_path)
+
+    result = await tool.execute("test-call", {"path": "fresh.txt", "content": "你好\nline 2\n"})
+
+    patch = result.details["patch"]
+    assert isinstance(patch, str)
+    assert "@@ -0,0 +1,2 @@" in patch
+    assert "+你好" in patch
+    assert "+line 2" in patch
+
+
+@pytest.mark.anyio
+async def test_write_tool_skips_patch_when_old_file_is_not_decodable(tmp_path: Path) -> None:
+    path = tmp_path / "blob.bin"
+    path.write_bytes(b"\xff\xfe\x00binary")
+    tool = create_write_tool(cwd=tmp_path)
+
+    result = await tool.execute("test-call", {"path": "blob.bin", "content": "text"})
+
+    assert "patch" not in result.details
+
+
+@pytest.mark.anyio
 async def test_edit_tool_applies_multiple_exact_replacements(tmp_path: Path) -> None:
     path = tmp_path / "file.txt"
     path.write_text("alpha\nbeta\ngamma\n")

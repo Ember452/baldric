@@ -45,7 +45,14 @@ async def execute_tool_call(
     block_reason: str | None = None
     duration_ms: int | None = None
     if before_tool_call is not None:
-        blocked, block_reason = await before_tool_call(call)
+        try:
+            blocked, block_reason = await before_tool_call(call)
+        except Exception as exc:
+            # The gate is a safety boundary, so a misbehaving gate (approval UI
+            # or extension hook) must fail closed: the call does not run, and
+            # the turn does not abort with a stack trace.
+            blocked = True
+            block_reason = f"Tool gate failed: {type(exc).__name__}: {exc}"
 
     if blocked:
         result = error_result(block_reason or "Tool execution was blocked")

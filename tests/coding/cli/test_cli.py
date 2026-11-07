@@ -121,6 +121,18 @@ def test_version_command(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result.stdout.strip() == "baldric 1.2.3"
 
 
+def test_doctor_reports_capabilities_without_probing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli, "_current_version", lambda: "1.2.3")
+
+    result = CliRunner().invoke(app, ["--doctor"], env={"WT_SESSION": "abc"})
+
+    assert result.exit_code == 0
+    output = _strip_ansi(result.output)
+    assert "baldric --doctor" in output
+    assert "Windows Terminal" in output
+    assert "session storage" in output
+
+
 def test_help_lists_system_prompt_options() -> None:
     result = CliRunner().invoke(app, ["--help"], env={"COLUMNS": "160"})
 

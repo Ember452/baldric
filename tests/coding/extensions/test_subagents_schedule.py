@@ -242,6 +242,9 @@ class _FakeApi:
             thinking_level="medium",
             shell="auto",
             shell_command_prefix=None,
+            # The extension forwards the parent's approval gate into every child
+            # CodingSessionConfig; None models approval mode being off.
+            before_tool_call=None,
         )
         self.followed_up: list[str] = []
         self.notifications: list[str] = []

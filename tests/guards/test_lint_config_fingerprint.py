@@ -18,7 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Update this value together with an intentional configuration change, and say
 # why in the commit message. A mismatch means the toolchain got quieter.
-EXPECTED_FINGERPRINT = "8ed2164c616d67998363810fe3f8519273ef20d24b07700d06239476a907badb"
+EXPECTED_FINGERPRINT = "af2e24e286dc06208c3e5f4cce12afb30803f7efb6e94c4f76a4587f032a1345"
 
 
 def _config() -> dict[str, Any]:

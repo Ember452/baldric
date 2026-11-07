@@ -10,6 +10,7 @@ from baldric_agent.messages import TextContent
 from baldric_agent.tools import AgentTool, AgentToolResult, ToolCancellationToken
 from baldric_agent.types import JSONValue
 from baldric_coding.tools.base import ToolDefinition, _file_lock, _path_arg, _str_arg
+from baldric_coding.tools.edit import generate_unified_patch
 
 
 def create_write_tool_definition(*, cwd: str | Path | None = None) -> ToolDefinition:
@@ -22,8 +23,10 @@ def create_write_tool_definition(*, cwd: str | Path | None = None) -> ToolDefini
     are serialized within this process.
 
     The executor raises `ToolInputError` when `path` or `content` has the wrong
-    type. Successful results include the resolved path and number of characters
-    written in `data`.
+    type. Successful results include the resolved path, number of characters
+    written, and a unified `patch` against the previous content in `data`
+    (all-additions for a new file; omitted when the previous file was not
+    decodable UTF-8 text).
     """
     root = Path.cwd() if cwd is None else Path(cwd)
 
@@ -37,11 +40,24 @@ def create_write_tool_definition(*, cwd: str | Path | None = None) -> ToolDefini
 
         async with _file_lock(path):
             path.parent.mkdir(parents=True, exist_ok=True)
+            # Overwriting a decodable text file records a diff against its old
+            # content; creating a file diffs against empty (all-additions).
+            # An undecodable (e.g. binary) old file gets no patch — faking a
+            # full-file addition would misrepresent what was replaced.
+            old_content: str | None = ""
+            if path.exists():
+                try:
+                    old_content = await asyncio.to_thread(path.read_text, encoding="utf-8-sig")
+                except (OSError, UnicodeDecodeError):
+                    old_content = None
             await asyncio.to_thread(path.write_text, content, encoding="utf-8")
 
+        details: dict[str, JSONValue] = {"path": str(path), "characters": len(content)}
+        if old_content is not None:
+            details["patch"] = generate_unified_patch(str(path), old_content, content)
         return AgentToolResult(
             content=[TextContent(text=f"Successfully wrote to {path}.")],
-            details={"path": str(path), "characters": len(content)},
+            details=details,
         )
 
     return ToolDefinition(
@@ -56,7 +72,10 @@ def create_write_tool_definition(*, cwd: str | Path | None = None) -> ToolDefini
             "type": "object",
             "properties": {
                 "path": {"type": "string", "description": "Path to the file to write"},
-                "content": {"type": "string", "description": "Content to write to the file"},
+                "content": {
+                    "type": "string",
+                    "description": "Content to write to the file",
+                },
             },
             "required": ["path", "content"],
         },

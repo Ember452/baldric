@@ -724,6 +724,10 @@ class SubagentManager:
                 # filter below, because a switch that only covers filesystem
                 # extensions cannot remove a capability that ships built in.
                 extensions_enabled=not run.requested_isolated,
+                # Inherit the parent's approval gate: a child session that
+                # dropped it would let subagents run mutating tools behind the
+                # user's back while approval mode is on.
+                before_tool_call=self._api.context.before_tool_call,
                 **extra_config,
             )
         )

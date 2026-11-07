@@ -13,6 +13,7 @@ from baldric_agent.messages import (
     BashExecutionMessage,
 )
 from baldric_ai.model_catalog import ModelCatalogProvider, RuntimeModelCatalog
+from baldric_coding.commands.base import unhandled_result
 from baldric_coding.commands.registry import CommandResult
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.prompts import (
@@ -737,6 +738,7 @@ async def resume(session: CodingSession, session_id: str) -> str:
             extensions_enabled=session._config.extensions_enabled,
             project_extensions_enabled=session._config.project_extensions_enabled,
             extension_runtime=session._extension_runtime,
+            before_tool_call=session._config.before_tool_call,
             project_trust_coordinator=session._config.project_trust_coordinator,
             trust_override=session._config.trust_override,
             trust_default=session._config.trust_default,
@@ -895,6 +897,10 @@ async def new_session(session: CodingSession) -> str:
             thinking_level=thinking_level,
             index_on_first_persist=True,
             extension_runtime=session._extension_runtime,
+            # Carry the harness gate across /new. Dropping it here let a user
+            # who turned on approval mode create a session where mutating
+            # tools ran without ever asking — a silent, session-wide failure.
+            before_tool_call=session._config.before_tool_call,
         )
     )
     await session._adopt_replacement(replacement, reason="new")
@@ -1109,7 +1115,7 @@ def handle_command(session: CodingSession, text: str) -> CommandResult:
     unhandled here and flow through `prompt()` for on-the-fly replacement.
     """
     if expand_prompt_template_command(text, session._prompt_templates) is not None:
-        return CommandResult(handled=False)
+        return unhandled_result()
     return session._command_registry.execute(session, text)
 
 

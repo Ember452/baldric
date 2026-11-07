@@ -2,13 +2,14 @@ import asyncio
 import gc
 import re
 import threading
+import time
 import weakref
 from collections.abc import AsyncIterator
 from contextlib import suppress
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from typing import BinaryIO
 
 import pytest
@@ -55,8 +56,13 @@ from baldric_agent import (
     UserMessage,
 )
 from baldric_agent.messages import assistant_content
-from baldric_agent.provider_events import TextDeltaEvent, ThinkingDeltaEvent, ThinkingEndEvent
+from baldric_agent.provider_events import (
+    TextDeltaEvent,
+    ThinkingDeltaEvent,
+    ThinkingEndEvent,
+)
 from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
+from baldric_coding.commands.base import CommandKind, CommandOutcome, MessageDisplay
 from baldric_coding.commands.registry import CommandResult
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.prompts import PromptTemplate
@@ -143,7 +149,11 @@ from baldric_coding.tui.app import (
     _TuiExtensionUiBridge,
     _visible_completion_state,
 )
-from baldric_coding.tui.autocomplete import CompletionItem, CompletionKind, CompletionState
+from baldric_coding.tui.autocomplete import (
+    CompletionItem,
+    CompletionKind,
+    CompletionState,
+)
 from baldric_coding.tui.backends import LocalBackendScreen, LocalConfirmScreen
 from baldric_coding.tui.config import (
     BALDRIC_DARK_THEME,
@@ -156,7 +166,10 @@ from baldric_coding.tui.config import (
 )
 from baldric_coding.tui.state import ChatItem, TuiState
 from baldric_coding.tui.terminal_notification import TerminalNotificationController
-from baldric_coding.tui.terminal_title import RUNNING_TITLE_FRAMES, TerminalTitleController
+from baldric_coding.tui.terminal_title import (
+    RUNNING_TITLE_FRAMES,
+    TerminalTitleController,
+)
 from baldric_coding.tui.widgets import (
     TRANSCRIPT_WINDOW_ITEMS,
     TRANSCRIPT_WINDOW_OVERSCAN_ITEMS,
@@ -200,7 +213,9 @@ from tests.helpers.tui_helpers import (
 )
 
 
-def test_herdr_uses_textual_cell_mouse_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_herdr_uses_textual_cell_mouse_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("HERDR_ENV", "1")
     monkeypatch.delenv("TEXTUAL_SMOOTH_SCROLL", raising=False)
     monkeypatch.setattr(tui_app.textual_constants, "SMOOTH_SCROLL", True)
@@ -224,7 +239,9 @@ def test_herdr_preserves_explicit_textual_smooth_scroll(
     assert tui_app.textual_constants.SMOOTH_SCROLL is True
 
 
-def test_non_herdr_terminal_keeps_textual_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_non_herdr_terminal_keeps_textual_defaults(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("HERDR_ENV", raising=False)
     monkeypatch.delenv("TEXTUAL_SMOOTH_SCROLL", raising=False)
     monkeypatch.setattr(tui_app.textual_constants, "SMOOTH_SCROLL", True)
@@ -341,7 +358,11 @@ def test_session_sidebar_groups_skills_by_origin(
     session.skills = (
         Skill("project-agents", session.cwd / ".agents/skills/project-agents/SKILL.md", ""),
         Skill("user-baldric", tmp_path / ".baldric/skills/user-baldric/SKILL.md", ""),
-        Skill("project-baldric", session.cwd / ".baldric/skills/project-baldric/SKILL.md", ""),
+        Skill(
+            "project-baldric",
+            session.cwd / ".baldric/skills/project-baldric/SKILL.md",
+            "",
+        ),
         Skill("user-agents", tmp_path / ".agents/skills/user-agents/SKILL.md", ""),
     )
     console = Console(record=True, width=80)
@@ -370,8 +391,16 @@ def test_session_sidebar_orders_configured_baldric_home_before_shared_and_projec
     session.cwd = tmp_path / "project"
     session.skills = (
         Skill("project-agents", session.cwd / ".agents/skills/project-agents/SKILL.md", ""),
-        Skill("user-baldric", tmp_path / ".baldric-personal/skills/user-baldric/SKILL.md", ""),
-        Skill("project-baldric", session.cwd / ".baldric/skills/project-baldric/SKILL.md", ""),
+        Skill(
+            "user-baldric",
+            tmp_path / ".baldric-personal/skills/user-baldric/SKILL.md",
+            "",
+        ),
+        Skill(
+            "project-baldric",
+            session.cwd / ".baldric/skills/project-baldric/SKILL.md",
+            "",
+        ),
         Skill("user-agents", tmp_path / ".agents/skills/user-agents/SKILL.md", ""),
     )
     console = Console(record=True, width=80)
@@ -728,12 +757,22 @@ def test_compact_session_info_styles_parent_path_as_metadata() -> None:
     assert str(cwd.spans[2].style) == BALDRIC_DARK_THEME.completion_description
 
 
-def test_git_branch_reruns_git_only_after_head_changes(
+def _wait_for_cached_git_branch(widgets: ModuleType, cwd: Path, expected: str) -> bool:
+    deadline = time.monotonic() + 2.0
+    while time.monotonic() < deadline:
+        if widgets._git_branch(cwd) == expected:
+            return True
+        time.sleep(0.005)
+    return False
+
+
+def test_git_branch_refreshes_in_background_after_head_changes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from subprocess import CompletedProcess
 
     from baldric_coding.tui import widgets as tui_widgets
+    from baldric_coding.tui.widgets import sidebar as tui_sidebar
 
     head = tmp_path / ".git" / "HEAD"
     head.parent.mkdir()
@@ -748,21 +787,33 @@ def test_git_branch_reruns_git_only_after_head_changes(
         return CompletedProcess(args, 0, stdout=f"{next(branches)}\n", stderr="")
 
     monkeypatch.setattr(tui_widgets, "run", fake_run)
-    monkeypatch.setattr(tui_widgets, "_GIT_BRANCH_CACHE", {})
+    monkeypatch.setattr(tui_sidebar, "_GIT_BRANCH_CACHE", {})
+    monkeypatch.setattr(tui_sidebar, "_GIT_BRANCH_REFRESHING", set())
 
-    assert [tui_widgets._git_branch(nested) for _ in range(3)] == ["main"] * 3
+    # The first lookup never blocks on git: it reports the pending sentinel
+    # and resolves from the background worker.
+    assert tui_sidebar._git_branch(nested) == "--"
+    assert _wait_for_cached_git_branch(tui_sidebar, nested, "main")
+    assert len(git_calls) == 1
+
+    # A fresh cache serves repeated lookups without re-running git.
+    assert [tui_sidebar._git_branch(nested) for _ in range(3)] == ["main"] * 3
     assert len(git_calls) == 1
 
     replacement = head.with_name("HEAD.lock")
     replacement.write_text("ref: refs/heads/feature\n", encoding="utf-8")
     replacement.replace(head)
 
-    assert tui_widgets._git_branch(nested) == "feature"
+    # The stale value is served while the worker re-runs git off-thread.
+    assert tui_sidebar._git_branch(nested) == "main"
+    assert _wait_for_cached_git_branch(tui_sidebar, nested, "feature")
     assert len(git_calls) == 2
 
 
 @pytest.mark.anyio
-async def test_sidebar_usage_updates_keep_resource_lists_mounted(tmp_path: Path) -> None:
+async def test_sidebar_usage_updates_keep_resource_lists_mounted(
+    tmp_path: Path,
+) -> None:
     skill_path = tmp_path / ".agents" / "skills" / "review" / "SKILL.md"
     skill_path.parent.mkdir(parents=True)
     skill_path.write_text("# Review\n", encoding="utf-8")
@@ -1042,8 +1093,14 @@ def test_tool_chat_items_hide_and_show_result_text() -> None:
 
 
 EDIT_TOOL_RESULT_WITH_PATCH = (
-    "✓ edit\nSuccessfully replaced 1 block.\n\nPatch:\n--- a/README.md\n+++ b/README.md\n@@\n-old\n+new"
+    "✓ edit\nSuccessfully replaced 1 block.\n\n"
+    "Patch:\n--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+new"
 )
+
+
+def _sgr_rgb(hex_color: str) -> str:
+    value = Color.parse(hex_color)
+    return f"38;2;{value.r};{value.g};{value.b}"
 
 
 def test_expanded_edit_tool_result_renders_patch_as_colored_diff() -> None:
@@ -1059,10 +1116,18 @@ def test_expanded_edit_tool_result_renders_patch_as_colored_diff() -> None:
     plain = console.export_text(clear=False)
     styled = console.export_text(styles=True)
     assert "Patch:" in plain
-    assert "-old" in plain
-    assert "+new" in plain
-    assert re.search(r"\x1b\[91;[^m]*m-old", styled)
-    assert re.search(r"\x1b\[92;[^m]*m\+new", styled)
+    # The structured diff renders a gutter, signs, and the file header.
+    assert "a/README.md" in plain
+    assert "- old" in plain
+    assert "+ new" in plain
+    error = _sgr_rgb(BALDRIC_DARK_THEME.tool_error_text)
+    success = _sgr_rgb(BALDRIC_DARK_THEME.tool_success_text)
+    assert error in styled
+    assert success in styled
+    # Word-level emphasis: rich combines bold with the line color on the
+    # changed token.
+    assert f"1;{error}" in styled
+    assert f"1;{success}" in styled
 
 
 def test_transcript_plain_tool_body_renders_patch_as_colored_diff() -> None:
@@ -1085,10 +1150,17 @@ def test_transcript_plain_tool_body_renders_patch_as_colored_diff() -> None:
     plain = console.export_text(clear=False)
     styled = console.export_text(styles=True)
     assert "Patch:" in plain
-    assert "-old" in plain
-    assert "+new" in plain
-    assert re.search(r"\x1b\[91;[^m]*m-old", styled)
-    assert re.search(r"\x1b\[92;[^m]*m\+new", styled)
+    assert "a/README.md" in plain
+    assert "- old" in plain
+    assert "+ new" in plain
+    error = _sgr_rgb(BALDRIC_DARK_THEME.tool_error_text)
+    success = _sgr_rgb(BALDRIC_DARK_THEME.tool_success_text)
+    assert error in styled
+    assert success in styled
+    # Word-level emphasis: rich combines bold with the line color on the
+    # changed token.
+    assert f"1;{error}" in styled
+    assert f"1;{success}" in styled
 
 
 def test_thinking_chat_items_use_distinct_style_and_markdown() -> None:
@@ -1275,7 +1347,11 @@ def test_tui_state_renders_restored_skill_file_reads_with_skill_style() -> None:
 
     assert [(item.role, item.text, item.tool_result_text) for item in state.items] == [
         ("assistant", "Reading skill.", None),
-        ("skill", "Loading skill: review", "✓ read\n# Review\nFull noisy instructions."),
+        (
+            "skill",
+            "Loading skill: review",
+            "✓ read\n# Review\nFull noisy instructions.",
+        ),
     ]
 
 
@@ -1283,7 +1359,11 @@ def test_light_theme_tool_success_uses_dark_text_without_background() -> None:
     console = Console(record=True, width=80)
     console.print(
         render_chat_item(
-            ChatItem(role="tool", text="→ read README.md", tool_result_text="✓ read\ncontents"),
+            ChatItem(
+                role="tool",
+                text="→ read README.md",
+                tool_result_text="✓ read\ncontents",
+            ),
             theme=BALDRIC_LIGHT_THEME,
             show_tool_results=True,
         )
@@ -1413,7 +1493,14 @@ async def test_collapsed_thinking_block_keeps_one_blank_line() -> None:
     """The hidden placeholder takes one row plus the usual one-row gap."""
     app = BaldricTuiApp(
         FakeSession(
-            [AssistantMessage(content=[ThinkingContent(thinking="secret plan"), TextContent(text="answer")])]
+            [
+                AssistantMessage(
+                    content=[
+                        ThinkingContent(thinking="secret plan"),
+                        TextContent(text="answer"),
+                    ]
+                )
+            ]
         )
     )
 
@@ -1428,7 +1515,8 @@ async def test_collapsed_thinking_block_keeps_one_blank_line() -> None:
         thinking, assistant = rows
         gap = assistant.region.y - (thinking.region.y + thinking.region.height)
 
-    assert thinking.selection_text == "Thinking… Press Ctrl+T to show thinking tokens."
+    assert thinking.selection_text.startswith("Thought: ")
+    assert "secret plan" not in thinking.selection_text
     assert [widget.item.role for widget in rows] == ["thinking", "assistant"]
     assert gap == 1
 
@@ -1449,7 +1537,11 @@ async def test_whitespace_only_assistant_blocks_leave_no_transcript_row() -> Non
                 AssistantMessage(
                     content=[
                         TextContent(text="\n\n"),
-                        ToolCall(id="r2", name="read", arguments={"path": "a.py", "offset": 240}),
+                        ToolCall(
+                            id="r2",
+                            name="read",
+                            arguments={"path": "a.py", "offset": 240},
+                        ),
                     ]
                 ),
                 ToolResultMessage(tool_call_id="r2", tool_name="read", content="line 240"),
@@ -1886,7 +1978,10 @@ async def test_streamed_blank_thinking_before_text_leaves_no_provisional_row(
                 ),
                 MessageEndEvent(
                     message=AssistantMessage(
-                        content=[ThinkingContent(thinking="\n\n"), TextContent(text="answer")]
+                        content=[
+                            ThinkingContent(thinking="\n\n"),
+                            TextContent(text="answer"),
+                        ]
                     )
                 ),
                 AgentEndEvent(),
@@ -2099,7 +2194,11 @@ def test_tool_chat_items_color_description_not_details_or_results() -> None:
     success_console = Console(record=True, width=80)
     success_console.print(
         render_chat_item(
-            ChatItem(role="tool", text="→ read README.md", tool_result_text="✓ read\ncontents"),
+            ChatItem(
+                role="tool",
+                text="→ read README.md",
+                tool_result_text="✓ read\ncontents",
+            ),
             show_tool_results=True,
         )
     )
@@ -2541,14 +2640,20 @@ async def test_mixed_tool_batch_uses_one_widget_and_expands_each_row() -> None:
                         ToolCall(
                             id="bash-1",
                             name="bash",
-                            arguments={"command": "echo one", "description": "Doing thing one"},
+                            arguments={
+                                "command": "echo one",
+                                "description": "Doing thing one",
+                            },
                         ),
                         ToolCall(id="read-1", name="read", arguments={"path": "a.py"}),
                         ToolCall(id="read-2", name="read", arguments={"path": "b.py"}),
                         ToolCall(
                             id="bash-2",
                             name="bash",
-                            arguments={"command": "echo two", "description": "Doing thing two"},
+                            arguments={
+                                "command": "echo two",
+                                "description": "Doing thing two",
+                            },
                         ),
                     ]
                 ),
@@ -3068,7 +3173,9 @@ async def test_tui_transcript_extracts_adjacent_message_selection() -> None:
 
 
 @pytest.mark.anyio
-async def test_tui_auto_copies_selected_text_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_tui_auto_copies_selected_text_when_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     app = BaldricTuiApp(
         FakeSession(messages=[UserMessage(content="copy this")]),
         tui_settings=TuiSettings(auto_copy_selection=True),
@@ -3087,7 +3194,9 @@ async def test_tui_auto_copies_selected_text_when_enabled(monkeypatch: pytest.Mo
 
 
 @pytest.mark.anyio
-async def test_tui_auto_copy_selection_can_be_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_tui_auto_copy_selection_can_be_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     app = BaldricTuiApp(
         FakeSession(messages=[UserMessage(content="do not copy")]),
         tui_settings=TuiSettings(auto_copy_selection=False),
@@ -3197,7 +3306,12 @@ async def test_transcript_markdown_stream_stop_lets_an_append_in_flight_finish()
     release.set()
     await stopping
 
-    assert events == [("start", "one "), ("end", "one "), ("start", "two"), ("end", "two")]
+    assert events == [
+        ("start", "one "),
+        ("end", "one "),
+        ("start", "two"),
+        ("end", "two"),
+    ]
 
 
 @pytest.mark.anyio
@@ -3662,7 +3776,8 @@ async def test_detached_transcript_message_ignores_stale_selection_hit(
 
     async with app.run_test() as pilot:
         widget = StreamingTranscriptMessageWidget(
-            ChatItem(role="assistant", text="Select this message."), theme=BALDRIC_DARK_THEME
+            ChatItem(role="assistant", text="Select this message."),
+            theme=BALDRIC_DARK_THEME,
         )
         assert widget.allow_select is False
         await app.query_one("#transcript").mount(widget)
@@ -3987,7 +4102,9 @@ async def test_tui_sidebar_resource_sections_expand_independently() -> None:
 
 
 @pytest.mark.anyio
-async def test_tui_sidebar_context_file_opens_in_main_editor_and_saves(tmp_path: Path) -> None:
+async def test_tui_sidebar_context_file_opens_in_main_editor_and_saves(
+    tmp_path: Path,
+) -> None:
     context_path = tmp_path / "AGENTS.md"
     context_path.write_text("Original context.\n", encoding="utf-8")
     session = FakeSession()
@@ -4100,7 +4217,9 @@ async def test_tui_sidebar_file_items_have_clear_hover_style(tmp_path: Path) -> 
 
 
 @pytest.mark.anyio
-async def test_tui_sidebar_editor_keeps_contents_open_after_save_failure(tmp_path: Path) -> None:
+async def test_tui_sidebar_editor_keeps_contents_open_after_save_failure(
+    tmp_path: Path,
+) -> None:
     context_path = tmp_path / "nested" / "AGENTS.md"
     context_path.parent.mkdir()
     context_path.write_text("Rules.\n", encoding="utf-8")
@@ -4187,7 +4306,9 @@ async def test_tui_sidebar_editor_refuses_external_file_changes(tmp_path: Path) 
 
 
 @pytest.mark.anyio
-async def test_tui_sidebar_editor_blocks_switch_with_unsaved_changes(tmp_path: Path) -> None:
+async def test_tui_sidebar_editor_blocks_switch_with_unsaved_changes(
+    tmp_path: Path,
+) -> None:
     first_path = tmp_path / "AGENTS.md"
     second_path = tmp_path / "CLAUDE.md"
     first_path.write_text("First.\n", encoding="utf-8")
@@ -4293,7 +4414,9 @@ async def test_tui_sidebar_editor_rejects_read_only_target(tmp_path: Path) -> No
         assert not tuple(tmp_path.glob(f".{context_path.name}.*.tmp"))
 
 
-def test_sidebar_file_atomic_save_preserves_symlink_and_permissions(tmp_path: Path) -> None:
+def test_sidebar_file_atomic_save_preserves_symlink_and_permissions(
+    tmp_path: Path,
+) -> None:
     target = tmp_path / "actual.md"
     target.write_text("Original.\n", encoding="utf-8")
     target.chmod(0o640)
@@ -4888,7 +5011,11 @@ async def test_list_view_scrollbars_use_theme_colors(theme: TuiTheme) -> None:
 def test_tui_app_registers_only_baldric_themes_with_textual() -> None:
     app = BaldricTuiApp(FakeSession())
 
-    assert tuple(app.available_themes) == ("baldric-dark", "baldric-light", "high-contrast")
+    assert tuple(app.available_themes) == (
+        "baldric-dark",
+        "baldric-light",
+        "high-contrast",
+    )
 
 
 def test_textual_theme_mapping_uses_baldric_theme_values() -> None:
@@ -4954,7 +5081,13 @@ def test_tui_app_loads_restored_messages_into_display_state() -> None:
                 AssistantMessage(
                     content=assistant_content(
                         "I'll inspect it.",
-                        [ToolCall(id="call-1", name="edit", arguments={"path": "README.md"})],
+                        [
+                            ToolCall(
+                                id="call-1",
+                                name="edit",
+                                arguments={"path": "README.md"},
+                            )
+                        ],
                     )
                 ),
                 ToolResultMessage(
@@ -5594,8 +5727,14 @@ async def test_tui_app_theme_command_opens_picker_and_persists_selection(
     [BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME, HIGH_CONTRAST_THEME],
 )
 @pytest.mark.anyio
-async def test_theme_picker_highlight_uses_theme_selection_palette(theme: TuiTheme) -> None:
-    theme_names = (BALDRIC_DARK_THEME.name, BALDRIC_LIGHT_THEME.name, HIGH_CONTRAST_THEME.name)
+async def test_theme_picker_highlight_uses_theme_selection_palette(
+    theme: TuiTheme,
+) -> None:
+    theme_names = (
+        BALDRIC_DARK_THEME.name,
+        BALDRIC_LIGHT_THEME.name,
+        HIGH_CONTRAST_THEME.name,
+    )
     app = BaldricTuiApp(FakeSession(), tui_settings=TuiSettings(theme=theme.name))
 
     async with app.run_test() as pilot:
@@ -5929,7 +6068,10 @@ async def test_restored_tool_results_render_via_render_result() -> None:
                         ToolCall(
                             id="call-1",
                             name="agent",
-                            arguments={"prompt": "x", "description": "Summarize codebase"},
+                            arguments={
+                                "prompt": "x",
+                                "description": "Summarize codebase",
+                            },
                         )
                     ],
                 )
@@ -6120,7 +6262,9 @@ async def test_tui_app_compact_command_accepts_no_instructions() -> None:
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("blocked_command", ["/new", "/resume abc123"])
-async def test_tui_app_blocks_session_commands_while_compacting(blocked_command: str) -> None:
+async def test_tui_app_blocks_session_commands_while_compacting(
+    blocked_command: str,
+) -> None:
     started = asyncio.Event()
     finish = asyncio.Event()
 
@@ -6291,7 +6435,8 @@ async def test_tui_app_shows_working_state_during_manual_compaction() -> None:
 
         assert app._is_working() is True
         assert app.state.running is False
-        assert app._is_agent_or_queue_active() is False
+        # Guards treat compaction as busy work: session mutations must wait.
+        assert app._is_agent_or_queue_active() is True
         assert app._is_compaction_active() is True
         assert prompt._footer_mode == "running"
         assert indicator.render().plain != "τ"
@@ -6318,6 +6463,81 @@ async def test_tui_app_shows_working_state_during_manual_compaction() -> None:
         assert prompt._footer_mode == "normal"
         assert indicator.render().plain == "τ"
         assert titles[-1] == "\x1b]0;τ | build notes\x07"
+
+
+@pytest.mark.anyio
+async def test_tui_app_predicate_includes_automatic_compaction() -> None:
+    app = BaldricTuiApp(FakeSession(messages=[UserMessage(content="Earlier")]))
+
+    async with app.run_test():
+        # Automatic compaction is tracked by the adapter as state.compacting;
+        # every busy guard must treat it as in-flight work.
+        app.state.compacting = True
+        assert app._is_compaction_active() is True
+        assert app._is_agent_or_queue_active() is True
+        assert app._is_working() is True
+
+        app.state.compacting = False
+        assert app._is_compaction_active() is False
+
+
+@pytest.mark.anyio
+async def test_tui_app_refuses_session_resume_while_busy() -> None:
+    app = BaldricTuiApp(FakeSession(messages=[UserMessage(content="Earlier")]))
+    notifications: list[str] = []
+    scheduled: list[object] = []
+
+    def fake_notify(message: str, **kwargs: object) -> None:
+        del kwargs
+        notifications.append(message)
+
+    def fake_run_worker(coro: object, **kwargs: object) -> None:
+        del kwargs
+        scheduled.append(coro)
+        coro.close()  # type: ignore[attr-defined]
+
+    app._notify = fake_notify  # type: ignore[method-assign]
+    app.run_worker = fake_run_worker  # type: ignore[method-assign]
+
+    async with app.run_test():
+        app.state.compacting = True
+        app._handle_session_picker_result("session-1")
+        assert notifications == ["Baldric is already working. Press Escape to cancel."]
+        assert scheduled == []
+
+        app.state.compacting = False
+        app._handle_session_picker_result("session-1")
+        assert notifications == ["Baldric is already working. Press Escape to cancel."]
+        assert len(scheduled) == 1
+
+
+@pytest.mark.anyio
+async def test_wait_for_open_session_picker_gives_up_after_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from baldric_coding.tui import session_pickers
+
+    app = BaldricTuiApp(FakeSession())
+
+    async with app.run_test():
+        picker = SessionPickerScreen(
+            (),
+            local_cwd=Path(app.session.cwd),
+            theme=app.tui_settings.resolved_theme,
+        )
+
+        # The picker was never pushed, so the active screen is not the picker.
+        assert await app._wait_for_open_session_picker(picker) is False
+
+        # An active-but-never-mounted picker must hit the bounded deadline
+        # instead of spinning the event loop forever.
+        monkeypatch.setattr(session_pickers, "_PICKER_MOUNT_WAIT_SECONDS", 0.0)
+        monkeypatch.setattr(
+            type(app),
+            "screen",
+            property(lambda self: picker),  # type: ignore[arg-type,return-value]
+        )
+        assert await app._wait_for_open_session_picker(picker) is False
 
 
 @pytest.mark.anyio
@@ -7307,7 +7527,9 @@ async def test_tui_app_prompts_picker_filters_and_inserts_without_submitting() -
 
 
 @pytest.mark.anyio
-async def test_tui_app_prompts_picker_edits_template_and_reloads(tmp_path: Path) -> None:
+async def test_tui_app_prompts_picker_edits_template_and_reloads(
+    tmp_path: Path,
+) -> None:
     template_path = tmp_path / "review.md"
     template_path.write_text("Original prompt.\n", encoding="utf-8")
     session = FakeSession()
@@ -8655,7 +8877,13 @@ async def test_tui_app_diagnostics_modal_reflects_post_reload_details() -> None:
         def handle_command(self, text: str) -> CommandResult:
             if text == "/reload":
                 self.resource_diagnostics = (diagnostic,)
-                return CommandResult(handled=True, message="Reloaded resources.")
+                return CommandResult(
+                    outcome=CommandOutcome(
+                        kind=CommandKind.MESSAGE,
+                        message="Reloaded resources.",
+                        display=MessageDisplay.TRANSCRIPT,
+                    )
+                )
             return super().handle_command(text)
 
     app = BaldricTuiApp(ReloadingDiagnosticSession())
@@ -8727,7 +8955,10 @@ def test_tui_model_picker_guides_setup_when_no_provider_is_usable() -> None:
     app._open_model_picker()
 
     assert notifications == [
-        ("No configured providers are usable. Run /login to set up a provider.", "warning")
+        (
+            "No configured providers are usable. Run /login to set up a provider.",
+            "warning",
+        )
     ]
 
 
@@ -8887,7 +9118,12 @@ async def test_tui_app_tools_reference_groups_origins_and_searches_extension_nam
         await pilot.pause()
 
         assert isinstance(app.screen, ToolsReferenceScreen)
-        assert [tool.name for tool in app.screen.tools] == ["read", "edit", "bash", "write"]
+        assert [tool.name for tool in app.screen.tools] == [
+            "read",
+            "edit",
+            "bash",
+            "write",
+        ]
 
         await pilot.press(*"first-extension")
         await pilot.pause()
@@ -10052,7 +10288,9 @@ async def test_tui_model_picker_virtualizes_large_cached_catalog() -> None:
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("command", ["/model", "/scoped-models"])
-async def test_tui_model_picker_shows_cached_choices_before_remote_refresh(command: str) -> None:
+async def test_tui_model_picker_shows_cached_choices_before_remote_refresh(
+    command: str,
+) -> None:
     class SlowCatalogSession(FakeSession):
         def __init__(self) -> None:
             super().__init__()
@@ -10250,7 +10488,9 @@ async def test_tui_app_terminal_command_does_not_cancel_active_agent() -> None:
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("add_to_context", [True, False])
-async def test_tui_app_renders_terminal_command_while_running(add_to_context: bool) -> None:
+async def test_tui_app_renders_terminal_command_while_running(
+    add_to_context: bool,
+) -> None:
     session = FakeSession()
     app = BaldricTuiApp(session)
     started = asyncio.Event()
@@ -10716,7 +10956,7 @@ async def test_tui_app_toggles_thinking_tokens_from_keybinding_while_running() -
 
         assert app.state.show_thinking is False
         assert "final answer" in transcript_text()
-        assert "Thinking… Press Ctrl+T to show thinking tokens." in transcript_text()
+        assert "Thought:" in transcript_text()
         assert "internal plan" not in transcript_text()
 
         await pilot.press("ctrl+t")
@@ -10724,12 +10964,12 @@ async def test_tui_app_toggles_thinking_tokens_from_keybinding_while_running() -
         assert app.state.show_thinking is True
         assert app.state.running is True
         assert "internal plan" in transcript_text()
-        assert "Thinking… Press Ctrl+T to show thinking tokens." not in transcript_text()
+        assert "Thought:" not in transcript_text()
 
         await pilot.press("ctrl+t")
         await pilot.pause()
         assert app.state.show_thinking is False
-        assert "Thinking… Press Ctrl+T to show thinking tokens." in transcript_text()
+        assert "Thought:" in transcript_text()
         assert "internal plan" not in transcript_text()
 
     assert notifications == []
@@ -10765,10 +11005,11 @@ async def test_tui_app_hidden_thinking_placeholder_stays_before_streamed_answer(
         await pilot.pause()
 
         transcript = app.query_one("#transcript", TranscriptView)
-        assert [line.text for line in transcript.lines] == [
-            "Thinking… Press Ctrl+T to show thinking tokens.",
-            "public answer",
-        ]
+        lines = [line.text for line in transcript.lines]
+        assert len(lines) == 2
+        assert lines[0].startswith("Thought: ")
+        assert "private plan" not in lines[0]
+        assert lines[1] == "public answer"
 
 
 @pytest.mark.anyio
@@ -10792,13 +11033,12 @@ async def test_tui_app_restored_thinking_toggles_in_persisted_order() -> None:
     async with app.run_test() as pilot:
         await pilot.pause()
         transcript = app.query_one("#transcript", TranscriptView)
-        assert [line.text for line in transcript.lines] == [
-            "prompt",
-            "Thinking… Press Ctrl+T to show thinking tokens.",
-            "first answer",
-            "Thinking… Press Ctrl+T to show thinking tokens.",
-            "second answer",
-        ]
+        lines = [line.text for line in transcript.lines]
+        assert lines[0] == "prompt"
+        assert lines[1].startswith("Thought: ")
+        assert lines[2] == "first answer"
+        assert lines[3].startswith("Thought: ")
+        assert lines[4] == "second answer"
 
         await pilot.press("ctrl+t")
         await pilot.pause()
@@ -10812,13 +11052,14 @@ async def test_tui_app_restored_thinking_toggles_in_persisted_order() -> None:
 
         await pilot.press("ctrl+t")
         await pilot.pause()
-        assert [line.text for line in transcript.lines] == [
-            "prompt",
-            "Thinking… Press Ctrl+T to show thinking tokens.",
-            "first answer",
-            "Thinking… Press Ctrl+T to show thinking tokens.",
-            "second answer",
-        ]
+        lines = [line.text for line in transcript.lines]
+        assert lines[0] == "prompt"
+        assert lines[1].startswith("Thought: ")
+        assert "first plan" not in lines[1]
+        assert lines[2] == "first answer"
+        assert lines[3].startswith("Thought: ")
+        assert "second plan" not in lines[3]
+        assert lines[4] == "second answer"
 
 
 @pytest.mark.anyio
@@ -10852,15 +11093,16 @@ async def test_tui_app_thinking_toggle_preserves_unrelated_items() -> None:
         await pilot.pause()
         await pilot.press("ctrl+t")
         await pilot.pause()
-        assert [line.text for line in transcript.lines] == [
-            "first prompt",
-            "Thinking… Press Ctrl+T to show thinking tokens.",
-            "first answer",
-            "second prompt",
-            "Thinking… Press Ctrl+T to show thinking tokens.",
-            "second answer",
-            "late status",
-        ]
+        lines = [line.text for line in transcript.lines]
+        assert lines[0] == "first prompt"
+        assert lines[1].startswith("Thought: ")
+        assert "plan one" not in lines[1]
+        assert lines[2] == "first answer"
+        assert lines[3] == "second prompt"
+        assert lines[4].startswith("Thought: ")
+        assert "plan two" not in lines[4]
+        assert lines[5] == "second answer"
+        assert lines[6] == "late status"
 
 
 @pytest.mark.anyio
@@ -11144,7 +11386,9 @@ async def test_tui_prompt_worker_refreshes_directly() -> None:
 
 
 @pytest.mark.anyio
-async def test_tui_prompt_worker_shows_diagnostic_log_path_for_error_event(tmp_path: Path) -> None:
+async def test_tui_prompt_worker_shows_diagnostic_log_path_for_error_event(
+    tmp_path: Path,
+) -> None:
     class ErrorSession(FakeSession):
         def __init__(self) -> None:
             super().__init__(
@@ -11265,7 +11509,9 @@ async def test_tui_prompt_worker_mounts_provider_error_in_live_transcript() -> N
 
 
 @pytest.mark.anyio
-async def test_tui_prompt_worker_shows_diagnostic_log_path_on_failure(tmp_path: Path) -> None:
+async def test_tui_prompt_worker_shows_diagnostic_log_path_on_failure(
+    tmp_path: Path,
+) -> None:
     class EmptyMessageError(Exception):
         def __str__(self) -> str:
             return ""
@@ -11403,7 +11649,9 @@ async def test_tui_app_shows_startup_update_notice_first_in_bright_yellow() -> N
     assert [message.text for message in session.messages] == ["Earlier prompt"]
 
 
-def test_resource_conflict_alert_includes_skill_and_prompt_locations(tmp_path: Path) -> None:
+def test_resource_conflict_alert_includes_skill_and_prompt_locations(
+    tmp_path: Path,
+) -> None:
     diagnostics = (
         ResourceDiagnostic(
             kind="skill",
@@ -12243,7 +12491,11 @@ async def test_run_tui_app_opens_when_provider_login_is_missing(
         startup_notice="Baldric 0.2.0 is available",
     )
 
-    assert calls == [f"prepare:{tmp_path}:gpt-5.4:openai", "load:LoginRequiredProvider", "run"]
+    assert calls == [
+        f"prepare:{tmp_path}:gpt-5.4:openai",
+        "load:LoginRequiredProvider",
+        "run",
+    ]
 
 
 @pytest.mark.anyio

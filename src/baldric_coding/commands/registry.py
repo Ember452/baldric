@@ -12,6 +12,7 @@ from baldric_coding.commands.base import (
 )
 from baldric_coding.commands.config import (
     LOGIN_PROVIDER_ALIASES,
+    _approvals_command,
     _local_command,
     _login_command,
     _logout_command,
@@ -283,6 +284,15 @@ def create_default_command_registry() -> CommandRegistry:
             description="Show or hide the TUI sidebar for this session.",
             handler=_sidebar_command,
             search_terms=("toggle", "visibility", "panel"),
+        )
+    )
+    registry.register(
+        SlashCommand(
+            name="approvals",
+            usage="/approvals",
+            description="Toggle approval prompts before edit/write/bash calls.",
+            handler=_approvals_command,
+            search_terms=("approval", "permission", "confirm", "gate"),
         )
     )
     registry.register(

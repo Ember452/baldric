@@ -7,7 +7,7 @@ them, and `test_non_pi_commands_are_not_registered` pins the remaining ones.
 
 from __future__ import annotations
 
-from baldric_coding.commands.base import CommandContext, CommandRegistry
+from baldric_coding.commands.base import CommandContext, CommandKind, CommandRegistry
 from baldric_coding.commands.registry import create_default_command_registry
 
 
@@ -36,9 +36,9 @@ def test_help_is_registered_and_lists_commands() -> None:
 
     result = _handler(registry, "help")(_context(registry, "/help"))
 
-    assert result.handled
-    assert "/context" in (result.message or "")
-    assert "/help" in (result.message or "")
+    assert result.outcome.kind is CommandKind.MESSAGE
+    assert "/context" in (result.outcome.message or "")
+    assert "/help" in (result.outcome.message or "")
 
 
 def test_context_is_registered_and_reports_loaded_files() -> None:
@@ -46,5 +46,5 @@ def test_context_is_registered_and_reports_loaded_files() -> None:
 
     result = _handler(registry, "context")(_context(registry, "/context"))
 
-    assert result.handled
-    assert "No project context files" in (result.message or "")
+    assert result.outcome.kind is CommandKind.MESSAGE
+    assert "No project context files" in (result.outcome.message or "")

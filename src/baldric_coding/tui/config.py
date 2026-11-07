@@ -103,10 +103,15 @@ class TuiSettings:
     # Durable override for the external prompt editor (e.g. "code -w" or "vim").
     # When unset, Baldric falls back to BALDRIC_EDITOR / VISUAL / EDITOR.
     editor_command: str | None = None
+    # Opt-in tool approval: "ask" pauses edit/write/bash for an in-terminal
+    # Once/Always/Reject decision; "auto" (the default) runs trusted tools
+    # directly.
+    approval_mode: Literal["auto", "ask"] = "auto"
 
     def to_json(self) -> dict[str, Any]:
         """Serialize these settings to JSON-compatible data."""
         return {
+            "approval_mode": self.approval_mode,
             "auto_copy_selection": self.auto_copy_selection,
             "editor_command": self.editor_command,
             "keybindings": self.keybindings.to_json(),
@@ -166,6 +171,9 @@ def tui_settings_from_json(data: dict[str, Any]) -> TuiSettings:
         "desktop",
     }:
         raise TuiConfigError("turn_notification must be 'off', 'bell', or 'desktop'")
+    raw_approval = data.get("approval_mode", "auto")
+    if not isinstance(raw_approval, str) or raw_approval not in {"auto", "ask"}:
+        raise TuiConfigError("approval_mode must be 'auto' or 'ask'")
     return TuiSettings(
         keybindings=_keybindings_from_json(keybindings_data),
         theme=_theme_name(data.get("theme", "baldric-dark")),
@@ -176,6 +184,7 @@ def tui_settings_from_json(data: dict[str, Any]) -> TuiSettings:
         sidebar_position=cast(Literal["left", "right", "off"], raw_sidebar),
         turn_notification=cast(TurnNotificationMode, raw_notification),
         editor_command=_editor_command_setting(data.get("editor_command")),
+        approval_mode=cast(Literal["auto", "ask"], raw_approval),
     )
 
 

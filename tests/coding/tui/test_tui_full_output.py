@@ -93,6 +93,21 @@ def test_tool_patch_preview_is_also_bypassed_by_full() -> None:
     assert "line 199" in full
 
 
+def test_write_tool_result_renders_its_patch() -> None:
+    patch = "--- hello.txt\n+++ hello.txt\n@@ -1 +1 @@\n-old\n+new"
+
+    preview = format_tool_result_block(
+        name="write",
+        ok=True,
+        content="Successfully wrote.",
+        data={"path": "hello.txt", "characters": 5, "patch": patch},
+    )
+
+    assert "Patch:" in preview
+    assert "-old" in preview
+    assert "+new" in preview
+
+
 def test_full_text_is_char_exact_for_a_single_huge_line() -> None:
     """A char-budget truncation must also be recoverable, not just line drops."""
     output = "x" * 5_000

@@ -283,3 +283,17 @@ def test_tui_editor_command_roundtrips_and_blank_clears() -> None:
 def test_tui_editor_command_rejects_non_string() -> None:
     with pytest.raises(TuiConfigError, match="editor_command"):
         tui_settings_from_json({"editor_command": 7})
+
+
+def test_tui_approval_mode_defaults_to_auto_and_roundtrips() -> None:
+    assert TuiSettings().approval_mode == "auto"
+    assert tui_settings_from_json({}).approval_mode == "auto"
+
+    ask = tui_settings_from_json({"approval_mode": "ask"})
+    assert ask.approval_mode == "ask"
+    assert ask.to_json()["approval_mode"] == "ask"
+
+
+def test_tui_approval_mode_rejects_unknown_values() -> None:
+    with pytest.raises(TuiConfigError, match="approval_mode"):
+        tui_settings_from_json({"approval_mode": "yolo"})
