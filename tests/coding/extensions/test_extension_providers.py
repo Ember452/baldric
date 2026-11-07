@@ -22,10 +22,12 @@ from baldric_coding.extensions import (
     OpenAICompatibleTransport,
     OptionalApiKey,
     ProviderAuthError,
+    ProviderAuthScope,
     ProviderModel,
     ProviderModelSnapshot,
     RequiredApiKey,
     ResolvedProviderAuth,
+    ScopedCredentialReader,
     resolve_provider_auth,
 )
 from baldric_coding.extensions.provider_registry import (
@@ -37,7 +39,6 @@ from baldric_coding.observability.diagnostics import AgentCallDiagnosticContext,
 from baldric_coding.providers.config import (
     OpenAICompatibleProviderConfig,
     ProviderConfigError,
-    ProviderModelMetadata,
 )
 from baldric_coding.providers.runtime import create_dynamic_model_provider
 
@@ -71,6 +72,35 @@ class FixedAuth:
     async def resolve(self, context) -> ResolvedProviderAuth:
         del context
         return self._resolved
+
+
+class ScopedAuth:
+    """Custom auth with an explicit scope that records what it can see."""
+
+    def __init__(
+        self,
+        *,
+        credentials: tuple[str, ...] = (),
+        environment: tuple[str, ...] = (),
+    ) -> None:
+        self.credential_names = credentials
+        self.environment_names = environment
+        self.visible_credentials: dict[str, str | None] = {}
+        self.visible_environment: dict[str, str] = {}
+
+    @property
+    def scope(self) -> ProviderAuthScope:
+        return ProviderAuthScope(
+            credentials=self.credential_names,
+            environment=self.environment_names,
+        )
+
+    async def resolve(self, context) -> ResolvedProviderAuth:
+        self.visible_credentials = {
+            name: context.credentials.get(name) for name in ("local:key", "other:key")
+        }
+        self.visible_environment = dict(context.environment)
+        return ResolvedProviderAuth()
 
 
 def provider(
@@ -242,6 +272,70 @@ async def test_no_auth_never_reads_secret_sources() -> None:
 
     assert resolved.api_key is None
     assert resolved.omit_authorization_header is True
+
+
+def test_scoped_credential_reader_only_reads_declared_names() -> None:
+    reader = MemoryCredentials({"local:key": "local-secret", "other:key": "other-secret"})
+    scoped = ScopedCredentialReader(reader, ("local:key",))
+
+    assert scoped.get("local:key") == "local-secret"
+    assert scoped.get("other:key") is None
+    assert scoped.allowed_names == ("local:key",)
+    # A denied name is never even forwarded to the underlying store.
+    assert reader.reads == ["local:key"]
+
+
+async def test_auth_scope_limits_credentials_and_environment() -> None:
+    auth = ScopedAuth(credentials=("local:key",), environment=("LOCAL_API_KEY",))
+    credentials = MemoryCredentials({"local:key": "local-secret", "other:key": "other-secret"})
+
+    await resolve_provider_auth(
+        auth,
+        credentials=credentials,
+        environment={"LOCAL_API_KEY": "local-env", "OTHER_PROVIDER_KEY": "other-env"},
+    )
+
+    assert auth.visible_credentials == {"local:key": "local-secret", "other:key": None}
+    assert auth.visible_environment == {"LOCAL_API_KEY": "local-env"}
+    assert credentials.reads == ["local:key"]
+
+
+async def test_custom_auth_without_scope_reads_no_secret_sources() -> None:
+    class UnscopedAuth:
+        async def resolve(self, context) -> ResolvedProviderAuth:
+            assert context.credentials.get("local:key") is None
+            assert dict(context.environment) == {}
+            return ResolvedProviderAuth()
+
+    resolved = await resolve_provider_auth(
+        UnscopedAuth(),
+        credentials=MemoryCredentials({"local:key": "local-secret"}),
+        environment={"LOCAL_API_KEY": "local-env"},
+    )
+
+    assert resolved.api_key is None
+
+
+async def test_registry_resolves_provider_auth_with_scoped_secrets() -> None:
+    auth = ScopedAuth(credentials=("local:key",), environment=("LOCAL_API_KEY",))
+
+    async def refresh(context):
+        del context
+        return ProviderModelSnapshot((ProviderModel("model"),), "model")
+
+    registry = DynamicProviderRegistry(
+        generation_id="generation-1",
+        credentials=MemoryCredentials({"local:key": "local-secret", "other:key": "other-secret"}),
+        environment={"LOCAL_API_KEY": "local-env", "OTHER_PROVIDER_KEY": "other-env"},
+    )
+    registry.register("extension", provider(refresh_models=refresh, auth=auth))
+
+    result = await registry.refresh("local")
+
+    assert result.status == "published"
+    assert auth.visible_credentials == {"local:key": "local-secret", "other:key": None}
+    assert auth.visible_environment == {"LOCAL_API_KEY": "local-env"}
+    await registry.aclose()
 
 
 async def test_adversarial_custom_auth_is_absent_from_reprs_and_diagnostics() -> None:
@@ -496,7 +590,15 @@ async def test_custom_runtime_factory_receives_resolved_auth_and_model() -> None
     assert "factory-secret" not in repr(observed[0][0])
 
 
-async def test_durable_baseline_is_overridden_and_restored_exactly() -> None:
+async def test_dynamic_provider_cannot_shadow_a_durable_provider_id() -> None:
+    """Pins the new contract: dynamic provider ids may not reuse durable ids.
+
+    The old behavior let a dynamic layer override the durable provider with the
+    same id and restored it on unregister. That was a security defect: an
+    installed extension could advertise a configured provider's id pointing at
+    its own endpoint and receive that provider's credentials and traffic, so the
+    collision is now rejected instead.
+    """
     durable = OpenAICompatibleProviderConfig(
         name="local",
         base_url="https://durable.example/v1",
@@ -507,34 +609,28 @@ async def test_durable_baseline_is_overridden_and_restored_exactly() -> None:
         context_windows={"durable-model": 32768},
         headers={"X-Durable": "complete"},
         compat={"feature": True},
-        model_metadata={
-            "durable-model": ProviderModelMetadata(
-                name="Durable model",
-                max_tokens=4096,
-                compat={"nested": "kept"},
-            )
-        },
-        timeout_seconds=12,
-        max_retries=4,
-        max_retry_delay_seconds=3,
     )
     registry = DynamicProviderRegistry((durable,), generation_id="generation-1")
 
-    baseline = registry.effective("local")
-    assert baseline is not None
-    assert baseline.definition is durable
-    token = registry.register("extension-a", provider())
+    with pytest.raises(DynamicProviderError, match="conflicts with a built-in or durable provider id"):
+        registry.register("extension-a", provider())
+
     effective = registry.effective("local")
     assert effective is not None
-    assert effective.definition != durable
-    assert effective.layer_token == token
+    assert effective.definition is durable
+    assert registry.layers("local") == ()
+    assert registry.unregister("local", "extension-a") is False
 
-    assert registry.unregister("local", "extension-a") is True
-    restored = registry.effective("local")
-    assert restored is not None
-    assert restored.definition is durable
-    assert restored.definition == durable
-    assert registry.unregister("local", "unknown") is False
+
+async def test_dynamic_provider_cannot_shadow_a_builtin_catalog_id() -> None:
+    """Built-in ids are protected even when no durable settings were saved."""
+    registry = DynamicProviderRegistry(generation_id="generation-1")
+
+    with pytest.raises(DynamicProviderError, match="conflicts with a built-in or durable provider id"):
+        registry.register("extension-a", provider("openai"))
+
+    assert registry.effective("openai") is None
+    assert registry.layers("openai") == ()
 
 
 async def test_latest_layer_and_same_source_replacement_are_deterministic() -> None:
@@ -1165,7 +1261,7 @@ def _live_discovery_tasks() -> list[asyncio.Task[object]]:
     ]
 
 
-async def test_reset_retains_outgoing_registry_for_later_async_drain() -> None:
+async def test_retired_outgoing_runtime_is_drained_by_async_close() -> None:
     entered = asyncio.Event()
     cleanup_started = asyncio.Event()
     release_cleanup = asyncio.Event()
@@ -1184,7 +1280,10 @@ async def test_reset_retains_outgoing_registry_for_later_async_drain() -> None:
     pending = asyncio.create_task(old_registry.refresh("local"))
     await entered.wait()
 
-    runtime.reset_for_reload()
+    # Real /reload retires the outgoing runtime (after its awaited shutdown),
+    # then the host awaits its async close: that close owns draining the
+    # retired generation's callback work.
+    runtime.retire()
     await cleanup_started.wait()
     close = asyncio.create_task(runtime.aclose())
     await asyncio.sleep(0.15)
@@ -1371,17 +1470,23 @@ def setup(baldric):
 """,
         encoding="utf-8",
     )
-    runtime = ExtensionRuntime()
-    runtime.load(paths, extra_paths=(extension,), include_resource_dirs=False)
-    old_registry = runtime.provider_registry
+    old_runtime = ExtensionRuntime()
+    old_runtime.load(paths, extra_paths=(extension,), include_resource_dirs=False)
+    old_registry = old_runtime.provider_registry
     old_generation = old_registry.generation_id
-
     assert old_registry.effective("dynamic") is not None
-    runtime.reset_for_reload()
+
+    # Real /reload stages a fresh runtime (which loads the extensions) before
+    # the outgoing generation is retired.
+    staged_runtime = ExtensionRuntime()
+    staged_runtime.load(paths, extra_paths=(extension,), include_resource_dirs=False)
+    old_runtime.retire()
 
     assert old_registry.effective("dynamic") is None
-    assert runtime.provider_registry.generation_id != old_generation
-    assert runtime.provider_registry.effective("dynamic") is None
+    assert staged_runtime.provider_registry.generation_id != old_generation
+    assert staged_runtime.provider_registry.effective("dynamic") is not None
+    await staged_runtime.aclose()
+    await old_runtime.aclose()
 
 
 async def test_frozen_compat_is_copied_to_mutable_json_at_runtime_boundary() -> None:

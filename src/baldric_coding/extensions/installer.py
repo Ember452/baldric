@@ -17,10 +17,14 @@ from typing import Literal
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.resources import BaldricResourcePaths
 from baldric_coding.extensions import discover_extensions
+from baldric_coding.utils.atomic import atomic_write_text
 
 CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
 
 EXTENSION_REGISTRY_FILENAME = ".baldric-extensions.json"
+# A corrupt registry is copied here before the next write can replace it, so the
+# install records are never silently lost to a single unreadable file.
+EXTENSION_REGISTRY_CORRUPT_SUFFIX = ".corrupt"
 
 
 class ExtensionInstallError(RuntimeError):
@@ -60,15 +64,23 @@ def registry_path(extensions_dir: Path | None = None) -> Path:
 
 
 def read_extension_registry(extensions_dir: Path | None = None) -> dict[str, ExtensionInstallRecord]:
-    """Load the managed-install registry keyed by extension name."""
+    """Load the managed-install registry keyed by extension name.
+
+    An unreadable or malformed registry is preserved as a ``.corrupt`` backup
+    before returning empty: the host cannot trust the records, but silently
+    dropping them and letting the next write replace the file would erase every
+    managed install.
+    """
     path = registry_path(extensions_dir)
     if not path.exists():
         return {}
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
+        _preserve_corrupt_registry(path)
         return {}
     if not isinstance(raw, dict):
+        _preserve_corrupt_registry(path)
         return {}
     records: dict[str, ExtensionInstallRecord] = {}
     for name, entry in raw.items():
@@ -88,13 +100,20 @@ def read_extension_registry(extensions_dir: Path | None = None) -> dict[str, Ext
     return records
 
 
+def _preserve_corrupt_registry(path: Path) -> None:
+    """Copy an unusable registry beside itself for manual recovery."""
+    backup = path.with_name(f"{path.name}{EXTENSION_REGISTRY_CORRUPT_SUFFIX}")
+    with contextlib.suppress(OSError):
+        shutil.copy2(path, backup)
+
+
 def _write_extension_registry(
     records: dict[str, ExtensionInstallRecord],
     extensions_dir: Path,
 ) -> None:
     path = registry_path(extensions_dir)
     payload = {name: asdict(record) for name, record in sorted(records.items())}
-    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    atomic_write_text(path, json.dumps(payload, indent=2) + "\n")
 
 
 def install_extension(

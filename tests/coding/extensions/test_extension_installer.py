@@ -8,6 +8,7 @@ import pytest
 from baldric_coding.context.resources import BaldricResourcePaths
 from baldric_coding.extensions import discover_extensions
 from baldric_coding.extensions.installer import (
+    EXTENSION_REGISTRY_CORRUPT_SUFFIX,
     ExtensionInstallError,
     install_extension,
     parse_git_extension_source,
@@ -234,6 +235,57 @@ def test_local_install_records_source_path(tmp_path: Path) -> None:
     record = read_extension_registry(extensions_dir)["hello.py"]
     assert record.kind == "local-file"
     assert record.source == str(source.resolve())
+
+
+def test_registry_write_failure_keeps_previous_registry_readable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first = tmp_path / "first.py"
+    first.write_text("def setup(baldric):\n    pass\n", encoding="utf-8")
+    second = tmp_path / "second.py"
+    second.write_text("def setup(baldric):\n    pass\n", encoding="utf-8")
+    extensions_dir = tmp_path / "extensions"
+    install_extension(str(first), extensions_dir=extensions_dir)
+    registry = registry_path(extensions_dir)
+    before = registry.read_text(encoding="utf-8")
+
+    import baldric_coding.utils.atomic as atomic_utils
+
+    def failing_fsync(descriptor: int) -> None:
+        del descriptor
+        raise OSError("disk full")
+
+    # The atomic writer fsyncs before replacing, so interrupting the registry
+    # write must leave the previous complete registry in place.
+    monkeypatch.setattr(atomic_utils.os, "fsync", failing_fsync)
+
+    with pytest.raises(ExtensionInstallError, match="disk full"):
+        install_extension(str(second), extensions_dir=extensions_dir)
+
+    assert registry.read_text(encoding="utf-8") == before
+    assert list(read_extension_registry(extensions_dir)) == ["first.py"]
+    assert list(extensions_dir.glob(f".{registry.name}.*.tmp")) == []
+
+
+def test_corrupt_registry_is_preserved_as_backup_instead_of_cleared(tmp_path: Path) -> None:
+    extensions_dir = tmp_path / "extensions"
+    extensions_dir.mkdir()
+    registry = registry_path(extensions_dir)
+    registry.write_text("{not valid json", encoding="utf-8")
+
+    assert read_extension_registry(extensions_dir) == {}
+
+    backup = registry.with_name(f"{registry.name}{EXTENSION_REGISTRY_CORRUPT_SUFFIX}")
+    assert backup.read_text(encoding="utf-8") == "{not valid json"
+
+    # A later successful write must not erase the preserved recovery copy.
+    source = tmp_path / "hello.py"
+    source.write_text("def setup(baldric):\n    pass\n", encoding="utf-8")
+    install_extension(str(source), extensions_dir=extensions_dir)
+
+    assert backup.read_text(encoding="utf-8") == "{not valid json"
+    assert list(read_extension_registry(extensions_dir)) == ["hello.py"]
 
 
 def test_update_refreshes_managed_git_extension(tmp_path: Path) -> None:

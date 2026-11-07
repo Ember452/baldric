@@ -953,14 +953,14 @@ async def test_builtin_source_lifecycle_is_generation_local(tmp_path: Path) -> N
     assert runtime.extension_names == ()
     assert runtime.local_backend_registry.effective("llama.cpp") is not None
 
-    runtime.reset_for_reload()
+    # Real /reload stages a fresh runtime before retiring the outgoing one.
+    staged_runtime, _, _ = _runtime(tmp_path)
+    runtime.retire()
+
     assert old_registry.effective("llama.cpp") is None
-    runtime.load(
-        BaldricResourcePaths(root=tmp_path / "baldric", agents_root=tmp_path / "agents"),
-        include_resource_dirs=False,
-        include_user_dir=False,
-    )
-    assert runtime.provider_registry.effective("llama.cpp") is not None
+    assert staged_runtime.provider_registry.generation_id != old_registry.generation_id
+    assert staged_runtime.provider_registry.effective("llama.cpp") is not None
+    await staged_runtime.aclose()
     await runtime.aclose()
 
 

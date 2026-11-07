@@ -33,9 +33,11 @@ from baldric_coding import (
 )
 from baldric_coding.context.system_prompt import PromptSection
 from baldric_coding.extensions import (
+    EXTENSION_API_VERSION,
     CustomMessageView,
     DynamicProvider,
     ExtensionAPI,
+    ExtensionCapabilities,
     ExtensionError,
     ExtensionRuntime,
     InputEvent,
@@ -504,6 +506,95 @@ def test_async_setup_is_rejected(tmp_path: Path) -> None:
 
     assert result.extensions == ()
     assert any("sync function" in diag.message for diag in result.diagnostics)
+
+
+def test_extension_declares_matching_api_version_and_capabilities(tmp_path: Path) -> None:
+    paths = _paths(tmp_path)
+    _write_extension(
+        _user_extensions_dir(paths),
+        "declared",
+        "from baldric_coding.extensions import EXTENSION_API_VERSION, ExtensionCapabilities\n"
+        "API_VERSION = EXTENSION_API_VERSION\n"
+        "CAPABILITIES = ExtensionCapabilities(ui=True, components=True, providers=True,"
+        " tools=True, hooks=True)\n"
+        "\n\n"
+        "def setup(baldric):\n    pass\n",
+    )
+
+    result = load_extensions(paths)
+
+    assert [extension.name for extension in result.extensions] == ["declared"]
+    loaded = result.extensions[0]
+    assert loaded.api_version == EXTENSION_API_VERSION
+    assert loaded.capabilities == ExtensionCapabilities(
+        ui=True,
+        components=True,
+        providers=True,
+        tools=True,
+        hooks=True,
+    )
+    assert loaded.capabilities.requires_textual is True
+    assert loaded.module_name is not None
+    assert loaded.module_name in sys.modules
+
+
+def test_extension_api_version_mismatch_is_rejected_with_diagnostic(tmp_path: Path) -> None:
+    paths = _paths(tmp_path)
+    _write_extension(
+        _user_extensions_dir(paths),
+        "future",
+        "API_VERSION = 999\n\n\ndef setup(baldric):\n    baldric.add_prompt_guideline('must not run')\n",
+    )
+
+    result = load_extensions(paths)
+
+    assert result.extensions == ()
+    assert len(result.diagnostics) == 1
+    diagnostic = result.diagnostics[0]
+    assert (diagnostic.name, diagnostic.severity) == ("future", "error")
+    assert "API_VERSION 999" in diagnostic.message
+    assert f"version {EXTENSION_API_VERSION}" in diagnostic.message
+    # A refused extension is not left registered with the importer.
+    assert not any(name.startswith("baldric_extension_future") for name in sys.modules)
+
+
+def test_extension_without_capabilities_gets_minimal_declaration(tmp_path: Path) -> None:
+    paths = _paths(tmp_path)
+    _write_extension(_user_extensions_dir(paths), "plain", "def setup(baldric):\n    pass\n")
+
+    result = load_extensions(paths)
+
+    assert [extension.name for extension in result.extensions] == ["plain"]
+    assert result.extensions[0].capabilities == ExtensionCapabilities.minimal()
+    assert result.extensions[0].capabilities.requires_textual is False
+
+
+def test_runtime_metadata_exposes_declared_contract(tmp_path: Path) -> None:
+    paths = _paths(tmp_path)
+    _write_extension(
+        _user_extensions_dir(paths),
+        "declared",
+        "from baldric_coding.extensions import ExtensionCapabilities\n"
+        "API_VERSION = 1\n"
+        "CAPABILITIES = ExtensionCapabilities(components=True)\n"
+        "\n\n"
+        "def setup(baldric):\n    pass\n",
+    )
+    runtime = ExtensionRuntime(built_in_extensions=())
+
+    runtime.load(paths)
+
+    metadata = runtime.extension_metadata[0]
+    assert metadata.api_version == EXTENSION_API_VERSION
+    assert metadata.capabilities == ExtensionCapabilities(components=True)
+    assert metadata.capabilities.requires_textual is True
+    runtime.retire()
+
+
+def test_capabilities_mark_textual_components_explicitly() -> None:
+    assert EXTENSION_API_VERSION == 1
+    assert ExtensionCapabilities().requires_textual is False
+    assert ExtensionCapabilities(components=True).requires_textual is True
 
 
 def test_underscore_files_are_skipped(tmp_path: Path) -> None:
@@ -2968,36 +3059,44 @@ async def test_session_swap_clears_host_extension_components(tmp_path: Path) -> 
     assert ("clear_components", (), {}) in ui.calls
 
 
-def test_reset_for_reload_clears_host_extension_components() -> None:
+async def test_reload_clears_host_extension_components(tmp_path: Path) -> None:
     # /reload replaces the registration set; host-side extension UI (slot
     # widgets, main views, key interceptors) belongs to the stale generation
     # and must be torn down with it, or interceptors accumulate per reload.
+    session = await CodingSession.load(_session_config(tmp_path, FakeProvider([])))
     ui = RecordingUiBridge()
-    runtime = ExtensionRuntime(ui=ui)
-    _register_inline_extension(runtime, "old")
+    session.extension_runtime.set_ui_bridge(ui)
 
-    runtime.reset_for_reload()
+    await session.reload()
 
     assert ("clear_components", (), {}) in ui.calls
+    await session.aclose()
 
 
-def test_reset_for_reload_invalidates_only_after_component_cleanup() -> None:
-    runtime = ExtensionRuntime()
-    api = cast(ExtensionAPI, _register_inline_extension(runtime, "old"))
+async def test_reload_clears_components_before_invalidating_old_api(tmp_path: Path) -> None:
+    session = await CodingSession.load(
+        _session_config(tmp_path, FakeProvider([]), extension_body=API_CAPTURING_EXTENSION)
+    )
+    module = _loaded_extension_module("integration")
+    old_api = cast(ExtensionAPI, vars(module)["APIS"][-1])
     observed_active: list[bool] = []
 
     class CleanupBridge(RecordingUiBridge):
         def clear_components(self) -> None:
-            observed_active.append(api.name == "old")
+            observed_active.append(old_api.name == "integration")
             super().clear_components()
 
-    runtime.set_ui_bridge(CleanupBridge())
+    session.extension_runtime.set_ui_bridge(CleanupBridge())
 
-    runtime.reset_for_reload()
+    await session.reload()
 
     assert observed_active == [True]
     with pytest.raises(ExtensionError, match="stale after reload"):
-        _ = api.name
+        _ = old_api.name
+    # Keep the observing bridge out of the final close's own component cleanup,
+    # which runs after the generation is legitimately stale.
+    session.extension_runtime.set_ui_bridge(RecordingUiBridge())
+    await session.aclose()
 
 
 def test_extension_can_read_and_change_inference_provider(tmp_path: Path) -> None:
@@ -3022,12 +3121,14 @@ def test_extension_can_read_and_change_inference_provider(tmp_path: Path) -> Non
 API_CAPTURING_EXTENSION = "APIS = []\n\n\ndef setup(baldric):\n    APIS.append(baldric)\n"
 
 
-def test_reset_for_reload_invalidates_prior_api_actions(tmp_path: Path) -> None:
-    runtime = ExtensionRuntime()
-    api = cast(ExtensionAPI, _register_inline_extension(runtime, "old"))
-    runtime.bind(RecordingSession(tmp_path))
+async def test_reload_invalidates_prior_api_actions(tmp_path: Path) -> None:
+    session = await CodingSession.load(
+        _session_config(tmp_path, FakeProvider([]), extension_body=API_CAPTURING_EXTENSION)
+    )
+    module = _loaded_extension_module("integration")
+    api = cast(ExtensionAPI, vars(module)["APIS"][-1])
 
-    runtime.reset_for_reload()
+    await session.reload()
 
     with pytest.raises(ExtensionError, match="stale after reload"):
         api.send_user_message("zombie")
@@ -3037,18 +3138,22 @@ def test_reset_for_reload_invalidates_prior_api_actions(tmp_path: Path) -> None:
         api.on("input", lambda event, context: None)
     with pytest.raises(ExtensionError, match="stale after reload"):
         api.notify("zombie")
+    await session.aclose()
 
 
-async def test_reset_for_reload_invalidates_prior_context_and_ui(tmp_path: Path) -> None:
-    runtime = ExtensionRuntime(ui=RecordingUiBridge())
-    api = cast(ExtensionAPI, _register_inline_extension(runtime, "old"))
-    runtime.bind(RecordingSession(tmp_path))
+async def test_reload_invalidates_prior_context_and_ui(tmp_path: Path) -> None:
+    session = await CodingSession.load(
+        _session_config(tmp_path, FakeProvider([]), extension_body=API_CAPTURING_EXTENSION)
+    )
+    module = _loaded_extension_module("integration")
+    api = cast(ExtensionAPI, vars(module)["APIS"][-1])
+    session.extension_runtime.set_ui_bridge(RecordingUiBridge())
     context = api.context
     ui = context.ui
-    assert context.cwd == tmp_path
+    assert context.cwd == session.cwd
     assert ui.has_ui is True
 
-    runtime.reset_for_reload()
+    await session.reload()
 
     with pytest.raises(ExtensionError, match="stale after reload"):
         _ = context.cwd
@@ -3072,6 +3177,7 @@ async def test_reset_for_reload_invalidates_prior_context_and_ui(tmp_path: Path)
         _ = ui.components
     with pytest.raises(ExtensionError, match="stale after reload"):
         _ = ui.sidebar
+    await session.aclose()
 
 
 async def test_reload_invalidates_old_instance_and_new_instance_works(
@@ -3165,6 +3271,90 @@ async def test_reload_awaits_shutdown_before_invalidation_and_starts_new_generat
     assert status_sets[-1] > clears[-1]
 
 
+async def test_reload_unloads_previous_extension_modules_only(tmp_path: Path) -> None:
+    session = await CodingSession.load(
+        _session_config(tmp_path, FakeProvider([]), extension_body=API_CAPTURING_EXTENSION)
+    )
+    old_module = _loaded_extension_module("integration")
+    host_modules = ("baldric_coding.extensions.runtime", "baldric_coding.extensions.api")
+    assert all(name in sys.modules for name in host_modules)
+
+    await session.reload()
+
+    assert old_module.__name__ not in sys.modules
+    # The per-load unload never sweeps host modules, even if one is passed in.
+    from baldric_coding.extensions.loader import unload_extension_modules
+
+    assert unload_extension_modules(("baldric_coding.extensions.runtime",)) == 0
+    assert all(name in sys.modules for name in host_modules)
+    new_module = _loaded_extension_module("integration")
+    assert new_module is not old_module
+    new_api = cast(ExtensionAPI, vars(new_module)["APIS"][-1])
+    assert new_api.name == "integration"
+    await session.aclose()
+
+
+FAILING_SETUP_EXTENSION = """
+EVENTS = []
+
+
+def setup(baldric):
+    baldric.on('session_shutdown', lambda event, context: EVENTS.append(event.reason))
+    baldric.add_prompt_guideline('rolled back after failure')
+    raise RuntimeError('setup exploded')
+"""
+
+
+def test_failed_setup_extension_is_removed_but_retained_for_shutdown(tmp_path: Path) -> None:
+    paths = _paths(tmp_path)
+    _write_extension(_user_extensions_dir(paths), "broken", FAILING_SETUP_EXTENSION)
+    runtime = ExtensionRuntime(built_in_extensions=())
+    runtime.load(paths)
+
+    assert runtime.extension_names == ()
+    assert runtime.prompt_guidelines == ()
+    assert any(
+        diagnostic.name == "broken" and "setup failed" in diagnostic.message
+        for diagnostic in runtime.diagnostics
+    )
+
+    runtime.retire()
+
+
+async def test_failed_setup_extension_still_receives_shutdown(tmp_path: Path) -> None:
+    paths = _paths(tmp_path)
+    _write_extension(_user_extensions_dir(paths), "broken", FAILING_SETUP_EXTENSION)
+    runtime = ExtensionRuntime(built_in_extensions=())
+    runtime.load(paths)
+    module = _loaded_extension_module("broken")
+
+    await runtime.emit_session_shutdown("quit")
+
+    assert vars(module)["EVENTS"] == ["quit"]
+    # The failed extension is dropped after its shutdown, so a second emit
+    # cannot deliver events to a retired extension.
+    await runtime.emit_session_shutdown("quit")
+    assert vars(module)["EVENTS"] == ["quit"]
+    module_name = module.__name__
+    await runtime.aclose()
+    assert module_name not in sys.modules
+
+
+async def test_session_close_delivers_shutdown_to_failed_setup_extension(tmp_path: Path) -> None:
+    session = await CodingSession.load(
+        _session_config(tmp_path, FakeProvider([]), extension_body=FAILING_SETUP_EXTENSION)
+    )
+    module = _loaded_extension_module("integration")
+    assert vars(module)["EVENTS"] == []
+    assert any("setup failed" in diagnostic.message for diagnostic in session.resource_diagnostics)
+
+    await session.aclose()
+
+    # The real close path awaits session_shutdown before retiring the runtime,
+    # so the failed extension's cleanup callback runs exactly once.
+    assert vars(module)["EVENTS"] == ["quit"]
+
+
 async def test_session_replacement_rebuilds_and_invalidates_source_extensions(
     tmp_path: Path,
 ) -> None:
@@ -3211,7 +3401,10 @@ async def test_inflight_handler_touching_stale_api_records_diagnostic(
 
     hooks = asyncio.ensure_future(runtime.run_input_hooks("hello"))
     await asyncio.sleep(0)  # let the handler start and park on the event
-    runtime.reset_for_reload()
+    # ``retire()`` is the invalidation step the real /reload path runs
+    # (session/lifecycle.py retires the outgoing runtime), so the captured API
+    # turns stale mid-flight exactly as it would across a real reload.
+    runtime.retire()
     release.set()
     outcome = await hooks
 
@@ -3457,13 +3650,15 @@ def test_render_custom_message_rejects_non_string_result(tmp_path: Path) -> None
     assert runtime.render_custom_message("wrong", "raw", None, False) is None
 
 
-def test_message_renderers_cleared_on_reload(tmp_path: Path) -> None:
+def test_message_renderers_cleared_on_runtime_retire(tmp_path: Path) -> None:
     runtime = ExtensionRuntime()
     api = _inline_api(runtime, "notifier")
     api.register_message_renderer("t", lambda view, options: "rendered")
     assert runtime.render_custom_message("t", "x", None, False) == "rendered"
 
-    runtime.reset_for_reload()
+    # retire() is the step the real /reload path runs after the outgoing
+    # runtime's awaited session_shutdown; it drops the generation's renderers.
+    runtime.retire()
 
     assert runtime.render_custom_message("t", "x", None, False) is None
 
@@ -3568,7 +3763,7 @@ def test_extension_info_reports_load_scope(tmp_path: Path) -> None:
     assert all(info.status == "loaded" for info in runtime.extension_info)
 
 
-def test_extension_info_is_cleared_on_reload_reset(tmp_path: Path) -> None:
+def test_extension_info_is_cleared_on_runtime_retire(tmp_path: Path) -> None:
     paths = _paths(tmp_path)
     user_dir = _user_extensions_dir(paths)
     user_dir.mkdir(parents=True)
@@ -3577,6 +3772,6 @@ def test_extension_info_is_cleared_on_reload_reset(tmp_path: Path) -> None:
     runtime.load(paths)
     assert runtime.extension_info
 
-    runtime.reset_for_reload()
+    runtime.retire()
 
     assert runtime.extension_info == ()

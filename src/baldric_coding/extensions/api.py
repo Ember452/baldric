@@ -51,6 +51,15 @@ AGENT_EVENT_TYPES: frozenset[str] = frozenset(
 )
 AGENT_EVENT_WILDCARD = "agent_event"
 
+# Version of the extension-facing contract in this module. Baldric documents a
+# third-party extension ecosystem, so the public API is explicitly versioned:
+# an extension declares ``API_VERSION = EXTENSION_API_VERSION`` at module level
+# and the loader refuses any other version instead of letting the extension
+# break later against a changed runtime. Pi deliberately keeps no backward
+# compatibility and therefore has no constant; Baldric's ecosystem promise is
+# why this one exists.
+EXTENSION_API_VERSION = 1
+
 LIFECYCLE_EVENT_TYPES: frozenset[str] = frozenset(
     {
         "session_start",
@@ -65,6 +74,46 @@ LIFECYCLE_EVENT_TYPES: frozenset[str] = frozenset(
 SessionLifecycleReason = Literal["startup", "reload", "new", "resume", "branch", "quit"]
 DeliverAs = Literal["steer", "follow_up"]
 NotifyLevel = Literal["info", "warning", "error"]
+
+
+@dataclass(frozen=True, slots=True)
+class ExtensionCapabilities:
+    """Optional host surfaces an extension declares in its extension module.
+
+    An extension declares ``CAPABILITIES = ExtensionCapabilities(...)`` next to
+    its ``API_VERSION``. These are contract metadata (which surfaces the
+    extension relies on), not a runtime permission system: the host uses them to
+    describe compatibility and reviewers use them to see where an extension is
+    coupled to the frontend. A missing declaration means
+    :meth:`minimal` (nothing declared).
+
+    ``components`` is the capability that makes Textual part of the extension's
+    public contract: slot widgets, main views, and key interceptors carry
+    ``textual.widget.Widget``/Textual event values. Extensions that only
+    register tools, hooks, commands, providers, or plain-text UI never need
+    Textual.
+    """
+
+    ui: bool = False
+    components: bool = False
+    providers: bool = False
+    tools: bool = False
+    hooks: bool = False
+
+    def __post_init__(self) -> None:
+        for name in ("ui", "components", "providers", "tools", "hooks"):
+            if not isinstance(getattr(self, name), bool):
+                raise TypeError(f"Extension capability `{name}` must be a boolean")
+
+    @classmethod
+    def minimal(cls) -> ExtensionCapabilities:
+        """Return the all-off declaration used when an extension omits it."""
+        return cls()
+
+    @property
+    def requires_textual(self) -> bool:
+        """Return whether this declaration pulls Textual into the contract."""
+        return self.components
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,8 +138,10 @@ class MessageRenderOptions:
 
 
 # A message renderer returns a Rich-markup (or plain) string, NOT a Textual
-# widget, so extensions never import the TUI toolkit (deviation from Pi's
-# ``Component`` return; see the phase-21 custom-renderer Ruling).
+# widget: message rendering stays frontend-data-only (deviation from Pi's
+# ``Component`` return; see the phase-21 custom-renderer Ruling). Textual's
+# ``Widget`` enters an extension's contract only through the ``components``
+# capability (``ExtensionCapabilities.components``), never through renderers.
 MessageRenderer = Callable[[CustomMessageView, MessageRenderOptions], str]
 
 # Host-side resolver installed into render paths: given a custom message's
@@ -116,9 +167,12 @@ ToolResultMarkup = Callable[[str, AgentToolResult, bool], "str | None"]
 # into host-owned slots and a main-area view, and intercept keys pre-dispatch
 # (before the host's priority bindings and the focused widget). The "component"
 # type is Textual's own ``Widget`` (referenced only under TYPE_CHECKING so
-# print-mode stays import-clean): Textual is deliberately part of the public
-# extension contract. Extensions build against the Textual version baldric pins; a
-# Textual major bump is a coordinated break for core and extensions together.
+# print-mode stays import-clean). Textual is deliberately part of the public
+# extension contract, but only for extensions that declare the ``components``
+# capability (``ExtensionCapabilities.components``); an extension that never
+# touches this seam needs no Textual at all. Extensions that do build widgets
+# target the Textual version baldric pins; a Textual major bump is a coordinated
+# break for core and components extensions together.
 # History and measured trade-offs: dev-notes/design/component-seam-experiment.md.
 # It replaced the older transcript-source seam, which Step 3 removed from core.
 
@@ -861,7 +915,10 @@ class ExtensionUi:
     def components(self) -> ComponentBridge:
         """Return the host widget-hosting capability.
 
-        Straight pass-through to the installed UI bridge, which implements the
+        Using this seam is the one place an extension needs Textual, so an
+        extension that reaches it must declare
+        ``ExtensionCapabilities(components=True)`` in its module. Straight
+        pass-through to the installed UI bridge, which implements the
         :class:`ComponentBridge` members (the TUI hosts real widgets; the
         print-mode bridges are no-ops with ``supports_components == False``).
         Gate widget work on ``context.ui.components.supports_components``.
@@ -1268,3 +1325,5 @@ class RegisteredExtension:
     source: Literal["built-in", "user", "explicit", "project"] = "explicit"
     hidden: bool = False
     handlers: dict[str, list[ExtensionHandler]] = field(default_factory=dict)
+    api_version: int = EXTENSION_API_VERSION
+    capabilities: ExtensionCapabilities = field(default_factory=ExtensionCapabilities)

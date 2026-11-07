@@ -5,15 +5,21 @@ from __future__ import annotations
 import sys
 import tomllib
 from collections.abc import Callable, Iterator, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from importlib.util import module_from_spec, spec_from_file_location
 from inspect import iscoroutinefunction
 from pathlib import Path
 from typing import Literal
 
 from baldric_coding.context.resources import BaldricResourcePaths, ResourceDiagnostic
+from baldric_coding.extensions.api import EXTENSION_API_VERSION, ExtensionCapabilities
 
 EXTENSION_ENTRY_ATTRIBUTE = "setup"
+# Module-level declarations a filesystem extension uses to declare its contract.
+# Both are optional: a missing declaration means "current version, minimal
+# capabilities" so existing extensions keep loading unchanged.
+EXTENSION_API_VERSION_ATTRIBUTE = "API_VERSION"
+EXTENSION_CAPABILITIES_ATTRIBUTE = "CAPABILITIES"
 _MODULE_NAME_PREFIX = "baldric_extension"
 
 _load_counter = 0
@@ -43,6 +49,12 @@ class LoadedExtension:
     setup: Callable[..., object]
     source: ExtensionSource = "explicit"
     hidden: bool = False
+    # Namespace of the module this load imported, recorded so retirement can
+    # remove exactly this generation's modules from ``sys.modules`` (the module
+    # name is unique per load; submodules share the prefix with a dot).
+    module_name: str | None = None
+    api_version: int = EXTENSION_API_VERSION
+    capabilities: ExtensionCapabilities = field(default_factory=ExtensionCapabilities)
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +66,8 @@ class ExtensionSourceMetadata:
     source: ExtensionSource
     hidden: bool
     path: Path | None
+    api_version: int = EXTENSION_API_VERSION
+    capabilities: ExtensionCapabilities = field(default_factory=ExtensionCapabilities)
 
 
 @dataclass(frozen=True, slots=True)
@@ -306,6 +320,11 @@ def _manifest_entries(directory: Path, diagnostics: list[ResourceDiagnostic]) ->
     return entries
 
 
+def _discard_extension_module(module_name: str) -> None:
+    """Remove a refused extension import, including its package submodules."""
+    unload_extension_modules((module_name,))
+
+
 def _load_extension(
     entry: DiscoveredExtension,
     *,
@@ -331,12 +350,19 @@ def _load_extension(
     try:
         spec.loader.exec_module(module)
     except BaseException as exc:  # noqa: BLE001 - extensions are an isolation boundary
-        del sys.modules[module_name]
+        _discard_extension_module(module_name)
         return None, [_error_diagnostic(entry, f"failed to import extension: {exc!r}")]
+
+    contract, capability_diagnostic = _declared_contract(entry, module)
+    if capability_diagnostic is not None:
+        _discard_extension_module(module_name)
+        return None, [capability_diagnostic]
+    assert contract is not None
+    api_version, capabilities = contract
 
     setup = getattr(module, EXTENSION_ENTRY_ATTRIBUTE, None)
     if not callable(setup):
-        del sys.modules[module_name]
+        _discard_extension_module(module_name)
         return None, [
             _error_diagnostic(
                 entry,
@@ -344,7 +370,7 @@ def _load_extension(
             )
         ]
     if iscoroutinefunction(setup):
-        del sys.modules[module_name]
+        _discard_extension_module(module_name)
         return None, [
             _error_diagnostic(
                 entry,
@@ -358,19 +384,67 @@ def _load_extension(
         source_id=source_id,
         setup=setup,
         source=entry.source,
+        module_name=module_name,
+        api_version=api_version,
+        capabilities=capabilities,
     ), []
 
 
-def unload_extension_modules() -> int:
-    """Remove previously imported extension modules from `sys.modules`.
+def _declared_contract(
+    entry: DiscoveredExtension,
+    module: object,
+) -> tuple[tuple[int, ExtensionCapabilities] | None, ResourceDiagnostic | None]:
+    """Validate the API version and capabilities an extension module declares.
 
-    Used by reload so re-discovered extensions import fresh module objects.
-    Returns the number of modules removed.
+    A mismatch is a load-time refusal with a diagnostic, never a crash and never
+    a silent continue: the extension's code was written against a contract this
+    host does not implement, so running its setup would fail unpredictably later.
     """
-    stale = [name for name in sys.modules if name.startswith(f"{_MODULE_NAME_PREFIX}_")]
-    for name in stale:
-        del sys.modules[name]
-    return len(stale)
+    declared_version = getattr(module, EXTENSION_API_VERSION_ATTRIBUTE, EXTENSION_API_VERSION)
+    if isinstance(declared_version, bool) or not isinstance(declared_version, int):
+        return None, _error_diagnostic(
+            entry,
+            f"`{EXTENSION_API_VERSION_ATTRIBUTE}` must be an integer",
+        )
+    if declared_version != EXTENSION_API_VERSION:
+        return None, _error_diagnostic(
+            entry,
+            f"extension declares {EXTENSION_API_VERSION_ATTRIBUTE} {declared_version}, but this host"
+            f" implements extension API version {EXTENSION_API_VERSION}; refusing to load it",
+        )
+    declared_capabilities = getattr(module, EXTENSION_CAPABILITIES_ATTRIBUTE, None)
+    if declared_capabilities is None:
+        capabilities = ExtensionCapabilities.minimal()
+    elif isinstance(declared_capabilities, ExtensionCapabilities):
+        capabilities = declared_capabilities
+    else:
+        return None, _error_diagnostic(
+            entry,
+            f"`{EXTENSION_CAPABILITIES_ATTRIBUTE}` must be an ExtensionCapabilities value",
+        )
+    return (declared_version, capabilities), None
+
+
+def unload_extension_modules(module_names: Sequence[str]) -> int:
+    """Remove the modules imported by one extension load from `sys.modules`.
+
+    ``module_names`` is the per-load set recorded on :class:`LoadedExtension`
+    (generation-unique names under the ``baldric_extension_`` prefix). Only those
+    names and their package submodules are removed, so the host's own modules
+    (``baldric_coding.*`` and friends) are never touched. Returns the number of
+    module entries removed.
+    """
+    removed = 0
+    for root in dict.fromkeys(module_names):
+        # Fail safe: only this loader's namespaced modules are ever candidates,
+        # so a caller mistake can never unload a host module.
+        if not root.startswith(f"{_MODULE_NAME_PREFIX}_"):
+            continue
+        stale = [name for name in sys.modules if name == root or name.startswith(f"{root}.")]
+        for name in stale:
+            del sys.modules[name]
+            removed += 1
+    return removed
 
 
 def _error_diagnostic(entry: DiscoveredExtension, message: str) -> ResourceDiagnostic:

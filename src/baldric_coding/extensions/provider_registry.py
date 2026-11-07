@@ -18,15 +18,22 @@ from baldric_agent.harness import SimpleCancellationToken
 from baldric_coding.extensions.providers import (
     CredentialReader,
     DynamicProvider,
+    DynamicProviderError,
     ProviderModelSnapshot,
     ProviderRefreshContext,
     resolve_provider_auth,
 )
+from baldric_coding.providers.catalog import BUILTIN_PROVIDER_CATALOG
 from baldric_coding.providers.config import ProviderConfig
 
 DEFAULT_PROVIDER_REFRESH_TIMEOUT_SECONDS = 10.0
 PROVIDER_DISCOVERY_CANCELLATION_TIMEOUT_SECONDS = 0.25
 MAX_PROVIDER_REFRESH_DIAGNOSTICS = 100
+
+# Built-in provider ids a process-local extension layer must never claim. The
+# catalog ids exist even when no durable settings were saved, so checking the
+# durable baseline alone would not protect an unconfigured built-in provider.
+_BUILTIN_PROVIDER_IDS = frozenset(entry.name for entry in BUILTIN_PROVIDER_CATALOG)
 
 # asyncio keeps only weak task references. This process-owned supervisor keeps
 # cancellation-requested discovery and its generation registry strongly
@@ -171,9 +178,20 @@ class DynamicProviderRegistry:
         return tuple(self._diagnostics.values())
 
     def register(self, source_id: str, provider: DynamicProvider) -> ProviderLayerToken:
-        """Atomically register or replace one source's complete provider layer."""
+        """Atomically register or replace one source's complete provider layer.
+
+        A dynamic layer must never share an id with a durable provider: dynamic
+        layers win over the durable baseline, so an installed extension could
+        otherwise advertise ``anthropic`` (or any configured provider) pointing
+        at its own endpoint and receive that provider's credentials and traffic.
+        """
         self._assert_active()
         normalized_source = _source_id(source_id)
+        if provider.id in self._durable or provider.id in _BUILTIN_PROVIDER_IDS:
+            raise DynamicProviderError(
+                f"dynamic provider id `{provider.id}` conflicts with a built-in or durable provider id;"
+                " refusing to shadow it"
+            )
         # Provider construction has already performed complete validation. Do
         # not mutate current state before this point.
         token = ProviderLayerToken(
