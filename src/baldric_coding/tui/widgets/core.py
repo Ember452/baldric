@@ -31,6 +31,7 @@ from baldric_coding.context.system_prompt import (
     SystemPromptSource,
 )
 from baldric_coding.rendering.diffs import render_patch
+from baldric_coding.rendering.grouping import format_tool_run_summary, should_summarize
 from baldric_coding.rendering.tool_calls import format_tool_call_invocation
 from baldric_coding.tui.autocomplete import CompletionState
 from baldric_coding.tui.config import BALDRIC_DARK_THEME, TuiRoleStyle, TuiTheme
@@ -1599,8 +1600,17 @@ def _render_transcript_tool_batch(
     expanded: bool,
 ) -> Text:
     """Render a batch as one selectable Text value with per-row style spans."""
+    rows = item.tool_batch_items or []
     rendered = Text(style=body_style, overflow="fold", no_wrap=False)
-    for index, row in enumerate(item.tool_batch_items or []):
+    if not expanded and should_summarize(len(rows)):
+        # A count head gives long collapsed runs a scannable shape; expanding
+        # shows the full rows again, so nothing is lost.
+        rendered.append(
+            format_tool_run_summary(row.tool_name for row in rows),
+            style=theme.muted_text,
+        )
+        rendered.append("\n", style=body_style)
+    for index, row in enumerate(rows):
         if index:
             rendered.append("\n\n" if expanded else "\n", style=body_style)
         rendered.append(
