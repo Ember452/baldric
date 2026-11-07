@@ -17,8 +17,8 @@
       "max_function_stmts": 0
     },
     "src/baldric_agent/harness.py": {
-      "lines": 334,
-      "max_function_stmts": 7
+      "lines": 344,
+      "max_function_stmts": 9
     },
     "src/baldric_agent/loop.py": {
       "lines": 260,
@@ -237,8 +237,8 @@
       "max_function_stmts": 5
     },
     "src/baldric_coding/commands/registry.py": {
-      "lines": 281,
-      "max_function_stmts": 28
+      "lines": 304,
+      "max_function_stmts": 30
     },
     "src/baldric_coding/commands/resources.py": {
       "lines": 94,
@@ -313,15 +313,19 @@
       "max_function_stmts": 9
     },
     "src/baldric_coding/events.py": {
-      "lines": 91,
+      "lines": 84,
       "max_function_stmts": 0
+    },
+    "src/baldric_coding/events_dispatch.py": {
+      "lines": 58,
+      "max_function_stmts": 4
     },
     "src/baldric_coding/extensions/__init__.py": {
       "lines": 249,
       "max_function_stmts": 0
     },
     "src/baldric_coding/extensions/api.py": {
-      "lines": 1329,
+      "lines": 1328,
       "max_function_stmts": 9
     },
     "src/baldric_coding/extensions/builtin_registry.py": {
@@ -713,11 +717,11 @@
       "max_function_stmts": 0
     },
     "src/baldric_coding/tui/adapter.py": {
-      "lines": 205,
-      "max_function_stmts": 14
+      "lines": 355,
+      "max_function_stmts": 16
     },
     "src/baldric_coding/tui/app.py": {
-      "lines": 4472,
+      "lines": 4471,
       "max_function_stmts": 61
     },
     "src/baldric_coding/tui/autocomplete.py": {
