@@ -1063,8 +1063,14 @@ def test_tool_chat_items_hide_and_show_result_text() -> None:
 
 
 EDIT_TOOL_RESULT_WITH_PATCH = (
-    "✓ edit\nSuccessfully replaced 1 block.\n\nPatch:\n--- a/README.md\n+++ b/README.md\n@@\n-old\n+new"
+    "✓ edit\nSuccessfully replaced 1 block.\n\n"
+    "Patch:\n--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+new"
 )
+
+
+def _sgr_rgb(hex_color: str) -> str:
+    value = Color.parse(hex_color)
+    return f"38;2;{value.r};{value.g};{value.b}"
 
 
 def test_expanded_edit_tool_result_renders_patch_as_colored_diff() -> None:
@@ -1080,10 +1086,18 @@ def test_expanded_edit_tool_result_renders_patch_as_colored_diff() -> None:
     plain = console.export_text(clear=False)
     styled = console.export_text(styles=True)
     assert "Patch:" in plain
-    assert "-old" in plain
-    assert "+new" in plain
-    assert re.search(r"\x1b\[91;[^m]*m-old", styled)
-    assert re.search(r"\x1b\[92;[^m]*m\+new", styled)
+    # The structured diff renders a gutter, signs, and the file header.
+    assert "a/README.md" in plain
+    assert "- old" in plain
+    assert "+ new" in plain
+    error = _sgr_rgb(BALDRIC_DARK_THEME.tool_error_text)
+    success = _sgr_rgb(BALDRIC_DARK_THEME.tool_success_text)
+    assert error in styled
+    assert success in styled
+    # Word-level emphasis: rich combines bold with the line color on the
+    # changed token.
+    assert f"1;{error}" in styled
+    assert f"1;{success}" in styled
 
 
 def test_transcript_plain_tool_body_renders_patch_as_colored_diff() -> None:
@@ -1106,10 +1120,17 @@ def test_transcript_plain_tool_body_renders_patch_as_colored_diff() -> None:
     plain = console.export_text(clear=False)
     styled = console.export_text(styles=True)
     assert "Patch:" in plain
-    assert "-old" in plain
-    assert "+new" in plain
-    assert re.search(r"\x1b\[91;[^m]*m-old", styled)
-    assert re.search(r"\x1b\[92;[^m]*m\+new", styled)
+    assert "a/README.md" in plain
+    assert "- old" in plain
+    assert "+ new" in plain
+    error = _sgr_rgb(BALDRIC_DARK_THEME.tool_error_text)
+    success = _sgr_rgb(BALDRIC_DARK_THEME.tool_success_text)
+    assert error in styled
+    assert success in styled
+    # Word-level emphasis: rich combines bold with the line color on the
+    # changed token.
+    assert f"1;{error}" in styled
+    assert f"1;{success}" in styled
 
 
 def test_thinking_chat_items_use_distinct_style_and_markdown() -> None:

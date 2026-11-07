@@ -30,6 +30,7 @@ from baldric_agent.tools import ToolCall
 from baldric_coding.context.system_prompt import (
     SystemPromptSource,
 )
+from baldric_coding.rendering.diffs import render_patch
 from baldric_coding.rendering.tool_calls import format_tool_call_invocation
 from baldric_coding.tui.autocomplete import CompletionState
 from baldric_coding.tui.config import BALDRIC_DARK_THEME, TuiRoleStyle, TuiTheme
@@ -1406,8 +1407,7 @@ def _transcript_plain_body_text(
     patch_body = _render_patch_body(
         result_text,
         body_style=body_style,
-        syntax_theme=theme.syntax_theme,
-        code_block_background=theme.markdown_code_block_background,
+        theme=theme,
     )
     if patch_body is not None:
         return Group(invocation_text, Text(""), patch_body)
@@ -1754,8 +1754,7 @@ def _render_chat_body(
     patch_body = _render_patch_body(
         text,
         body_style=body_style,
-        syntax_theme=syntax_theme,
-        code_block_background=theme.markdown_code_block_background,
+        theme=theme,
     )
     if patch_body is not None:
         return patch_body
@@ -1791,8 +1790,7 @@ def _render_patch_body(
     text: str,
     *,
     body_style: str,
-    syntax_theme: str,
-    code_block_background: str,
+    theme: TuiTheme,
 ) -> RenderableType | None:
     marker = "\nPatch:\n"
     if marker not in text:
@@ -1800,15 +1798,23 @@ def _render_patch_body(
     before_patch, patch = text.split(marker, 1)
     if not patch.strip():
         return None
+    rendered = render_patch(patch, theme=theme)
+    if rendered is None:
+        # Not a parseable unified diff (e.g. a preview cut mid-hunk); keep
+        # the old flat block so the text is never lost.
+        return Group(
+            _plain_text(f"{before_patch}{marker.rstrip()}", body_style=body_style),
+            Syntax(
+                patch.rstrip("\n"),
+                "diff",
+                theme=theme.syntax_theme,
+                word_wrap=True,
+                background_color=theme.markdown_code_block_background,
+            ),
+        )
     return Group(
         _plain_text(f"{before_patch}{marker.rstrip()}", body_style=body_style),
-        Syntax(
-            patch.rstrip("\n"),
-            "diff",
-            theme=syntax_theme,
-            word_wrap=True,
-            background_color=code_block_background,
-        ),
+        rendered,
     )
 
 
