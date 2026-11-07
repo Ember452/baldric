@@ -476,7 +476,8 @@ def test_session_manager_index_write_keeps_the_previous_file_when_replace_fails(
     monkeypatch.setattr("baldric_coding.utils.atomic.os.replace", fail_replace)
 
     with pytest.raises(OSError, match="replace failed"):
-        manager.touch_session(record.id)
+        # A metadata change forces the write; a timestamp-only touch is throttled.
+        manager.touch_session(record.id, model="different-model")
 
     assert index_path.read_text(encoding="utf-8") == before
     assert list(index_path.parent.glob("*.tmp")) == []

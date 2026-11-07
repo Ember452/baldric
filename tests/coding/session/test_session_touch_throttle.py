@@ -33,9 +33,7 @@ def index_writes(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
     return writes
 
 
-def test_a_timestamp_only_touch_does_not_rewrite_the_index(
-    tmp_path: Path, index_writes: list[Path]
-) -> None:
+def test_a_timestamp_only_touch_does_not_rewrite_the_index(tmp_path: Path, index_writes: list[Path]) -> None:
     manager = _manager(tmp_path)
     manager.create_session(cwd=tmp_path, model="m", provider_name="p")
     index_writes.clear()
