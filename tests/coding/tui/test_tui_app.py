@@ -2,13 +2,14 @@ import asyncio
 import gc
 import re
 import threading
+import time
 import weakref
 from collections.abc import AsyncIterator
 from contextlib import suppress
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from typing import BinaryIO
 
 import pytest
@@ -728,12 +729,22 @@ def test_compact_session_info_styles_parent_path_as_metadata() -> None:
     assert str(cwd.spans[2].style) == BALDRIC_DARK_THEME.completion_description
 
 
-def test_git_branch_reruns_git_only_after_head_changes(
+def _wait_for_cached_git_branch(widgets: ModuleType, cwd: Path, expected: str) -> bool:
+    deadline = time.monotonic() + 2.0
+    while time.monotonic() < deadline:
+        if widgets._git_branch(cwd) == expected:
+            return True
+        time.sleep(0.005)
+    return False
+
+
+def test_git_branch_refreshes_in_background_after_head_changes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from subprocess import CompletedProcess
 
     from baldric_coding.tui import widgets as tui_widgets
+    from baldric_coding.tui.widgets import sidebar as tui_sidebar
 
     head = tmp_path / ".git" / "HEAD"
     head.parent.mkdir()
@@ -748,16 +759,26 @@ def test_git_branch_reruns_git_only_after_head_changes(
         return CompletedProcess(args, 0, stdout=f"{next(branches)}\n", stderr="")
 
     monkeypatch.setattr(tui_widgets, "run", fake_run)
-    monkeypatch.setattr(tui_widgets, "_GIT_BRANCH_CACHE", {})
+    monkeypatch.setattr(tui_sidebar, "_GIT_BRANCH_CACHE", {})
+    monkeypatch.setattr(tui_sidebar, "_GIT_BRANCH_REFRESHING", set())
 
-    assert [tui_widgets._git_branch(nested) for _ in range(3)] == ["main"] * 3
+    # The first lookup never blocks on git: it reports the pending sentinel
+    # and resolves from the background worker.
+    assert tui_sidebar._git_branch(nested) == "--"
+    assert _wait_for_cached_git_branch(tui_sidebar, nested, "main")
+    assert len(git_calls) == 1
+
+    # A fresh cache serves repeated lookups without re-running git.
+    assert [tui_sidebar._git_branch(nested) for _ in range(3)] == ["main"] * 3
     assert len(git_calls) == 1
 
     replacement = head.with_name("HEAD.lock")
     replacement.write_text("ref: refs/heads/feature\n", encoding="utf-8")
     replacement.replace(head)
 
-    assert tui_widgets._git_branch(nested) == "feature"
+    # The stale value is served while the worker re-runs git off-thread.
+    assert tui_sidebar._git_branch(nested) == "main"
+    assert _wait_for_cached_git_branch(tui_sidebar, nested, "feature")
     assert len(git_calls) == 2
 
 
@@ -6291,7 +6312,8 @@ async def test_tui_app_shows_working_state_during_manual_compaction() -> None:
 
         assert app._is_working() is True
         assert app.state.running is False
-        assert app._is_agent_or_queue_active() is False
+        # Guards treat compaction as busy work: session mutations must wait.
+        assert app._is_agent_or_queue_active() is True
         assert app._is_compaction_active() is True
         assert prompt._footer_mode == "running"
         assert indicator.render().plain != "τ"
@@ -6318,6 +6340,79 @@ async def test_tui_app_shows_working_state_during_manual_compaction() -> None:
         assert prompt._footer_mode == "normal"
         assert indicator.render().plain == "τ"
         assert titles[-1] == "\x1b]0;τ | build notes\x07"
+
+
+@pytest.mark.anyio
+async def test_tui_app_predicate_includes_automatic_compaction() -> None:
+    app = BaldricTuiApp(FakeSession(messages=[UserMessage(content="Earlier")]))
+
+    async with app.run_test():
+        # Automatic compaction is tracked by the adapter as state.compacting;
+        # every busy guard must treat it as in-flight work.
+        app.state.compacting = True
+        assert app._is_compaction_active() is True
+        assert app._is_agent_or_queue_active() is True
+        assert app._is_working() is True
+
+        app.state.compacting = False
+        assert app._is_compaction_active() is False
+
+
+@pytest.mark.anyio
+async def test_tui_app_refuses_session_resume_while_busy() -> None:
+    app = BaldricTuiApp(FakeSession(messages=[UserMessage(content="Earlier")]))
+    notifications: list[str] = []
+    scheduled: list[object] = []
+
+    def fake_notify(message: str, **kwargs: object) -> None:
+        del kwargs
+        notifications.append(message)
+
+    def fake_run_worker(coro: object, **kwargs: object) -> None:
+        del kwargs
+        scheduled.append(coro)
+        coro.close()  # type: ignore[attr-defined]
+
+    app._notify = fake_notify  # type: ignore[method-assign]
+    app.run_worker = fake_run_worker  # type: ignore[method-assign]
+
+    async with app.run_test():
+        app.state.compacting = True
+        app._handle_session_picker_result("session-1")
+        assert notifications == ["Baldric is already working. Press Escape to cancel."]
+        assert scheduled == []
+
+        app.state.compacting = False
+        app._handle_session_picker_result("session-1")
+        assert notifications == ["Baldric is already working. Press Escape to cancel."]
+        assert len(scheduled) == 1
+
+
+@pytest.mark.anyio
+async def test_wait_for_open_session_picker_gives_up_after_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from baldric_coding.tui import session_pickers
+
+    app = BaldricTuiApp(FakeSession())
+
+    async with app.run_test():
+        picker = SessionPickerScreen(
+            (),
+            local_cwd=Path(app.session.cwd),
+            theme=app.tui_settings.resolved_theme,
+        )
+
+        # The picker was never pushed, so the active screen is not the picker.
+        assert await app._wait_for_open_session_picker(picker) is False
+
+        # An active-but-never-mounted picker must hit the bounded deadline
+        # instead of spinning the event loop forever.
+        monkeypatch.setattr(session_pickers, "_PICKER_MOUNT_WAIT_SECONDS", 0.0)
+        monkeypatch.setattr(
+            type(app), "screen", property(lambda self: picker)  # type: ignore[arg-type,return-value]
+        )
+        assert await app._wait_for_open_session_picker(picker) is False
 
 
 @pytest.mark.anyio

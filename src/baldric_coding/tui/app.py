@@ -1420,7 +1420,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
 
     def _is_working(self) -> bool:
         """Return whether the app should show working affordances (agent turn or compaction)."""
-        return self.state.running or self.state.compacting or self._compacting
+        return self.state.running or self._is_compaction_active()
 
     def _sync_terminal_title(self) -> None:
         """Reflect the active session name and running state in the terminal tab title."""
@@ -1963,14 +1963,19 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         )
 
     def _is_compaction_active(self) -> bool:
-        """Return whether a manual compaction worker is still running."""
-        worker = self._compaction_worker
-        if worker is not None and not worker.is_finished and not worker.is_cancelled:
+        """Return whether a compaction (manual worker or automatic) is still running.
+
+        Automatic compaction is tracked by the adapter as ``state.compacting``;
+        only consulting the manual worker here let submissions and session
+        mutations race an in-flight threshold compaction.
+        """
+        if self.state.compacting or self._compacting:
             return True
-        return self._compacting
+        worker = self._compaction_worker
+        return worker is not None and not worker.is_finished and not worker.is_cancelled
 
     def _is_agent_or_queue_active(self) -> bool:
-        """Return whether compaction would race an active or queued agent turn."""
+        """Return whether a session mutation would race agent, queued, or compaction work."""
         self._sync_queue_state()
         worker = self._prompt_worker
         is_worker_active = worker is not None and not worker.is_finished and not worker.is_cancelled
@@ -1980,6 +1985,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
             or is_session_running
             or is_worker_active
             or self.state.queued_message_count > 0
+            or self._is_compaction_active()
         )
 
     async def _run_compaction(self, summary: str) -> None:

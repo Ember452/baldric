@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -568,7 +569,11 @@ def _thinking_level(session: SessionSummarySource) -> str | None:
     return str(thinking_level) if thinking_level else "--"
 
 
-GIT_BRANCH_RECHECK_SECONDS = 5.0
+# Background refreshes keep git off the render path, and `HEAD`-stamp
+# invalidation catches branch switches immediately, so the periodic recheck
+# only exists for setups where `HEAD` cannot be found or does not move
+# (for example reftable repos); a slow fallback interval is fine there.
+GIT_BRANCH_RECHECK_SECONDS = 30.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -579,6 +584,8 @@ class _GitBranchLookup:
 
 
 _GIT_BRANCH_CACHE: dict[Path, _GitBranchLookup] = {}
+_GIT_BRANCH_REFRESH_LOCK = threading.Lock()
+_GIT_BRANCH_REFRESHING: set[Path] = set()
 
 
 def _widgets_package() -> Any:
@@ -588,25 +595,56 @@ def _widgets_package() -> Any:
 
 
 def _git_branch(cwd: Path) -> str:
-    """Return the checked-out branch, re-running git only when it may have changed.
+    """Return the checked-out branch without ever running git on the caller's thread.
 
     Session chrome re-renders after every message, and a synchronous git
-    subprocess each time stalls the UI. Checkouts rewrite `HEAD`, so its stamp
-    catches branch switches immediately; the periodic recheck covers setups
-    where `HEAD` cannot be found or does not move (for example reftable repos).
+    subprocess there stalls the UI. A background worker refreshes the cache
+    instead, so the render path only reads it and reports ``--`` until the
+    first lookup lands. Checkouts rewrite `HEAD`, so its stamp catches branch
+    switches immediately; the periodic recheck covers setups where `HEAD`
+    cannot be found or does not move (for example reftable repos).
     """
     head_stamp = _git_head_stamp(cwd)
     now = time.monotonic()
-    cached = _GIT_BRANCH_CACHE.get(cwd)
-    if (
-        cached is not None
-        and cached.head_stamp == head_stamp
-        and now - cached.checked_at < GIT_BRANCH_RECHECK_SECONDS
-    ):
-        return cached.branch
-    branch = _read_git_branch(cwd)
-    _GIT_BRANCH_CACHE[cwd] = _GitBranchLookup(head_stamp=head_stamp, checked_at=now, branch=branch)
-    return branch
+    with _GIT_BRANCH_REFRESH_LOCK:
+        cached = _GIT_BRANCH_CACHE.get(cwd)
+        if (
+            cached is not None
+            and cached.head_stamp == head_stamp
+            and now - cached.checked_at < GIT_BRANCH_RECHECK_SECONDS
+        ):
+            return cached.branch
+        _schedule_git_branch_refresh(cwd)
+        return "--" if cached is None else cached.branch
+
+
+def _schedule_git_branch_refresh(cwd: Path) -> None:
+    """Start one background refresh for `cwd`; concurrent refreshes are deduped."""
+    if cwd in _GIT_BRANCH_REFRESHING:
+        return
+    _GIT_BRANCH_REFRESHING.add(cwd)
+    threading.Thread(
+        target=_refresh_git_branch,
+        args=(cwd,),
+        name=f"baldric-git-branch-{cwd.name}",
+        daemon=True,
+    ).start()
+
+
+def _refresh_git_branch(cwd: Path) -> None:
+    """Run git off the UI thread and publish the result into the cache."""
+    try:
+        branch = _read_git_branch(cwd)
+        stamp = _git_head_stamp(cwd)
+        with _GIT_BRANCH_REFRESH_LOCK:
+            _GIT_BRANCH_CACHE[cwd] = _GitBranchLookup(
+                head_stamp=stamp,
+                checked_at=time.monotonic(),
+                branch=branch,
+            )
+    finally:
+        with _GIT_BRANCH_REFRESH_LOCK:
+            _GIT_BRANCH_REFRESHING.discard(cwd)
 
 
 def _git_head_stamp(cwd: Path) -> tuple[int, int, int] | None:
