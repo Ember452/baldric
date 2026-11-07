@@ -12,6 +12,7 @@ import platform
 import shutil
 import sys
 import unicodedata
+from collections.abc import Mapping
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as package_version
 
@@ -25,7 +26,7 @@ _KNOWN_OSC94_TERMINALS = {"Windows Terminal", "iTerm.app", "ghostty", "WezTerm",
 _KNOWN_OSC_NOTIFY_TERMINALS = {"ghostty", "iTerm.app", "mintty", "kitty"}
 
 
-def _terminal_name(env: dict[str, str]) -> str:
+def _terminal_name(env: Mapping[str, str]) -> str:
     if env.get("WT_SESSION"):
         return "Windows Terminal"
     for key in ("TERM_PROGRAM", "GHOSTTY_RESOURCES_DIR"):
@@ -35,7 +36,7 @@ def _terminal_name(env: dict[str, str]) -> str:
     return term or "unknown"
 
 
-def _truecolor_support(env: dict[str, str]) -> str:
+def _truecolor_support(env: Mapping[str, str]) -> str:
     colorterm = env.get("COLORTERM", "").lower()
     if colorterm in _TRUECOLOR_TERMS or env.get("WT_SESSION"):
         return "yes"
@@ -44,7 +45,7 @@ def _truecolor_support(env: dict[str, str]) -> str:
     return "unknown"
 
 
-def _mouse_support(env: dict[str, str]) -> str:
+def _mouse_support(env: Mapping[str, str]) -> str:
     if env.get("SSH_CONNECTION"):
         return "likely (depends on the SSH client)"
     if env.get("WT_SESSION") or env.get("TERM_PROGRAM") or env.get("GHOSTTY_RESOURCES_DIR"):
@@ -52,12 +53,12 @@ def _mouse_support(env: dict[str, str]) -> str:
     return "unknown"
 
 
-def _osc_progress_support(env: dict[str, str]) -> str:
+def _osc_progress_support(env: Mapping[str, str]) -> str:
     terminal = _terminal_name(env)
     return "yes" if terminal in _KNOWN_OSC94_TERMINALS else "no known support"
 
 
-def _osc_notify_support(env: dict[str, str]) -> str:
+def _osc_notify_support(env: Mapping[str, str]) -> str:
     terminal = _terminal_name(env)
     return "yes" if terminal in _KNOWN_OSC_NOTIFY_TERMINALS else "no known support"
 
@@ -87,9 +88,9 @@ def _session_storage_report() -> str:
     return f"missing or not writable ({home})"
 
 
-def build_doctor_report(env: dict[str, str] | None = None) -> Table:
+def build_doctor_report(env: Mapping[str, str] | None = None) -> Table:
     """Build the capability report table; ``env`` defaults to the process environment."""
-    environment = os.environ if env is None else env
+    environment: Mapping[str, str] = os.environ if env is None else env
     table = Table(title="baldric --doctor", show_header=True, header_style="bold")
     table.add_column("check")
     table.add_column("result")

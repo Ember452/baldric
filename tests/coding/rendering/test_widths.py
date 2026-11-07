@@ -1,6 +1,5 @@
 """Unit and pyte golden tests for the shared width helpers."""
 
-
 import pyte
 import pytest
 from rich.console import Console

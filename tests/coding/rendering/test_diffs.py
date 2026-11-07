@@ -19,6 +19,7 @@ def _feed(screen: pyte.Screen, ansi_text: str) -> None:
     """
     pyte.ByteStream(screen).feed(ansi_text.replace("\n", "\r\n").encode("utf-8"))
 
+
 SAMPLE_PATCH = """--- src/app.py
 +++ src/app.py
 @@ -1,4 +1,4 @@

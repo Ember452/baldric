@@ -18,6 +18,7 @@ from baldric_agent.events import AgentEvent, AgentStartEvent
 from baldric_agent.events import TurnEndEvent as AgentTurnEndEvent
 from baldric_agent.events import TurnStartEvent as AgentTurnStartEvent
 from baldric_agent.messages import AgentMessage, TextContent
+from baldric_agent.tool_calls import BeforeToolCall
 from baldric_agent.tools import (
     AgentTool,
     AgentToolResult,
@@ -25,7 +26,11 @@ from baldric_agent.tools import (
     ToolUpdateCallback,
 )
 from baldric_agent.types import JSONValue
-from baldric_coding.auth.credentials import CredentialStore, FileCredentialStore, credentials_path
+from baldric_coding.auth.credentials import (
+    CredentialStore,
+    FileCredentialStore,
+    credentials_path,
+)
 from baldric_coding.backends.contracts import LocalBackend, LocalBackendRegistry
 from baldric_coding.commands.base import handled_result, message_outcome
 from baldric_coding.commands.registry import (
@@ -68,7 +73,10 @@ from baldric_coding.extensions.api import (
     TurnStartEvent,
     UiBridge,
 )
-from baldric_coding.extensions.builtin_registry import BuiltInExtension, BuiltInExtensionContext
+from baldric_coding.extensions.builtin_registry import (
+    BuiltInExtension,
+    BuiltInExtensionContext,
+)
 from baldric_coding.extensions.loader import (
     ExtensionSourceMetadata,
     LoadedExtension,
@@ -148,6 +156,9 @@ class BoundSession(Protocol):
 
     @property
     def project_trust_resolution(self) -> ProjectTrustResolution | None: ...
+
+    @property
+    def before_tool_call(self) -> BeforeToolCall | None: ...
 
     @property
     def is_running(self) -> bool: ...
@@ -1162,10 +1173,8 @@ class ExtensionRuntime:
                 message = command.handler(context.args, extension_context)
             except Exception as exc:  # noqa: BLE001 - extensions are an isolation boundary
                 self._record_runtime_failure(command.extension, f"command:/{command.name}", exc)
-                return handled_result(
-                    message_outcome(f"Extension command /{command.name} failed: {exc}")
-                )
-            return handled_result(message_outcome(message))
+                return handled_result(message_outcome(f"Extension command /{command.name} failed: {exc}"))
+            return handled_result(message_outcome(message or ""))
 
         return handler
 

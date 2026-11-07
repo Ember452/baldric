@@ -64,9 +64,7 @@ def test_write_preview_diffs_against_existing_content(tmp_path: Path) -> None:
     target = tmp_path / "hello.txt"
     target.write_text("old\n", encoding="utf-8")
 
-    preview = build_approval_preview(
-        "write", {"path": str(target), "content": "new\n"}, cwd=tmp_path
-    )
+    preview = build_approval_preview("write", {"path": str(target), "content": "new\n"}, cwd=tmp_path)
 
     assert "-old" in preview
     assert "+new" in preview

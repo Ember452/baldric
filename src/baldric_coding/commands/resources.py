@@ -60,17 +60,13 @@ def _skills_command(context: CommandContext) -> CommandResult:
 def _diagnostics_command(context: CommandContext) -> CommandResult:
     if context.args:
         return handled_result(message_outcome("Usage: /diagnostics"))
-    return handled_result(
-        message_outcome(format_resource_diagnostics(context.session.resource_diagnostics))
-    )
+    return handled_result(message_outcome(format_resource_diagnostics(context.session.resource_diagnostics)))
 
 
 def _extensions_command(context: CommandContext) -> CommandResult:
     if context.args:
         return handled_result(message_outcome("Usage: /extensions"))
-    return handled_result(
-        CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.EXTENSIONS)
-    )
+    return handled_result(CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.EXTENSIONS))
 
 
 def _reload_command(context: CommandContext) -> CommandResult:
@@ -105,6 +101,4 @@ def _skill_command(context: CommandContext) -> CommandResult:
 def _prompts_command(context: CommandContext) -> CommandResult:
     if context.args:
         return handled_result(message_outcome("Usage: /prompts"))
-    return handled_result(
-        CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.PROMPTS)
-    )
+    return handled_result(CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.PROMPTS))

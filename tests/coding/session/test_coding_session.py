@@ -23,7 +23,11 @@ from baldric_agent import (
     Usage,
     UserMessage,
 )
-from baldric_agent.messages import AssistantMessageDiagnostic, BashExecutionMessage, assistant_content
+from baldric_agent.messages import (
+    AssistantMessageDiagnostic,
+    BashExecutionMessage,
+    assistant_content,
+)
 from baldric_agent.provider_events import AssistantErrorEvent
 from baldric_agent.session import (
     CompactionEntry,
@@ -81,7 +85,10 @@ from baldric_coding.extensions import (
     ProviderModel,
 )
 from baldric_coding.extensions.runtime import InputHookOutcome
-from baldric_coding.providers.config import ProviderModelMetadata, provider_thinking_levels
+from baldric_coding.providers.config import (
+    ProviderModelMetadata,
+    provider_thinking_levels,
+)
 from baldric_coding.providers.stores.codex_model_store import (
     cached_codex_model_catalog,
     save_codex_model_catalog,
@@ -97,7 +104,11 @@ from baldric_coding.session.session import (
     parse_terminal_command,
 )
 from tests.helpers.conftest_utils import isolate_home
-from tests.helpers.pi_event_helpers import assistant_done, assistant_error, assistant_start
+from tests.helpers.pi_event_helpers import (
+    assistant_done,
+    assistant_error,
+    assistant_start,
+)
 
 
 async def _collect_session_events(session_stream: object) -> list[object]:
@@ -400,7 +411,9 @@ async def test_session_export_defaults_to_cwd(tmp_path: Path) -> None:
 
 
 @pytest.mark.anyio
-async def test_session_export_writes_jsonl_to_destination_directory(tmp_path: Path) -> None:
+async def test_session_export_writes_jsonl_to_destination_directory(
+    tmp_path: Path,
+) -> None:
     storage = JsonlSessionStorage(tmp_path / ".baldric" / "sessions" / "session-1.jsonl")
     session = await CodingSession.load(_config(tmp_path, FakeProvider([]), storage))
     await storage.append(MessageEntry(id="root", message=UserMessage(content="Export me")))
@@ -1080,7 +1093,9 @@ async def test_load_persists_repair_for_session_with_interrupted_tail_tool_call(
 
 
 @pytest.mark.anyio
-async def test_load_persists_branch_without_orphaned_tool_result(tmp_path: Path) -> None:
+async def test_load_persists_branch_without_orphaned_tool_result(
+    tmp_path: Path,
+) -> None:
     storage = JsonlSessionStorage(tmp_path / "session.jsonl")
     user_entry = MessageEntry(message=UserMessage(content="what remains?"))
     await storage.append(user_entry)
@@ -1245,7 +1260,9 @@ async def test_load_persists_repair_for_historical_interrupted_tool_call(
 
 
 @pytest.mark.anyio
-async def test_prompt_persists_user_and_assistant_entries_without_leaves(tmp_path: Path) -> None:
+async def test_prompt_persists_user_and_assistant_entries_without_leaves(
+    tmp_path: Path,
+) -> None:
     storage = JsonlSessionStorage(tmp_path / "session.jsonl")
     provider = FakeProvider(
         [
@@ -1336,7 +1353,9 @@ requires_posix_shell = pytest.mark.skipif(
 
 @requires_posix_shell
 @pytest.mark.anyio
-async def test_terminal_command_uses_configured_shell_command_prefix(tmp_path: Path) -> None:
+async def test_terminal_command_uses_configured_shell_command_prefix(
+    tmp_path: Path,
+) -> None:
     storage = JsonlSessionStorage(tmp_path / "session.jsonl")
     session = await CodingSession.load(
         CodingSessionConfig(
@@ -1357,7 +1376,9 @@ async def test_terminal_command_uses_configured_shell_command_prefix(tmp_path: P
 
 @requires_posix_shell
 @pytest.mark.anyio
-async def test_agent_bash_tool_uses_configured_shell_command_prefix(tmp_path: Path) -> None:
+async def test_agent_bash_tool_uses_configured_shell_command_prefix(
+    tmp_path: Path,
+) -> None:
     storage = JsonlSessionStorage(tmp_path / "session.jsonl")
     session = await CodingSession.load(
         CodingSessionConfig(
@@ -1425,7 +1446,10 @@ def test_first_recent_context_index_keeps_newest_user_turn_and_reply() -> None:
     rows = _recent_rows("user", "assistant", "user", "assistant")
     index = _first_recent_context_index(rows, keep_recent_tokens=_total_tokens(rows))
     assert index == 2
-    assert [message.role for _entry_id, message in rows[index:]] == ["user", "assistant"]
+    assert [message.role for _entry_id, message in rows[index:]] == [
+        "user",
+        "assistant",
+    ]
 
 
 def test_first_recent_context_index_never_compacts_past_last_user() -> None:
@@ -1445,7 +1469,10 @@ def test_first_recent_context_index_keeps_recent_suffix() -> None:
     rows = _recent_rows("user", "assistant", "user", "assistant", "user", "assistant")
     index = _first_recent_context_index(rows, keep_recent_tokens=1)
     assert index == 4
-    assert [message.role for _entry_id, message in rows[index:]] == ["user", "assistant"]
+    assert [message.role for _entry_id, message in rows[index:]] == [
+        "user",
+        "assistant",
+    ]
 
 
 def test_parse_terminal_command_prefixes() -> None:
@@ -1821,7 +1848,9 @@ async def test_context_usage_recalculates_after_prompt_and_compaction(
 
 
 @pytest.mark.anyio
-async def test_session_persists_and_replays_thinking_level_changes(tmp_path: Path) -> None:
+async def test_session_persists_and_replays_thinking_level_changes(
+    tmp_path: Path,
+) -> None:
     storage = JsonlSessionStorage(tmp_path / "session.jsonl")
     session = await CodingSession.load(_config(tmp_path, FakeProvider([]), storage))
 
@@ -1990,7 +2019,9 @@ async def test_session_reports_dynamic_model_thinking_controls_separately_from_o
 
 
 @pytest.mark.anyio
-async def test_session_persists_thinking_preference_for_new_sessions(tmp_path: Path) -> None:
+async def test_session_persists_thinking_preference_for_new_sessions(
+    tmp_path: Path,
+) -> None:
     baldric_paths = BaldricPaths(home=tmp_path / ".baldric")
     provider_config = OpenAICodexProviderConfig(
         thinking_levels=("off", "minimal", "low", "medium", "high", "xhigh"),
@@ -2186,7 +2217,9 @@ async def test_load_restores_existing_transcript(tmp_path: Path) -> None:
 
 
 @pytest.mark.anyio
-async def test_load_detaches_missing_root_parent_from_imported_branch(tmp_path: Path) -> None:
+async def test_load_detaches_missing_root_parent_from_imported_branch(
+    tmp_path: Path,
+) -> None:
     storage = JsonlSessionStorage(tmp_path / "session.jsonl")
     root = MessageEntry(
         id="root",
@@ -2299,7 +2332,9 @@ async def test_load_restores_active_leaf_branch(tmp_path: Path) -> None:
 
 
 @pytest.mark.anyio
-async def test_session_tree_choices_indent_only_diverged_branches(tmp_path: Path) -> None:
+async def test_session_tree_choices_indent_only_diverged_branches(
+    tmp_path: Path,
+) -> None:
     storage = JsonlSessionStorage(tmp_path / "session.jsonl")
     root = MessageEntry(id="root", message=UserMessage(content="Root"))
     main = MessageEntry(id="main", parent_id="root", message=AssistantMessage(content="Main"))
@@ -2362,8 +2397,15 @@ async def test_session_branches_to_previous_entry_without_destroying_history(
 
     entries = await storage.read_all()
     assert result == SessionTreeBranchResult(message="Branched session at left.")
-    _assert_messages(session.messages, (UserMessage(content="Root"), AssistantMessage(content="Left")))
-    assert [entry.id for entry in entries if entry.type == "message"] == ["root", "left", "right"]
+    _assert_messages(
+        session.messages,
+        (UserMessage(content="Root"), AssistantMessage(content="Left")),
+    )
+    assert [entry.id for entry in entries if entry.type == "message"] == [
+        "root",
+        "left",
+        "right",
+    ]
     # Plain /tree navigation is in-memory only; the historical pointer is unchanged.
     assert isinstance(entries[-1], LeafEntry)
     assert entries[-1].entry_id == "right"
@@ -2464,7 +2506,10 @@ async def test_session_branches_to_before_selected_user_message_with_prefill(
         message="Branched session before followup.",
         input_prefill="Try this again",
     )
-    _assert_messages(session.messages, (UserMessage(content="Root"), AssistantMessage(content="Answer")))
+    _assert_messages(
+        session.messages,
+        (UserMessage(content="Root"), AssistantMessage(content="Answer")),
+    )
     assert [entry.id for entry in entries if entry.type == "message"] == [
         "root",
         "assistant",
@@ -2612,7 +2657,9 @@ async def test_session_branch_with_summary_rebuilds_context(tmp_path: Path) -> N
 
 
 @pytest.mark.anyio
-async def test_session_branch_with_summary_accepts_custom_instructions(tmp_path: Path) -> None:
+async def test_session_branch_with_summary_accepts_custom_instructions(
+    tmp_path: Path,
+) -> None:
     storage = JsonlSessionStorage(tmp_path / "session.jsonl")
     provider = FakeProvider(
         [
@@ -2647,7 +2694,9 @@ async def test_session_branch_with_summary_accepts_custom_instructions(tmp_path:
 
 
 @pytest.mark.anyio
-async def test_session_branch_with_summary_tracks_file_operations(tmp_path: Path) -> None:
+async def test_session_branch_with_summary_tracks_file_operations(
+    tmp_path: Path,
+) -> None:
     storage = JsonlSessionStorage(tmp_path / "session.jsonl")
     provider = FakeProvider(
         [
@@ -2791,7 +2840,9 @@ async def test_session_preserves_explicit_empty_system_prompt(tmp_path: Path) ->
 
 
 @pytest.mark.anyio
-async def test_session_builds_system_prompt_when_system_is_omitted(tmp_path: Path) -> None:
+async def test_session_builds_system_prompt_when_system_is_omitted(
+    tmp_path: Path,
+) -> None:
     resource_root = tmp_path / "resources"
     skills_dir = resource_root / "skills"
     skills_dir.mkdir(parents=True)
@@ -2831,7 +2882,9 @@ async def test_session_builds_system_prompt_when_system_is_omitted(tmp_path: Pat
 
 
 @pytest.mark.anyio
-async def test_session_touches_session_manager_after_persisting_messages(tmp_path: Path) -> None:
+async def test_session_touches_session_manager_after_persisting_messages(
+    tmp_path: Path,
+) -> None:
     storage = JsonlSessionStorage(tmp_path / "session.jsonl")
     manager = SessionManager(BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents"))
     record = manager.create_session(cwd=tmp_path, model="fake")
@@ -2907,7 +2960,9 @@ async def test_session_auto_names_first_unnamed_managed_session(tmp_path: Path) 
 
 
 @pytest.mark.anyio
-async def test_session_auto_naming_does_not_delay_the_agent_request(tmp_path: Path) -> None:
+async def test_session_auto_naming_does_not_delay_the_agent_request(
+    tmp_path: Path,
+) -> None:
     class NamingWaitsForReplyProvider:
         def __init__(self) -> None:
             self.reply_requested = asyncio.Event()
@@ -2971,7 +3026,9 @@ async def test_session_auto_naming_does_not_delay_the_agent_request(tmp_path: Pa
 
 
 @pytest.mark.anyio
-async def test_auto_naming_does_not_rename_a_session_adopted_mid_request(tmp_path: Path) -> None:
+async def test_auto_naming_does_not_rename_a_session_adopted_mid_request(
+    tmp_path: Path,
+) -> None:
     """Naming outliving the reply must not retitle a session adopted meanwhile."""
 
     class NamingBlocksUntilReleasedProvider:
@@ -3062,7 +3119,9 @@ async def test_auto_naming_does_not_rename_a_session_adopted_mid_request(tmp_pat
 
 
 @pytest.mark.anyio
-async def test_session_cancels_auto_naming_when_prompt_stream_closes(tmp_path: Path) -> None:
+async def test_session_cancels_auto_naming_when_prompt_stream_closes(
+    tmp_path: Path,
+) -> None:
     storage = JsonlSessionStorage(tmp_path / "session.jsonl")
     manager = SessionManager(BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents"))
     record = manager.create_session(cwd=tmp_path, model="fake")
@@ -3096,7 +3155,9 @@ async def test_session_cancels_auto_naming_when_prompt_stream_closes(tmp_path: P
 
 
 @pytest.mark.anyio
-async def test_session_yields_expanded_custom_prompt_before_auto_naming(tmp_path: Path) -> None:
+async def test_session_yields_expanded_custom_prompt_before_auto_naming(
+    tmp_path: Path,
+) -> None:
     storage = JsonlSessionStorage(tmp_path / "session.jsonl")
     manager = SessionManager(BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents"))
     record = manager.create_session(cwd=tmp_path, model="fake")
@@ -3476,7 +3537,9 @@ async def test_system_command_shows_prompt_without_persisting_or_adding_context(
 
 
 @pytest.mark.anyio
-async def test_session_expands_prompt_templates_as_slash_commands(tmp_path: Path) -> None:
+async def test_session_expands_prompt_templates_as_slash_commands(
+    tmp_path: Path,
+) -> None:
     resource_root = tmp_path / "resources"
     prompts_dir = resource_root / "prompts"
     prompts_dir.mkdir(parents=True)
@@ -3512,7 +3575,9 @@ async def test_session_expands_prompt_templates_as_slash_commands(tmp_path: Path
 
 
 @pytest.mark.anyio
-async def test_reserved_prompts_template_cannot_shadow_picker_command(tmp_path: Path) -> None:
+async def test_reserved_prompts_template_cannot_shadow_picker_command(
+    tmp_path: Path,
+) -> None:
     resource_root = tmp_path / "resources"
     prompts_dir = resource_root / "prompts"
     prompts_dir.mkdir(parents=True)
@@ -3531,9 +3596,7 @@ async def test_reserved_prompts_template_cannot_shadow_picker_command(tmp_path: 
 
     result = session.handle_command("/prompts")
 
-    assert result.outcome == CommandOutcome(
-        kind=CommandKind.OPEN_PICKER, picker=PickerKind.PROMPTS
-    )
+    assert result.outcome == CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.PROMPTS)
     assert session.prompt_templates == ()
     assert any(
         diagnostic.path == reserved_path and "reserved by the built-in /prompts command" in diagnostic.message
@@ -3542,7 +3605,9 @@ async def test_reserved_prompts_template_cannot_shadow_picker_command(tmp_path: 
 
 
 @pytest.mark.anyio
-async def test_reserved_tools_template_cannot_shadow_picker_command(tmp_path: Path) -> None:
+async def test_reserved_tools_template_cannot_shadow_picker_command(
+    tmp_path: Path,
+) -> None:
     resource_root = tmp_path / "resources"
     prompts_dir = resource_root / "prompts"
     prompts_dir.mkdir(parents=True)
@@ -3561,9 +3626,7 @@ async def test_reserved_tools_template_cannot_shadow_picker_command(tmp_path: Pa
 
     result = session.handle_command("/tools")
 
-    assert result.outcome == CommandOutcome(
-        kind=CommandKind.OPEN_PICKER, picker=PickerKind.TOOLS
-    )
+    assert result.outcome == CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.TOOLS)
     assert session.prompt_templates == ()
     assert any(
         diagnostic.path == reserved_path and "reserved by the built-in /tools command" in diagnostic.message
@@ -3642,7 +3705,9 @@ async def test_reserved_quit_and_exit_templates_cannot_shadow_quit_command(
 
 
 @pytest.mark.anyio
-async def test_reserved_prompt_templates_stay_ignored_after_reload(tmp_path: Path) -> None:
+async def test_reserved_prompt_templates_stay_ignored_after_reload(
+    tmp_path: Path,
+) -> None:
     resource_root = tmp_path / "resources"
     prompts_dir = resource_root / "prompts"
     prompts_dir.mkdir(parents=True)
@@ -3670,7 +3735,9 @@ async def test_reserved_prompt_templates_stay_ignored_after_reload(tmp_path: Pat
 
 
 @pytest.mark.anyio
-async def test_session_skill_index_lets_agent_read_relevant_skill_file(tmp_path: Path) -> None:
+async def test_session_skill_index_lets_agent_read_relevant_skill_file(
+    tmp_path: Path,
+) -> None:
     resource_root = tmp_path / "resources"
     skills_dir = resource_root / "skills" / "testing"
     skills_dir.mkdir(parents=True)
@@ -3745,9 +3812,7 @@ async def test_session_loads_with_resource_diagnostics_instead_of_failing(
     assert "good" in {skill.name for skill in session.skills}
     assert len(session.resource_diagnostics) == 1
     assert "bare .md files are no longer treated as skills" in session.resource_diagnostics[0].message
-    assert (
-        "Resource diagnostics: 1" in (session.handle_command("/session").outcome.message or "")
-    )
+    assert "Resource diagnostics: 1" in (session.handle_command("/session").outcome.message or "")
 
 
 @pytest.mark.anyio
@@ -3838,7 +3903,9 @@ async def test_explicit_base_overrides_file_while_explicit_append_composes(
 
 
 @pytest.mark.anyio
-async def test_session_reload_tracks_system_prompt_file_precedence(tmp_path: Path) -> None:
+async def test_session_reload_tracks_system_prompt_file_precedence(
+    tmp_path: Path,
+) -> None:
     baldric_home = tmp_path / "baldric-home"
     project_baldric = tmp_path / ".baldric"
     baldric_home.mkdir()
@@ -3892,7 +3959,9 @@ async def test_session_reload_tracks_system_prompt_file_precedence(tmp_path: Pat
 
 
 @pytest.mark.anyio
-async def test_failed_system_prompt_file_reload_keeps_previous_prompt(tmp_path: Path) -> None:
+async def test_failed_system_prompt_file_reload_keeps_previous_prompt(
+    tmp_path: Path,
+) -> None:
     baldric_home = tmp_path / "baldric-home"
     baldric_home.mkdir()
     prompt_path = baldric_home / "SYSTEM.md"
@@ -3916,7 +3985,9 @@ async def test_failed_system_prompt_file_reload_keeps_previous_prompt(tmp_path: 
 
 
 @pytest.mark.anyio
-async def test_new_session_adopts_system_prompt_resource_tracking(tmp_path: Path) -> None:
+async def test_new_session_adopts_system_prompt_resource_tracking(
+    tmp_path: Path,
+) -> None:
     baldric_home = tmp_path / "baldric-home"
     baldric_home.mkdir()
     prompt_path = baldric_home / "SYSTEM.md"
@@ -3947,7 +4018,9 @@ async def test_new_session_adopts_system_prompt_resource_tracking(tmp_path: Path
 
 
 @pytest.mark.anyio
-async def test_session_reload_refreshes_resources_and_system_prompt(tmp_path: Path) -> None:
+async def test_session_reload_refreshes_resources_and_system_prompt(
+    tmp_path: Path,
+) -> None:
     resource_root = tmp_path / "resources"
     storage = JsonlSessionStorage(tmp_path / "session.jsonl")
     provider = FakeProvider(
@@ -3997,7 +4070,9 @@ async def test_session_reload_refreshes_resources_and_system_prompt(tmp_path: Pa
 
 
 @pytest.mark.anyio
-async def test_session_reload_detects_disable_model_invocation_change(tmp_path: Path) -> None:
+async def test_session_reload_detects_disable_model_invocation_change(
+    tmp_path: Path,
+) -> None:
     resource_root = tmp_path / "resources"
     skills_dir = resource_root / "skills" / "testing"
     skills_dir.mkdir(parents=True)
@@ -4036,7 +4111,9 @@ async def test_session_reload_skips_provider_settings_refresh(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    def fail_load_provider_settings(paths: BaldricPaths | None = None) -> ProviderSettings:
+    def fail_load_provider_settings(
+        paths: BaldricPaths | None = None,
+    ) -> ProviderSettings:
         del paths
         raise AssertionError("/reload should not refresh provider settings")
 
@@ -4254,7 +4331,9 @@ async def test_session_auto_compaction_emits_threshold_events(tmp_path: Path) ->
 
 
 @pytest.mark.anyio
-async def test_session_auto_compaction_emits_no_events_below_threshold(tmp_path: Path) -> None:
+async def test_session_auto_compaction_emits_no_events_below_threshold(
+    tmp_path: Path,
+) -> None:
     storage = JsonlSessionStorage(tmp_path / "session.jsonl")
     provider = FakeProvider(
         [
@@ -4673,7 +4752,11 @@ async def test_session_publishes_authenticated_codex_model_inventory(
         [],
         catalog=RuntimeModelCatalog((RuntimeModel(id="nova", name="Nova"),)),
     )
-    monkeypatch.setattr(coding_session_module, "create_model_provider", lambda *args, **kwargs: refreshed)
+    monkeypatch.setattr(
+        coding_session_module,
+        "create_model_provider",
+        lambda *args, **kwargs: refreshed,
+    )
     await session._refresh_codex_model_catalog()
 
     assert session.available_models == ("nova",)
@@ -4977,7 +5060,11 @@ async def test_session_discovers_codex_inventory_while_another_provider_is_activ
         [],
         catalog=RuntimeModelCatalog((RuntimeModel(id="astra", name="Astra"),)),
     )
-    monkeypatch.setattr(coding_session_module, "create_model_provider", lambda *args, **kwargs: discovered)
+    monkeypatch.setattr(
+        coding_session_module,
+        "create_model_provider",
+        lambda *args, **kwargs: discovered,
+    )
     settings = ProviderSettings(
         default_provider="local",
         providers=(
@@ -5337,7 +5424,13 @@ async def test_huggingface_automatic_failover_stops_after_one_failed_fallback(
         inference_provider: str | None = None,
         response_headers_observer: object | None = None,
     ) -> FakeProvider:
-        del provider_config, credential_store, model, thinking_level, response_headers_observer
+        del (
+            provider_config,
+            credential_store,
+            model,
+            thinking_level,
+            response_headers_observer,
+        )
         created.append(inference_provider)
         return FakeProvider(
             [
@@ -5410,7 +5503,13 @@ async def test_huggingface_continue_uses_automatic_route_failover(
         inference_provider: str | None = None,
         response_headers_observer: object | None = None,
     ) -> FakeProvider:
-        del provider_config, credential_store, model, thinking_level, response_headers_observer
+        del (
+            provider_config,
+            credential_store,
+            model,
+            thinking_level,
+            response_headers_observer,
+        )
         created.append(inference_provider)
         if inference_provider == "deepinfra":
             return FakeProvider([[_provider_http_error(429)]])
@@ -5479,7 +5578,13 @@ async def test_huggingface_fixed_pin_does_not_fail_over(
         inference_provider: str | None = None,
         response_headers_observer: object | None = None,
     ) -> FakeProvider:
-        del provider_config, credential_store, model, thinking_level, response_headers_observer
+        del (
+            provider_config,
+            credential_store,
+            model,
+            thinking_level,
+            response_headers_observer,
+        )
         created.append(inference_provider)
         return FakeProvider(
             [
@@ -6552,7 +6657,9 @@ async def test_session_toggle_scoped_model_preserves_newer_provider_file_changes
 
 
 @pytest.mark.anyio
-async def test_session_set_model_rejects_model_not_declared_for_provider(tmp_path: Path) -> None:
+async def test_session_set_model_rejects_model_not_declared_for_provider(
+    tmp_path: Path,
+) -> None:
     provider_config = OpenAICompatibleProviderConfig(
         name="openai",
         models=("gpt-5",),
@@ -7315,7 +7422,9 @@ async def test_session_context_usage_recalculates_after_resume(tmp_path: Path) -
     assert session.context_token_estimate == after_resume_usage.total_tokens
 
 
-def test_custom_prompt_template_retains_precedence_over_other_commands(tmp_path: Path) -> None:
+def test_custom_prompt_template_retains_precedence_over_other_commands(
+    tmp_path: Path,
+) -> None:
     session = CodingSession(
         _config(tmp_path, FakeProvider([]), JsonlSessionStorage(tmp_path / "session.jsonl")),
         state=object(),  # type: ignore[arg-type]

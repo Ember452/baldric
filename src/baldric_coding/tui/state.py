@@ -25,7 +25,11 @@ from baldric_agent.tools import AgentToolResult, ToolCall
 from baldric_agent.types import JSONValue
 from baldric_coding.context.skills.skills import Skill, parse_skill_invocation
 from baldric_coding.context.system_prompt import SystemPromptSource
-from baldric_coding.extensions.api import CustomMessageMarkup, ToolCallMarkup, ToolResultMarkup
+from baldric_coding.extensions.api import (
+    CustomMessageMarkup,
+    ToolCallMarkup,
+    ToolResultMarkup,
+)
 from baldric_coding.rendering.themes import TranscriptRole
 from baldric_coding.rendering.tool_calls import (
     _display_tool_path,
@@ -849,7 +853,9 @@ def assistant_block_is_visible(block: TextContent | ThinkingContent) -> bool:
     return has_visible_assistant_text(text)
 
 
-def assistant_visible_blocks(message: AssistantMessage) -> list[TextContent | ThinkingContent]:
+def assistant_visible_blocks(
+    message: AssistantMessage,
+) -> list[TextContent | ThinkingContent]:
     """Return the message's transcript-visible text and thinking blocks, in order."""
     blocks = (block for block in message.content if isinstance(block, TextContent | ThinkingContent))
     return [block for block in blocks if assistant_block_is_visible(block)]
@@ -924,7 +930,13 @@ def format_tool_result_block(
         lines.append(_preview_text(content, max_lines=TOOL_RESULT_PREVIEW_LINES, full=full))
     patch = _result_patch(name=name, ok=ok, data=data)
     if patch:
-        lines.extend(["", "Patch:", _preview_text(patch, max_lines=TOOL_PATCH_PREVIEW_LINES, full=full)])
+        lines.extend(
+            [
+                "",
+                "Patch:",
+                _preview_text(patch, max_lines=TOOL_PATCH_PREVIEW_LINES, full=full),
+            ]
+        )
     return "\n".join(lines)
 
 
@@ -984,9 +996,7 @@ def _preview_text(text: str, *, max_lines: int, full: bool = False) -> str:
     preview = "\n".join(preview_lines)
     hidden_lines = max(0, len(lines) - len(preview_lines))
 
-    truncated_by_cells = (
-        sum(cell_width(line) for line in preview_lines) > TOOL_RESULT_PREVIEW_CELLS
-    )
+    truncated_by_cells = sum(cell_width(line) for line in preview_lines) > TOOL_RESULT_PREVIEW_CELLS
     if truncated_by_cells:
         preview = _cut_to_cell_budget(preview_lines, TOOL_RESULT_PREVIEW_CELLS)
 

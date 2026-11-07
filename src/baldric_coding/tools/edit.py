@@ -11,7 +11,13 @@ from pathlib import Path
 from baldric_agent.messages import TextContent
 from baldric_agent.tools import AgentTool, AgentToolResult, ToolCancellationToken
 from baldric_agent.types import JSONValue
-from baldric_coding.tools.base import UTF8_BOM, ToolDefinition, ToolInputError, _file_lock, _path_arg
+from baldric_coding.tools.base import (
+    UTF8_BOM,
+    ToolDefinition,
+    ToolInputError,
+    _file_lock,
+    _path_arg,
+)
 
 
 def create_edit_tool_definition(*, cwd: str | Path | None = None) -> ToolDefinition:
@@ -152,9 +158,7 @@ def apply_argument_edits_to_content(
     """
     prepared = _prepare_edit_arguments(arguments)
     edits = _edits_arg(prepared)
-    _, new_content = apply_edits_to_normalized_content(
-        normalize_to_lf(content), edits, path
-    )
+    _, new_content = apply_edits_to_normalized_content(normalize_to_lf(content), edits, path)
     return new_content
 
 
@@ -164,7 +168,10 @@ def apply_edits_to_normalized_content(
     path: str,
 ) -> tuple[str, str]:
     normalized_edits = [
-        {"oldText": normalize_to_lf(edit["oldText"]), "newText": normalize_to_lf(edit["newText"])}
+        {
+            "oldText": normalize_to_lf(edit["oldText"]),
+            "newText": normalize_to_lf(edit["newText"]),
+        }
         for edit in edits
     ]
     for index, edit in enumerate(normalized_edits):

@@ -89,8 +89,7 @@ class LoopWatchdog:
     def _report_stall(self, stall_seconds: float) -> None:
         try:
             print(
-                f"baldric: UI loop stalled for {stall_seconds:.1f}s; "
-                "dumping thread stacks and exiting.",
+                f"baldric: UI loop stalled for {stall_seconds:.1f}s; dumping thread stacks and exiting.",
                 file=self._stream,
             )
             self._dump_stacks()

@@ -23,9 +23,7 @@ def _help_command(context: CommandContext) -> CommandResult:
 
 
 def _exit_command(context: CommandContext) -> CommandResult:
-    return CommandResult(
-        outcome=CommandOutcome(kind=CommandKind.EXIT, message="Exiting session.")
-    )
+    return CommandResult(outcome=CommandOutcome(kind=CommandKind.EXIT, message="Exiting session."))
 
 
 def _new_command(context: CommandContext) -> CommandResult:
@@ -33,9 +31,7 @@ def _new_command(context: CommandContext) -> CommandResult:
 
 
 def _compact_command(context: CommandContext) -> CommandResult:
-    return CommandResult(
-        outcome=CommandOutcome(kind=CommandKind.COMPACT, text=context.args.strip())
-    )
+    return CommandResult(outcome=CommandOutcome(kind=CommandKind.COMPACT, text=context.args.strip()))
 
 
 def _export_command(context: CommandContext) -> CommandResult:
@@ -126,6 +122,4 @@ def _hotkeys_command(context: CommandContext) -> CommandResult:
 
 
 def _tools_command(context: CommandContext) -> CommandResult:
-    return CommandResult(
-        outcome=CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.TOOLS)
-    )
+    return CommandResult(outcome=CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.TOOLS))

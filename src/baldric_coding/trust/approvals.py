@@ -23,6 +23,13 @@ from baldric_coding.tools.edit import (
 
 MUTATING_TOOL_NAMES = frozenset({"edit", "write", "bash"})
 
+# A bare prefix match is unsafe for shell commands: remembering `ls` would
+# also allow `lsblk`, and `ls; rm -rf ~` starts with the same token. A command
+# that composes shells (pipes, chaining, redirection, substitution) is never
+# covered by an Always rule — it always asks, because the remembered program
+# token does not describe what will actually run.
+_SHELL_COMPOSITION_MARKERS = (";", "&&", "||", "|", "&", ">", "<", "`", "$(", "\n")
+
 _PREVIEW_MAX_LINES = 60
 _PREVIEW_FALLBACK = "(preview unavailable: arguments could not be interpreted)"
 
@@ -40,9 +47,10 @@ class ApprovalRequest:
 class ApprovalRule:
     """One remembered Always rule.
 
-    edit/write rules match the target path by prefix; bash rules match the
-    command's first token (the program), which the card spells out verbatim
-    so the user always sees exactly what will be remembered.
+    edit/write rules match one exact resolved path; bash rules match one exact
+    simple command. Neither is a prefix, so a rule can never silently widen to
+    cover a different file or a compound shell command. The card spells the
+    rule out verbatim so the user sees exactly what will be remembered.
     """
 
     tool_name: str
@@ -50,8 +58,8 @@ class ApprovalRule:
 
     def describe(self) -> str:
         if self.tool_name == "bash":
-            return f"bash commands starting with `{self.prefix}`"
-        return f"{self.tool_name} paths starting with `{self.prefix}`"
+            return f"the exact command `{self.prefix}`"
+        return f"the exact path `{self.prefix}`"
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,23 +76,35 @@ DEFAULT_REJECT_REASON = "Rejected by user"
 
 @dataclass
 class ApprovalPolicy:
-    """Decides whether a mutating tool call needs the user's approval."""
+    """Decides whether a mutating tool call needs the user's approval.
+
+    Always rules are deliberately narrow: an edit/write rule covers one exact
+    resolved path (not its children or siblings), and a bash rule covers one
+    exact simple command (not a compound one). A rule must never quietly widen
+    the set of things that run without asking.
+    """
 
     rules: list[ApprovalRule] = field(default_factory=list)
 
     def decide(self, tool_name: str, target: str) -> ApprovalRule | None:
         """Return the matching Always rule, or None when approval is required."""
+        candidate = self._canonical(tool_name, target)
+        if candidate is None:
+            # Unparseable/compound target: no Always rule can cover it.
+            return None
         for rule in self.rules:
-            if rule.tool_name == tool_name and target.startswith(rule.prefix):
+            if rule.tool_name == tool_name and rule.prefix == candidate:
                 return rule
         return None
 
     def preview_rule(self, tool_name: str, target: str) -> ApprovalRule:
-        """Return the Always rule *would be* remembered, without storing it."""
-        prefix = target
-        if tool_name == "bash":
-            tokens = target.strip().split()
-            prefix = tokens[0] if tokens else target
+        """Return the Always rule *would be* remembered, without storing it.
+
+        For a bash command the remembered rule is the whole command as typed
+        (not just the program token), so an Always never grants a broader
+        command than the one the user actually saw and approved.
+        """
+        prefix = self._canonical(tool_name, target) or target.strip() or target
         return ApprovalRule(tool_name=tool_name, prefix=prefix)
 
     def remember(self, tool_name: str, target: str) -> ApprovalRule:
@@ -93,6 +113,28 @@ class ApprovalPolicy:
         if rule not in self.rules:
             self.rules.append(rule)
         return rule
+
+    def _canonical(self, tool_name: str, target: str) -> str | None:
+        """Return the exact-match key for *target*, or None when it is unsafe.
+
+        edit/write resolve to an absolute normalized path so ``a/../b.py`` and
+        ``b.py`` are the same rule and ``file.py.bak`` is *not*. bash resolves to
+        the single simple command only; a compound command yields None so it can
+        never be auto-approved by a rule remembered from a simpler one.
+        """
+        if tool_name == "bash":
+            command = target.strip()
+            if not command:
+                return None
+            if any(marker in command for marker in _SHELL_COMPOSITION_MARKERS):
+                return None
+            return command
+        if not target.strip():
+            return None
+        try:
+            return str(Path(target).expanduser().resolve())
+        except (OSError, RuntimeError):
+            return target
 
 
 def approval_target(tool_name: str, arguments: Mapping[str, JSONValue]) -> str:

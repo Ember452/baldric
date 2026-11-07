@@ -46,8 +46,7 @@ def render_approval_card(
         parts.append(Text(request.preview, style=theme.prompt_text))
 
     footer = Text(
-        "[Y] allow once   [A] always — "
-        f"{always_rule.describe()}   [N] reject · Esc rejects",
+        f"[Y] allow once   [A] always — {always_rule.describe()}   [N] reject · Esc rejects",
         style=theme.completion_description,
     )
     parts.append(Text(""))

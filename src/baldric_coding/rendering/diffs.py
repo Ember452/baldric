@@ -50,12 +50,25 @@ class FileDiff:
 
 
 def parse_unified_patch(patch: str) -> tuple[FileDiff, ...]:
-    """Parse a unified diff into per-file diffs with resolved line numbers."""
+    """Parse a unified diff into per-file diffs with resolved line numbers.
+
+    Hunk line kinds are decided by the hunk's remaining old/new line counts,
+    never by the leading character alone: a removed line whose content begins
+    with ``--`` renders as ``--- ...`` and an added line beginning with ``++``
+    renders as ``+++ ...``. Treating those as file headers loses the content
+    line entirely, so the counters are authoritative while a hunk is open and
+    header detection only runs outside a hunk.
+    """
     files: list[FileDiff] = []
     path: str | None = None
     lines: list[DiffLine] = []
     old_number = 0
     new_number = 0
+    # Remaining lines announced by the current hunk header; once both reach
+    # zero the hunk is closed and a leading ``--- ``/``+++ `` is a file header
+    # again rather than diff content.
+    old_remaining = 0
+    new_remaining = 0
 
     def flush() -> None:
         nonlocal path, lines
@@ -64,48 +77,64 @@ def parse_unified_patch(patch: str) -> tuple[FileDiff, ...]:
         path = None
         lines = []
 
+    def in_hunk() -> bool:
+        return old_remaining > 0 or new_remaining > 0
+
     for raw in patch.splitlines():
         hunk = _HUNK_RE.match(raw)
         if hunk or raw.strip() == "@@":
             # A bare "@@" (no line numbers) is tolerated for hand-written
-            # patches; difflib output always carries numbers.
+            # patches; difflib output always carries numbers. Without counts
+            # the hunk stays open until the next header, which is the best a
+            # count-less hunk can promise.
             if path is None:
                 path = ""
             if hunk:
                 old_number = int(hunk.group(1))
                 new_number = int(hunk.group(3))
+                old_remaining = int(hunk.group(2)) if hunk.group(2) is not None else 1
+                new_remaining = int(hunk.group(4)) if hunk.group(4) is not None else 1
+            else:
+                old_remaining = new_remaining = 1
             lines.append(DiffLine(kind=_HUNK, old_number=None, new_number=None, text=raw))
             continue
-        if raw.startswith("--- "):
+        if not in_hunk() and raw.startswith("--- "):
             # A second --- header starts the next file body.
             flush()
             path = raw[4:].strip()
             continue
-        if raw.startswith("+++ "):
+        if not in_hunk() and raw.startswith("+++ "):
             continue
         if path is None:
             continue
         if raw.startswith("+"):
             lines.append(DiffLine(kind=_ADD, old_number=None, new_number=new_number, text=raw[1:]))
             new_number += 1
+            new_remaining = max(new_remaining - 1, 0)
         elif raw.startswith("-"):
             lines.append(DiffLine(kind=_REMOVE, old_number=old_number, new_number=None, text=raw[1:]))
             old_number += 1
+            old_remaining = max(old_remaining - 1, 0)
         elif raw.startswith(" "):
             lines.append(
-                DiffLine(kind=_CONTEXT, old_number=old_number, new_number=new_number, text=raw[1:])
+                DiffLine(
+                    kind=_CONTEXT,
+                    old_number=old_number,
+                    new_number=new_number,
+                    text=raw[1:],
+                )
             )
             old_number += 1
             new_number += 1
+            old_remaining = max(old_remaining - 1, 0)
+            new_remaining = max(new_remaining - 1, 0)
         elif raw.startswith("\\"):
             lines.append(DiffLine(kind=_META, old_number=None, new_number=None, text=raw))
     flush()
     return tuple(files)
 
 
-def _changed_word_ranges(
-    old: str, new: str
-) -> tuple[list[tuple[int, int]], list[tuple[int, int]]]:
+def _changed_word_ranges(old: str, new: str) -> tuple[list[tuple[int, int]], list[tuple[int, int]]]:
     """Return the (start, end) spans of tokens that differ between the pair."""
     old_tokens = [(match.group(), match.start(), match.end()) for match in _TOKEN_RE.finditer(old)]
     new_tokens = [(match.group(), match.start(), match.end()) for match in _TOKEN_RE.finditer(new)]
@@ -175,11 +204,7 @@ def _render_paired_run(
     body: list[RenderableType] = []
     pair_count = min(len(removed_run), len(added_run))
     for position, line in enumerate(removed_run):
-        ranges = (
-            _changed_word_ranges(line.text, added_run[position].text)[0]
-            if position < pair_count
-            else []
-        )
+        ranges = _changed_word_ranges(line.text, added_run[position].text)[0] if position < pair_count else []
         body.append(
             _line_text(
                 line,
@@ -191,9 +216,7 @@ def _render_paired_run(
         )
     for position, line in enumerate(added_run):
         ranges = (
-            _changed_word_ranges(removed_run[position].text, line.text)[1]
-            if position < pair_count
-            else []
+            _changed_word_ranges(removed_run[position].text, line.text)[1] if position < pair_count else []
         )
         body.append(
             _line_text(

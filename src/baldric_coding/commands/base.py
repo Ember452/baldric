@@ -12,7 +12,10 @@ from baldric_agent.tools import AgentTool
 from baldric_coding.context.prompts import PromptTemplate
 from baldric_coding.context.resources import ResourceDiagnostic
 from baldric_coding.context.skills.skills import Skill
-from baldric_coding.context.system_prompt import ProjectContextFile, SystemPromptInspection
+from baldric_coding.context.system_prompt import (
+    ProjectContextFile,
+    SystemPromptInspection,
+)
 from baldric_coding.session.manager import SessionManager
 
 
@@ -161,9 +164,7 @@ def not_handled() -> CommandOutcome:
     return CommandOutcome(kind=CommandKind.NOT_HANDLED)
 
 
-def message_outcome(
-    message: str, *, display: MessageDisplay = MessageDisplay.POPUP
-) -> CommandOutcome:
+def message_outcome(message: str, *, display: MessageDisplay = MessageDisplay.POPUP) -> CommandOutcome:
     """Return an informational outcome rendered per *display*."""
     return CommandOutcome(kind=CommandKind.MESSAGE, message=message, display=display)
 

@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Literal, Protocol, cast
 from uuid import uuid4
 
 from baldric_agent.messages import AgentMessage, ToolResultMessage
+from baldric_agent.tool_calls import BeforeToolCall
 from baldric_agent.tools import AgentTool, AgentToolResult
 from baldric_agent.types import JSONValue
 
@@ -1078,6 +1079,17 @@ class ExtensionContext:
         """Return whether an agent run is currently active."""
         self._generation.assert_active()
         return self._runtime.session_view.is_running
+
+    @property
+    def before_tool_call(self) -> BeforeToolCall | None:
+        """Return the harness's tool gate so a child session can inherit it.
+
+        Subagents build their own ``CodingSessionConfig``; without this read they
+        would drop the approval gate and let a child run mutating tools without
+        the parent's (or the user's) decision.
+        """
+        self._generation.assert_active()
+        return self._runtime.session_view.before_tool_call
 
     @property
     def transcript(self) -> tuple[AgentMessage, ...]:

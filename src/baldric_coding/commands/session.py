@@ -18,9 +18,7 @@ from baldric_coding.session.manager import normalize_session_name
 
 def _resume_command(context: CommandContext) -> CommandResult:
     if not context.args:
-        return handled_result(
-            CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.SESSION_RESUME)
-        )
+        return handled_result(CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.SESSION_RESUME))
     manager = context.session.session_manager
     if manager is None:
         return handled_result(message_outcome("Session manager is not available."))
@@ -51,9 +49,7 @@ def _name_command(context: CommandContext) -> CommandResult:
     if not context.args:
         record = manager.get_session(session_id)
         title = (record.title if record is not None else context.session.session_title) or "Untitled session"
-        return handled_result(
-            message_outcome(f"Current session name: {title}\nUsage: /name <new name>")
-        )
+        return handled_result(message_outcome(f"Current session name: {title}\nUsage: /name <new name>"))
 
     try:
         name = _validated_session_name(context.args)

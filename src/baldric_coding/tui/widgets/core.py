@@ -195,7 +195,10 @@ class SystemPromptSourcesWidget(Vertical):
         super().__init__()
 
     def compose(self) -> Any:
-        yield Static(Text("/system", style=f"bold {self._theme.accent}"), classes="system-prompt-title")
+        yield Static(
+            Text("/system", style=f"bold {self._theme.accent}"),
+            classes="system-prompt-title",
+        )
         for index, source in enumerate(self.sources, start=1):
             yield SystemPromptSectionWidget(source, index=index, theme=self._theme)
 
@@ -668,7 +671,10 @@ class TranscriptView(VerticalScroll):
                 self._window_shift_pending = False
                 return
             anchor_item = state.items[old_end - 1] if old_end > old_start else None
-            new_end = min(len(state.items), old_end + _widgets_package().TRANSCRIPT_WINDOW_PAGE_ITEMS)
+            new_end = min(
+                len(state.items),
+                old_end + _widgets_package().TRANSCRIPT_WINDOW_PAGE_ITEMS,
+            )
             new_start = max(0, new_end - _widgets_package().TRANSCRIPT_WINDOW_ITEMS)
 
         self._window_start = new_start
@@ -727,8 +733,7 @@ class TranscriptView(VerticalScroll):
         await self.mount(replacement, before=widget)
         await widget.remove()
         self._active_message_widgets[:] = [
-            replacement if active is widget else active
-            for active in self._active_message_widgets
+            replacement if active is widget else active for active in self._active_message_widgets
         ]
         self._hidden_thinking_placeholder_widget = None
         self._hidden_thinking_placeholder_visible = False
@@ -1025,7 +1030,12 @@ class TranscriptView(VerticalScroll):
         self._render_state = state
         self._render_theme = theme
         for item in state.items[self._window_start : self._window_end]:
-            if item.role not in {"tool", "skill", "branch_summary", "compaction_summary"}:
+            if item.role not in {
+                "tool",
+                "skill",
+                "branch_summary",
+                "compaction_summary",
+            }:
                 continue
             expanded = state.show_tool_results or item.always_show_tool_result
             await self.update_item(
@@ -1313,7 +1323,9 @@ def _identity_index(items: Sequence[ChatItem], target: ChatItem) -> int | None:
     return None
 
 
-def _last_transcript_child_is_hidden_thinking_placeholder(children: Sequence[Widget]) -> bool:
+def _last_transcript_child_is_hidden_thinking_placeholder(
+    children: Sequence[Widget],
+) -> bool:
     for child in reversed(children):
         if isinstance(child, TranscriptMessageWidget | StreamingTranscriptMessageWidget):
             return child.item.role == "thinking" and child.selection_text == _HIDDEN_THINKING_PLACEHOLDER
@@ -1496,7 +1508,13 @@ def _transcript_item_markdown(
     visible_text = _visible_chat_text(item, show_tool_results=show_tool_results, invocation=invocation)
     if item.system_prompt:
         return _system_prompt_markdown(visible_text)
-    if item.role in {"assistant", "thinking", "status", "branch_summary", "compaction_summary"}:
+    if item.role in {
+        "assistant",
+        "thinking",
+        "status",
+        "branch_summary",
+        "compaction_summary",
+    }:
         return visible_text
     return _plain_markdown(visible_text)
 
@@ -1642,9 +1660,7 @@ def _tool_batch_selection_text(item: ChatItem, *, expanded: bool) -> str:
     return ("\n\n" if expanded else "\n").join(rows)
 
 
-def _hidden_thinking_run_summaries(
-    window_items: list[ChatItem], show_thinking: bool
-) -> dict[int, str]:
+def _hidden_thinking_run_summaries(window_items: list[ChatItem], show_thinking: bool) -> dict[int, str]:
     """Map the first item of each hidden thinking run to its one-line summary."""
     summaries: dict[int, str] = {}
     run: list[ChatItem] = []
@@ -1653,14 +1669,10 @@ def _hidden_thinking_run_summaries(
             run.append(item)
             continue
         if run:
-            summaries[id(run[0])] = format_hidden_thinking_summary(
-                [run_item.text for run_item in run]
-            )
+            summaries[id(run[0])] = format_hidden_thinking_summary([run_item.text for run_item in run])
             run = []
     if run:
-        summaries[id(run[0])] = format_hidden_thinking_summary(
-            [run_item.text for run_item in run]
-        )
+        summaries[id(run[0])] = format_hidden_thinking_summary([run_item.text for run_item in run])
     return summaries
 
 
@@ -1678,7 +1690,7 @@ def _render_transcript_tool_batch(
         # A count head gives long collapsed runs a scannable shape; expanding
         # shows the full rows again, so nothing is lost.
         rendered.append(
-            format_tool_run_summary(row.tool_name for row in rows),
+            format_tool_run_summary(row.tool_name or row.text for row in rows),
             style=theme.muted_text,
         )
         rendered.append("\n", style=body_style)

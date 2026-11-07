@@ -964,6 +964,11 @@ class CodingSession:
         return self._config.shell_command_prefix
 
     @property
+    def before_tool_call(self) -> BeforeToolCall | None:
+        """Return the harness tool gate, so child sessions can inherit it."""
+        return self._config.before_tool_call
+
+    @property
     def inference_provider(self) -> str | None:
         """Return the pinned Hugging Face backing provider, if any."""
         return self._inference_provider

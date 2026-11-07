@@ -1429,8 +1429,8 @@ async def run_print_mode(
     if (stripped_prompt := prompt.strip()) == "/system" or stripped_prompt.startswith("/system "):
         command = prepared.session.handle_command(prompt)
         await prepared.abort()
-        if command.message:
-            typer.echo(command.message)
+        if command.outcome.message:
+            typer.echo(command.outcome.message)
         return True
     session = await prepared.adopt()
     if startup_model_override:

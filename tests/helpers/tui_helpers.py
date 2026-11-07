@@ -29,7 +29,11 @@ from baldric_coding.context.system_prompt import (
 )
 from baldric_coding.events import QueueUpdateEvent
 from baldric_coding.session.manager import CodingSessionRecord
-from baldric_coding.session.session import ModelChoice, SessionTreeChoice, TerminalCommandResult
+from baldric_coding.session.session import (
+    ModelChoice,
+    SessionTreeChoice,
+    TerminalCommandResult,
+)
 from baldric_coding.session.stats import SessionStats
 from baldric_coding.tools.registry import create_coding_tools
 from baldric_coding.tui.app import BaldricTuiApp, _TuiExtensionUiBridge
@@ -71,7 +75,14 @@ class FakeSession:
         self.auto_compact_token_threshold = 200000
         self.context_window_tokens = 216384
         self.thinking_level = "medium"
-        self.available_thinking_levels = ("off", "minimal", "low", "medium", "high", "xhigh")
+        self.available_thinking_levels = (
+            "off",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+        )
         self.state = FakeSessionState()
         self.resource_diagnostics = ()
         self.extension_names = ("permission-gate", "subagents")
@@ -210,9 +221,7 @@ class FakeSession:
                 outcome=CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.PROMPTS)
             )
         if text == "/tree":
-            return CommandResult(
-                outcome=CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.TREE)
-            )
+            return CommandResult(outcome=CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.TREE))
         if text == "/login":
             return CommandResult(
                 outcome=CommandOutcome(

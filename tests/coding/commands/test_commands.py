@@ -8,7 +8,11 @@ from baldric_coding.commands.base import (
     message_outcome,
     not_handled,
 )
-from baldric_coding.commands.registry import CommandRegistry, SlashCommand, create_default_command_registry
+from baldric_coding.commands.registry import (
+    CommandRegistry,
+    SlashCommand,
+    create_default_command_registry,
+)
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.resources import ResourceDiagnostic
 from baldric_coding.context.skills.skills import Skill
@@ -50,7 +54,14 @@ class FakeSession:
         self.auto_compact_token_threshold = 200
         self.context_window_tokens = 584
         self.thinking_level = "medium"
-        self.available_thinking_levels = ("off", "minimal", "low", "medium", "high", "xhigh")
+        self.available_thinking_levels = (
+            "off",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+        )
         self.thinking_unavailable_reason: str | None = None
         self.tui_theme = "baldric-dark"
         self.resource_diagnostics = ()
@@ -168,26 +179,18 @@ def test_diagnostics_command_shows_empty_state(tmp_path: Path) -> None:
     result = create_default_command_registry().execute(FakeSession(tmp_path), "/diagnostics")
 
     assert result.outcome == message_outcome("No resource diagnostics.")
-    assert (
-        create_default_command_registry()
-        .execute(FakeSession(tmp_path), "/diagnostics extra")
-        .outcome
-        == message_outcome("Usage: /diagnostics")
-    )
+    assert create_default_command_registry().execute(
+        FakeSession(tmp_path), "/diagnostics extra"
+    ).outcome == message_outcome("Usage: /diagnostics")
 
 
 def test_extensions_command_requests_inventory_modal(tmp_path: Path) -> None:
     result = create_default_command_registry().execute(FakeSession(tmp_path), "/extensions")
 
-    assert result.outcome == CommandOutcome(
-        kind=CommandKind.OPEN_PICKER, picker=PickerKind.EXTENSIONS
-    )
-    assert (
-        create_default_command_registry()
-        .execute(FakeSession(tmp_path), "/extensions extra")
-        .outcome
-        == message_outcome("Usage: /extensions")
-    )
+    assert result.outcome == CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.EXTENSIONS)
+    assert create_default_command_registry().execute(
+        FakeSession(tmp_path), "/extensions extra"
+    ).outcome == message_outcome("Usage: /extensions")
 
 
 def test_diagnostics_command_shows_complete_literal_details(tmp_path: Path) -> None:
@@ -256,9 +259,7 @@ def test_approvals_command_requests_toggle_and_rejects_args(tmp_path: Path) -> N
     result = registry.execute(session, "/approvals")
 
     assert result.outcome.kind is CommandKind.TOGGLE_APPROVALS
-    assert registry.execute(session, "/approvals extra").outcome == message_outcome(
-        "Usage: /approvals"
-    )
+    assert registry.execute(session, "/approvals extra").outcome == message_outcome("Usage: /approvals")
 
 
 def test_prompts_command_requests_picker(tmp_path: Path) -> None:
@@ -307,9 +308,7 @@ def test_compact_command_accepts_optional_instructions(tmp_path: Path) -> None:
     requested = registry.execute(session, "/compact Summary of prior work.")
 
     assert default.outcome == CommandOutcome(kind=CommandKind.COMPACT, text="")
-    assert requested.outcome == CommandOutcome(
-        kind=CommandKind.COMPACT, text="Summary of prior work."
-    )
+    assert requested.outcome == CommandOutcome(kind=CommandKind.COMPACT, text="Summary of prior work.")
 
 
 def test_skills_command_requests_picker(tmp_path: Path) -> None:
@@ -419,10 +418,7 @@ def test_session_command_explains_unavailable_thinking_controls(tmp_path: Path) 
     assert result.outcome.kind is CommandKind.MESSAGE
     assert result.outcome.message is not None
     assert "Thinking mode: unavailable" in result.outcome.message
-    assert (
-        "Thinking unavailable: Provider local does not declare thinking_levels"
-        in result.outcome.message
-    )
+    assert "Thinking unavailable: Provider local does not declare thinking_levels" in result.outcome.message
     assert "Thinking mode: medium" not in result.outcome.message
 
 
@@ -435,9 +431,7 @@ def test_hotkeys_command_lists_common_tui_shortcuts(tmp_path: Path) -> None:
     assert "Ctrl+E: edit prompt in external editor ($VISUAL/$EDITOR)" in result.outcome.message
     assert "Ctrl+K: open slash-command completions" in result.outcome.message
     assert "Ctrl+R: open session picker" in result.outcome.message
-    assert (
-        "Ctrl+P / Shift+Ctrl+P: cycle scoped models forward / backward" in result.outcome.message
-    )
+    assert "Ctrl+P / Shift+Ctrl+P: cycle scoped models forward / backward" in result.outcome.message
     assert "Shift+Tab: cycle thinking mode" in result.outcome.message
 
 
@@ -448,9 +442,7 @@ def test_model_command_requests_picker_and_switches_models(tmp_path: Path) -> No
     list_result = registry.execute(session, "/model")
     switch_result = registry.execute(session, "/model other-model")
 
-    assert list_result.outcome == CommandOutcome(
-        kind=CommandKind.OPEN_PICKER, picker=PickerKind.MODEL
-    )
+    assert list_result.outcome == CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.MODEL)
     assert switch_result.outcome == message_outcome("Current model: other-model")
     assert session.model == "other-model"
     assert session.provider_reload_called is False
@@ -483,7 +475,9 @@ def test_model_command_rejects_unknown_model(tmp_path: Path) -> None:
     assert session.model == "fake-model"
 
 
-def test_model_pickers_open_even_if_provider_settings_cannot_reload(tmp_path: Path) -> None:
+def test_model_pickers_open_even_if_provider_settings_cannot_reload(
+    tmp_path: Path,
+) -> None:
     class FailingRefreshSession(FakeSession):
         def reload_provider_settings(self) -> None:
             raise ValueError("active model is missing from the refreshed catalog")
@@ -507,12 +501,8 @@ def test_theme_command_requests_picker_and_sets_theme(tmp_path: Path) -> None:
     switch_result = registry.execute(session, "/theme baldric-light")
     unknown_result = registry.execute(session, "/theme solarized")
 
-    assert list_result.outcome == CommandOutcome(
-        kind=CommandKind.OPEN_PICKER, picker=PickerKind.THEME
-    )
-    assert switch_result.outcome == CommandOutcome(
-        kind=CommandKind.THEME_SET, text="baldric-light"
-    )
+    assert list_result.outcome == CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.THEME)
+    assert switch_result.outcome == CommandOutcome(kind=CommandKind.THEME_SET, text="baldric-light")
     assert unknown_result.outcome.kind is CommandKind.MESSAGE
     assert unknown_result.outcome.message is not None
     assert "Unknown theme: solarized" in unknown_result.outcome.message
@@ -565,16 +555,16 @@ def test_tools_command_requests_read_only_picker(tmp_path: Path) -> None:
 def test_login_command_requests_provider_picker(tmp_path: Path) -> None:
     result = create_default_command_registry().execute(FakeSession(tmp_path), "/login")
 
-    assert result.outcome == CommandOutcome(
-        kind=CommandKind.OPEN_PICKER, picker=PickerKind.LOGIN_METHOD
-    )
+    assert result.outcome == CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.LOGIN_METHOD)
 
 
 def test_login_command_requests_provider_login(tmp_path: Path) -> None:
     result = create_default_command_registry().execute(FakeSession(tmp_path), "/login openai")
 
     assert result.outcome == CommandOutcome(
-        kind=CommandKind.OPEN_PICKER, picker=PickerKind.LOGIN_PROVIDER, provider="openai"
+        kind=CommandKind.OPEN_PICKER,
+        picker=PickerKind.LOGIN_PROVIDER,
+        provider="openai",
     )
 
 
@@ -619,16 +609,16 @@ def test_login_command_requests_custom_provider_login(tmp_path: Path) -> None:
 def test_logout_command_requests_provider_picker(tmp_path: Path) -> None:
     result = create_default_command_registry().execute(FakeSession(tmp_path), "/logout")
 
-    assert result.outcome == CommandOutcome(
-        kind=CommandKind.OPEN_PICKER, picker=PickerKind.LOGOUT_PROVIDER
-    )
+    assert result.outcome == CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.LOGOUT_PROVIDER)
 
 
 def test_logout_command_requests_provider_logout(tmp_path: Path) -> None:
     result = create_default_command_registry().execute(FakeSession(tmp_path), "/logout openai")
 
     assert result.outcome == CommandOutcome(
-        kind=CommandKind.OPEN_PICKER, picker=PickerKind.LOGOUT_PROVIDER, provider="openai"
+        kind=CommandKind.OPEN_PICKER,
+        picker=PickerKind.LOGOUT_PROVIDER,
+        provider="openai",
     )
 
 
@@ -656,9 +646,7 @@ def test_resume_without_argument_requests_picker(tmp_path: Path) -> None:
 
     result = create_default_command_registry().execute(session, "/resume")
 
-    assert result.outcome == CommandOutcome(
-        kind=CommandKind.OPEN_PICKER, picker=PickerKind.SESSION_RESUME
-    )
+    assert result.outcome == CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.SESSION_RESUME)
     assert create_default_command_registry().execute(session, "/sessions").handled is False
 
 
@@ -693,9 +681,7 @@ def test_name_command_shows_current_name_and_usage(tmp_path: Path) -> None:
 
     result = create_default_command_registry().execute(session, "/name")
 
-    assert result.outcome == message_outcome(
-        "Current session name: Test session\nUsage: /name <new name>"
-    )
+    assert result.outcome == message_outcome("Current session name: Test session\nUsage: /name <new name>")
 
 
 def test_name_command_requests_session_rename(tmp_path: Path) -> None:

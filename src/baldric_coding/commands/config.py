@@ -13,7 +13,10 @@ from baldric_coding.commands.base import (
     message_outcome,
 )
 from baldric_coding.context.thinking import normalize_thinking_level
-from baldric_coding.providers.catalog import BUILTIN_PROVIDER_CATALOG, builtin_provider_entry
+from baldric_coding.providers.catalog import (
+    BUILTIN_PROVIDER_CATALOG,
+    builtin_provider_entry,
+)
 
 LOGIN_PROVIDER_ALIASES = {
     "anthropic-api": ("anthropic", "api-key"),
@@ -46,17 +49,13 @@ def _model_command(context: CommandContext) -> CommandResult:
         context.session.set_model(model)
         return handled_result(message_outcome(f"Current model: {model}"))
 
-    return handled_result(
-        CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.MODEL)
-    )
+    return handled_result(CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.MODEL))
 
 
 def _scoped_models_command(context: CommandContext) -> CommandResult:
     if context.args:
         return handled_result(message_outcome("Usage: /scoped-models"))
-    return handled_result(
-        CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.SCOPED_MODELS)
-    )
+    return handled_result(CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.SCOPED_MODELS))
 
 
 def _thinking_command(context: CommandContext) -> CommandResult:
@@ -110,9 +109,7 @@ def _thinking_unavailable_reason(session: CommandSession) -> str | None:
 
 def _theme_command(context: CommandContext) -> CommandResult:
     if not context.args:
-        return handled_result(
-            CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.THEME)
-        )
+        return handled_result(CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.THEME))
 
     # Imported lazily so importing this module never pulls in `baldric_coding.tui`
     # (whose package __init__ imports Textual) until /theme actually executes.
@@ -122,18 +119,14 @@ def _theme_command(context: CommandContext) -> CommandResult:
     available = available_tui_theme_names()
     if theme_name not in available:
         themes = ", ".join(available)
-        return handled_result(
-            message_outcome(f"Unknown theme: {theme_name}\nAvailable themes: {themes}")
-        )
+        return handled_result(message_outcome(f"Unknown theme: {theme_name}\nAvailable themes: {themes}"))
     return handled_result(CommandOutcome(kind=CommandKind.THEME_SET, text=theme_name))
 
 
 def _local_command(context: CommandContext) -> CommandResult:
     if context.args:
         return handled_result(message_outcome("Usage: /local"))
-    return handled_result(
-        CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.LOCAL_BACKEND)
-    )
+    return handled_result(CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.LOCAL_BACKEND))
 
 
 def _sidebar_command(context: CommandContext) -> CommandResult:
@@ -154,9 +147,7 @@ def _login_command(context: CommandContext) -> CommandResult:
     provider_name = context.args.strip()
     if provider_name in {"custom", "new", "add"}:
         return handled_result(
-            CommandOutcome(
-                kind=CommandKind.OPEN_PICKER, picker=PickerKind.CUSTOM_PROVIDER_LOGIN
-            )
+            CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.CUSTOM_PROVIDER_LOGIN)
         )
     if provider_name:
         aliased_provider = LOGIN_PROVIDER_ALIASES.get(provider_name)
@@ -173,9 +164,7 @@ def _login_command(context: CommandContext) -> CommandResult:
                 ]
             )
             return handled_result(
-                message_outcome(
-                    f"Unknown login provider: {provider_name}\nAvailable providers: {providers}"
-                )
+                message_outcome(f"Unknown login provider: {provider_name}\nAvailable providers: {providers}")
             )
         return handled_result(
             CommandOutcome(
@@ -186,9 +175,7 @@ def _login_command(context: CommandContext) -> CommandResult:
             )
         )
 
-    return handled_result(
-        CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.LOGIN_METHOD)
-    )
+    return handled_result(CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.LOGIN_METHOD))
 
 
 def _logout_command(context: CommandContext) -> CommandResult:
@@ -198,9 +185,7 @@ def _logout_command(context: CommandContext) -> CommandResult:
         if entry is None:
             providers = ", ".join(entry.name for entry in BUILTIN_PROVIDER_CATALOG)
             return handled_result(
-                message_outcome(
-                    f"Unknown logout provider: {provider_name}\nAvailable providers: {providers}"
-                )
+                message_outcome(f"Unknown logout provider: {provider_name}\nAvailable providers: {providers}")
             )
         return handled_result(
             CommandOutcome(
@@ -210,6 +195,4 @@ def _logout_command(context: CommandContext) -> CommandResult:
             )
         )
 
-    return handled_result(
-        CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.LOGOUT_PROVIDER)
-    )
+    return handled_result(CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.LOGOUT_PROVIDER))

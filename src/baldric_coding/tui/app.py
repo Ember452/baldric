@@ -122,7 +122,10 @@ from baldric_coding.providers.config import (
     upsert_saved_provider,
 )
 from baldric_coding.providers.loader import save_user_catalog_entries
-from baldric_coding.providers.runtime import ClosableModelProvider, create_model_provider
+from baldric_coding.providers.runtime import (
+    ClosableModelProvider,
+    create_model_provider,
+)
 from baldric_coding.rendering.themes import (
     available_tui_theme_names,
     load_custom_tui_themes,
@@ -298,7 +301,11 @@ from baldric_coding.tui.screens.tools_reference import ToolsReferenceScreen
 from baldric_coding.tui.screens.tree_picker import (
     TreePickerScreen as TreePickerScreen,
 )
-from baldric_coding.tui.session_records import session_options, session_records, short_path
+from baldric_coding.tui.session_records import (
+    session_options,
+    session_records,
+    short_path,
+)
 from baldric_coding.tui.state import (
     TuiState,
     assistant_visible_blocks,
@@ -1475,23 +1482,32 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         target = approval_target(tool_call.name, tool_call.arguments)
         if self.approval_policy.decide(tool_call.name, target) is not None:
             return False, None
-        preview = await asyncio.to_thread(
-            build_approval_preview,
-            tool_call.name,
-            tool_call.arguments,
-            cwd=self.session.cwd,
-        )
-        decision = await self.push_screen_wait(
-            ApprovalScreen(
-                ApprovalRequest(
-                    tool_name=tool_call.name,
-                    target=target,
-                    preview=preview,
-                ),
-                theme=self.tui_settings.resolved_theme,
-                always_rule=self.approval_policy.preview_rule(tool_call.name, target),
+        try:
+            preview = await asyncio.to_thread(
+                build_approval_preview,
+                tool_call.name,
+                tool_call.arguments,
+                cwd=self.session.cwd,
             )
-        )
+            decision = await self.push_screen_wait(
+                ApprovalScreen(
+                    ApprovalRequest(
+                        tool_name=tool_call.name,
+                        target=target,
+                        preview=preview,
+                    ),
+                    theme=self.tui_settings.resolved_theme,
+                    always_rule=self.approval_policy.preview_rule(tool_call.name, target),
+                )
+            )
+        except Exception as exc:
+            # The approval gate is a safety boundary: if the card cannot be
+            # shown, fail closed and give the model a reason instead of
+            # crashing the turn.
+            return (
+                True,
+                f"Approval UI failed ({type(exc).__name__}: {exc}); call blocked.",
+            )
         if decision is None:
             return True, "Rejected by user"
         if decision.remember:
@@ -1894,9 +1910,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
 
         command = self.session.handle_command(text)
         if command.handled:
-            await self._dispatch_command_outcome(
-                text, command.outcome, prompt=prompt, raw_text=raw_text
-            )
+            await self._dispatch_command_outcome(text, command.outcome, prompt=prompt, raw_text=raw_text)
             return
 
         if self._pending_prompt_run_id is not None:
@@ -1976,8 +1990,10 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         elif outcome.kind is CommandKind.THEME_SET:
             self._set_tui_theme(outcome.text or "")
         elif outcome.kind is CommandKind.TOGGLE_APPROVALS:
-            new_mode = "auto" if self.tui_settings.approval_mode == "ask" else "ask"
-            self.tui_settings.approval_mode = new_mode
+            new_mode: Literal["auto", "ask"] = "auto" if self.tui_settings.approval_mode == "ask" else "ask"
+            # TuiSettings is a frozen dataclass, so a toggle replaces the value
+            # instead of mutating it in place.
+            self.tui_settings = replace(self.tui_settings, approval_mode=new_mode)
             save_tui_settings(self.tui_settings)
             self._notify(f"Approval prompts: {new_mode}")
         elif outcome.kind is CommandKind.TOGGLE_SIDEBAR:

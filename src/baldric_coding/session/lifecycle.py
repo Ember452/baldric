@@ -897,6 +897,10 @@ async def new_session(session: CodingSession) -> str:
             thinking_level=thinking_level,
             index_on_first_persist=True,
             extension_runtime=session._extension_runtime,
+            # Carry the harness gate across /new. Dropping it here let a user
+            # who turned on approval mode create a session where mutating
+            # tools ran without ever asking — a silent, session-wide failure.
+            before_tool_call=session._config.before_tool_call,
         )
     )
     await session._adopt_replacement(replacement, reason="new")

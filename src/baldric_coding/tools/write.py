@@ -47,9 +47,7 @@ def create_write_tool_definition(*, cwd: str | Path | None = None) -> ToolDefini
             old_content: str | None = ""
             if path.exists():
                 try:
-                    old_content = await asyncio.to_thread(
-                        path.read_text, encoding="utf-8-sig"
-                    )
+                    old_content = await asyncio.to_thread(path.read_text, encoding="utf-8-sig")
                 except (OSError, UnicodeDecodeError):
                     old_content = None
             await asyncio.to_thread(path.write_text, content, encoding="utf-8")
@@ -74,7 +72,10 @@ def create_write_tool_definition(*, cwd: str | Path | None = None) -> ToolDefini
             "type": "object",
             "properties": {
                 "path": {"type": "string", "description": "Path to the file to write"},
-                "content": {"type": "string", "description": "Content to write to the file"},
+                "content": {
+                    "type": "string",
+                    "description": "Content to write to the file",
+                },
             },
             "required": ["path", "content"],
         },
