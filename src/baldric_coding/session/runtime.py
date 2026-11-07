@@ -699,7 +699,13 @@ async def _persist_message(session: CodingSession, message: AgentMessage) -> Non
 
     Message lifecycle events are the durable-message boundary. A stable entry
     id lets a retry recognize an append that reached disk before raising.
-    Only retries pay for a full-file read.
+
+    A message appended at the tip only extends the derived state, so derive it
+    instead of re-reading and replaying the transcript: the read hands out a deep
+    copy of every entry and the replay walks them, which made each persisted
+    message quadratic in session length. A retry, a non-tip parent or any other
+    entry kind still pays the full read, because those are the cases where the
+    transcript may not match the in-memory state.
     """
     message_id = id(message)
     pending = session._pending_message_writes.get(message_id)
@@ -710,11 +716,18 @@ async def _persist_message(session: CodingSession, message: AgentMessage) -> Non
         session._pending_message_writes[message_id] = pending
 
     durable_ids = {entry.id for entry in await session._read_session_entries()} if is_retry else frozenset()
-    if pending.entry.id not in durable_ids:
+    appended = pending.entry.id not in durable_ids
+    if appended:
         await session._append_session_entry(pending.entry)
     session._last_parent_id = pending.entry.id
 
-    await session._refresh_persisted_state(leaf_id=session._last_parent_id)
+    if appended and not is_retry and session._state.accepts_appended_message(pending.entry):
+        session._state = session._state.with_appended_message(
+            pending.entry, leaf_id=pending.entry.id
+        )
+        _touch_session_record(session)
+    else:
+        await session._refresh_persisted_state(leaf_id=session._last_parent_id)
     session._persisted_message_ids.add(message_id)
     session._pending_message_writes.pop(message_id, None)
     session._invalidate_context_usage_cache()
@@ -782,6 +795,11 @@ def _invalidate_context_usage_cache(session: CodingSession) -> None:
 async def _refresh_persisted_state(session: CodingSession, *, leaf_id: str | None) -> None:
     entries = await session._read_session_entries()
     session._state = SessionState.from_entries(entries, leaf_id=leaf_id)
+    _touch_session_record(session)
+
+
+def _touch_session_record(session: CodingSession) -> None:
+    """Publish the session's last-used metadata for the index."""
     if session._config.session_id is not None and session._config.session_manager is not None:
         session._config.session_manager.touch_session(
             session._config.session_id,

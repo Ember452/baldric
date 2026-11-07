@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Final, cast
 
 from baldric_agent.messages import AgentMessage, CustomMessage, UserMessage
@@ -10,6 +10,7 @@ from baldric_agent.session.entries import (
     BranchSummaryEntry,
     CompactionEntry,
     CustomEntry,
+    MessageEntry,
     SessionEntry,
     SessionInfoEntry,
 )
@@ -126,6 +127,33 @@ class SessionState:
             compaction_entries=tuple(compaction_entries),
             context_entry_ids=tuple(entry_id for entry_id, _message in message_rows),
             entries=tuple(replay_entries),
+        )
+
+    def accepts_appended_message(self, entry: SessionEntry) -> bool:
+        """Return whether :meth:`with_appended_message` can derive this append."""
+        if entry.type != "message":
+            return False
+        if self.active_leaf_id != entry.parent_id:
+            return False
+        # The tip must be where the message lands; an empty path only grows from
+        # a root message.
+        return self.active_leaf_id is not None or not self.entries
+
+    def with_appended_message(self, entry: MessageEntry, *, leaf_id: str) -> SessionState:
+        """Return the state after appending one message at the active tip.
+
+        Replaying the whole branch after every persisted message is quadratic over
+        a session. A message appended to the tip can only change the message list,
+        the active path and the context ids, so derive them directly. Callers
+        must use :meth:`from_entries` for every other entry kind, for a parent
+        that is not the tip, and after any external change to the transcript.
+        """
+        return replace(
+            self,
+            messages=(*self.messages, entry.message),
+            entries=(*self.entries, entry),
+            context_entry_ids=(*self.context_entry_ids, entry.id),
+            active_leaf_id=leaf_id,
         )
 
 
