@@ -174,11 +174,18 @@ decisions where they apply):
   instructions` (capped per server and in total). Rendered via the session's
   `refresh_system_prompt()` seam; servers without instructions contribute
   name and tool count only.
+- **Child sessions.** Subagent child sessions do not get MCP in MVP — each
+  child spawning its own server processes is waste. The decision is one gate
+  function (`_session_wants_mcp`) with a docstring naming the future path
+  (shared supervisor or per-child opt-in flag); nothing else in the design
+  assumes top-level ownership, so enabling it later is a one-line change.
 - **`/mcp` command** (sync handler; async work scheduled onto the loop):
   no args lists servers (name, state, transport, tool count, first error
   line); `/mcp restart <name>` re-reads config and reconnects; `/mcp off
-  <name>` closes the connection and withdraws its tools; `/mcp on <name>`
-  reconnects. Toggles are runtime-only in MVP.
+  <name>` closes the connection, withdraws its tools, and writes
+  `enabled: false` back to the file that defines the server (indentation and
+  unrelated content preserved, as in pi's `mcp.json` write-back); `/mcp on
+  <name>` reconnects and clears the flag the same way.
 - Server state changes surface via `ui.notify`; no UI components.
 
 ## Configuration format
@@ -254,8 +261,9 @@ per house rules rather than splitting in the same change.
 
 ## Testing strategy
 
-- Supervisor/client lifecycle tests use the SDK's in-memory client/server
-  pair — deterministic, no real subprocesses.
+- Supervisor/client lifecycle tests use scripted fake connections and the
+  SDK's in-memory client/server pair where useful — deterministic, no real
+  subprocesses outside integration tests.
 - One to two integration tests spawn a real fixture stdio MCP server from
   `tests/helpers/` (spawn, list tools, call tool, exit).
 - Unit: config parse/merge/expansion/trust-gate/namespace-clash; adapter
@@ -286,5 +294,5 @@ per house rules rather than splitting in the same change.
 
 OAuth flows, MCP server mode, resources/prompts/sampling, deferred tool
 loading (`tool_search`/codemode), `list_changed` handling, tool annotations,
-persisted per-server toggles, hot config reload, direct `ImageContent` tool
-results for image-unsupported models.
+hot config reload, direct `ImageContent` tool results for image-unsupported
+models, child-session MCP sharing.
