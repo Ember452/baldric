@@ -328,7 +328,7 @@ class McpServerConnection:
             self._state = "connected"
             self._error = None
             return None
-        except BaseException as exc:  # noqa: BLE001 - classified by the caller
+        except BaseException as exc:
             if stack is not None:
                 await self._aclose(stack)
             return exc
@@ -374,8 +374,8 @@ class McpServerConnection:
             await stack.aclose()
 
 
-async def _sdk_session_factory(read: Any, write: Any) -> Any:
-    """Build the SDK ClientSession over a transport's streams."""
+def _sdk_session_factory(read: Any, write: Any) -> Any:
+    """Build the SDK ClientSession (itself the async context manager)."""
     return ClientSession(read, write)
 
 

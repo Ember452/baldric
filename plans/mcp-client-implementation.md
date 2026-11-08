@@ -1218,7 +1218,7 @@ git commit -m "feat: MCP first-turn admission, servers prompt section, /mcp comm
 **Interfaces:**
 - Consumes: everything above; existing fake-provider session test helpers.
 
-- [ ] **Step 1: Write the fixture server**
+- [x] **Step 1: Write the fixture server**
 
 `tests/helpers/mcp_stdio_fixture.py`:
 
@@ -1240,7 +1240,7 @@ if __name__ == "__main__":
 
 (Confirm against Task 1 Step 4 item 6; adjust import path to the pinned SDK.)
 
-- [ ] **Step 2: Write the integration test** (`tests/mcp/test_integration_stdio.py`,
+- [x] **Step 2: Write the integration test** (`tests/mcp/test_integration_stdio.py`,
   anyio, generous margins — the suite-wide `--timeout=120` is the backstop):
 
 Build a `McpServerConfig(name="fixture", server_type="stdio",
@@ -1264,7 +1264,7 @@ loop path handles unknown-name calls differently, pin THAT observed
 behavior with a comment naming the mechanism — never assert something the code
 does not do).
 
-- [ ] **Step 4: Run, gates, commit**
+- [x] **Step 4: Run, gates, commit**
 
 ```bash
 uv run pytest -q tests/mcp/test_integration_stdio.py tests/coding/session/test_mcp_resume_repair.py
