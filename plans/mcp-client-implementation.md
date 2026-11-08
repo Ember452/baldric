@@ -285,7 +285,7 @@ git commit -m "docs: record MCP implementation preflight findings"
 - Produces: importable empty package `baldric_mcp`; CI guards that lock its
   layer position; the pinned SDK API contract used by Tasks 3-5.
 
-- [ ] **Step 1: Add the dependency and package registrations**
+- [x] **Step 1: Add the dependency and package registrations**
 
 In `pyproject.toml`: add `"mcp>=1.0,<2"` to `dependencies` (the aliyun index
 serves it); extend
@@ -298,7 +298,7 @@ uv sync
 uv run python -c "import importlib.metadata as m; print(m.version('mcp'))"
 ```
 
-- [ ] **Step 2: Lock the layer in the import graph**
+- [x] **Step 2: Lock the layer in the import graph**
 
 In `scripts/check_import_graph.py` RULES add:
 `("baldric_mcp", "baldric_agent")`, `("baldric_mcp", "baldric_ai")`,
@@ -309,7 +309,7 @@ In `scripts/check_import_graph.py` RULES add:
 file first; it imports `scan_violations` and restates rules — keep the two in
 sync).
 
-- [ ] **Step 3: Create the package shell**
+- [x] **Step 3: Create the package shell**
 
 `src/baldric_mcp/__init__.py`:
 
@@ -329,7 +329,7 @@ __all__: list[str] = []
 (Task 1 Step 2) is the enforcement layer; no `__dict__` introspection here —
 it would be unreliable.
 
-- [ ] **Step 4: SDK API pin-down (MUST-HOLD before Tasks 3-5)**
+- [x] **Step 4: SDK API pin-down (MUST-HOLD before Tasks 3-5)**
 
 Read the INSTALLED SDK source under
 `.venv/Lib/site-packages/mcp/` (read, don't guess) and record:
@@ -359,7 +359,7 @@ Read the INSTALLED SDK source under
 Tasks 3-5, adjust those tasks' code in this plan file first, commit the plan
 change, then continue. Never adapt silently while coding.
 
-- [ ] **Step 5: Run gates and commit**
+- [x] **Step 5: Run gates and commit**
 
 ```bash
 uv run ruff check . && uv run ruff format --check . && uv run mypy

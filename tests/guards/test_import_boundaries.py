@@ -45,6 +45,15 @@ def test_kernel_cannot_depend_on_providers() -> None:
     assert ("baldric_agent", "baldric_ai") in set(RULES)
 
 
+def test_mcp_layer_direction_is_declared() -> None:
+    """The MCP core sits beside the coding app; neither may know the other."""
+    pairs = set(RULES)
+    for forbidden in ("baldric_agent", "baldric_ai", "baldric_coding", "textual", "rich"):
+        assert ("baldric_mcp", forbidden) in pairs, f"missing mcp rule: {forbidden}"
+    assert ("baldric_agent", "baldric_mcp") in pairs
+    assert ("baldric_ai", "baldric_mcp") in pairs
+
+
 def test_repository_has_no_layer_violations() -> None:
     violations = scan_violations(REPO_ROOT)
 
@@ -207,3 +216,14 @@ def test_kernel_and_providers_do_not_load_each_other_at_runtime() -> None:
     """The agent kernel and the provider layer must stay decoupled at runtime."""
     assert _loads_only("baldric_agent", ("baldric_ai", "baldric_coding")) == []
     assert _loads_only("baldric_ai", ("baldric_agent", "baldric_coding")) == []
+
+
+def test_mcp_package_loads_no_upper_layer_at_runtime() -> None:
+    """``baldric_mcp`` must stay importable without the harness or frontend."""
+    assert (
+        _loads_only(
+            "baldric_mcp",
+            ("baldric_agent", "baldric_ai", "baldric_coding", "textual", "rich"),
+        )
+        == []
+    )
