@@ -19,6 +19,9 @@ Token shape follows ``opencode-dev/packages/theme/src/tui/schema.ts``:
 
 from __future__ import annotations
 
+import math
+import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
@@ -316,3 +319,200 @@ def project_to_tui_theme(schema: dict[str, Any]) -> TuiTheme:
         role_styles=role_styles,
         **{field: color(field) for field in THEME_COLOR_FIELDS},
     )
+
+
+# --- okhsl colour conversion (authoring-time support for pi-derived themes) --
+#
+# Straight port of pi-main/packages/tui/src/oklab.ts (``okhslToRgb``), which is
+# itself Björn Ottosson's OKHSL reference implementation (MIT). pi expresses
+# theme colours as ``okhsl(h s% l%)``; ``okhsl_to_hex`` converts them to the
+# hex values shipped in ``pi-dark.json``. The unit tests pin the original's
+# output (ground truth produced by running the TypeScript source directly).
+
+type _Vec3 = tuple[float, float, float]
+
+_LAB_TO_LMS: tuple[_Vec3, _Vec3, _Vec3] = (
+    (1.0, 0.3963377773761749, 0.2158037573099136),
+    (1.0, -0.1055613458156586, -0.0638541728258133),
+    (1.0, -0.0894841775298119, -1.2914855480194092),
+)
+_LMS_TO_LINEAR_SRGB: tuple[_Vec3, _Vec3, _Vec3] = (
+    (4.0767416360759583, -3.3077115392580629, 0.2309699031821043),
+    (-1.2684379732850315, 2.6097573492876882, -0.341319376002657),
+    (-0.0041960761386756, -0.7034186179359362, 1.7076146940746117),
+)
+# Per sRGB channel (red, green, blue): the (a, b) half-plane where that channel
+# clips first, and the polynomial approximating the maximum saturation there.
+_SATURATION_FIT: tuple[tuple[tuple[float, float], tuple[float, float, float, float, float]], ...] = (
+    ((-1.8817031, -0.80936501), (1.19086277, 1.76576728, 0.59662641, 0.75515197, 0.56771245)),
+    ((1.8144408, -1.19445267), (0.73956515, -0.45954404, 0.08285427, 0.12541073, -0.14503204)),
+    ((0.13110758, 1.81333971), (1.35733652, -0.00915799, -1.1513021, -0.50559606, 0.00692167)),
+)
+_OKHSL_K1 = 0.206
+_OKHSL_K2 = 0.03
+_OKHSL_K3 = (1 + _OKHSL_K1) / (1 + _OKHSL_K2)
+
+_OKHSL_PATTERN = re.compile(r"^okhsl\(\s*(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)%\s+(\d+(?:\.\d+)?)%\s*\)$")
+
+
+def _multiply3(matrix: tuple[_Vec3, _Vec3, _Vec3], vector: _Vec3) -> _Vec3:
+    x, y, z = vector
+    return (
+        matrix[0][0] * x + matrix[0][1] * y + matrix[0][2] * z,
+        matrix[1][0] * x + matrix[1][1] * y + matrix[1][2] * z,
+        matrix[2][0] * x + matrix[2][1] * y + matrix[2][2] * z,
+    )
+
+
+def _dot3(weights: _Vec3, values: Sequence[float]) -> float:
+    return weights[0] * values[0] + weights[1] * values[1] + weights[2] * values[2]
+
+
+def _cbrt(value: float) -> float:
+    # Math.cbrt semantics: sign-preserving real cube root (Python's ** would
+    # return a complex number for negative operands).
+    return math.copysign(abs(value) ** (1 / 3), value)
+
+
+def _okhsl_to_oklab_lightness(x: float) -> float:
+    k = _OKHSL_K3 * x - _OKHSL_K1
+    return 0.5 * (k + math.sqrt(k * k + 4 * _OKHSL_K2 * _OKHSL_K3 * x))
+
+
+def _linear_to_srgb(value: float) -> float:
+    return 1.055 * value ** (1 / 2.4) - 0.055 if value > 0.0031308 else 12.92 * value
+
+
+def _oklab_to_linear_srgb(lab: _Vec3) -> _Vec3:
+    lms = _multiply3(_LAB_TO_LMS, lab)
+    cubed: _Vec3 = (lms[0] ** 3, lms[1] ** 3, lms[2] ** 3)
+    return _multiply3(_LMS_TO_LINEAR_SRGB, cubed)
+
+
+def _lms_slopes(a: float, b: float) -> _Vec3:
+    return (
+        _LAB_TO_LMS[0][1] * a + _LAB_TO_LMS[0][2] * b,
+        _LAB_TO_LMS[1][1] * a + _LAB_TO_LMS[1][2] * b,
+        _LAB_TO_LMS[2][1] * a + _LAB_TO_LMS[2][2] * b,
+    )
+
+
+def _max_saturation(a: float, b: float) -> float:
+    channel = 2
+    for index in (0, 1):
+        x, y = _SATURATION_FIT[index][0]
+        if x * a + y * b > 1:
+            channel = index
+            break
+    k0, k1, k2, k3, k4 = _SATURATION_FIT[channel][1]
+    weights = _LMS_TO_LINEAR_SRGB[channel]
+    saturation = k0 + k1 * a + k2 * b + k3 * a * a + k4 * a * b
+    slopes = _lms_slopes(a, b)
+    base = [1 + saturation * k for k in slopes]
+    f = _dot3(weights, [value**3 for value in base])
+    f1 = _dot3(weights, [3 * slopes[index] * base[index] ** 2 for index in range(3)])
+    f2 = _dot3(weights, [6 * slopes[index] ** 2 * base[index] for index in range(3)])
+    return saturation - (f * f1) / (f1 * f1 - 0.5 * f * f2)
+
+
+def _cusp(a: float, b: float) -> tuple[float, float]:
+    saturation = _max_saturation(a, b)
+    linear = _oklab_to_linear_srgb((1.0, saturation * a, saturation * b))
+    lightness = _cbrt(1.0 / max(linear))
+    return lightness, lightness * saturation
+
+
+def _max_chroma(a: float, b: float, lightness: float, cusp: tuple[float, float]) -> float:
+    cusp_l, cusp_c = cusp
+    if lightness <= cusp_l:
+        return cusp_c * lightness / cusp_l
+    t = cusp_c * (lightness - 1) / (cusp_l - 1)
+    slopes = _lms_slopes(a, b)
+    lms = [lightness + t * k for k in slopes]
+    cubes = [value**3 for value in lms]
+    first = [3 * slopes[index] * lms[index] ** 2 for index in range(3)]
+    second = [6 * slopes[index] ** 2 * lms[index] for index in range(3)]
+    steps: list[float] = []
+    for row in _LMS_TO_LINEAR_SRGB:
+        f = _dot3(row, cubes) - 1
+        f1 = _dot3(row, first)
+        f2 = _dot3(row, second)
+        u = f1 / (f1 * f1 - 0.5 * f * f2)
+        steps.append(-f * u if u >= 0 else math.inf)
+    return t + min(steps)
+
+
+def _chroma_stops(lightness: float, a: float, b: float) -> tuple[float, float, float]:
+    """OKHSL's chroma reference points at lightness L and hue (a, b)."""
+    peak = _cusp(a, b)
+    c_max = _max_chroma(a, b, lightness, peak)
+    k = c_max / min(lightness * (peak[1] / peak[0]), (1 - lightness) * (peak[1] / (1 - peak[0])))
+    mid_s = 0.11516993 + 1 / (
+        7.4477897
+        + 4.1590124 * b
+        + a
+        * (
+            -2.19557347
+            + 1.75198401 * b
+            + a * (-2.13704948 - 10.02301043 * b + a * (-4.24894561 + 5.38770819 * b + 4.69891013 * a))
+        )
+    )
+    mid_t = 0.11239642 + 1 / (
+        1.6132032
+        - 0.68124379 * b
+        + a
+        * (
+            0.40370612
+            + 0.90148123 * b
+            + a * (-0.27087943 + 0.6122399 * b + a * (0.00299215 - 0.45399568 * b - 0.14661872 * a))
+        )
+    )
+    c_mid = (
+        0.9
+        * k
+        * math.sqrt(math.sqrt(1 / (1 / (lightness * mid_s) ** 4 + 1 / ((1 - lightness) * mid_t) ** 4)))
+    )
+    c_0 = math.sqrt(1 / (1 / (lightness * 0.4) ** 2 + 1 / ((1 - lightness) * 0.8) ** 2))
+    return c_0, c_mid, c_max
+
+
+def _okhsl_to_rgb(hue: float, saturation: float, lightness: float) -> tuple[int, int, int]:
+    lab: _Vec3 = (_okhsl_to_oklab_lightness(lightness), 0.0, 0.0)
+    lab_l = lab[0]
+    if 0 < lab_l < 1 and saturation > 0:
+        angle = 2 * math.pi * ((hue % 360 + 360) % 360) / 360
+        a = math.cos(angle)
+        b = math.sin(angle)
+        c_0, c_mid, c_max = _chroma_stops(lab_l, a, b)
+        # Chroma rises from 0 through c_mid at s = 0.8 to c_max at s = 1.
+        if saturation < 0.8:
+            t = 1.25 * saturation
+            k1 = 0.8 * c_0
+            chroma = (t * k1) / (1 - (1 - k1 / c_mid) * t)
+        else:
+            t = 5 * (saturation - 0.8)
+            k1 = (0.2 * c_mid**2 * 1.25**2) / c_0
+            chroma = c_mid + (t * k1) / (1 - (1 - k1 / (c_max - c_mid)) * t)
+        lab = (lab_l, chroma * a, chroma * b)
+    # Math.round rounds half up; floor(v + 0.5) reproduces that exactly.
+    linear = _oklab_to_linear_srgb(lab)
+    channels = (math.floor(min(1.0, max(0.0, _linear_to_srgb(value))) * 255 + 0.5) for value in linear)
+    red, green, blue = channels
+    return red, green, blue
+
+
+def okhsl_to_hex(okhsl: str) -> str:
+    """Convert ``okhsl(h s% l%)`` to ``#rrggbb``.
+
+    Ported from ``pi-main/packages/tui/src/oklab.ts`` (``okhslToRgb``), which
+    implements Björn Ottosson's OKHSL (MIT); opencode's ``color.ts`` agrees on
+    the same pipeline. This is a straight port, not a re-derivation.
+    """
+    match = _OKHSL_PATTERN.match(okhsl.strip())
+    if match is None:
+        raise ValueError(f"not an okhsl() colour: {okhsl!r}")
+    hue = float(match.group(1))
+    saturation = float(match.group(2))
+    lightness = float(match.group(3))
+    red, green, blue = _okhsl_to_rgb(hue, saturation / 100, lightness / 100)
+    return f"#{red:02x}{green:02x}{blue:02x}"
