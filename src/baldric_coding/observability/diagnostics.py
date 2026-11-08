@@ -69,6 +69,9 @@ class AgentCallDiagnosticLogger:
         provider = _provider_error_details(message)
         if provider:
             error["provider"] = provider
+        crash = _agent_crash_details(message)
+        if crash:
+            error["exception"] = crash
         entry["error"] = error
         self._append(entry)
         return self.path
@@ -105,6 +108,25 @@ def new_agent_call_run_id() -> str:
 
 
 _SAFE_ERROR_OBJECT_KEYS = ("type", "code", "message", "param")
+
+
+def _agent_crash_details(message: AssistantMessage) -> dict[str, Any] | None:
+    """Return the crash record of a synthesized failure run, if any.
+
+    The harness attaches an ``agent_crash`` diagnostic carrying the exception
+    type, message, and bounded traceback; surfacing it here keeps the ops-log
+    forensics the old raise-through path provided.
+    """
+    for diagnostic in message.diagnostics or []:
+        if diagnostic.type != "agent_crash" or not diagnostic.details:
+            continue
+        crash: dict[str, Any] = {}
+        for key in ("type", "message", "traceback"):
+            value = diagnostic.details.get(key)
+            if isinstance(value, str) and value:
+                crash[key] = value
+        return crash or None
+    return {}
 
 
 def _provider_error_details(message: AssistantMessage) -> dict[str, Any]:

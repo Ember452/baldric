@@ -11,8 +11,12 @@ from baldric_agent import (
     AgentTool,
     AgentToolResult,
     AssistantMessage,
+    CompactionSummaryMessage,
     MessageEndEvent,
+    MessageStartEvent,
     MessageUpdateEvent,
+    RequestState,
+    RequestUpdate,
     RetryAttemptEvent,
     SimpleCancellationToken,
     TextContent,
@@ -21,6 +25,9 @@ from baldric_agent import (
     ToolExecutionStartEvent,
     ToolExecutionUpdateEvent,
     ToolResultMessage,
+    TurnContext,
+    TurnStartEvent,
+    TurnUpdate,
     UserMessage,
 )
 from baldric_agent.loop import run_agent_loop
@@ -807,6 +814,153 @@ async def test_agent_loop_records_unknown_tool_as_canonical_error_result() -> No
 
 
 @pytest.mark.anyio
+async def test_tool_result_is_error_flag_reports_failure_without_raising() -> None:
+    """Pi agent-loop.ts:988: ``result.isError === true`` makes the call an error.
+
+    The tool stays in control of its own output: content and details reach the
+    model as an error result instead of being replaced by a stack trace.
+    """
+    call = ToolCall(id="call-1", name="write", arguments={"path": "out.txt"})
+    assistant = AssistantMessage(content=[call], model="fake")
+    messages: list[AgentMessage] = [UserMessage(content="Save it")]
+    provider = FakeProvider([[assistant_start(), tool_call_end(call), assistant_done(assistant, "toolUse")]])
+
+    async def execute(
+        tool_call_id: str,
+        arguments: Mapping[str, JSONValue],
+        signal: CancellationToken | None,
+        on_update: object,
+    ) -> AgentToolResult:
+        return AgentToolResult(content=[TextContent(text="disk full")], details={"code": 42}, is_error=True)
+
+    events = await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=messages,
+            tools=[_tool("write", execute)],
+            max_turns=1,
+        )
+    )
+
+    end = next(event for event in events if isinstance(event, ToolExecutionEndEvent))
+    assert end.is_error is True
+    assert end.result.text == "disk full"
+    assert end.result.details == {"code": 42}
+    result = next(message for message in messages if isinstance(message, ToolResultMessage))
+    assert result.is_error is True
+    assert result.text == "disk full"
+    assert result.details == {"code": 42}
+
+
+@pytest.mark.anyio
+async def test_tool_result_message_records_execution_duration() -> None:
+    call = ToolCall(id="call-1", name="probe", arguments={})
+    assistant = AssistantMessage(content=[call], model="fake")
+    messages: list[AgentMessage] = [UserMessage(content="Run it")]
+    provider = FakeProvider([[assistant_start(), tool_call_end(call), assistant_done(assistant, "toolUse")]])
+
+    async def execute(
+        tool_call_id: str,
+        arguments: Mapping[str, JSONValue],
+        signal: CancellationToken | None,
+        on_update: object,
+    ) -> AgentToolResult:
+        return AgentToolResult(content=[TextContent(text="ok")], details={})
+
+    events = await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=messages,
+            tools=[_tool("probe", execute)],
+            max_turns=1,
+        )
+    )
+
+    end = next(event for event in events if isinstance(event, ToolExecutionEndEvent))
+    assert end.duration_ms is not None
+    result = next(message for message in messages if isinstance(message, ToolResultMessage))
+    assert result.duration_ms == end.duration_ms
+    assert result.is_error is False
+
+
+@pytest.mark.anyio
+async def test_injected_transform_runs_before_convert_on_the_raw_context() -> None:
+    """Pi agent-loop.ts:501-510: transform first, then convert.
+
+    The transform sees the raw session messages (the compaction summary is
+    still there); the injected convert drops it, so the provider request is
+    built from the convert output only.
+    """
+    messages: list[AgentMessage] = [
+        UserMessage(content="hello"),
+        CompactionSummaryMessage(summary="earlier work", tokens_before=10),
+    ]
+    assistant = AssistantMessage(content="Hi", model="fake")
+    provider = FakeProvider([[assistant_start(), assistant_done(assistant)]])
+    observed: list[tuple[str, bool]] = []
+
+    def transform(items: list[AgentMessage]) -> list[AgentMessage]:
+        observed.append(("transform", any(isinstance(item, CompactionSummaryMessage) for item in items)))
+        return items
+
+    def convert(items: list[AgentMessage]) -> list[AgentMessage]:
+        observed.append(("convert", any(isinstance(item, CompactionSummaryMessage) for item in items)))
+        return [item for item in items if not isinstance(item, CompactionSummaryMessage)]
+
+    await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=messages,
+            tools=[],
+            convert_to_llm=convert,
+            transform_context=transform,
+        )
+    )
+
+    assert observed == [("transform", True), ("convert", True)]
+    _, _, provider_messages, _ = provider.calls[0]
+    assert [type(message).__name__ for message in provider_messages] == ["UserMessage"]
+
+
+@pytest.mark.anyio
+async def test_injected_convert_replaces_the_default_projection() -> None:
+    """Without hooks the provider sees the derived projection (unchanged).
+
+    The default projection passes session-only messages through; folding them
+    into user context is the application layer's job, so the injected convert
+    is the seam that changes it.
+    """
+    messages: list[AgentMessage] = [
+        UserMessage(content="hello"),
+        CompactionSummaryMessage(summary="earlier work", tokens_before=10),
+    ]
+    assistant = AssistantMessage(content="Hi", model="fake")
+    provider = FakeProvider([[assistant_start(), assistant_done(assistant)]])
+
+    await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=messages,
+            tools=[],
+        )
+    )
+
+    _, _, provider_messages, _ = provider.calls[0]
+    assert [type(message).__name__ for message in provider_messages] == [
+        "UserMessage",
+        "CompactionSummaryMessage",
+    ]
+
+
+@pytest.mark.anyio
 async def test_agent_loop_converts_provider_error_to_assistant_error_message() -> None:
     messages: list[AgentMessage] = [UserMessage(content="hello")]
     provider = FakeProvider([[assistant_error("provider failed")]])
@@ -1028,3 +1182,304 @@ async def test_closing_tool_call_generator_mid_run_emits_clean_result_not_indexe
     await asyncio.wait_for(started.wait(), timeout=1.0)
 
     await generator.aclose()  # interrupt mid-run; must not raise IndexError
+
+
+@pytest.mark.anyio
+async def test_finish_turn_end_decision_stops_without_polling_queues() -> None:
+    assistant = AssistantMessage(content="Hello", model="fake")
+    provider = FakeProvider([[assistant_start(), assistant_done(assistant)]])
+    decisions: list[TurnContext] = []
+
+    def finish_turn(turn: TurnContext) -> str | None:
+        decisions.append(turn)
+        return "end"
+
+    events = await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=[],
+            tools=[],
+            finish_turn=finish_turn,
+        )
+    )
+
+    assert len(decisions) == 1
+    assert decisions[0].message is assistant
+    assert decisions[0].tool_results == []
+    assert [event.type for event in events][-2:] == ["turn_end", "agent_end"]
+    assert sum(isinstance(event, TurnStartEvent) for event in events) == 1
+    assert len(provider.calls) == 1
+
+
+@pytest.mark.anyio
+async def test_finish_turn_continue_runs_one_context_only_extra_turn() -> None:
+    """Pi agent-loop.ts:403-408: continue with nothing queued adds one turn.
+
+    Tool results, steering, or follow-ups satisfy the request naturally and
+    add no extra request; here nothing does, so the second request sees the
+    same context.
+    """
+    provider = FakeProvider(
+        [
+            [assistant_start(), assistant_done(AssistantMessage(content="Hello", model="fake"))],
+            [assistant_start(), assistant_done(AssistantMessage(content="Again", model="fake"))],
+        ]
+    )
+
+    calls = 0
+
+    def finish_turn(turn: TurnContext) -> str | None:
+        # One "continue" decision; a hook that always continues would keep
+        # the run alive forever, by design.
+        nonlocal calls
+        calls += 1
+        return "continue" if calls == 1 else None
+
+    events = await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=[],
+            tools=[],
+            finish_turn=finish_turn,
+        )
+    )
+
+    assert sum(isinstance(event, TurnStartEvent) for event in events) == 2
+    assert len(provider.calls) == 2
+    # The extra turn adds no new request content: the context is exactly the
+    # first request plus turn 1's assistant output ("the current context").
+    assert provider.calls[1][2][:-1] == provider.calls[0][2]
+    assert isinstance(provider.calls[1][2][-1], AssistantMessage)
+
+
+@pytest.mark.anyio
+async def test_error_turn_calls_finish_turn_but_ignores_continue() -> None:
+    """Pi agent-loop.ts:326-337: error turns see the hook; they stay hard exits."""
+    provider = FakeProvider([[assistant_error("provider failed")]])
+    seen: list[str] = []
+
+    def finish_turn(turn: TurnContext) -> str | None:
+        seen.append(turn.message.stop_reason)
+        return "continue"
+
+    events = await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=[],
+            tools=[],
+            finish_turn=finish_turn,
+        )
+    )
+
+    assert seen == ["error"]
+    assert events[-1].type == "agent_end"
+    assert len(provider.calls) == 1
+
+
+@pytest.mark.anyio
+async def test_prepare_next_turn_appends_messages_and_replaces_model() -> None:
+    """Pi agent-loop.ts:250-285: prepared messages emit after the turn start."""
+    call = ToolCall(id="call-1", name="read", arguments={})
+    assistant = AssistantMessage(content=[call], model="fake")
+    provider = FakeProvider(
+        [
+            [assistant_start(), tool_call_end(call), assistant_done(assistant, "toolUse")],
+            [assistant_start(), assistant_done(AssistantMessage(content="done", model="fake"))],
+        ]
+    )
+
+    async def execute(
+        tool_call_id: str,
+        arguments: Mapping[str, JSONValue],
+        signal: CancellationToken | None,
+        on_update: object,
+    ) -> AgentToolResult:
+        return AgentToolResult(content=[TextContent(text="ok")], details={})
+
+    note = UserMessage(content="context note")
+
+    def prepare_next_turn(turn: TurnContext) -> TurnUpdate | None:
+        return TurnUpdate(messages=[note], model="fake-2")
+
+    events = await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=[UserMessage(content="Use it")],
+            tools=[_tool("read", execute)],
+            prepare_next_turn=prepare_next_turn,
+        )
+    )
+
+    types = [event.type for event in events]
+    first_turn_end = types.index("turn_end")
+    assert types[first_turn_end + 1] == "turn_start"
+    assert types[first_turn_end + 2 : first_turn_end + 4] == ["message_start", "message_end"]
+    assert events[first_turn_end + 2].message is note  # type: ignore[union-attr]
+    assert provider.calls[1][0] == "fake-2"
+    assert provider.calls[1][2].count(note) == 1
+
+
+@pytest.mark.anyio
+async def test_prepare_request_runs_for_every_request_and_can_replace_model() -> None:
+    """Pi agent-loop.ts:295-316: every request, including the first."""
+    call = ToolCall(id="call-1", name="read", arguments={})
+    assistant = AssistantMessage(content=[call], model="fake")
+    provider = FakeProvider(
+        [
+            [assistant_start(), tool_call_end(call), assistant_done(assistant, "toolUse")],
+            [assistant_start(), assistant_done(AssistantMessage(content="done", model="fake"))],
+        ]
+    )
+
+    async def execute(
+        tool_call_id: str,
+        arguments: Mapping[str, JSONValue],
+        signal: CancellationToken | None,
+        on_update: object,
+    ) -> AgentToolResult:
+        return AgentToolResult(content=[TextContent(text="ok")], details={})
+
+    seen: list[int] = []
+
+    def prepare_request(state: RequestState) -> RequestUpdate | None:
+        seen.append(len(state.messages))
+        if len(seen) == 1:
+            return RequestUpdate(model="fake-2")
+        return None
+
+    await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=[UserMessage(content="Use it")],
+            tools=[_tool("read", execute)],
+            prepare_request=prepare_request,
+        )
+    )
+
+    assert seen == [1, 3]
+    # The model replacement persists for later requests in the run
+    # (pi types.ts:268-269: "for this and later requests").
+    assert provider.calls[0][0] == "fake-2"
+    assert provider.calls[1][0] == "fake-2"
+
+
+@pytest.mark.anyio
+async def test_prepare_next_turn_long_run_repolls_steering_once() -> None:
+    """Pi agent-loop.ts:269-277: re-poll only when the first poll was empty.
+
+    Steering queued while "preparation" ran is picked up by the re-poll and
+    delivered exactly once, the way one-at-a-time mode requires.
+    """
+    call = ToolCall(id="call-1", name="read", arguments={})
+    assistant = AssistantMessage(content=[call], model="fake")
+    provider = FakeProvider(
+        [
+            [assistant_start(), tool_call_end(call), assistant_done(assistant, "toolUse")],
+            [assistant_start(), assistant_done(AssistantMessage(content="ack", model="fake"))],
+        ]
+    )
+
+    async def execute(
+        tool_call_id: str,
+        arguments: Mapping[str, JSONValue],
+        signal: CancellationToken | None,
+        on_update: object,
+    ) -> AgentToolResult:
+        return AgentToolResult(content=[TextContent(text="ok")], details={})
+
+    steering: list[AgentMessage] = []
+    prepare_calls = 0
+
+    def prepare_next_turn(turn: TurnContext) -> TurnUpdate | None:
+        nonlocal prepare_calls
+        prepare_calls += 1
+        if prepare_calls == 1:
+            steering.append(UserMessage(content="steer!"))
+        return None
+
+    def get_steering() -> tuple[AgentMessage, ...]:
+        return (steering.pop(0),) if steering else ()
+
+    events = await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=[UserMessage(content="Use it")],
+            tools=[_tool("read", execute)],
+            get_steering_messages=get_steering,
+            prepare_next_turn=prepare_next_turn,
+        )
+    )
+
+    assert prepare_calls == 1
+    steer_starts = [
+        event
+        for event in events
+        if isinstance(event, MessageStartEvent) and getattr(event.message, "text", "") == "steer!"
+    ]
+    assert len(steer_starts) == 1
+    assert steer_starts[0].message in provider.calls[1][2]
+
+
+@pytest.mark.anyio
+async def test_after_tool_call_violation_becomes_error_result_not_crash() -> None:
+    """Pi agent-loop.ts:1043-1046: a failing after-hook cannot kill the run.
+
+    The tool result is replaced wholesale by an error result; the model sees
+    the failure text and the turn completes normally.
+    """
+    call = ToolCall(id="call-1", name="read", arguments={})
+    assistant = AssistantMessage(content=[call], model="fake")
+    messages: list[AgentMessage] = [UserMessage(content="Use it")]
+    provider = FakeProvider(
+        [
+            [assistant_start(), tool_call_end(call), assistant_done(assistant, "toolUse")],
+            [assistant_start(), assistant_done(AssistantMessage(content="recovered", model="fake"))],
+        ]
+    )
+
+    async def execute(
+        tool_call_id: str,
+        arguments: Mapping[str, JSONValue],
+        signal: CancellationToken | None,
+        on_update: object,
+    ) -> AgentToolResult:
+        return AgentToolResult(content=[TextContent(text="ok")], details={})
+
+    async def after(
+        call: ToolCall,
+        result: AgentToolResult,
+        is_error: bool,
+    ) -> tuple[AgentToolResult, bool]:
+        raise RuntimeError("hook exploded")
+
+    events = await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=messages,
+            tools=[_tool("read", execute)],
+            after_tool_call=after,
+        )
+    )
+
+    end = next(event for event in events if isinstance(event, ToolExecutionEndEvent))
+    assert end.is_error is True
+    assert end.result.text == "hook exploded"
+    result = next(message for message in messages if isinstance(message, ToolResultMessage))
+    assert result.is_error is True
+    assert result.text == "hook exploded"
+    assert events[-1].type == "agent_end"
+    assert len(provider.calls) == 2

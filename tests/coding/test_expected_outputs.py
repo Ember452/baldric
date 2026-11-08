@@ -24,6 +24,7 @@ def test_assistant_message_wire_format_is_stable() -> None:
         model="golden-model",
         provider="golden-provider",
         stop_reason="toolUse",
+        thinking_level="high",
         usage=Usage(input=10, output=5),
         timestamp=1_700_000_000_000,
     )
@@ -40,6 +41,7 @@ def test_tool_result_message_wire_format_is_stable() -> None:
         tool_name="read",
         content=[TextContent(text="file contents")],
         is_error=False,
+        duration_ms=180,
         timestamp=1_700_000_000_000,
     )
 

@@ -36,7 +36,7 @@ from baldric_ai.content import (
     messages_have_images,
     text_and_images,
 )
-from baldric_ai.env import OpenAICompatibleConfig
+from baldric_ai.env import OpenAICompatibleConfig, thinking_level_from_effort
 from baldric_ai.events import AssistantMessageEvent
 from baldric_ai.http import create_async_client, iter_sse_lines
 from baldric_ai.http_errors import provider_http_error_message
@@ -125,6 +125,7 @@ class OpenAICompatibleProvider:
             api=self._config.api,
             provider=getattr(self._config, "provider_name", "openai-compatible"),
             model=model,
+            thinking_level=thinking_level_from_effort(self._config.reasoning_effort),
             independent_channels=not (
                 self._config.api == "openai-responses"
                 or (self._config.infer_api_from_model and _use_responses_api(model))

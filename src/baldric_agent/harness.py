@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import traceback
 from collections import deque
 from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import suppress
@@ -10,14 +11,30 @@ from dataclasses import dataclass, field
 from inspect import isawaitable
 from typing import Literal
 
-from baldric_agent.events import AgentEvent, MessageEndEvent, MessageStartEvent
-from baldric_agent.loop import run_agent_loop
+from baldric_agent.events import (
+    AgentEndEvent,
+    AgentEvent,
+    MessageEndEvent,
+    MessageStartEvent,
+    TurnEndEvent,
+)
+from baldric_agent.loop import (
+    ConvertToLlm,
+    FinishTurn,
+    PrepareNextTurn,
+    PrepareRequest,
+    TransformContext,
+    aborted_message,
+    error_message,
+    run_agent_loop,
+)
+from baldric_agent.run_state import RunState
 from baldric_agent.tool_calls import AfterToolCall, BeforeToolCall
+from baldric_agent.tool_history import interrupted_tool_results
 from baldric_protocol.messages import (
     AgentMessage,
     AssistantMessage,
-    TextContent,
-    ToolResultMessage,
+    AssistantMessageDiagnostic,
     UserMessage,
 )
 from baldric_protocol.provider import ModelProvider
@@ -25,6 +42,15 @@ from baldric_protocol.tools import AgentTool
 
 EventListener = Callable[[AgentEvent], Awaitable[None] | None]
 QueueMode = Literal["one_at_a_time", "all"]
+
+# Crash diagnostics keep the traceback bounded the way provider diagnostics
+# are; the tail carries the frames nearest the raise.
+_CRASH_TRACEBACK_MAX_CHARS = 2000
+
+
+def _bounded_traceback(exc: BaseException) -> str:
+    text = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    return text if len(text) <= _CRASH_TRACEBACK_MAX_CHARS else text[-_CRASH_TRACEBACK_MAX_CHARS:]
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +74,17 @@ class AgentHarnessConfig:
     session_id: str | None = None
     before_tool_call: BeforeToolCall | None = None
     after_tool_call: AfterToolCall | None = None
+    # Injectable context seams (pi convertToLlm / transformContext). The loop
+    # applies transform first, then convert; the default convert is the
+    # derived provider projection. Contract: must not raise; a violation ends
+    # the run with a synthesized error message (fail-visible).
+    convert_to_llm: ConvertToLlm | None = None
+    transform_context: TransformContext | None = None
+    # Turn-boundary hooks (pi finishTurn / prepareNextTurn / prepareRequest).
+    # Same contract: must not raise; a violation ends the run fail-visible.
+    finish_turn: FinishTurn | None = None
+    prepare_next_turn: PrepareNextTurn | None = None
+    prepare_request: PrepareRequest | None = None
 
 
 class SimpleCancellationToken:
@@ -142,6 +179,7 @@ class AgentHarness:
         self._config = config
         self._messages = list(messages)
         self._listeners: list[EventListener] = []
+        self._run_state = RunState()
         self._current_signal: SimpleCancellationToken | None = None
         self._running = False
         self._steering_queue: deque[AgentMessage] = deque()
@@ -158,6 +196,33 @@ class AgentHarness:
     @property
     def is_running(self) -> bool:
         return self._running
+
+    # Observability projection of the current run (pi AgentState); reduced
+    # from the same events the listeners see. Read-only views below.
+    @property
+    def streaming_message(self) -> AgentMessage | None:
+        return self._run_state.streaming_message
+
+    @property
+    def pending_tool_calls(self) -> frozenset[str]:
+        return self._run_state.pending_tool_calls
+
+    @property
+    def error_message(self) -> str | None:
+        return self._run_state.error_message
+
+    @property
+    def signal(self) -> SimpleCancellationToken | None:
+        return self._current_signal
+
+    @property
+    def queue_mode(self) -> QueueMode:
+        """Queue drain mode; switchable between runs (single mode by design)."""
+        return self._config.queue_mode
+
+    @queue_mode.setter
+    def queue_mode(self, mode: QueueMode) -> None:
+        self._config.queue_mode = mode
 
     @property
     def queued_messages(self) -> QueuedMessages:
@@ -223,8 +288,29 @@ class AgentHarness:
         return self.prompt_message(UserMessage(content=content))
 
     def continue_(self) -> AsyncIterator[AgentEvent]:
+        """Continue from the transcript (pi agent.ts:392-417, partially adopted).
+
+        Queued steering or follow-up messages satisfy a continuation whose
+        tail is an assistant turn: they are drained whole (pi's drain()) and
+        run as the new prompt. Deliberate divergence from pi: pi rejects an
+        assistant tail outright, while Baldric continues - every run's
+        prelude repair already guarantees no unanswered tool call reaches the
+        provider, and the coding layer's provider-failover retry legitimately
+        continues after a failed turn (pi needs no such path because its
+        failover lives in the transport layer).
+        """
         self._ensure_not_running()
-        return self._start_run()
+        prompts: tuple[AgentMessage, ...] = ()
+        if not self._messages:
+            raise RuntimeError("No messages to continue from")
+        if isinstance(self._messages[-1], AssistantMessage):
+            if self._steering_queue:
+                prompts = tuple(self._steering_queue)
+                self._steering_queue.clear()
+            elif self._follow_up_queue:
+                prompts = tuple(self._follow_up_queue)
+                self._follow_up_queue.clear()
+        return self._start_run(prompts=prompts)
 
     def _start_run(self, *, prompts: Sequence[AgentMessage] = ()) -> AsyncIterator[AgentEvent]:
         """Register the run and its cancel token before the body can run.
@@ -238,12 +324,14 @@ class AgentHarness:
         signal = SimpleCancellationToken()
         self._running = True
         self._current_signal = signal
+        self._run_state.begin()
         return _RunIterator(self, self._run(prompts=prompts, signal=signal), signal)
 
     def _finish_run(self, signal: SimpleCancellationToken) -> None:
         if self._current_signal is signal:
             self._current_signal = None
             self._running = False
+            self._run_state.finish()
 
     async def _run(
         self,
@@ -258,7 +346,7 @@ class AgentHarness:
             repaired_from = len(self._messages)
             self._append_interrupted_tool_results()
             repairs = self._messages[repaired_from:]
-            async for event in run_agent_loop(
+            loop_events = run_agent_loop(
                 provider=self._config.provider,
                 model=self._config.model,
                 system=self._config.system,
@@ -273,7 +361,58 @@ class AgentHarness:
                 get_follow_up_messages=self._drain_follow_up_messages,
                 before_tool_call=self._config.before_tool_call,
                 after_tool_call=self._config.after_tool_call,
-            ):
+                convert_to_llm=self._config.convert_to_llm,
+                transform_context=self._config.transform_context,
+                finish_turn=self._config.finish_turn,
+                prepare_next_turn=self._config.prepare_next_turn,
+                prepare_request=self._config.prepare_request,
+            ).__aiter__()
+            while True:
+                try:
+                    # Only the loop's own exception is synthesized. Listener
+                    # errors must keep propagating (pi's processEvents guards
+                    # nothing): persistence failing loudly is how a consumer
+                    # learns its transcript is not being written.
+                    event = await anext(loop_events)
+                except StopAsyncIteration:
+                    break
+                except Exception as exc:  # noqa: BLE001 - the run ends visible, not loud
+                    # Pi agent.ts:542-558: a crashed run still ends with a
+                    # complete event sequence, so a consumer never hangs on a
+                    # half run. The failure message joins history (pi pushes
+                    # it at message_end); any dangling tool calls the crash
+                    # left behind are repaired by the next run's prelude,
+                    # before its provider request.
+                    reason = str(exc) or type(exc).__name__
+                    failure = (
+                        aborted_message(self._config.model, reason)
+                        if signal.is_cancelled()
+                        else error_message(self._config.model, reason)
+                    )
+                    # The synthesized message replaces the propagated
+                    # exception, so the forensics ride with it: same bounded
+                    # redaction discipline as provider error diagnostics.
+                    failure.diagnostics = [
+                        AssistantMessageDiagnostic(
+                            type="agent_crash",
+                            details={
+                                "type": type(exc).__name__,
+                                "message": reason,
+                                "traceback": _bounded_traceback(exc),
+                            },
+                        )
+                    ]
+                    self._messages.append(failure)
+                    await self._notify(MessageStartEvent(message=failure))
+                    yield MessageStartEvent(message=failure)
+                    await self._notify(MessageEndEvent(message=failure))
+                    yield MessageEndEvent(message=failure)
+                    await self._notify(TurnEndEvent(message=failure))
+                    yield TurnEndEvent(message=failure)
+                    agent_end = AgentEndEvent(messages=[failure])
+                    await self._notify(agent_end)
+                    yield agent_end
+                    break
                 await self._notify(event)
                 yield event
         finally:
@@ -292,6 +431,7 @@ class AgentHarness:
             # the run end, and would not run at all for a never-started run.
 
     async def _notify(self, event: AgentEvent) -> None:
+        self._run_state.apply(event)
         for listener in list(self._listeners):
             result = listener(event)
             if isawaitable(result):
@@ -324,21 +464,4 @@ class AgentHarness:
         return len(self._messages) - before
 
     def _append_interrupted_tool_results(self) -> None:
-        returned_ids = {
-            message.tool_call_id for message in self._messages if isinstance(message, ToolResultMessage)
-        }
-        for message in tuple(self._messages):
-            if not isinstance(message, AssistantMessage):
-                continue
-            for call in message.tool_calls:
-                if call.id in returned_ids:
-                    continue
-                returned_ids.add(call.id)
-                self._messages.append(
-                    ToolResultMessage(
-                        tool_call_id=call.id,
-                        tool_name=call.name,
-                        content=[TextContent(text="Tool call interrupted by user")],
-                        is_error=True,
-                    )
-                )
+        self._messages.extend(interrupted_tool_results(self._messages))

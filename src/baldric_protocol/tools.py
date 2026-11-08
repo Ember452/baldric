@@ -25,6 +25,10 @@ class AgentToolResult(WireModel):
     details: JSONValue = None
     added_tool_names: list[str] | None = None
     terminate: bool | None = None
+    # Pi AgentToolResult.isError (optional): a tool reports failure without
+    # raising, so the loop records an error result while keeping content/details
+    # for the model. None means the tool made no report.
+    is_error: bool | None = None
 
     @model_validator(mode="before")
     @classmethod

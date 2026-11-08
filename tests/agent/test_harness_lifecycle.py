@@ -13,7 +13,7 @@ import gc
 
 import pytest
 
-from baldric_agent import AgentHarness, AgentHarnessConfig, AssistantMessage
+from baldric_agent import AgentHarness, AgentHarnessConfig, AssistantMessage, UserMessage
 from baldric_ai import FakeProvider
 from tests.helpers.pi_event_helpers import assistant_done, assistant_start
 
@@ -92,8 +92,14 @@ async def test_completing_a_run_releases_the_harness() -> None:
 
 @pytest.mark.anyio
 async def test_continue_also_arms_its_cancel_token_immediately() -> None:
+    """Behavior change (pi parity): the tail must be continuable at all.
+
+    The old test continued from an assistant tail and expected an aborted
+    turn; continue_ now rejects that up front (pi agent.ts:403-417), so the
+    arming property is pinned with a continuable transcript instead.
+    """
     harness = _harness()
-    harness.append_message(AssistantMessage(content="previous", stop_reason="stop"))
+    harness.append_message(UserMessage(content="previous"))
     run = harness.continue_()
 
     harness.cancel()
@@ -101,4 +107,46 @@ async def test_continue_also_arms_its_cancel_token_immediately() -> None:
     events = [event async for event in run]
     assert events
     assert _assistant_messages(harness)[-1].stop_reason == "aborted"
+    assert not harness.is_running
+
+
+@pytest.mark.anyio
+async def test_continue_rejects_an_empty_transcript() -> None:
+    harness = _harness()
+
+    with pytest.raises(RuntimeError, match="No messages to continue from"):
+        harness.continue_()
+
+
+@pytest.mark.anyio
+async def test_continue_from_assistant_tail_without_queue_continues_the_context() -> None:
+    """Deliberate divergence from pi (agent.ts:416): assistant tails continue.
+
+    The prelude repair guarantees no unanswered tool call reaches the
+    provider, and the coding layer's failover retry continues after a failed
+    turn; pi rejects the tail because it has no equivalent repair-or-failover
+    path.
+    """
+    harness = _harness()
+    harness.append_message(AssistantMessage(content="previous", stop_reason="stop"))
+
+    events = [event async for event in harness.continue_()]
+
+    assert events
+    assert events[-1].type == "agent_end"
+    assert not harness.is_running
+
+
+@pytest.mark.anyio
+async def test_continue_from_assistant_tail_drains_queued_steering_as_prompt() -> None:
+    """Pi agent.ts:403-408: queued steering satisfies the continuation."""
+    provider = FakeProvider([[assistant_start(), assistant_done(AssistantMessage(content="Hello"))]])
+    harness = AgentHarness(AgentHarnessConfig(provider=provider, model="fake", system="You are Baldric."))
+    harness.append_message(AssistantMessage(content="previous", stop_reason="stop"))
+    harness.steer_message(UserMessage(content="queued"))
+
+    _ = [event async for event in harness.continue_()]
+
+    assert provider.calls[0][2][-1].text == "queued"
+    assert harness.pending_message_count == 0
     assert not harness.is_running

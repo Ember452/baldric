@@ -1,6 +1,9 @@
 {
+  "src/baldric_agent/harness.py": {
+    "noqa:BLE001": 1
+  },
   "src/baldric_agent/tool_calls.py": {
-    "noqa:BLE001": 2
+    "noqa:BLE001": 3
   },
   "src/baldric_ai/openai_codex.py": {
     "noqa:BLE001": 1

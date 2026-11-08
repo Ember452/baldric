@@ -83,9 +83,23 @@ async def execute_tool_call(
                 # Same boundary Pi reports: the execute step only, not the hooks.
                 duration_ms = (monotonic_ns() - started_ns) // 1_000_000
                 result, is_error = outcome[0]
+                # Pi agent-loop.ts:988: a tool that reports is_error without
+                # raising failed on its own terms; keep its content/details.
+                if result.is_error:
+                    is_error = True
 
     if after_tool_call is not None:
-        result, is_error = await after_tool_call(call, result, is_error)
+        try:
+            result, is_error = await after_tool_call(call, result, is_error)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - hooks are an isolation boundary
+            # Pi agent-loop.ts:1043-1046: a failing after-hook replaces the
+            # whole result with an error result; the run continues. Python's
+            # CancelledError still propagates: cancellation is not a hook
+            # failure.
+            result = error_result(str(exc) or type(exc).__name__)
+            is_error = True
 
     yield ToolExecutionEndEvent(
         tool_call_id=call.id,
@@ -101,6 +115,7 @@ async def execute_tool_call(
         details=result.details,
         added_tool_names=result.added_tool_names,
         is_error=is_error,
+        duration_ms=duration_ms,
     )
     yield MessageStartEvent(message=message)
     yield MessageEndEvent(message=message)
