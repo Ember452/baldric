@@ -329,7 +329,7 @@
       "max_function_stmts": 8
     },
     "src/baldric_coding/extensions/builtins/subagents/extension.py": {
-      "lines": 1791,
+      "lines": 1622,
       "max_function_stmts": 32
     },
     "src/baldric_coding/extensions/builtins/subagents/fork.py": {
@@ -343,6 +343,10 @@
     "src/baldric_coding/extensions/builtins/subagents/memory.py": {
       "lines": 161,
       "max_function_stmts": 7
+    },
+    "src/baldric_coding/extensions/builtins/subagents/notification_format.py": {
+      "lines": 203,
+      "max_function_stmts": 8
     },
     "src/baldric_coding/extensions/builtins/subagents/notification_render.py": {
       "lines": 200,
@@ -893,7 +897,7 @@
       "max_function_stmts": 2
     },
     "src/baldric_protocol/__init__.py": {
-      "lines": 134,
+      "lines": 152,
       "max_function_stmts": 0
     },
     "src/baldric_protocol/messages.py": {
