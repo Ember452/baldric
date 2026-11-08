@@ -66,7 +66,10 @@ def test_pyte_screen_shows_cjk_tool_preview_without_mojibake() -> None:
 
     console = Console(record=True, width=80, force_terminal=True, color_system="truecolor")
     console.print(block)
-    screen = pyte.Screen(80, 20)
+    # 24 rows: the read budget shows ten lines and each CJK-heavy block line
+    # spans roughly two terminal rows here, so the 20-row screen the old
+    # 8-line budget fit would scroll the status line off the top.
+    screen = pyte.Screen(80, 24)
     pyte.ByteStream(screen).feed(console.export_text(styles=True).encode("utf-8"))
 
     displayed = "\n".join(screen.display)
