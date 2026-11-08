@@ -4,8 +4,10 @@ from collections.abc import Mapping
 import pytest
 
 from baldric_agent import (
+    AgentEvent,
     AgentHarness,
     AgentHarnessConfig,
+    AgentMessage,
     AgentTool,
     AgentToolResult,
     AssistantMessage,
@@ -108,6 +110,100 @@ async def test_harness_rejects_overlap_and_drains_followups() -> None:
         ("user", "Later"),
         ("assistant", "Second"),
     ]
+
+
+@pytest.mark.anyio
+async def test_convert_violation_ends_run_with_synthesized_error() -> None:
+    """Hooks must not raise; a violation ends the run fail-visible.
+
+    Pi agent.ts:542-558: the consumer still receives the complete tail
+    (message_start/end, turn_end, agent_end) and the iterator finishes
+    normally instead of throwing.
+    """
+
+    def convert(items: list[AgentMessage]) -> list[AgentMessage]:
+        raise RuntimeError("bad hook")
+
+    harness = AgentHarness(
+        AgentHarnessConfig(
+            provider=FakeProvider([[assistant_start(), assistant_done(AssistantMessage(content="Hi"))]]),
+            model="fake",
+            system="You are Baldric.",
+            convert_to_llm=convert,
+        )
+    )
+
+    events = [event async for event in harness.prompt("Hi")]
+
+    assert [event.type for event in events][-4:] == ["message_start", "message_end", "turn_end", "agent_end"]
+    failure = events[-1].messages[0]
+    assert isinstance(failure, AssistantMessage)
+    assert failure.stop_reason == "error"
+    assert failure.error_message == "bad hook"
+    assert _texts(harness) == [("user", "Hi"), ("assistant", "")]
+    assert harness.is_running is False
+
+
+@pytest.mark.anyio
+async def test_mid_run_crash_synthesizes_error_and_releases_the_harness() -> None:
+    """A crash between turns ends the run with a synthesized failure.
+
+    The transform arms itself once the tool-calling turn is on record; the
+    second request raises before contacting the provider. The failure message
+    joins history, the iterator ends normally, and the harness is reusable.
+    """
+    call = ToolCall(id="call-1", name="read", arguments={})
+    assistant = AssistantMessage(content=[call], model="fake")
+    provider = FakeProvider([[assistant_start(), tool_call_end(call), assistant_done(assistant, "toolUse")]])
+
+    async def execute(
+        tool_call_id: str,
+        arguments: Mapping[str, JSONValue],
+        signal: object,
+        on_update: object,
+    ) -> AgentToolResult:
+        return AgentToolResult(content=[TextContent(text="ok")], details={})
+
+    armed = False
+
+    def transform(items: list[AgentMessage]) -> list[AgentMessage]:
+        if armed:
+            raise RuntimeError("boom")
+        return items
+
+    async def listener(event: AgentEvent) -> None:
+        nonlocal armed
+        if isinstance(event, MessageEndEvent) and isinstance(event.message, AssistantMessage):
+            armed = bool(event.message.tool_calls)
+
+    harness = AgentHarness(
+        AgentHarnessConfig(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            tools=[
+                AgentTool(
+                    name="read",
+                    label="Read",
+                    description="Run read.",
+                    parameters={"type": "object"},
+                    execute_fn=execute,
+                )
+            ],
+            transform_context=transform,
+        )
+    )
+    harness.subscribe(listener)
+
+    events = [event async for event in harness.prompt("Hi")]
+
+    assert [event.type for event in events][-4:] == ["message_start", "message_end", "turn_end", "agent_end"]
+    failure = events[-1].messages[0]
+    assert isinstance(failure, AssistantMessage)
+    assert failure.error_message == "boom"
+    assert _texts(harness)[-1] == ("assistant", "")
+    assert len(provider.calls) == 1
+    assert harness.is_running is False
 
 
 @pytest.mark.anyio

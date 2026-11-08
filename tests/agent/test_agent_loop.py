@@ -11,6 +11,7 @@ from baldric_agent import (
     AgentTool,
     AgentToolResult,
     AssistantMessage,
+    CompactionSummaryMessage,
     MessageEndEvent,
     MessageUpdateEvent,
     RetryAttemptEvent,
@@ -878,6 +879,79 @@ async def test_tool_result_message_records_execution_duration() -> None:
     result = next(message for message in messages if isinstance(message, ToolResultMessage))
     assert result.duration_ms == end.duration_ms
     assert result.is_error is False
+
+
+@pytest.mark.anyio
+async def test_injected_transform_runs_before_convert_on_the_raw_context() -> None:
+    """Pi agent-loop.ts:501-510: transform first, then convert.
+
+    The transform sees the raw session messages (the compaction summary is
+    still there); the injected convert drops it, so the provider request is
+    built from the convert output only.
+    """
+    messages: list[AgentMessage] = [
+        UserMessage(content="hello"),
+        CompactionSummaryMessage(summary="earlier work", tokens_before=10),
+    ]
+    assistant = AssistantMessage(content="Hi", model="fake")
+    provider = FakeProvider([[assistant_start(), assistant_done(assistant)]])
+    observed: list[tuple[str, bool]] = []
+
+    def transform(items: list[AgentMessage]) -> list[AgentMessage]:
+        observed.append(("transform", any(isinstance(item, CompactionSummaryMessage) for item in items)))
+        return items
+
+    def convert(items: list[AgentMessage]) -> list[AgentMessage]:
+        observed.append(("convert", any(isinstance(item, CompactionSummaryMessage) for item in items)))
+        return [item for item in items if not isinstance(item, CompactionSummaryMessage)]
+
+    await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=messages,
+            tools=[],
+            convert_to_llm=convert,
+            transform_context=transform,
+        )
+    )
+
+    assert observed == [("transform", True), ("convert", True)]
+    _, _, provider_messages, _ = provider.calls[0]
+    assert [type(message).__name__ for message in provider_messages] == ["UserMessage"]
+
+
+@pytest.mark.anyio
+async def test_injected_convert_replaces_the_default_projection() -> None:
+    """Without hooks the provider sees the derived projection (unchanged).
+
+    The default projection passes session-only messages through; folding them
+    into user context is the application layer's job, so the injected convert
+    is the seam that changes it.
+    """
+    messages: list[AgentMessage] = [
+        UserMessage(content="hello"),
+        CompactionSummaryMessage(summary="earlier work", tokens_before=10),
+    ]
+    assistant = AssistantMessage(content="Hi", model="fake")
+    provider = FakeProvider([[assistant_start(), assistant_done(assistant)]])
+
+    await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=messages,
+            tools=[],
+        )
+    )
+
+    _, _, provider_messages, _ = provider.calls[0]
+    assert [type(message).__name__ for message in provider_messages] == [
+        "UserMessage",
+        "CompactionSummaryMessage",
+    ]
 
 
 @pytest.mark.anyio

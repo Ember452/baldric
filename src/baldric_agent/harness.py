@@ -10,8 +10,20 @@ from dataclasses import dataclass, field
 from inspect import isawaitable
 from typing import Literal
 
-from baldric_agent.events import AgentEvent, MessageEndEvent, MessageStartEvent
-from baldric_agent.loop import run_agent_loop
+from baldric_agent.events import (
+    AgentEndEvent,
+    AgentEvent,
+    MessageEndEvent,
+    MessageStartEvent,
+    TurnEndEvent,
+)
+from baldric_agent.loop import (
+    ConvertToLlm,
+    TransformContext,
+    aborted_message,
+    error_message,
+    run_agent_loop,
+)
 from baldric_agent.tool_calls import AfterToolCall, BeforeToolCall
 from baldric_protocol.messages import (
     AgentMessage,
@@ -48,6 +60,12 @@ class AgentHarnessConfig:
     session_id: str | None = None
     before_tool_call: BeforeToolCall | None = None
     after_tool_call: AfterToolCall | None = None
+    # Injectable context seams (pi convertToLlm / transformContext). The loop
+    # applies transform first, then convert; the default convert is the
+    # derived provider projection. Contract: must not raise; a violation ends
+    # the run with a synthesized error message (fail-visible).
+    convert_to_llm: ConvertToLlm | None = None
+    transform_context: TransformContext | None = None
 
 
 class SimpleCancellationToken:
@@ -258,7 +276,7 @@ class AgentHarness:
             repaired_from = len(self._messages)
             self._append_interrupted_tool_results()
             repairs = self._messages[repaired_from:]
-            async for event in run_agent_loop(
+            loop_events = run_agent_loop(
                 provider=self._config.provider,
                 model=self._config.model,
                 system=self._config.system,
@@ -273,7 +291,42 @@ class AgentHarness:
                 get_follow_up_messages=self._drain_follow_up_messages,
                 before_tool_call=self._config.before_tool_call,
                 after_tool_call=self._config.after_tool_call,
-            ):
+                convert_to_llm=self._config.convert_to_llm,
+                transform_context=self._config.transform_context,
+            ).__aiter__()
+            while True:
+                try:
+                    # Only the loop's own exception is synthesized. Listener
+                    # errors must keep propagating (pi's processEvents guards
+                    # nothing): persistence failing loudly is how a consumer
+                    # learns its transcript is not being written.
+                    event = await anext(loop_events)
+                except StopAsyncIteration:
+                    break
+                except Exception as exc:  # noqa: BLE001 - the run ends visible, not loud
+                    # Pi agent.ts:542-558: a crashed run still ends with a
+                    # complete event sequence, so a consumer never hangs on a
+                    # half run. The failure message joins history (pi pushes
+                    # it at message_end); any dangling tool calls the crash
+                    # left behind are repaired by the next run's prelude,
+                    # before its provider request.
+                    reason = str(exc) or type(exc).__name__
+                    failure = (
+                        aborted_message(self._config.model, reason)
+                        if signal.is_cancelled()
+                        else error_message(self._config.model, reason)
+                    )
+                    self._messages.append(failure)
+                    await self._notify(MessageStartEvent(message=failure))
+                    yield MessageStartEvent(message=failure)
+                    await self._notify(MessageEndEvent(message=failure))
+                    yield MessageEndEvent(message=failure)
+                    await self._notify(TurnEndEvent(message=failure))
+                    yield TurnEndEvent(message=failure)
+                    agent_end = AgentEndEvent(messages=[failure])
+                    await self._notify(agent_end)
+                    yield agent_end
+                    break
                 await self._notify(event)
                 yield event
         finally:

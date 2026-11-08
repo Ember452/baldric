@@ -36,6 +36,12 @@ from baldric_protocol.tools import AgentTool, AgentToolResult
 # never advances.
 MAX_TRUNCATED_TURNS = 3
 
+# Injectable context seams (pi agent-loop.ts:501-510): the transform runs on the
+# raw agent messages, then the convert output is what the provider sees. Both
+# are synchronous; an awaitable seam waits for a real async need.
+ConvertToLlm = Callable[[list[AgentMessage]], list[AgentMessage]]
+TransformContext = Callable[[list[AgentMessage]], list[AgentMessage]]
+
 
 async def run_agent_loop(
     *,
@@ -53,6 +59,8 @@ async def run_agent_loop(
     get_follow_up_messages: Callable[[], Sequence[AgentMessage]] | None = None,
     before_tool_call: BeforeToolCall | None = None,
     after_tool_call: AfterToolCall | None = None,
+    convert_to_llm: ConvertToLlm | None = None,
+    transform_context: TransformContext | None = None,
 ) -> AsyncIterator[AgentEvent]:
     """Run the provider/tool loop and emit Pi-compatible agent events."""
     new_messages = list(prompts)
@@ -126,11 +134,21 @@ async def run_agent_loop(
             # normal await cleanly, so consume the assistant sub-generator and
             # retain its final message through the terminal event.
             assistant = None
+            # Pi agent-loop.ts:501-510: transform the raw context first, then
+            # convert. The default convert is the derived provider projection;
+            # an injected convert replaces it wholesale.
+            context_messages = list(messages)
+            if transform_context is not None:
+                context_messages = transform_context(context_messages)
+            if convert_to_llm is None:
+                context_messages = provider_context(context_messages)
+            else:
+                context_messages = convert_to_llm(context_messages)
             async for event in assistant_events(
                 provider=provider,
                 model=model,
                 system=system,
-                messages=provider_context(messages),
+                messages=context_messages,
                 tools=tools,
                 signal=signal,
                 session_id=session_id,

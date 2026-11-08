@@ -23,7 +23,7 @@ from baldric_agent.harness import (
     QueuedMessages,
     SimpleCancellationToken,
 )
-from baldric_agent.loop import run_agent_loop
+from baldric_agent.loop import ConvertToLlm, TransformContext, run_agent_loop
 from baldric_protocol.messages import (
     AgentMessage,
     AssistantMessage,
@@ -71,6 +71,8 @@ __all__ = [
     "EventListener",
     "QueuedMessages",
     "SimpleCancellationToken",
+    "ConvertToLlm",
+    "TransformContext",
     "run_agent_loop",
     "AgentMessage",
     "AssistantMessage",
