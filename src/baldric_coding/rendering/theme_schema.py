@@ -20,7 +20,10 @@ Token shape follows ``opencode-dev/packages/theme/src/tui/schema.ts``:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from baldric_coding.rendering.themes import TuiTheme
 
 _REFERENCE_PREFIX = "$"
 
@@ -172,4 +175,121 @@ def build_tokens(schema: dict[str, Any]) -> ThemeTokens:
         role_tool_pending_bg=_optional(roles, "tool_pending", "background"),
         role_tool_success_bg=_optional(roles, "tool_success", "background"),
         role_tool_error_bg=_optional(roles, "tool_error", "background"),
+    )
+
+
+# Flat TuiTheme colour field -> layered schema path. Only fields with a genuine
+# schema home are listed (paths follow spec 2026-11-08 §4.1, which mirrors
+# opencode's token sections); fields without one come from the ``colors``
+# overlay or the default dark palette instead of a made-up path.
+_FLAT_FIELD_SOURCE: dict[str, tuple[str, ...]] = {
+    "screen_background": ("background", "base"),
+    "screen_text": ("text", "base"),
+    "chrome_background": ("background", "raised", "base"),
+    "chrome_text": ("text", "base"),
+    "muted_text": ("text", "muted"),
+    "sidebar_background": ("background", "raised", "base"),
+    "border": ("border", "base"),
+    "transcript_background": ("background", "base"),
+    "prompt_background": ("background", "raised", "base"),
+    "prompt_text": ("text", "base"),
+    "prompt_border": ("border", "accent"),
+    "autocomplete_background": ("background", "raised", "base"),
+    "accent": ("hue", "accent", "200"),
+    "success": ("hue", "green", "200"),
+    "error": ("hue", "red", "200"),
+    "tool_success_text": ("hue", "green", "200"),
+    "tool_error_text": ("hue", "red", "200"),
+    "highlight_background": ("background", "raised", "high"),
+    "highlight_text": ("text", "base"),
+    "markdown_heading": ("markdown", "heading"),
+    "markdown_table_header": ("markdown", "text"),
+    "markdown_table_border": ("border", "base"),
+    "markdown_inline_code": ("markdown", "code"),
+    "markdown_code_block_background": ("markdown", "codeBlock"),
+    "markdown_link": ("markdown", "link"),
+    "markdown_bullet": ("markdown", "listEnumeration"),
+    "completion_description": ("text", "muted"),
+    "scrollbar": ("scrollbar", "base"),
+}
+
+
+def _peek(document: dict[str, Any], *path: str) -> str | None:
+    """Return the string at *path*, or ``None`` when absent or not a colour str."""
+    node: Any = document
+    for part in path:
+        if not isinstance(node, dict) or part not in node:
+            return None
+        node = node[part]
+    return node if isinstance(node, str) and node else None
+
+
+def project_to_tui_theme(schema: dict[str, Any]) -> TuiTheme:
+    """Project a layered schema onto the flat, frozen TuiTheme contract.
+
+    The flat view is what third-party extension factories receive
+    (``Callable[[TuiTheme], Widget]`` in extensions/api.py), so its field
+    semantics must not change: same names, same meaning, same role shape.
+
+    Each colour field resolves through three layers, in order:
+
+    1. the theme's own ``colors`` block — the old flat format passes through
+       untouched, so shipped themes stay byte-for-byte identical;
+    2. ``_FLAT_FIELD_SOURCE`` — the layered token a flat field is derived from;
+    3. the built-in dark palette — a partial theme fills chrome fields from
+       the shipped default instead of crashing or inventing a colour.
+
+    Roles are projected only for names in ``TRANSCRIPT_ROLES``; the schema's
+    ``tool_pending``/``tool_success``/``tool_error`` entries are consumed by
+    :class:`ThemeTokens` and never leak into the flat view.
+    """
+    from baldric_coding.rendering.themes import (
+        BALDRIC_DARK_THEME,
+        THEME_COLOR_FIELDS,
+        TRANSCRIPT_ROLES,
+        TuiRoleStyle,
+        TuiTheme,
+    )
+
+    resolved = resolve_references(schema)
+    overlay = resolved.get("colors")
+    overlay = overlay if isinstance(overlay, dict) else {}
+
+    dark = resolved.get("dark")
+    if not isinstance(dark, bool):
+        dark = str(resolved.get("appearance", "dark")) == "dark"
+    syntax = resolved.get("syntax_theme")
+    if not isinstance(syntax, str) or not syntax:
+        syntax = "ansi_dark" if dark else "ansi_light"
+
+    def color(field: str) -> str:
+        overlay_value = overlay.get(field)
+        if isinstance(overlay_value, str) and overlay_value:
+            return overlay_value
+        path = _FLAT_FIELD_SOURCE.get(field)
+        if path is not None:
+            from_schema = _peek(resolved, *path)
+            if from_schema is not None:
+                return from_schema
+        # field iterates THEME_COLOR_FIELDS, so the attribute is always a str.
+        return cast(str, getattr(BALDRIC_DARK_THEME, field))
+
+    roles_raw = resolved.get("roles")
+    roles_raw = roles_raw if isinstance(roles_raw, dict) else {}
+    role_styles = {
+        role: TuiRoleStyle(
+            border=(
+                spec["border"] if isinstance(spec.get("border"), str) and spec["border"] else color("border")
+            ),
+            body=spec["body"] if isinstance(spec.get("body"), str) else "",
+        )
+        for role, spec in roles_raw.items()
+        if role in TRANSCRIPT_ROLES and isinstance(spec, dict)
+    }
+    return TuiTheme(
+        name=str(resolved.get("name", "unnamed")),
+        dark=dark,
+        syntax_theme=syntax,
+        role_styles=role_styles,
+        **{field: color(field) for field in THEME_COLOR_FIELDS},
     )

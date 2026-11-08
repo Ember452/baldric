@@ -9,13 +9,27 @@ allows a ``$a.b.c`` token embedded in a Rich style string such as
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from baldric_coding.rendering.theme_schema import (
     ThemeTokens,
     build_tokens,
+    project_to_tui_theme,
     resolve_references,
 )
+from baldric_coding.rendering.themes import (
+    BALDRIC_DARK_THEME,
+    BALDRIC_LIGHT_THEME,
+    HIGH_CONTRAST_THEME,
+    THEME_COLOR_FIELDS,
+    TuiTheme,
+    theme_css_variables,
+)
+
+THEMES_DIR = Path(__file__).resolve().parents[3] / "src" / "baldric_coding" / "rendering" / "themes"
 
 
 def test_resolve_single_level_hue_reference() -> None:
@@ -126,3 +140,77 @@ def test_build_tokens_reads_optional_role_backgrounds() -> None:
     # roles.*.body is a Rich style string, not a plain colour, so body is not
     # a role background source; only an explicit ``background`` key is.
     assert tokens.role_tool_success_bg == "#1d783c"
+
+
+# --- Task 2: project a layered schema onto the flat TuiTheme (zero-break) ----
+
+_BUILTIN_JSON_TO_THEME = {
+    "baldric-dark.json": BALDRIC_DARK_THEME,
+    "baldric-light.json": BALDRIC_LIGHT_THEME,
+    "high-contrast.json": HIGH_CONTRAST_THEME,
+}
+
+
+@pytest.mark.parametrize("filename", sorted(_BUILTIN_JSON_TO_THEME))
+def test_projection_matches_each_current_theme_field_by_field(filename: str) -> None:
+    # The three shipped themes are the old flat format; projecting them must be
+    # a byte-for-byte no-op on every colour field, so no existing theme shifts.
+    reference = _BUILTIN_JSON_TO_THEME[filename]
+    schema = json.loads((THEMES_DIR / filename).read_text(encoding="utf-8"))
+    projected = project_to_tui_theme(schema)
+    assert isinstance(projected, TuiTheme)
+    for field_name in THEME_COLOR_FIELDS:
+        assert getattr(projected, field_name) == getattr(reference, field_name), field_name
+    assert projected.dark == reference.dark
+    assert projected.syntax_theme == reference.syntax_theme
+    assert projected.role_styles == reference.role_styles
+
+
+@pytest.mark.parametrize("filename", sorted(_BUILTIN_JSON_TO_THEME))
+def test_projection_preserves_css_variables(filename: str) -> None:
+    # The published 32-key contract must not move when a theme round-trips
+    # through the projection.
+    reference = _BUILTIN_JSON_TO_THEME[filename]
+    schema = json.loads((THEMES_DIR / filename).read_text(encoding="utf-8"))
+    projected = project_to_tui_theme(schema)
+    assert theme_css_variables(projected) == theme_css_variables(reference)
+
+
+def test_projection_reads_a_nested_schema() -> None:
+    # A future opencode-shaped theme has no ``colors`` block; each flat field
+    # is derived from its layered source path instead.
+    schema = {
+        "name": "nested-demo",
+        "appearance": "dark",
+        "syntax_theme": "ansi_dark",
+        "hue": {
+            "gray": {"900": "#0a0a0a", "800": "#1e1e1e"},
+            "accent": {"200": "#a7f3f0"},
+            "green": {"200": "#9cffb1"},
+            "red": {"200": "#ff4f4f"},
+        },
+        "text": {"base": "#d8dee9", "muted": "#667085"},
+        "background": {"base": "$hue.gray.900", "raised": {"base": "$hue.gray.800"}},
+        "roles": {
+            "user": {"border": "#7c8ea6", "body": "#d8dee9 on $hue.gray.900"},
+        },
+    }
+    projected = project_to_tui_theme(schema)
+    assert projected.name == "nested-demo"
+    assert projected.dark is True
+    # Derived from the layered source path, not a hard-coded default.
+    assert projected.screen_background == "#0a0a0a"
+    assert projected.transcript_background == "#0a0a0a"
+    assert projected.accent == "#a7f3f0"
+    assert projected.screen_text == "#d8dee9"
+    # A role body with an embedded reference resolves through the projection.
+    assert projected.role_styles["user"].body == "#d8dee9 on #0a0a0a"
+
+
+def test_projection_of_nested_schema_exposes_all_colour_fields() -> None:
+    # Even a sparse nested schema must yield a complete, valid TuiTheme: no
+    # field may be empty, so the TUI cannot crash applying a partial theme.
+    schema = {"name": "sparse", "appearance": "dark"}
+    projected = project_to_tui_theme(schema)
+    for field_name in THEME_COLOR_FIELDS:
+        assert getattr(projected, field_name), field_name
