@@ -76,6 +76,10 @@ class GroupedToolCall:
     tool_result: AgentToolResult | None = None
     update_text: str | None = None
     started_at: float | None = None
+    # Explicit outcome, stamped when the result arrives; the render layer no
+    # longer has to guess it from the formatted "✓"/"✗" text.
+    tool_is_error: bool | None = None
+    tool_duration_seconds: float | None = None
 
 
 @dataclass(slots=True)
@@ -102,6 +106,9 @@ class ChatItem:
     tool_name: str | None = None
     tool_arguments: dict[str, JSONValue] | None = None
     started_at: float | None = None
+    # Explicit outcome/duration stamped at record time (see GroupedToolCall).
+    tool_is_error: bool | None = None
+    tool_duration_seconds: float | None = None
     tool_batch_id: int | None = None
     grouped_tool_calls: list[GroupedToolCall] | None = None
     tool_batch_items: list[ChatItem] | None = None
@@ -660,6 +667,9 @@ class TuiState:
                 member.tool_result_text = result_text
                 member.tool_result = result
                 member.update_text = None
+                if member.started_at is not None:
+                    member.tool_duration_seconds = max(0.0, time.monotonic() - member.started_at)
+                member.tool_is_error = is_error
                 member.started_at = None
                 self._refresh_tool_group(row)
             else:
@@ -668,6 +678,9 @@ class TuiState:
                 row.full_output = self.show_full_output
                 row.tool_result = result
                 row.update_text = None
+                if row.started_at is not None:
+                    row.tool_duration_seconds = max(0.0, time.monotonic() - row.started_at)
+                row.tool_is_error = is_error
                 row.started_at = None
             if item.tool_batch_items is not None:
                 self._refresh_tool_batch(item)
@@ -680,6 +693,7 @@ class TuiState:
             tool_result_full_text=full_result_text,
             full_output=self.show_full_output,
             tool_result=result,
+            tool_is_error=is_error,
         )
         self.items.append(item)
         self._tool_items_by_call_id[tool_call_id] = item
