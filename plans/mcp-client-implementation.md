@@ -826,7 +826,7 @@ def convert_result(
 ) -> AgentToolResult: ...
 ```
 
-- [ ] **Step 1: Write failing tests.** Naming table tests (port pi's
+- [x] **Step 1: Write failing tests.** Naming table tests (port pi's
   `naming.ts` exactly — `tests` assert: plain case `mcp__docs__search`;
   sanitization `mcp__my_server__do_thing` for `my-server`/`do.thing`; 64-char
   cap with `_` + 8-hex sha256 suffix over `server\0tool`; collision of
@@ -845,14 +845,14 @@ def convert_result(
   `on_progress` → `on_update(AgentToolResult(content=[TextContent(text=...)]))`
   and accepts `signal` without using it (docstring: per-call timeout lives in
   the connection).
-- [ ] **Step 2: Run and see them fail.**
-- [ ] **Step 3: Implement** — `create_mcp_tool_name` is a line-by-line port of
+- [x] **Step 2: Run and see them fail.**
+- [x] **Step 3: Implement** — `create_mcp_tool_name` is a line-by-line port of
   `pi-main/packages/mcp/src/naming.ts` (`str.replace` → `re.sub(r"[^A-Za-z0-9_]",
   "_", name)`, `hashlib.sha256(f"{server}\0{tool}".encode()).hexdigest()[:8]`).
   `convert_result` joins text blocks, replaces image blocks with placeholders,
   applies the 20 KiB cut (keep start and end halves) and calls `output_saver`
   when provided.
-- [ ] **Step 4: Run tests, gates, commit**
+- [x] **Step 4: Run tests, gates, commit**
 
 ```bash
 uv run pytest -q tests/mcp/test_adapter.py
