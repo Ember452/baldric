@@ -4010,6 +4010,7 @@ async def test_tui_app_omits_footer_but_keeps_shortcuts_active() -> None:
             "Model": "ctrl+p",
             "Editor": "ctrl+e",
             "Cancel": "escape",
+            "Sidebar": "ctrl+b",
         }
 
 
@@ -4027,6 +4028,7 @@ async def test_tui_app_footer_hints_update_for_completions() -> None:
             "Choose": "Up/Down",
             "Complete": "Tab/Enter",
             "Close": "escape",
+            "Sidebar": "ctrl+b",
         }
 
 
@@ -4050,6 +4052,7 @@ async def test_tui_app_footer_hints_explain_file_reference_enter_behavior(
             "Complete": "Tab",
             "Submit raw": "enter",
             "Close": "escape",
+            "Sidebar": "ctrl+b",
         }
 
 
@@ -4067,6 +4070,7 @@ async def test_tui_app_footer_hints_update_while_running() -> None:
             "Cancel": "escape",
             "Thinking": "ctrl+t",
             "Tools": "ctrl+o",
+            "Sidebar": "ctrl+b",
         }
 
 
@@ -4101,13 +4105,21 @@ async def test_tui_compact_session_info_sits_directly_below_prompt() -> None:
 
 
 @pytest.mark.anyio
-async def test_tui_sidebar_is_visible_on_medium_windows() -> None:
+async def test_tui_sidebar_stays_hidden_until_ctrl_b_shows_it() -> None:
+    # Behavior intentionally changed (D6): the sidebar no longer auto-shows on
+    # wide windows; Ctrl+B or /sidebar shows it for this session only.
     app = BaldricTuiApp(FakeSession())
 
-    async with app.run_test(size=(120, 40)):
+    async with app.run_test(size=(120, 40)) as pilot:
+        assert app.has_class("-hide-sidebar")
+
+        await pilot.press("ctrl+b")
+        await pilot.pause()
+
         sidebar = app.query_one("#sidebar")
         sidebar_brand = app.query_one("#sidebar-brand", Static)
         compact_info = app.query_one("#compact-session-info")
+        assert not app.has_class("-hide-sidebar")
         assert sidebar.display is True
         assert sidebar.region.width == 40
         assert sidebar.styles.padding.left == 2
@@ -4118,7 +4130,11 @@ async def test_tui_sidebar_is_visible_on_medium_windows() -> None:
         assert sidebar_brand.region.bottom == sidebar.content_region.bottom
         assert sidebar.styles.background == Color.parse(BALDRIC_DARK_THEME.prompt_background)
         assert compact_info.display is True
-        assert not app.has_class("-hide-sidebar")
+
+        await pilot.press("ctrl+b")
+        await pilot.pause()
+
+        assert app.has_class("-hide-sidebar")
 
 
 @pytest.mark.anyio
@@ -4129,6 +4145,7 @@ async def test_tui_sidebar_resource_sections_expand_independently() -> None:
         PromptTemplate("fix", session.cwd / ".baldric/prompts/fix.md", "Fix"),
     )
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         skills = app.query_one("#sidebar-skills", Collapsible)
@@ -4248,6 +4265,7 @@ async def test_tui_sidebar_skill_opens_only_main_skill_file(tmp_path: Path) -> N
     session.cwd = tmp_path
     session.skills = (Skill("review", skill_path, "# Review", "Review changes"),)
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         app.query_one("#sidebar-skills", Collapsible).collapsed = False
@@ -4272,6 +4290,7 @@ async def test_tui_sidebar_file_items_have_clear_hover_style(tmp_path: Path) -> 
     session.cwd = tmp_path
     session.context_files = (ProjectContextFile(path=str(context_path), content="Rules."),)
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         item = app.query_one("#sidebar-context-content .sidebar-file-item", SidebarFileItem)
@@ -4293,6 +4312,7 @@ async def test_tui_sidebar_editor_keeps_contents_open_after_save_failure(
     session.cwd = tmp_path
     session.context_files = (ProjectContextFile(path=str(context_path), content="Rules."),)
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.click("#sidebar-context-content .sidebar-file-item")
@@ -4321,6 +4341,7 @@ async def test_tui_sidebar_editor_reports_unexpected_save_failure(
     session.cwd = tmp_path
     session.context_files = (ProjectContextFile(path=str(context_path), content="Rules."),)
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     def fail_unexpectedly(*args: object) -> None:
         del args
@@ -4352,6 +4373,7 @@ async def test_tui_sidebar_editor_refuses_external_file_changes(tmp_path: Path) 
     session.cwd = tmp_path
     session.context_files = (ProjectContextFile(path=str(context_path), content="Original."),)
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.click("#sidebar-context-content .sidebar-file-item")
@@ -4415,6 +4437,7 @@ async def test_tui_sidebar_editor_partial_staging_failure_is_safe(
     session.cwd = tmp_path
     session.context_files = (ProjectContextFile(path=str(context_path), content="Original rules."),)
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.click("#sidebar-context-content .sidebar-file-item")
@@ -4452,6 +4475,7 @@ async def test_tui_sidebar_editor_rejects_read_only_target(tmp_path: Path) -> No
     session.cwd = tmp_path
     session.context_files = (ProjectContextFile(path=str(context_path), content="Original rules."),)
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
     notifications: list[tuple[str, str | None]] = []
 
     def fake_notify(message: str, **kwargs: object) -> None:
@@ -4569,6 +4593,7 @@ async def test_tui_sidebar_scrolls_when_all_skills_overflow() -> None:
         for index in range(1, 31)
     )
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         scroll = app.query_one("#sidebar-scroll", VerticalScroll)
@@ -4587,6 +4612,7 @@ async def test_tui_sidebar_scrolls_when_all_skills_overflow() -> None:
 async def test_tui_sidebar_relayouts_when_reload_changes_resource_count() -> None:
     session = FakeSession()
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         sidebar = app.query_one("#sidebar", SessionSidebar)
@@ -4632,6 +4658,7 @@ async def test_tui_sidebar_relayouts_when_reload_changes_resource_count() -> Non
 @pytest.mark.anyio
 async def test_tui_sidebar_fills_workspace_height() -> None:
     app = BaldricTuiApp(FakeSession())
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)):
         workspace = app.query_one("#workspace")
@@ -4677,36 +4704,45 @@ async def test_tui_sidebar_hides_on_short_windows() -> None:
 
 
 @pytest.mark.anyio
-async def test_tui_sidebar_visibility_updates_on_resize() -> None:
+async def test_tui_sidebar_visibility_is_stable_across_resize() -> None:
+    # Behavior intentionally changed (D6): window size no longer decides
+    # sidebar visibility — only the session override does.
     app = BaldricTuiApp(FakeSession())
 
     async with app.run_test(size=(120, 40)) as pilot:
         sidebar = app.query_one("#sidebar")
         compact_info = app.query_one("#compact-session-info")
-        assert sidebar.display is True
+        assert sidebar.display is False
         assert compact_info.display is True
 
         await pilot.resize_terminal(width=80, height=40)
         await pilot.pause()
         assert sidebar.display is False
-        assert compact_info.display is True
 
         await pilot.resize_terminal(width=120, height=30)
         await pilot.pause()
         assert sidebar.display is False
         assert compact_info.display is True
 
-        await pilot.resize_terminal(width=120, height=40)
+        app._sidebar_visibility_override = True
+        app._update_responsive_layout(120, 40)
         await pilot.pause()
         assert sidebar.display is True
-        assert compact_info.display is True
+
+        await pilot.resize_terminal(width=80, height=40)
+        await pilot.pause()
+        assert sidebar.display is True
 
 
 @pytest.mark.anyio
 async def test_tui_sidebar_shows_on_right_by_default() -> None:
+    # Placement classes apply whenever the sidebar is shown; it just starts
+    # hidden now (D6), so the test shows it explicitly.
     app = BaldricTuiApp(FakeSession())
 
-    async with app.run_test(size=(120, 40)):
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.press("ctrl+b")
+        await pilot.pause()
         sidebar = app.query_one("#sidebar")
         assert sidebar.display is True
         assert app.has_class("-sidebar-right")
@@ -4717,7 +4753,9 @@ async def test_tui_sidebar_shows_on_right_by_default() -> None:
 async def test_tui_sidebar_shows_on_left_when_configured() -> None:
     app = BaldricTuiApp(FakeSession(), tui_settings=TuiSettings(sidebar_position="left"))
 
-    async with app.run_test(size=(120, 40)):
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.press("ctrl+b")
+        await pilot.pause()
         sidebar = app.query_one("#sidebar")
         assert sidebar.display is True
         assert not app.has_class("-sidebar-right")
@@ -4733,26 +4771,27 @@ async def test_tui_sidebar_command_toggles_visibility_without_changing_position(
 
     async with app.run_test(size=(120, 40)) as pilot:
         sidebar = app.query_one("#sidebar")
-        assert sidebar.display is True
-        assert app.has_class("-sidebar-right") is (position == "right")
+        assert sidebar.display is False
 
         prompt = app.query_one("#prompt", PromptInput)
         prompt.value = "/sidebar"
         await pilot.press("enter")
         await pilot.pause()
-        assert sidebar.display is False
+        assert sidebar.display is True
         assert app.has_class("-sidebar-right") is (position == "right")
         assert app.tui_settings.sidebar_position == position
 
         prompt.value = "/sidebar"
         await pilot.press("enter")
         await pilot.pause()
-        assert sidebar.display is True
+        assert sidebar.display is False
         assert app.has_class("-sidebar-right") is (position == "right")
 
 
 @pytest.mark.anyio
-async def test_tui_sidebar_command_hides_user_sidebar_across_resize() -> None:
+async def test_tui_sidebar_command_shows_user_sidebar_across_resize() -> None:
+    # Behavior intentionally changed (D6): the session override is what keeps
+    # the sidebar visible; resize can no longer hide or reveal it.
     app = BaldricTuiApp(FakeSession())
 
     async with app.run_test(size=(120, 40)) as pilot:
@@ -4761,12 +4800,12 @@ async def test_tui_sidebar_command_hides_user_sidebar_across_resize() -> None:
         prompt.value = "/sidebar"
         await pilot.press("enter")
         await pilot.pause()
-        assert sidebar.display is False
+        assert sidebar.display is True
 
         await pilot.resize_terminal(width=80, height=30)
         await pilot.resize_terminal(width=120, height=40)
         await pilot.pause()
-        assert sidebar.display is False
+        assert sidebar.display is True
 
 
 @pytest.mark.anyio

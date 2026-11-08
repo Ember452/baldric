@@ -366,8 +366,6 @@ ACTIVITY_SPINNER_MAX_FADE = activity.ACTIVITY_SPINNER_MAX_FADE
 _render_activity_indicator = activity.render_activity_indicator
 
 type BindingEntry = Binding | tuple[str, str] | tuple[str, str, str]
-SIDEBAR_MIN_WIDTH = 96
-SIDEBAR_MIN_HEIGHT = 38
 COMPLETION_MAX_VISIBLE_LINES = 16
 COMPLETION_INITIAL_TERMINAL_FRACTION = 3
 COMPLETION_MIN_TRANSCRIPT_LINES = 4
@@ -3089,6 +3087,10 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
             theme=self.tui_settings.resolved_theme,
         )
 
+    def action_toggle_sidebar(self) -> None:
+        """Show or hide the sidebar for this session (D6: collapsed by default)."""
+        self._toggle_sidebar_visibility()
+
     async def _archive_session_record(
         self, record: SessionCompletionRecord, picker: SessionPickerScreen
     ) -> None:
@@ -3796,12 +3798,9 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         )
 
     def _update_responsive_layout(self, width: int, height: int) -> None:
-        if self._sidebar_visibility_override is not None:
-            show_sidebar = self._sidebar_visibility_override
-        elif self.tui_settings.sidebar_position == "off":
-            show_sidebar = False
-        else:
-            show_sidebar = width >= SIDEBAR_MIN_WIDTH and height >= SIDEBAR_MIN_HEIGHT
+        # D6: the sidebar starts collapsed on every window size; Ctrl+B or
+        # /sidebar shows it for this session only (spec 2026-11-08 §5.5).
+        show_sidebar = self._sidebar_visibility_override is True
         self.set_class(not show_sidebar, "-hide-sidebar")
 
     def _build_completion_state(self, text: str, *, cursor: int | None = None) -> CompletionState:
@@ -4100,6 +4099,7 @@ def _app_bindings(keybindings: TuiKeybindings) -> list[Binding]:
         ),
         Binding(keybindings.toggle_tool_results, "toggle_tool_results", "Tool results"),
         Binding(keybindings.toggle_thinking, "toggle_thinking", "Thinking tokens"),
+        Binding(keybindings.toggle_sidebar, "toggle_sidebar", "Sidebar"),
         Binding(keybindings.copy_message, "clear_prompt", "Copy/Clear"),
         Binding(keybindings.quit, "quit", "Quit"),
     ]
