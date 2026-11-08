@@ -5,10 +5,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from baldric_agent.session import SessionEntry
 from baldric_coding.session.export.html import render_session_html
 from baldric_coding.session.export.jsonl import _session_jsonl_text
 from baldric_coding.utils.atomic import atomic_write_text
+from baldric_protocol.session import SessionEntry
 
 
 class SessionExportError(ValueError):

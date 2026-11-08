@@ -10,13 +10,6 @@ from typing import cast
 import pytest
 
 from baldric_agent import AssistantMessage, ToolCall, UserMessage
-from baldric_agent.session import (
-    CustomEntry,
-    CustomMessageEntry,
-    JsonlSessionStorage,
-    LeafEntry,
-    MessageEntry,
-)
 from baldric_ai import FakeProvider
 from baldric_coding import (
     BaldricPaths,
@@ -51,8 +44,10 @@ from baldric_coding.extensions import (
     discover_extensions,
     load_extensions,
 )
+from baldric_coding.session import JsonlSessionStorage
 from baldric_coding.trust.policy import ProjectTrustRequest, ProjectTrustResolution, TrustChoice
 from baldric_protocol.messages import AgentMessage, assistant_content, message_to_user
+from baldric_protocol.session import CustomEntry, CustomMessageEntry, LeafEntry, MessageEntry
 from baldric_protocol.tools import AgentTool, AgentToolResult
 from baldric_protocol.types import JSONValue
 from tests.helpers.pi_event_helpers import assistant_done, assistant_start

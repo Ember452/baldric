@@ -16,21 +16,6 @@ from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import JsonLexer
 
-from baldric_agent.session import (
-    BranchSummaryEntry,
-    CompactionEntry,
-    CustomEntry,
-    CustomMessageEntry,
-    LabelEntry,
-    LeafEntry,
-    MessageEntry,
-    ModelChangeEntry,
-    SessionEntry,
-    SessionInfoEntry,
-    SessionTreeError,
-    ThinkingLevelChangeEntry,
-    path_to_entry,
-)
 from baldric_coding.rendering.themes import BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME, TuiTheme
 from baldric_coding.session.export.jsonl import _session_jsonl_text
 from baldric_coding.session.usage import (
@@ -48,6 +33,21 @@ from baldric_protocol.messages import (
     UserMessage,
     content_text,
     message_text,
+)
+from baldric_protocol.session import (
+    BranchSummaryEntry,
+    CompactionEntry,
+    CustomEntry,
+    CustomMessageEntry,
+    LabelEntry,
+    LeafEntry,
+    MessageEntry,
+    ModelChangeEntry,
+    SessionEntry,
+    SessionInfoEntry,
+    SessionTreeError,
+    ThinkingLevelChangeEntry,
+    path_to_entry,
 )
 from baldric_protocol.types import JSONValue
 

@@ -12,16 +12,6 @@ from typing import Literal
 
 from baldric_agent.events import AgentEvent
 from baldric_agent.harness import AgentHarness, AgentHarnessConfig, QueuedMessages
-from baldric_agent.session import (
-    CompactionEntry,
-    CustomEntry,
-    LabelEntry,
-    ModelChangeEntry,
-    SessionInfoEntry,
-    SessionState,
-    SessionStorage,
-    ThinkingLevelChangeEntry,
-)
 from baldric_agent.tool_calls import BeforeToolCall
 from baldric_agent.tool_history import ToolHistoryRepair
 from baldric_ai.model_catalog import RuntimeModelCatalog
@@ -86,6 +76,7 @@ from baldric_coding.providers.stores.codex_model_store import (
 from baldric_coding.providers.stores.models_dev_store import (
     ModelsDevRefreshResult,
 )
+from baldric_coding.session import SessionState, SessionStorage
 from baldric_coding.session import branching as _branching
 from baldric_coding.session import lifecycle as _lifecycle
 from baldric_coding.session import model_runtime as _model_runtime
@@ -350,6 +341,14 @@ from baldric_protocol.messages import (
     message_text,
 )
 from baldric_protocol.provider import ModelProvider
+from baldric_protocol.session import (
+    CompactionEntry,
+    CustomEntry,
+    LabelEntry,
+    ModelChangeEntry,
+    SessionInfoEntry,
+    ThinkingLevelChangeEntry,
+)
 from baldric_protocol.session.entries import SessionEntry
 from baldric_protocol.tools import AgentTool
 from baldric_protocol.types import JSONValue

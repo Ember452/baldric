@@ -8,7 +8,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Literal
 
-from baldric_agent.session import (
+from baldric_coding.providers.catalog import builtin_provider_entry, model_cost_for_input_tokens
+from baldric_coding.rendering.themes import BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME
+from baldric_coding.session.stats import _response_cost
+from baldric_protocol.messages import AssistantMessage, Usage
+from baldric_protocol.session import (
     BranchSummaryEntry,
     CompactionEntry,
     MessageEntry,
@@ -16,10 +20,6 @@ from baldric_agent.session import (
     SessionEntry,
     ThinkingLevelChangeEntry,
 )
-from baldric_coding.providers.catalog import builtin_provider_entry, model_cost_for_input_tokens
-from baldric_coding.rendering.themes import BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME
-from baldric_coding.session.stats import _response_cost
-from baldric_protocol.messages import AssistantMessage, Usage
 
 __all__ = [
     "RequestUsage",

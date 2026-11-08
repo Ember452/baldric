@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
-from baldric_agent.session import BranchSummaryEntry, CompactionEntry, MessageEntry, ModelChangeEntry
 from baldric_protocol.messages import AssistantMessage, CustomMessage, UserMessage
+from baldric_protocol.session import BranchSummaryEntry, CompactionEntry, MessageEntry, ModelChangeEntry
 from baldric_protocol.session.entries import CustomMessageEntry, SessionEntry
 
 PricingResolver = Callable[[str, str, int], Mapping[str, float] | None]

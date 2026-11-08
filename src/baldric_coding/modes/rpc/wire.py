@@ -10,13 +10,13 @@ from typing import cast
 
 from pydantic import BaseModel
 
-from baldric_agent.session import JsonlSessionStorage
 from baldric_coding.modes.rpc.session import RpcSession
 from baldric_coding.providers.config import (
     AnthropicProviderConfig,
     OpenAICompatibleProviderConfig,
     provider_thinking_levels,
 )
+from baldric_coding.session import JsonlSessionStorage
 from baldric_coding.session.session import (
     ModelChoice,
 )

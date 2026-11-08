@@ -5,13 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from baldric_agent.session import (
-    CustomMessageEntry,
-    LabelEntry,
-    MessageEntry,
-    SessionState,
-    SessionStorage,
-)
+from baldric_coding.session import SessionState, SessionStorage
 from baldric_coding.session.compaction.context_window import (
     estimate_message_tokens,
 )
@@ -25,6 +19,7 @@ from baldric_protocol.messages import (
     UserMessage,
     message_text,
 )
+from baldric_protocol.session import CustomMessageEntry, LabelEntry, MessageEntry
 from baldric_protocol.session.entries import SessionEntry
 from baldric_protocol.session.tree import SessionTreeError, path_to_entry
 

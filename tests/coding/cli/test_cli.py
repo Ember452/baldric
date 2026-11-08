@@ -6,7 +6,6 @@ import pytest
 from typer.testing import CliRunner
 
 from baldric_agent import AssistantMessage, UserMessage
-from baldric_agent.session import JsonlSessionStorage, MessageEntry, ModelChangeEntry
 from baldric_ai import (
     FakeProvider,
 )
@@ -29,6 +28,7 @@ from baldric_coding.providers.config import (
     load_provider_settings,
 )
 from baldric_coding.rendering import PrintOutputMode
+from baldric_coding.session import JsonlSessionStorage
 from baldric_coding.tools.registry import create_coding_tools
 from baldric_coding.update.check import (
     ReleaseNoteSection,
@@ -38,6 +38,7 @@ from baldric_coding.update.check import (
 )
 from baldric_coding.update.updater import UpdateResult
 from baldric_protocol.messages import BashExecutionMessage
+from baldric_protocol.session import MessageEntry, ModelChangeEntry
 from tests.helpers.conftest_utils import isolate_home
 from tests.helpers.pi_event_helpers import assistant_done, assistant_error, assistant_start, text_delta
 

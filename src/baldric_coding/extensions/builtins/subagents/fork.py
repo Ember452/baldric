@@ -20,13 +20,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from baldric_agent.session import MessageEntry, SessionEntry, SessionInfoEntry
 from baldric_protocol.messages import (
     AgentMessage,
     AssistantMessage,
     TextContent,
     ToolResultMessage,
 )
+from baldric_protocol.session import MessageEntry, SessionEntry, SessionInfoEntry
 
 if TYPE_CHECKING:
     from baldric_coding.extensions.api import ExtensionContext

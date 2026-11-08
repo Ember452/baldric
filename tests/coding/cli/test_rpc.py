@@ -8,14 +8,6 @@ import pytest
 from typer.testing import CliRunner
 
 from baldric_agent import AssistantMessage, Usage, UserMessage
-from baldric_agent.session import (
-    CompactionEntry,
-    CustomMessageEntry,
-    JsonlSessionStorage,
-    LeafEntry,
-    MessageEntry,
-    ModelChangeEntry,
-)
 from baldric_ai import FakeProvider
 from baldric_coding import (
     BaldricPaths,
@@ -29,6 +21,14 @@ from baldric_coding import (
 from baldric_coding import cli as cli_module
 from baldric_coding.modes.rpc import RpcServer
 from baldric_coding.providers.config import ProviderModelMetadata
+from baldric_coding.session import JsonlSessionStorage
+from baldric_protocol.session import (
+    CompactionEntry,
+    CustomMessageEntry,
+    LeafEntry,
+    MessageEntry,
+    ModelChangeEntry,
+)
 from tests.helpers.pi_event_helpers import assistant_done, assistant_start, text_delta
 
 

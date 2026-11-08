@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 from textual.widgets import OptionList
 
-from baldric_agent.session import JsonlSessionStorage, ModelChangeEntry, SessionInfoEntry
 from baldric_ai import FakeProvider, RuntimeModel, RuntimeModelCatalog
 from baldric_coding import (
     CodingSession,
@@ -16,9 +15,11 @@ from baldric_coding import (
     ProviderSettings,
 )
 from baldric_coding.config.paths import BaldricPaths
+from baldric_coding.session import JsonlSessionStorage
 from baldric_coding.session import session as session_module
 from baldric_coding.session.manager import SessionManager
 from baldric_coding.tui import app as tui_app
+from baldric_protocol.session import ModelChangeEntry, SessionInfoEntry
 
 
 class CatalogProvider(FakeProvider):

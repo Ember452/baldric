@@ -6,10 +6,6 @@ from contextlib import suppress
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Literal
 
-from baldric_agent.session import (
-    ModelChangeEntry,
-    ThinkingLevelChangeEntry,
-)
 from baldric_coding.context.resources import (
     ResourceDiagnostic,
 )
@@ -247,6 +243,7 @@ from baldric_coding.session.tree_helpers import (
 from baldric_coding.session.tree_helpers import (
     is_retryable_huggingface_route_error as is_retryable_huggingface_route_error,
 )
+from baldric_protocol.session import ModelChangeEntry, ThinkingLevelChangeEntry
 
 if TYPE_CHECKING:
     from baldric_coding.session.session import CodingSession

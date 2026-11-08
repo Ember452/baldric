@@ -12,10 +12,10 @@ from pathlib import Path
 
 import pytest
 
-from baldric_agent.session import InMemorySessionStorage
 from baldric_ai import FakeProvider
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.events import SessionInfoChangedEvent, ThinkingLevelChangedEvent
+from baldric_coding.session import InMemorySessionStorage
 from baldric_coding.session.manager import SessionManager
 from baldric_coding.session.session import CodingSession, CodingSessionConfig
 from baldric_protocol.messages import AssistantMessage

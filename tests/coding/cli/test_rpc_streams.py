@@ -18,10 +18,10 @@ from pathlib import Path
 import pytest
 
 from baldric_agent import AssistantMessage
-from baldric_agent.session import JsonlSessionStorage
 from baldric_ai import FakeProvider
 from baldric_coding import CodingSession, CodingSessionConfig
 from baldric_coding.modes.rpc import RpcServer
+from baldric_coding.session import JsonlSessionStorage
 from tests.helpers.pi_event_helpers import assistant_done, assistant_start, text_delta
 
 

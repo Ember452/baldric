@@ -1,7 +1,4 @@
 {
-  "src/baldric_agent/session/storage.py": {
-    "type-ignore:attr-defined": 2
-  },
   "src/baldric_agent/tool_calls.py": {
     "noqa:BLE001": 2
   },
@@ -82,6 +79,9 @@
     "noqa:F401": 3,
     "type-ignore:arg-type": 1,
     "type-ignore:attr-defined": 1
+  },
+  "src/baldric_coding/session/storage.py": {
+    "type-ignore:attr-defined": 2
   },
   "src/baldric_coding/tools/registry.py": {
     "noqa:F401": 1

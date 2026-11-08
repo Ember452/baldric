@@ -15,25 +15,24 @@ from baldric_agent import (
     UsageCost,
     UserMessage,
 )
-from baldric_agent.session import (
+from baldric_coding.session import JsonlSessionStorage, SessionState
+from baldric_protocol.messages import message_to_user, sum_usage
+from baldric_protocol.session import (
     BranchSummaryEntry,
     CompactionEntry,
     CustomEntry,
     CustomMessageEntry,
-    JsonlSessionStorage,
     LabelEntry,
     LeafEntry,
     MessageEntry,
     ModelChangeEntry,
     SessionJsonlError,
-    SessionState,
     SessionTreeError,
     entries_from_json_lines,
     entry_from_json_line,
     entry_to_json_line,
     path_to_entry,
 )
-from baldric_protocol.messages import message_to_user, sum_usage
 
 
 def test_session_entry_round_trips_canonical_jsonl() -> None:
@@ -908,7 +907,7 @@ async def test_jsonl_storage_reads_a_transcript_with_a_torn_final_line(
     path.write_text(entry_to_json_line(entry) + '{"id":"torn","type":"mess', encoding="utf-8")
     storage = JsonlSessionStorage(path)
 
-    with caplog.at_level("WARNING", logger="baldric_agent.session.storage"):
+    with caplog.at_level("WARNING", logger="baldric_coding.session.storage"):
         assert await storage.read_all() == [entry]
 
     assert "partial final line" in caplog.text
