@@ -47,7 +47,7 @@ theme.* 引用       208 处 / 16 文件
 
 - **数据层**升级（`theme.json` 用 opencode schema）；
 - **投影**出 `TuiTheme`（旧扁平视图，一行调用点都不改）和 `ThemeTokens`（新分层视图）；
-- **新组件只用 `ThemeTokens`**；`TuiTheme` 标记 deprecated 但长期保留。
+- **新组件只用 `ThemeTokens`**；`TuiTheme` 标记 deprecated，**v2.x 期间兼容，v3.0 删除**（见 §13）。
 
 ## 3. 架构
 
@@ -303,5 +303,61 @@ builtin 5 套（opencode schema）─┤
 - 不做 prompt_toolkit / scrollback 前端（PR #63 已排除）。
 - 不做 opencode 的 shimmer / 逐格 alpha 动效。
 - 不改 `baldric_agent` / `baldric_ai`（本设计完全在 `baldric_coding` 层）。
-- 不改 `TuiTheme` 的公开字段形状（扩展契约）。
 - 不给 `rendering/` 加 Textual 依赖（CI 强制）。
+
+---
+
+## 13. `TuiTheme` 的迁移路线：v2.x 过渡，v3.0 删除
+
+### 13.1 为什么需要这一节
+
+方案四让 `TuiTheme` 与 `ThemeTokens` 长期并存。**并存不能是终点**：两套主题 API 会让扩展作者反复问"我该用哪个"，也是永久性的认知负担。所以这里把"什么时候删掉旧的"写成有日期的承诺，而不是"以后再说"。
+
+### 13.2 客观结论（与扩展兼容无关时的判断）
+
+如果把"已发布扩展会 break"这个约束完全去掉，纯架构上 **嵌套 schema 优于扁平 `TuiTheme`**：
+
+| 维度 | 扁平 `TuiTheme` | 嵌套 schema |
+|---|---|---|
+| 层级表达 | 把"base 层"拆成 `screen/chrome/prompt/transcript_background` 四个名字，四者当前全等于 `#000000` | `background.base / raised.{base,high,max}` 直接表达层级 |
+| 加一个视觉状态 | 新增字段 + 每处组件各自判断 | JSON 加一行（`$hovered` 挂在 `action.primary` 下） |
+| 控件 × 状态这类二维表 | 只能拍平（现在只有 completion 一个控件就已经有 3 个字段） | 天然二维 |
+| 类型安全 | 34 个 typed 字段，mypy 兜住拼写 | 全 `dict[str, str]`，拼错只有运行时才知道 |
+| 可扩展（大量功能） | 每加能力都要动代码与字段 | 只动 JSON |
+
+**扁平结构在"加东西"上的边际成本是递增的，嵌套是平坦的。** 这就是换的理由。
+
+代价也说清楚：嵌套更自由 = 更容易写错，所以它必须配一个**递归 schema 校验**（opencode 用 Effect Schema 做这件事，200 行）。方案四里的 `parse_tui_theme_json` 升级就是这个校验器；没有它，换嵌套是净亏。
+
+### 13.3 三个版本的状态
+
+| 版本 | `TuiTheme` | `ThemeTokens` | 扩展作者看到什么 |
+|---|---|---|---|
+| **v2.x（方案四落地后）** | 保留，标 `deprecated`（docstring + 文档），**行为不变** | 新增，正式 API | 两个都能用；新代码用 `ThemeTokens`，旧代码不动也能跑 |
+| **v3.0（一次 breaking）** | **删除** | 唯一 | 工厂签名从 `Callable[[TuiTheme], Widget]` 改为 `Callable[[ThemeTokens], Widget]` |
+| v3.x+ | — | 唯一 | 干净 |
+
+### 13.4 v2.x 期间必须做的事（否则 v3.0 删不掉）
+
+1. **`TuiTheme` 全量标 deprecated**：类 docstring 写清楚"v3.0 删除，迁移到 `ThemeTokens`"；`docs/` 里加一页迁移指南，逐个字段给 `TuiTheme.x → ThemeTokens.y` 对照表（这张表由 §5 的投影函数自动生成，不手工维护）。
+2. **新组件一律只用 `ThemeTokens`**：CI 加一条守卫——`rendering/` 与 `tui/` 里**新增**的模块不得引用 `TuiTheme`（允许名单只含存量文件）。这条守卫防止 deprecation 期间又长出新债。
+3. **`ThemeTokens` 必须一开始就覆盖 `TuiTheme` 的全部信息**：任何 `TuiTheme` 有、`ThemeTokens` 没有的字段，都要在投影层补上，否则 v3.0 删除时会发现"有东西没地方接"。
+4. **迁移指南里的每个旧字段都必须有明确去向**：不留"这个字段不知道怎么处理"，否则 v3.0 会拖期。
+
+### 13.5 v3.0 的删除条件（写死，避免无限延期）
+
+同时满足三条才发 v3.0：
+
+1. **§13.4 的对照表 100% 覆盖**——`TuiTheme` 每个字段都有 `ThemeTokens` 对应项，且 CI 有一条测试断言这个覆盖率。
+2. **`grep -r "TuiTheme" src/` 只剩投影层、`__init__` 导出、deprecation 声明三处**——任何组件、picker、HTML 导出、扩展 UI 都不再直接引用。
+3. **至少一个 minor 版本（v2.1 起）已经完整发布**，且该版本的 CHANGELOG 里明确写了"`TuiTheme` 将在 v3.0 删除，请迁移到 `ThemeTokens`"。
+
+> 不满足这三条就不发 v3.0。这不是"看情况"，是**前置条件**。反过来，三条都满足后**必须**发——不能因为"用户还没抱怨"就永久保留两套 API。
+
+### 13.6 对 §9 验收标准的补充
+
+第一批验收增加一条：
+
+- **`ThemeTokens` 覆盖率测试**：`set(TuiTheme 的 color 字段) ` 中每个字段都能在 `project_to_tui_theme` 的反向映射里找到来源 token；缺一个就红。这条测试是 v3.0 能否删除的**唯一机械证据**。
+
+
