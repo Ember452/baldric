@@ -906,7 +906,7 @@ class CodingSession:
     def refresh_system_prompt(self) -> None: ...
 ```
 
-- [ ] **Step 1: Verify (from Task 0 findings) and restate the touchpoints**
+- [x] **Step 1: Verify (from Task 0 findings) and restate the touchpoints**
 
 Read the exact regions again with the editor open: `session.py:805-870`,
 `runtime.py:1034-1080` + `register_tool` (`:544-563`) + `BoundSession`,
@@ -915,7 +915,7 @@ still hold on this branch (they were verified on `main`; a merge may have
 moved lines). **MUST-HOLD**: same list object flows to harness and
 `build_system_prompt`.
 
-- [ ] **Step 2: Write failing tests**
+- [x] **Step 2: Write failing tests**
 
 1. `tests/agent/test_harness_system_prompt.py`: with the existing fake
    provider helpers in `tests/agent/` (read them first), assert that a run
@@ -934,9 +934,9 @@ moved lines). **MUST-HOLD**: same list object flows to harness and
    prompt contains the section. Also: a session built with an explicit
    `config.system` has `refresh_system_prompt()` as a no-op.
 
-- [ ] **Step 3: Run and see them fail.**
+- [x] **Step 3: Run and see them fail.**
 
-- [ ] **Step 4: Implement.**
+- [x] **Step 4: Implement.**
 
 `harness.py`:
 
@@ -1012,7 +1012,7 @@ def refresh_system_prompt(self) -> None:
     self._harness.update_system_prompt(self._system_prompt_builder())
 ```
 
-- [ ] **Step 5: Run the full fast suite (cross-cutting change), gates, commit**
+- [x] **Step 5: Run the full fast suite (cross-cutting change), gates, commit**
 
 ```bash
 uv run pytest -q --ignore=tests/coding/tui
@@ -1379,6 +1379,23 @@ git commit -m "docs: MCP servers guide and build journal"
 Appended during execution per Execution Rules R4. One entry per deviation;
 an empty section means the plan was followed as written. Entry format:
 
-- **D\<n\> — \<short title\>** (Task \<n\>, \<date\>): why the plan was wrong or
-  insufficient; impact surface checked (callers / tests / guards / consumers);
-  design change? (yes → owner consulted); commits.
+- **D1 — adoption must transfer the prompt builder** (Task 6, 2026-11-08):
+  `lifecycle.py` `_adopt_replacement` was outside the plan's touchpoint
+  table, but it copies `session._harness` from the replacement without the
+  new `_system_prompt_builder`; a resume/new would then rebuild the prompt
+  through the pre-adoption closure. Fixed inside session.py
+  (`_adopt_system_prompt_builder`) to respect the session-state write
+  ratchet; lifecycle only calls the method. Impact surface checked: the
+  three adoption callers (new/resume/reload adoption), the write ratchet
+  (tests/guards), and the session tests pinning adoption field copying.
+  Design change? no (the seam behaves as designed; this closes a transfer
+  gap). Commit: Task 6's feat commit.
+- **D2 — structure-baseline growth recorded with --init** (Task 6,
+  2026-11-08): the five files the seams touch were already above the 400
+  line limit with recorded exceptions (`harness.py` 467→477, `api.py`
+  1340→1350, `runtime.py` 1393→1454, `lifecycle.py` 1187→1191,
+  `session.py` 2011→2031; `load`'s longest function 54→56 statements). The
+  growth is exactly the plan-mandated seam lines plus the corrected
+  `_connect_quietly`/`unregister_tool` additions. Reviewing the diff line by
+  line, every added line traces to the touchpoint table or deviation D1.
+  Commit: Task 6's feat commit.

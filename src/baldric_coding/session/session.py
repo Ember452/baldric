@@ -547,6 +547,7 @@ class CodingSession:
         extension_runtime: ExtensionRuntime | None = None,
         image_support: ImageSupportState | None = None,
         project_trust_resolution: ProjectTrustResolution | None = None,
+        system_builder: Callable[[], str] | None = None,
     ) -> None:
         self._config = config
         self._state = state
@@ -601,6 +602,7 @@ class CodingSession:
         self._model_limits_discovery_error: str | None = None
         self._project_trust_resolution = project_trust_resolution
         self._project_trust_commit_pending = False
+        self._system_prompt_builder = system_builder
         self._persistence_unsubscribe: Callable[[], None] | None = None
         # Per-message index writes are throttled by their caller; the record's
         # own ordering contract still writes on every explicit touch.
@@ -816,10 +818,10 @@ class CodingSession:
             )
         )
         tools = _filter_tools(extension_runtime.compose_tools(base_tools), config.allowed_tool_names)
-        system = (
-            config.system
-            if config.system is not None
-            else build_system_prompt(
+        extension_runtime.bind_live_tools(tools, config.allowed_tool_names)
+
+        def _build_system_prompt() -> str:
+            return build_system_prompt(
                 BuildSystemPromptOptions(
                     cwd=config.cwd,
                     tools=tools,
@@ -843,7 +845,8 @@ class CodingSession:
                     ),
                 )
             )
-        )
+
+        system = config.system if config.system is not None else _build_system_prompt()
         harness = AgentHarness(
             AgentHarnessConfig(
                 provider=config.provider,
@@ -876,6 +879,7 @@ class CodingSession:
             extension_runtime=extension_runtime,
             image_support=image_support,
             project_trust_resolution=trust_resolution,
+            system_builder=None if config.system is not None else _build_system_prompt,
         )
         if config.owns_initial_provider:
             # Ownership starts before any repair/discovery work so every
@@ -1263,6 +1267,24 @@ class CodingSession:
     def system_prompt(self) -> str:
         """Return the effective system prompt sent to the model."""
         return self._harness.config.system
+
+    def refresh_system_prompt(self) -> None:
+        """Rebuild the system prompt from current registries (extension seam).
+
+        Only sessions whose prompt was built here can refresh: an explicit
+        ``config.system`` leaves nothing to rebuild.
+        """
+        if self._system_prompt_builder is None:
+            return
+        self._harness.update_system_prompt(self._system_prompt_builder())
+
+    def _adopt_system_prompt_builder(self, replacement: CodingSession) -> None:
+        """Take over the replacement's prompt closure during adoption.
+
+        The replacement built its own closure during its load; the surviving
+        session must refresh through it, not through the pre-adoption one.
+        """
+        self._system_prompt_builder = replacement._system_prompt_builder
 
     @property
     def system_prompt_inspection(self) -> SystemPromptInspection:

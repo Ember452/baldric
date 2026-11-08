@@ -154,6 +154,10 @@ class RecordingSession:
         self.custom_entries: list[tuple[str, dict[str, JSONValue]]] = []
         self.labels: list[tuple[str, str | None]] = []
         self.queued_custom: list[tuple[str, str | None, dict[str, JSONValue] | None]] = []
+        self.refresh_calls = 0
+
+    def refresh_system_prompt(self) -> None:
+        self.refresh_calls += 1
 
     def queue_steering_message(
         self,

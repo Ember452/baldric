@@ -1174,6 +1174,16 @@ class ExtensionAPI:
         self._generation.assert_active()
         self._runtime.register_tool(self._source_id, self._extension_name, tool)
 
+    def unregister_tool(self, name: str) -> None:
+        """Withdraw a tool this extension registered (silent no-op otherwise)."""
+        self._generation.assert_active()
+        self._runtime.unregister_tool(self._source_id, self._extension_name, name)
+
+    def refresh_system_prompt(self) -> None:
+        """Ask the bound session to rebuild its system prompt from registries."""
+        self._generation.assert_active()
+        self._runtime.request_system_prompt_refresh()
+
     def register_provider(self, provider: DynamicProvider) -> None:
         """Register or atomically replace this source's dynamic provider layer."""
         self._generation.assert_active()
