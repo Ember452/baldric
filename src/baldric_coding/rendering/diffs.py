@@ -16,6 +16,7 @@ from typing import Final
 from rich.console import Group, RenderableType
 from rich.text import Text
 
+from baldric_coding.rendering.theme_schema import ThemeTokens
 from baldric_coding.rendering.themes import TuiTheme
 
 _HUNK_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
@@ -31,6 +32,26 @@ _ADD: Final = "add"
 _REMOVE: Final = "remove"
 _HUNK: Final = "hunk"
 _META: Final = "meta"
+
+
+@dataclass(frozen=True, slots=True)
+class DiffPalette:
+    """Row colours for added/removed/context diff lines.
+
+    Defaults are opencode's ``base.diff`` verbatim
+    (opencode-dev/packages/tui/src/theme/assets/v2/opencode.json), the palette
+    the visual system standardises on. A theme document can override every
+    value through its schema's ``diff`` section; callers holding a
+    :class:`ThemeTokens` pass it to :func:`render_patch`, callers without one
+    get these defaults.
+    """
+
+    added_bg: str = "#20303b"
+    removed_bg: str = "#37222c"
+    added_text: str = "#4fd6be"
+    removed_text: str = "#c53b53"
+    context_bg: str = "#000000"
+    line_number_text: str = "#8f8f8f"
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,21 +182,39 @@ def _gutter(old_number: int | None, new_number: int | None) -> str:
     return f"{old_text:>{_GUTTER_WIDTH}} {new_text:>{_GUTTER_WIDTH}} "
 
 
-def render_patch(patch: str, *, theme: TuiTheme) -> RenderableType | None:
-    """Render a unified patch as a structured, per-file rich renderable."""
+def _palette_for(tokens: ThemeTokens) -> DiffPalette:
+    """Project a theme's layered diff tokens onto a row palette."""
+    return DiffPalette(
+        added_bg=tokens.diff_added_bg,
+        removed_bg=tokens.diff_removed_bg,
+        added_text=tokens.diff_added_text,
+        removed_text=tokens.diff_removed_text,
+        context_bg=tokens.diff_context_bg,
+        line_number_text=tokens.diff_line_number_text,
+    )
+
+
+def render_patch(patch: str, *, theme: TuiTheme, tokens: ThemeTokens | None = None) -> RenderableType | None:
+    """Render a unified patch as a structured, per-file rich renderable.
+
+    *tokens* carries a theme's own diff palette (from its schema's ``diff``
+    section); without it the opencode defaults apply, so every caller gets
+    row backgrounds without new wiring.
+    """
     files = parse_unified_patch(patch)
     if not files:
         return None
 
+    palette = _palette_for(tokens) if tokens is not None else DiffPalette()
     parts: list[RenderableType] = []
     for file in files:
         parts.append(Text(file.path, style=f"bold {theme.accent}"))
-        parts.extend(_render_file_lines(file, theme=theme))
+        parts.extend(_render_file_lines(file, theme=theme, palette=palette))
         parts.append(Text(""))
     return Group(*parts[:-1])
 
 
-def _render_file_lines(file: FileDiff, *, theme: TuiTheme) -> list[RenderableType]:
+def _render_file_lines(file: FileDiff, *, theme: TuiTheme, palette: DiffPalette) -> list[RenderableType]:
     body: list[RenderableType] = []
     index = 0
     lines = file.lines
@@ -190,15 +229,15 @@ def _render_file_lines(file: FileDiff, *, theme: TuiTheme) -> list[RenderableTyp
             while index < len(lines) and lines[index].kind == _ADD:
                 added_run.append(lines[index])
                 index += 1
-            body.extend(_render_paired_run(removed_run, added_run, theme=theme))
+            body.extend(_render_paired_run(removed_run, added_run, theme=theme, palette=palette))
             continue
-        body.append(_render_single_line(line, theme=theme))
+        body.append(_render_single_line(line, theme=theme, palette=palette))
         index += 1
     return body
 
 
 def _render_paired_run(
-    removed_run: list[DiffLine], added_run: list[DiffLine], *, theme: TuiTheme
+    removed_run: list[DiffLine], added_run: list[DiffLine], *, theme: TuiTheme, palette: DiffPalette
 ) -> list[RenderableType]:
     """Render one remove/add run with word-level emphasis on paired lines."""
     body: list[RenderableType] = []
@@ -209,9 +248,10 @@ def _render_paired_run(
             _line_text(
                 line,
                 sign="-",
-                style=theme.tool_error_text,
+                style=palette.removed_text,
                 emphasis_ranges=ranges,
                 theme=theme,
+                palette=palette,
             )
         )
     for position, line in enumerate(added_run):
@@ -222,23 +262,24 @@ def _render_paired_run(
             _line_text(
                 line,
                 sign="+",
-                style=theme.tool_success_text,
+                style=palette.added_text,
                 emphasis_ranges=ranges,
                 theme=theme,
+                palette=palette,
             )
         )
     return body
 
 
-def _render_single_line(line: DiffLine, *, theme: TuiTheme) -> RenderableType:
+def _render_single_line(line: DiffLine, *, theme: TuiTheme, palette: DiffPalette) -> RenderableType:
     if line.kind == _CONTEXT:
-        return _line_text(line, sign=" ", style=None, emphasis_ranges=[], theme=theme)
+        return _line_text(line, sign=" ", style=None, emphasis_ranges=[], theme=theme, palette=palette)
     if line.kind == _HUNK:
         text = Text(f"{_gutter(None, None)} {line.text}", style=theme.muted_text)
         return text
     if line.kind == _META:
         return Text(f"{_gutter(None, None)} {line.text}", style=theme.muted_text)
-    return _line_text(line, sign=" ", style=None, emphasis_ranges=[], theme=theme)
+    return _line_text(line, sign=" ", style=None, emphasis_ranges=[], theme=theme, palette=palette)
 
 
 def _line_text(
@@ -248,9 +289,22 @@ def _line_text(
     style: str | None,
     emphasis_ranges: list[tuple[int, int]],
     theme: TuiTheme,
+    palette: DiffPalette,
 ) -> Text:
     text = Text(f"{_gutter(line.old_number, line.new_number)}{sign} ")
     text.append(line.text, style=style)
+    # Background first, word emphasis after: the row colour is a floor the
+    # emphasis layers on top of, and spans compose without shifting offsets.
+    if line.kind == _ADD:
+        row_bg = palette.added_bg
+    elif line.kind == _REMOVE:
+        row_bg = palette.removed_bg
+    else:
+        row_bg = palette.context_bg
+    if row_bg:
+        text.stylize(f"on {row_bg}", 0, len(text))
+    # The line-number gutter reads as chrome, distinct from the content.
+    text.stylize(palette.line_number_text, 0, _GUTTER_OFFSET)
     for start, end in emphasis_ranges:
         text.stylize(
             "bold",

@@ -95,6 +95,7 @@ from baldric_coding.providers.config import (
     save_provider_settings,
 )
 from baldric_coding.providers.loader import user_catalog_path
+from baldric_coding.rendering.diffs import DiffPalette
 from baldric_coding.session.manager import CodingSessionRecord
 from baldric_coding.session.session import (
     ModelChoice,
@@ -1120,8 +1121,11 @@ def test_expanded_edit_tool_result_renders_patch_as_colored_diff() -> None:
     assert "a/README.md" in plain
     assert "- old" in plain
     assert "+ new" in plain
-    error = _sgr_rgb(BALDRIC_DARK_THEME.tool_error_text)
-    success = _sgr_rgb(BALDRIC_DARK_THEME.tool_success_text)
+    # Behavior intentionally changed: diff rows use the opencode diff palette,
+    # not the theme's tool status colours.
+    palette = DiffPalette()
+    error = _sgr_rgb(palette.removed_text)
+    success = _sgr_rgb(palette.added_text)
     assert error in styled
     assert success in styled
     # Word-level emphasis: rich combines bold with the line color on the
@@ -1153,8 +1157,9 @@ def test_transcript_plain_tool_body_renders_patch_as_colored_diff() -> None:
     assert "a/README.md" in plain
     assert "- old" in plain
     assert "+ new" in plain
-    error = _sgr_rgb(BALDRIC_DARK_THEME.tool_error_text)
-    success = _sgr_rgb(BALDRIC_DARK_THEME.tool_success_text)
+    palette = DiffPalette()
+    error = _sgr_rgb(palette.removed_text)
+    success = _sgr_rgb(palette.added_text)
     assert error in styled
     assert success in styled
     # Word-level emphasis: rich combines bold with the line color on the

@@ -8,6 +8,7 @@ from baldric_coding.rendering.diffs import (
     parse_unified_patch,
     render_patch,
 )
+from baldric_coding.rendering.theme_schema import build_tokens
 from baldric_coding.rendering.themes import BALDRIC_DARK_THEME
 
 
@@ -129,3 +130,68 @@ def test_pyte_screen_renders_cjk_inside_diff_lines() -> None:
     assert "\ufffd" not in displayed
     assert "旧的一行宽字符" in displayed
     assert "新的一行宽字符" in displayed
+
+
+# --- Task 6: full-row backgrounds (opencode palette) ------------------------
+
+_ADDED_BG_ANSI = "48;2;32;48;59"  # #20303b
+_REMOVED_BG_ANSI = "48;2;55;34;44"  # #37222c
+
+
+def test_added_line_gets_the_opencode_row_background() -> None:
+    console = Console(record=True, width=80, force_terminal=True, color_system="truecolor")
+    console.print(render_patch(SAMPLE_PATCH, theme=BALDRIC_DARK_THEME))
+
+    assert _ADDED_BG_ANSI in console.export_text(styles=True)
+
+
+def test_removed_line_gets_the_opencode_row_background() -> None:
+    console = Console(record=True, width=80, force_terminal=True, color_system="truecolor")
+    console.print(render_patch(SAMPLE_PATCH, theme=BALDRIC_DARK_THEME))
+
+    assert _REMOVED_BG_ANSI in console.export_text(styles=True)
+
+
+def test_context_rows_carry_no_add_or_remove_background() -> None:
+    context_only = "--- a.txt\n+++ a.txt\n@@ -1,2 +1,2 @@\n keep\n also\n"
+    console = Console(record=True, width=80, force_terminal=True, color_system="truecolor")
+    console.print(render_patch(context_only, theme=BALDRIC_DARK_THEME))
+
+    styles = console.export_text(styles=True)
+    assert _ADDED_BG_ANSI not in styles
+    assert _REMOVED_BG_ANSI not in styles
+
+
+def test_tokens_override_the_default_diff_palette() -> None:
+    tokens = build_tokens(
+        {
+            "name": "custom",
+            "diff": {
+                "background": {"added": "#101010", "removed": "#202020"},
+                "text": {"added": "#cccccc", "removed": "#dddddd"},
+                "lineNumber": {"text": "#999999"},
+            },
+        }
+    )
+    console = Console(record=True, width=80, force_terminal=True, color_system="truecolor")
+    console.print(render_patch(SAMPLE_PATCH, theme=BALDRIC_DARK_THEME, tokens=tokens))
+
+    styles = console.export_text(styles=True)
+    assert "48;2;16;16;16" in styles  # #101010
+    assert "48;2;32;32;32" in styles  # #202020
+    # The default palette must not leak into a tokens-driven render.
+    assert _ADDED_BG_ANSI not in styles
+    assert _REMOVED_BG_ANSI not in styles
+
+
+def test_leading_dashes_in_hunk_content_keep_their_row_background() -> None:
+    # A removed line whose content begins with "--" renders as a content row,
+    # not a file header; the count-based hunk detection must be untouched.
+    patch = "--- a.txt\n+++ a.txt\n@@ -1,2 +1,2 @@\n---flag\n+--flag=2\n"
+    console = Console(record=True, width=80, force_terminal=True, color_system="truecolor")
+    console.print(render_patch(patch, theme=BALDRIC_DARK_THEME))
+
+    styles = console.export_text(styles=True)
+    assert _REMOVED_BG_ANSI in styles
+    assert _ADDED_BG_ANSI in styles
+    assert "--flag" in styles
