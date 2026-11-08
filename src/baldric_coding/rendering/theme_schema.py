@@ -229,10 +229,12 @@ _FLAT_FIELD_SOURCE: dict[str, tuple[str, ...]] = {
     "highlight_background": ("background", "raised", "high"),
     "highlight_text": ("text", "base"),
     "markdown_heading": ("markdown", "heading"),
-    "markdown_table_header": ("markdown", "text"),
-    "markdown_table_border": ("border", "base"),
+    "markdown_table_header": ("text", "muted"),
+    "markdown_table_border": ("border", "muted"),
     "markdown_inline_code": ("markdown", "code"),
-    "markdown_code_block_background": ("markdown", "codeBlock"),
+    # opencode's markdown.codeBlock is the code block *text* colour; the code
+    # block surface is the raised layer.
+    "markdown_code_block_background": ("background", "raised", "base"),
     "markdown_link": ("markdown", "link"),
     "markdown_bullet": ("markdown", "listEnumeration"),
     "completion_description": ("text", "muted"),

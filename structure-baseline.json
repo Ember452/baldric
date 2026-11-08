@@ -552,9 +552,13 @@
       "lines": 43,
       "max_function_stmts": 5
     },
+    "src/baldric_coding/rendering/theme_schema.py": {
+      "lines": 520,
+      "max_function_stmts": 14
+    },
     "src/baldric_coding/rendering/themes/__init__.py": {
-      "lines": 518,
-      "max_function_stmts": 12
+      "lines": 649,
+      "max_function_stmts": 13
     },
     "src/baldric_coding/rendering/thinking.py": {
       "lines": 30,

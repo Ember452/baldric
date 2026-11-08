@@ -13,7 +13,7 @@ from functools import cache
 from importlib.resources import files
 from json import JSONDecodeError, loads
 from pathlib import Path
-from typing import Literal, get_args
+from typing import Any, Literal, get_args
 
 from rich.color import Color, ColorParseError
 from rich.errors import StyleSyntaxError
@@ -23,6 +23,7 @@ from textual.color import ColorParseError as TextualColorParseError
 from textual.theme import Theme
 
 from baldric_coding.context.resources import ResourceDiagnostic
+from baldric_coding.rendering.theme_schema import project_to_tui_theme, resolve_references
 
 
 class TuiThemeError(ValueError):
@@ -104,6 +105,40 @@ TRANSCRIPT_ROLES: tuple[str, ...] = get_args(TranscriptRole)
 
 _TOP_LEVEL_FIELDS = {"$schema", "name", "dark", "vars", "syntax_theme", "colors", "roles"}
 
+# The layered (opencode-shaped) format: a document carrying any of these
+# sections is parsed through the schema path, the rest through the flat path.
+_SCHEMA_SECTIONS = {
+    "appearance",
+    "hue",
+    "text",
+    "background",
+    "border",
+    "diff",
+    "syntax",
+    "markdown",
+    "scrollbar",
+}
+_SCHEMA_TOP_LEVEL_FIELDS = {
+    "$schema",
+    "name",
+    "appearance",
+    "dark",
+    "hue",
+    "text",
+    "background",
+    "border",
+    "diff",
+    "syntax",
+    "markdown",
+    "scrollbar",
+    "roles",
+    "colors",
+    "syntax_theme",
+}
+# Extra role entries the layered format may carry; they are consumed through
+# ThemeTokens (tool-state backgrounds), not the flat role_styles contract.
+_SCHEMA_EXTRA_ROLES = ("tool_pending", "tool_success", "tool_error")
+
 # Fields that feed Textual CSS variables and must be a single color, unlike
 # the completion fields and role bodies, which are full Rich style strings.
 _RICH_STYLE_FIELDS = {
@@ -157,9 +192,17 @@ _RICH_STYLE_KEYWORDS = frozenset(
 
 
 def parse_tui_theme_json(data: object) -> TuiTheme:
-    """Parse a theme from JSON-compatible data, reporting all problems at once."""
+    """Parse a theme from JSON-compatible data, reporting all problems at once.
+
+    Accepts both formats: the old flat one (``colors``/``roles``) and the
+    layered opencode-shaped one (``hue``/``text``/``background``/...). A
+    document carrying any layered section goes through the schema path; the
+    flat path handles everything else, so existing custom themes keep working.
+    """
     if not isinstance(data, dict):
         raise TuiThemeError("Theme must be a JSON object")
+    if set(data) & _SCHEMA_SECTIONS:
+        return _parse_tui_theme_schema(data)
 
     problems: list[str] = []
     for key in sorted(set(data) - _TOP_LEVEL_FIELDS):
@@ -182,6 +225,81 @@ def parse_tui_theme_json(data: object) -> TuiTheme:
         role_styles=role_styles,
         **colors,
     )
+
+
+def _parse_tui_theme_schema(data: dict[str, Any]) -> TuiTheme:
+    """Parse a layered (opencode-shaped) theme document into a TuiTheme."""
+    problems: list[str] = []
+    for key in sorted(set(data) - _SCHEMA_TOP_LEVEL_FIELDS):
+        problems.append(f"unknown field: {key}")
+    name = _parse_name(data.get("name"), problems)
+    try:
+        resolved = resolve_references(data)
+    except (KeyError, TypeError, ValueError) as error:
+        raise TuiThemeError(f"Invalid theme {name!r}: {error}") from error
+    projected = project_to_tui_theme(resolved)
+    colors_overlay = data.get("colors")
+    if colors_overlay is not None:
+        if not isinstance(colors_overlay, dict):
+            problems.append("colors must be an object")
+        else:
+            unknown = sorted(set(colors_overlay) - set(THEME_COLOR_FIELDS))
+            if unknown:
+                problems.append("colors unknown: " + ", ".join(unknown))
+    for field_name in THEME_COLOR_FIELDS:
+        field_error = _color_field_problem(field_name, getattr(projected, field_name))
+        if field_error is not None:
+            problems.append(f"{field_name} {field_error}")
+    _validate_schema_roles(resolved.get("roles"), problems)
+    if projected.syntax_theme not in _known_syntax_themes():
+        problems.append(f"unknown syntax_theme: {projected.syntax_theme!r}")
+    if problems:
+        raise TuiThemeError(f"Invalid theme {name!r}: " + "; ".join(problems))
+    return projected
+
+
+def _validate_schema_roles(value: object, problems: list[str]) -> None:
+    """Validate the layered format's roles section (resolved values)."""
+    if value is None:
+        return
+    if not isinstance(value, dict):
+        problems.append("roles must be an object")
+        return
+    allowed = set(TRANSCRIPT_ROLES) | set(_SCHEMA_EXTRA_ROLES)
+    unknown = sorted(str(key) for key in set(value) - allowed)
+    if unknown:
+        problems.append("roles unknown: " + ", ".join(unknown))
+    for role, spec in value.items():
+        if role not in allowed:
+            continue
+        if not isinstance(spec, dict):
+            problems.append(f"roles.{role} must be an object")
+            continue
+        if role in _SCHEMA_EXTRA_ROLES:
+            background = spec.get("background")
+            if not isinstance(background, str) or not background:
+                problems.append(f"roles.{role}.background must be a non-empty string")
+                continue
+            error = _color_problem(background) or _textual_color_problem(background)
+            if error is not None:
+                problems.append(f"roles.{role}.background {error}")
+            continue
+        border = spec.get("border")
+        if not isinstance(border, str) or not border:
+            problems.append(f"roles.{role}.border must be a non-empty string")
+        else:
+            border_error = _color_problem(border) or _textual_color_problem(border)
+            if border_error is not None:
+                problems.append(f"roles.{role}.border {border_error}")
+        body = spec.get("body")
+        if body is None:
+            continue
+        if not isinstance(body, str):
+            problems.append(f"roles.{role}.body must be a string")
+            continue
+        body_error = _style_problem(body) or _textual_style_colors_problem(body)
+        if body_error is not None:
+            problems.append(f"roles.{role}.body {body_error}")
 
 
 def _parse_name(value: object, problems: list[str]) -> str:
@@ -221,6 +339,15 @@ def _substitute_vars(value: str, variables: dict[str, str]) -> str:
     return " ".join(variables.get(token, token) for token in value.split())
 
 
+def _color_field_problem(field_name: str, resolved: str) -> str | None:
+    """Return the validation error for one flat colour field, if any."""
+    if field_name in _RICH_STYLE_FIELDS:
+        return _style_problem(resolved)
+    if field_name in _RICH_ONLY_COLOR_FIELDS:
+        return _color_problem(resolved)
+    return _color_problem(resolved) or _textual_color_problem(resolved)
+
+
 def _parse_colors(
     value: object,
     variables: dict[str, str],
@@ -244,12 +371,7 @@ def _parse_colors(
             problems.append(f"colors.{field_name} must be a non-empty string")
             continue
         resolved = _substitute_vars(raw.strip(), variables)
-        if field_name in _RICH_STYLE_FIELDS:
-            error = _style_problem(resolved)
-        elif field_name in _RICH_ONLY_COLOR_FIELDS:
-            error = _color_problem(resolved)
-        else:
-            error = _color_problem(resolved) or _textual_color_problem(resolved)
+        error = _color_field_problem(field_name, resolved)
         if error is not None:
             problems.append(f"colors.{field_name} {error}")
             continue
@@ -378,9 +500,18 @@ def _load_builtin_theme(filename: str) -> TuiTheme:
 BALDRIC_DARK_THEME = _load_builtin_theme("baldric-dark.json")
 BALDRIC_LIGHT_THEME = _load_builtin_theme("baldric-light.json")
 HIGH_CONTRAST_THEME = _load_builtin_theme("high-contrast.json")
+OPENCODE_DARK_THEME = _load_builtin_theme("opencode-dark.json")
+PI_DARK_THEME = _load_builtin_theme("pi-dark.json")
 
 _BUILTIN_THEMES: dict[str, TuiTheme] = {
-    theme.name: theme for theme in (BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME, HIGH_CONTRAST_THEME)
+    theme.name: theme
+    for theme in (
+        BALDRIC_DARK_THEME,
+        BALDRIC_LIGHT_THEME,
+        HIGH_CONTRAST_THEME,
+        OPENCODE_DARK_THEME,
+        PI_DARK_THEME,
+    )
 }
 BUILTIN_TUI_THEME_NAMES: tuple[TuiThemeName, ...] = tuple(_BUILTIN_THEMES)
 

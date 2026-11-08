@@ -1,0 +1,183 @@
+{
+  "name": "opencode-dark",
+  "appearance": "dark",
+  "syntax_theme": "ansi_dark",
+  "hue": {
+    "gray": {
+      "100": "#ffffff",
+      "200": "#eeeeee",
+      "300": "#b5b5b5",
+      "400": "#808080",
+      "500": "#4c4c4c",
+      "600": "#1e1e1e",
+      "700": "#141414",
+      "800": "#0a0a0a",
+      "900": "#030303"
+    },
+    "red": {
+      "100": "#fd7e87",
+      "200": "#e06c75",
+      "300": "#c35a63",
+      "400": "#a74952",
+      "500": "#8c3941",
+      "600": "#722931",
+      "700": "#591921",
+      "800": "#410a13",
+      "900": "#280207"
+    },
+    "orange": {
+      "100": "#fddac5",
+      "200": "#fab283",
+      "300": "#d8976c",
+      "400": "#b67c56",
+      "500": "#966341",
+      "600": "#774a2c",
+      "700": "#593319",
+      "800": "#3d1d06",
+      "900": "#1f0b01"
+    },
+    "green": {
+      "100": "#96f7a7",
+      "200": "#7fd88f",
+      "300": "#68b977",
+      "400": "#539c61",
+      "500": "#3d7f4b",
+      "600": "#296336",
+      "700": "#144922",
+      "800": "#00300f",
+      "900": "#011705"
+    },
+    "cyan": {
+      "100": "#68d0dd",
+      "200": "#56b6c2",
+      "300": "#449da7",
+      "400": "#33848e",
+      "500": "#226c75",
+      "600": "#0f555d",
+      "700": "#093e44",
+      "800": "#02292e",
+      "900": "#001518"
+    },
+    "blue": {
+      "100": "#82b4fb",
+      "200": "#5c9cf5",
+      "300": "#4c86d6",
+      "400": "#3c70b8",
+      "500": "#2c5b9b",
+      "600": "#1d477f",
+      "700": "#0f3364",
+      "800": "#02214a",
+      "900": "#01112b"
+    },
+    "purple": {
+      "100": "#b38ff4",
+      "200": "#9d7cd8",
+      "300": "#8869bd",
+      "400": "#7357a2",
+      "500": "#5f4688",
+      "600": "#4b356f",
+      "700": "#392557",
+      "800": "#271640",
+      "900": "#17072b"
+    },
+    "accent": "$hue.purple",
+    "interactive": "$hue.orange",
+    "neutral": "$hue.gray"
+  },
+  "text": {
+    "base": "$hue.neutral.200",
+    "muted": "$hue.neutral.400",
+    "faint": "$hue.neutral.500",
+    "thinking": "$hue.neutral.400"
+  },
+  "background": {
+    "base": "$hue.neutral.800",
+    "raised": {
+      "base": "$hue.neutral.700",
+      "high": "$hue.neutral.600",
+      "max": "$hue.neutral.500"
+    }
+  },
+  "border": {
+    "base": "#484848",
+    "accent": "$hue.purple.200",
+    "muted": "$hue.neutral.800"
+  },
+  "scrollbar": {
+    "base": "#606060"
+  },
+  "diff": {
+    "text": {
+      "added": "#4fd6be",
+      "removed": "#c53b53",
+      "context": "#828bb8",
+      "hunkHeader": "#828bb8"
+    },
+    "background": {
+      "added": "#20303b",
+      "removed": "#37222c",
+      "context": "$hue.neutral.700"
+    },
+    "highlight": {
+      "added": "#b8db87",
+      "removed": "#e26a75"
+    },
+    "lineNumber": {
+      "text": "#8f8f8f",
+      "background": {
+        "added": "#1b2b34",
+        "removed": "#2d1f26"
+      }
+    }
+  },
+  "markdown": {
+    "text": "$hue.neutral.200",
+    "heading": "$hue.accent.200",
+    "link": "$hue.interactive.200",
+    "linkText": "$hue.cyan.200",
+    "code": "$hue.green.200",
+    "blockQuote": "#e5c07b",
+    "emphasis": "#e5c07b",
+    "strong": "#f5a742",
+    "horizontalRule": "$hue.neutral.400",
+    "listItem": "$hue.interactive.200",
+    "listEnumeration": "$hue.cyan.200",
+    "image": "$hue.interactive.200",
+    "imageText": "$hue.cyan.200",
+    "codeBlock": "$hue.neutral.200"
+  },
+  "syntax": {
+    "comment": "$hue.neutral.400",
+    "keyword": "$hue.accent.200",
+    "function": "$hue.interactive.200",
+    "variable": "$hue.red.200",
+    "string": "$hue.green.200",
+    "number": "#f5a742",
+    "type": "#e5c07b",
+    "operator": "$hue.cyan.200",
+    "punctuation": "$hue.neutral.200"
+  },
+  "roles": {
+    "user": { "border": "$hue.blue.200", "body": "on $background.raised.base" },
+    "assistant": { "border": "$hue.cyan.200", "body": "" },
+    "tool": { "border": "$hue.orange.200", "body": "on $background.raised.base" },
+    "tool_pending": { "background": "$hue.neutral.700" },
+    "tool_success": { "background": "$hue.green.700" },
+    "tool_error": { "background": "$hue.red.800" },
+    "error": { "border": "$hue.red.200", "body": "$hue.red.100" },
+    "status": { "border": "$hue.neutral.600", "body": "$hue.neutral.300" },
+    "thinking": { "border": "$hue.neutral.600", "body": "$hue.neutral.400" },
+    "skill": { "border": "$hue.purple.200", "body": "$hue.purple.100" },
+    "custom": { "border": "$hue.cyan.200", "body": "$background.raised.base" },
+    "branch_summary": { "border": "$hue.purple.200", "body": "$hue.purple.100" },
+    "compaction_summary": { "border": "$hue.purple.200", "body": "$hue.purple.100" }
+  },
+  "colors": {
+    "completion_selected": "bold $hue.neutral.800 on $hue.interactive.200",
+    "completion_selected_description": "$hue.neutral.800 on $hue.interactive.200",
+    "completion_description": "$hue.neutral.400",
+    "highlight_background": "$hue.interactive.200",
+    "highlight_text": "$hue.neutral.800",
+    "scrollbar_hover": "$hue.neutral.400"
+  }
+}
