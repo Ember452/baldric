@@ -576,7 +576,7 @@ class McpServerConnection:
     async def close(self) -> None
 ```
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 `tests/mcp/test_client.py` (house anyio pattern). Use a scripted fake
 transport factory — an object with `__aenter__`/`__aexit__` yielding
@@ -620,12 +620,12 @@ inject a fake session with scripted `initialize()`, `list_tools()`,
     The stdio factory test instead asserts `config.command` reaches
     `StdioServerParameters` verbatim.)
 
-- [ ] **Step 2: Run and see them fail**
+- [x] **Step 2: Run and see them fail**
 
 Run: `uv run pytest -q tests/mcp/test_client.py`
 Expected: FAIL (module missing).
 
-- [ ] **Step 3: Implement `client.py`**
+- [x] **Step 3: Implement `client.py`**
 
 Key implementation decisions (port from pi's
 `packages/coding-agent/src/extensions/mcp/runtime.ts` where noted):
@@ -700,7 +700,7 @@ executor catches exceptions per call and converts them to the error result
   possibly wrapped in an anyio `ExceptionGroup`; `connect()` unwraps the group
   and maps status 401 to `needs-auth`.
 
-- [ ] **Step 4: Run tests, gates, commit**
+- [x] **Step 4: Run tests, gates, commit**
 
 ```bash
 uv run pytest -q tests/mcp/test_client.py
