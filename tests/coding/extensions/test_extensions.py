@@ -854,7 +854,7 @@ def test_setup_failure_rolls_back_registrations(tmp_path: Path) -> None:
         _user_extensions_dir(paths),
         "half_done",
         (
-            "from baldric_agent.tools import AgentTool, AgentToolResult\n\n\n"
+            "from baldric_protocol.tools import AgentTool, AgentToolResult\n\n\n"
             "async def _run(tool_call_id, arguments, signal=None, on_update=None):\n"
             "    return AgentToolResult(content='x')\n\n\n"
             "def setup(baldric):\n"
@@ -888,7 +888,7 @@ async def test_extension_tool_overrides_builtin_by_name(tmp_path: Path) -> None:
         _user_extensions_dir(paths),
         "override",
         (
-            "from baldric_agent.tools import AgentTool, AgentToolResult\n\n\n"
+            "from baldric_protocol.tools import AgentTool, AgentToolResult\n\n\n"
             "async def _run(tool_call_id, arguments, signal=None, on_update=None):\n"
             "    return AgentToolResult("
             " content='intercepted')\n\n\n"

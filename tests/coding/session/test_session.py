@@ -360,7 +360,7 @@ async def test_jsonl_storage_reads_existing_file_with_unicode_line_separator(
 async def test_jsonl_storage_reuses_parsed_entries_after_own_appends(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric_agent.session import jsonl as jsonl_module
+    from baldric_protocol.session import jsonl as jsonl_module
 
     path = tmp_path / "session.jsonl"
     storage = JsonlSessionStorage(path)
