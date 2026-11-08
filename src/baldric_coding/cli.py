@@ -14,7 +14,6 @@ from typing import Annotated, Literal
 import anyio
 import typer
 
-from baldric_agent.provider import ModelProvider
 from baldric_agent.session import JsonlSessionStorage, SessionEntry, SessionStorage
 from baldric_ai.env import (
     DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
@@ -87,6 +86,7 @@ from baldric_coding.update.check import (
 )
 from baldric_coding.update.updater import update_baldric
 from baldric_coding.version import current_version as _current_version
+from baldric_protocol.provider import ModelProvider
 
 
 def _is_utf8_encoding(encoding: str | None) -> bool:

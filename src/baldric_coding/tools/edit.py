@@ -8,9 +8,6 @@ import json
 from collections.abc import Mapping
 from pathlib import Path
 
-from baldric_agent.messages import TextContent
-from baldric_agent.tools import AgentTool, AgentToolResult, ToolCancellationToken
-from baldric_agent.types import JSONValue
 from baldric_coding.tools.base import (
     UTF8_BOM,
     ToolDefinition,
@@ -18,6 +15,9 @@ from baldric_coding.tools.base import (
     _file_lock,
     _path_arg,
 )
+from baldric_protocol.messages import TextContent
+from baldric_protocol.tools import AgentTool, AgentToolResult, ToolCancellationToken
+from baldric_protocol.types import JSONValue
 
 
 def create_edit_tool_definition(*, cwd: str | Path | None = None) -> ToolDefinition:

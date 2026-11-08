@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from baldric_agent.messages import AssistantMessage
 from baldric_coding.config.paths import BaldricPaths
+from baldric_protocol.messages import AssistantMessage
 
 
 @dataclass(frozen=True, slots=True)

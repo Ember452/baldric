@@ -8,8 +8,8 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any, Literal, Protocol
 
-from baldric_agent.types import JSONValue
 from baldric_coding.config.paths import BaldricPaths
+from baldric_protocol.types import JSONValue
 
 
 class CredentialStoreError(ValueError):

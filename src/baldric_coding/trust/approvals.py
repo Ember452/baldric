@@ -14,12 +14,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from baldric_agent.types import JSONValue
 from baldric_coding.tools.base import ToolInputError
 from baldric_coding.tools.edit import (
     apply_argument_edits_to_content,
     generate_unified_patch,
 )
+from baldric_protocol.types import JSONValue
 
 MUTATING_TOOL_NAMES = frozenset({"edit", "write", "bash"})
 

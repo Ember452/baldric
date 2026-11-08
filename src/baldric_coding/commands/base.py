@@ -8,7 +8,6 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Protocol
 
-from baldric_agent.tools import AgentTool
 from baldric_coding.context.prompts import PromptTemplate
 from baldric_coding.context.resources import ResourceDiagnostic
 from baldric_coding.context.skills.skills import Skill
@@ -17,6 +16,7 @@ from baldric_coding.context.system_prompt import (
     SystemPromptInspection,
 )
 from baldric_coding.session.manager import SessionManager
+from baldric_protocol.tools import AgentTool
 
 
 class CommandSession(Protocol):

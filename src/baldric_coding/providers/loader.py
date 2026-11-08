@@ -22,7 +22,6 @@ from pydantic import (
     ValidationError,
 )
 
-from baldric_agent.types import JSONValue
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.thinking import ThinkingLevel, ThinkingParameter
 from baldric_coding.providers.catalog import (
@@ -34,6 +33,7 @@ from baldric_coding.providers.catalog import (
     ProviderCatalogEntry,
     ProviderKind,
 )
+from baldric_protocol.types import JSONValue
 
 CATALOG_SCHEMA_VERSION = 1
 USER_CATALOG_FILENAME = "catalog.toml"

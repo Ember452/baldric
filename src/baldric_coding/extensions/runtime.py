@@ -17,15 +17,7 @@ import baldric_coding.extensions.builtin_registry as built_in_extension_registry
 from baldric_agent.events import AgentEvent, AgentStartEvent
 from baldric_agent.events import TurnEndEvent as AgentTurnEndEvent
 from baldric_agent.events import TurnStartEvent as AgentTurnStartEvent
-from baldric_agent.messages import AgentMessage, TextContent
 from baldric_agent.tool_calls import BeforeToolCall
-from baldric_agent.tools import (
-    AgentTool,
-    AgentToolResult,
-    ToolCancellationToken,
-    ToolUpdateCallback,
-)
-from baldric_agent.types import JSONValue
 from baldric_coding.auth.credentials import (
     CredentialStore,
     FileCredentialStore,
@@ -94,6 +86,14 @@ from baldric_coding.trust.policy import (
     ProjectTrustEvent,
     ProjectTrustResolution,
 )
+from baldric_protocol.messages import AgentMessage, TextContent
+from baldric_protocol.tools import (
+    AgentTool,
+    AgentToolResult,
+    ToolCancellationToken,
+    ToolUpdateCallback,
+)
+from baldric_protocol.types import JSONValue
 
 # Host callback that delivers a message through the frontend's serialized run
 # path when the session is idle. Carries the same presentation metadata as a

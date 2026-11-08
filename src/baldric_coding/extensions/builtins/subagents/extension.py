@@ -26,10 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
-from baldric_agent.messages import AssistantMessage, TextContent
 from baldric_agent.session import SessionEntry
-from baldric_agent.tools import AgentTool, AgentToolResult, ToolCancellationToken, ToolUpdateCallback
-from baldric_agent.types import JSONValue
 from baldric_coding import (
     CodingSession,
     CodingSessionConfig,
@@ -45,6 +42,9 @@ from baldric_coding.extensions import (
 )
 from baldric_coding.providers.runtime import create_model_provider
 from baldric_coding.tools.registry import create_coding_tools
+from baldric_protocol.messages import AssistantMessage, TextContent
+from baldric_protocol.tools import AgentTool, AgentToolResult, ToolCancellationToken, ToolUpdateCallback
+from baldric_protocol.types import JSONValue
 
 from .agents import AgentDefinition, format_agent_type_list, load_agent_definitions
 from .agents_menu import (

@@ -18,7 +18,6 @@ from baldric_agent.events import (
     TurnEndEvent,
     TurnStartEvent,
 )
-from baldric_agent.messages import AssistantMessage, CustomMessage, ToolCall, UserMessage
 from baldric_ai.events import TextDeltaEvent, ThinkingDeltaEvent
 from baldric_coding.events import (
     AgentSettledEvent,
@@ -38,6 +37,7 @@ from baldric_coding.tui.state import (
     _is_tool_only_message,
     has_visible_assistant_text,
 )
+from baldric_protocol.messages import AssistantMessage, CustomMessage, ToolCall, UserMessage
 
 if TYPE_CHECKING:
     from baldric_coding.session.session import CodingSession

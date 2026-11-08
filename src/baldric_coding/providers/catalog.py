@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-from baldric_agent.types import JSONValue
 from baldric_coding.context.thinking import ThinkingLevel, ThinkingParameter
+from baldric_protocol.types import JSONValue
 
 ProviderKind = Literal[
     "openai-compatible",

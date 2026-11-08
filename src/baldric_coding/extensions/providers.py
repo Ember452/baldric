@@ -11,8 +11,6 @@ from typing import Protocol
 
 import httpx
 
-from baldric_agent.provider import CancellationToken, ModelProvider
-from baldric_agent.types import JSONPrimitive, JSONValue
 from baldric_ai.env import (
     DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
     DEFAULT_OPENAI_COMPATIBLE_MAX_RETRY_DELAY_SECONDS,
@@ -20,6 +18,8 @@ from baldric_ai.env import (
 )
 from baldric_coding.context.thinking import ThinkingLevel
 from baldric_coding.providers.catalog import ModelInput, ProviderApi
+from baldric_protocol.provider import CancellationToken, ModelProvider
+from baldric_protocol.types import JSONPrimitive, JSONValue
 
 _PROVIDER_APIS = frozenset(
     {

@@ -2,15 +2,15 @@
 
 from collections.abc import Mapping
 
-from baldric_agent.messages import TextContent
-from baldric_agent.tools import (
+from baldric_coding.extensions import ExtensionAPI
+from baldric_protocol.messages import TextContent
+from baldric_protocol.tools import (
     AgentTool,
     AgentToolResult,
     ToolCancellationToken,
     ToolUpdateCallback,
 )
-from baldric_agent.types import JSONValue
-from baldric_coding.extensions import ExtensionAPI
+from baldric_protocol.types import JSONValue
 
 
 async def _run_hello(

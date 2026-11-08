@@ -6,11 +6,11 @@ import asyncio
 from collections.abc import Mapping
 from pathlib import Path
 
-from baldric_agent.messages import TextContent
-from baldric_agent.tools import AgentTool, AgentToolResult, ToolCancellationToken
-from baldric_agent.types import JSONValue
 from baldric_coding.tools.base import ToolDefinition, _file_lock, _path_arg, _str_arg
 from baldric_coding.tools.edit import generate_unified_patch
+from baldric_protocol.messages import TextContent
+from baldric_protocol.tools import AgentTool, AgentToolResult, ToolCancellationToken
+from baldric_protocol.types import JSONValue
 
 
 def create_write_tool_definition(*, cwd: str | Path | None = None) -> ToolDefinition:

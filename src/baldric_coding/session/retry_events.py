@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 
 from baldric_agent.events import AgentEvent, MessageEndEvent, RetryAttemptEvent
-from baldric_agent.messages import AssistantMessage
 from baldric_coding.events import AutoRetryEndEvent, AutoRetryStartEvent, CodingSessionEvent
+from baldric_protocol.messages import AssistantMessage
 
 
 async def with_auto_retry_events(

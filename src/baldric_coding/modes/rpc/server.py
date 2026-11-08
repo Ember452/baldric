@@ -11,7 +11,6 @@ from typing import IO, Literal, cast
 
 import anyio
 
-from baldric_agent.messages import AssistantMessage, UserMessage
 from baldric_coding.events import CodingSessionEvent
 from baldric_coding.modes.rpc.session import RpcSession
 from baldric_coding.modes.rpc.wire import (
@@ -31,6 +30,7 @@ from baldric_coding.session.session import (
     CodingSession,
     ModelChoice,
 )
+from baldric_protocol.messages import AssistantMessage, UserMessage
 
 _MAX_RECORD_BYTES = 16 * 1024 * 1024
 

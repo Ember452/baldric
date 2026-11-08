@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from baldric_agent.types import JSONValue
 from baldric_coding.config.paths import BaldricPaths
+from baldric_protocol.types import JSONValue
 
 
 class ResourceError(ValueError):

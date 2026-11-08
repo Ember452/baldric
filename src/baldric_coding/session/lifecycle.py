@@ -9,9 +9,6 @@ from os import environ
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
-from baldric_agent.messages import (
-    BashExecutionMessage,
-)
 from baldric_ai.model_catalog import ModelCatalogProvider, RuntimeModelCatalog
 from baldric_coding.commands.base import unhandled_result
 from baldric_coding.commands.registry import CommandResult
@@ -267,6 +264,9 @@ from baldric_coding.trust.policy import (
     format_trust_diagnostic,
 )
 from baldric_coding.update.reload import CodingReloadSummary
+from baldric_protocol.messages import (
+    BashExecutionMessage,
+)
 
 if TYPE_CHECKING:
     from baldric_coding.session.session import CodingSession, ManualCompactionResult, TerminalCommandResult

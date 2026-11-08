@@ -27,10 +27,10 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from baldric_agent.messages import AgentMessage
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.resources import BaldricResourcePaths
 from baldric_coding.context.skills.skills import format_skill_invocation, load_skills
+from baldric_protocol.messages import AgentMessage
 
 if TYPE_CHECKING:
     from .agents import AgentDefinition

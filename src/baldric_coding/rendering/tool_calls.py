@@ -5,8 +5,8 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from baldric_agent.messages import ToolCall
-from baldric_agent.types import JSONValue
+from baldric_protocol.messages import ToolCall
+from baldric_protocol.types import JSONValue
 
 
 def format_tool_call_block(tool_call: ToolCall, *, compact: bool = True, cwd: Path | None = None) -> str:
