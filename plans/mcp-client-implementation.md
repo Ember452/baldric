@@ -432,7 +432,7 @@ def project_mcp_config_path(self, cwd: Path) -> Path:
     return self.project_baldric_dir(cwd) / "mcp.json"
 ```
 
-- [ ] **Step 1: Write failing tests (see test list below)**
+- [x] **Step 1: Write failing tests (see test list below)**
 
 Test cases in `tests/mcp/test_config.py` (each a small function; build JSON
 files under `tmp_path`):
@@ -466,13 +466,13 @@ files under `tmp_path`):
 13. disabled-in-file servers appear in `result.servers` with `enabled=False`
     (so `/mcp on` can find them).
 
-- [ ] **Step 2: Run and see them fail**
+- [x] **Step 2: Run and see them fail**
 
 Run: `uv run pytest -q tests/mcp/test_config.py`
 Expected: FAIL — `ModuleNotFoundError: No module named 'baldric_mcp.config'`
 (or import error of the names).
 
-- [ ] **Step 3: Implement `config.py`**
+- [x] **Step 3: Implement `config.py`**
 
 Implement to the interface above. Rules ported from pi
 (`pi-main/packages/coding-agent/src/extensions/mcp/config.ts`,
@@ -494,9 +494,9 @@ Implement to the interface above. Rules ported from pi
   `editMcpServers`). `enabled=True` deletes the key for full entries, writes it
   for override entries.
 
-- [ ] **Step 4: Add the two `paths.py` properties (code in Interfaces above)**
+- [x] **Step 4: Add the two `paths.py` properties (code in Interfaces above)**
 
-- [ ] **Step 5: Run tests, static gates, commit**
+- [x] **Step 5: Run tests, static gates, commit**
 
 ```bash
 uv run pytest -q tests/mcp/test_config.py
