@@ -28,14 +28,33 @@ if TYPE_CHECKING:
 _REFERENCE_PREFIX = "$"
 
 
-def _lookup(document: object, path: str) -> object:
-    """Walk *document* along a dotted *path*, raising ``KeyError`` on a miss."""
-    node: object = document
+def _lookup(root: object, path: str, seen: tuple[str, ...]) -> object:
+    """Walk *root* along a dotted *path*, resolving reference hops on the way.
+
+    An intermediate hop may itself be a reference (opencode aliases whole
+    scales: ``"accent": "$hue.purple"``), so each string node met on the way
+    is resolved before descending further.
+    """
+    node: object = root
     for part in path.split("."):
+        if isinstance(node, str):
+            tokens = node.split()
+            if len(tokens) == 1:
+                hop = _reference_path(tokens[0])
+                if hop is not None:
+                    node = _resolve_reference(hop, root=root, seen=seen)
         if not isinstance(node, dict) or part not in node:
             raise KeyError(f"unresolved theme reference: ${path}")
         node = node[part]
     return node
+
+
+def _resolve_reference(path: str, *, root: object, seen: tuple[str, ...]) -> object:
+    """Resolve one ``$path`` reference with cycle detection."""
+    if path in seen:
+        chain = " -> ".join(seen + (path,))
+        raise ValueError(f"cycle in theme references: {chain}")
+    return _resolve(_lookup(root, path, seen + (path,)), root=root, seen=seen + (path,))
 
 
 def _reference_path(token: str) -> str | None:
@@ -59,16 +78,20 @@ def _resolve(node: object, *, root: object, seen: tuple[str, ...]) -> object:
 def _resolve_string(value: str, *, root: object, seen: tuple[str, ...]) -> object:
     """Resolve every ``$``-token inside a (possibly style-string) value."""
     tokens = value.split()
+    if len(tokens) == 1:
+        whole_path = _reference_path(tokens[0])
+        if whole_path is not None:
+            # A lone reference is a whole-value reference: opencode theme
+            # files alias entire scales ("accent": "$hue.purple"), so it may
+            # resolve to any node, not only to a colour string.
+            return _resolve_reference(whole_path, root=root, seen=seen)
     resolved_tokens: list[str] = []
     for token in tokens:
         path = _reference_path(token)
         if path is None:
             resolved_tokens.append(token)
             continue
-        if path in seen:
-            chain = " -> ".join(seen + (path,))
-            raise ValueError(f"cycle in theme references: {chain}")
-        target = _resolve(_lookup(root, path), root=root, seen=seen + (path,))
+        target = _resolve_reference(path, root=root, seen=seen)
         if isinstance(target, str):
             resolved_tokens.append(target)
         elif isinstance(target, (dict, list)):

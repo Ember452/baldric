@@ -64,6 +64,29 @@ def test_resolve_bare_background_reference_in_style_string() -> None:
     assert resolved["roles"]["custom"]["body"] == "#1e1e1e"
 
 
+def test_whole_value_reference_resolves_to_a_subtree() -> None:
+    # opencode theme files alias whole scales ("accent": "$hue.purple"), so a
+    # lone reference must resolve to any node, not only to a colour string.
+    data = {
+        "hue": {"purple": {"200": "#9d7cd8"}},
+        "accent": "$hue.purple",
+        "text": {"base": "$accent.200"},
+    }
+    resolved = resolve_references(data)
+    assert resolved["accent"] == {"200": "#9d7cd8"}
+    assert resolved["text"]["base"] == "#9d7cd8"
+
+
+def test_embedded_reference_to_a_dict_still_raises() -> None:
+    # A style string cannot embed a subtree; only whole-value references may.
+    data = {
+        "hue": {"purple": {"200": "#9d7cd8"}},
+        "roles": {"user": {"body": "on $hue.purple"}},
+    }
+    with pytest.raises(TypeError):
+        resolve_references(data)
+
+
 def test_unresolved_reference_raises_keyerror_with_full_path() -> None:
     data = {"text": {"base": "$hue.nope.100"}}
     with pytest.raises(KeyError) as excinfo:
