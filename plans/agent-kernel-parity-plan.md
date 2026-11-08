@@ -35,6 +35,7 @@
 4. **`wait_for_idle` / `reset()` 不采纳**：baldric 的 run 是消费方驱动的迭代器，idle 语义不同；会话替换由 coding 层负责。
 5. **`Agent.prompt(text, images)` 便捷重载 / `normalizePromptInput`**：product 层构造 UserMessage，内核不加糖。
 6. **harness `__del__` 悬空 run**：消费方丢弃迭代器不 `aclose` 时，依赖 asyncio 的 asyncgen finalizer 在 GC 时调度 `aclose()`，`_run` 的 finally（工具修复）最终会执行——时机不保证但必然发生。**已知边界，本次不修**；若将来出现真实案例，方向是消费侧契约（显式 aclose）而非内核。
+7. **before 钩子契约细节（2026-11-08 全实体对照时发现）**：pi 的门钩子收到**校验后参数**且 block 结果可带 `terminate: true`（agent-loop.ts:860-881）；baldric 的 `before_tool_call` 收**原始 ToolCall**（先门后校验——无效参数根本不进审批 UI，fail-closed 更彻底），block 不带 terminate（run 级终止的门idiom 是取消 signal）。两个语义各有取舍，零消费方需要对方语义；若将来审批钩子要求"拦截即终止 run"或"门内见校验后参数"，按 pi 语义扩展签名。
 
 ---
 
