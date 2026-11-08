@@ -1163,7 +1163,7 @@ git commit -m "feat: MCP built-in extension with trust gating and live registrat
   (Task 4), `set_server_enabled`/`load_mcp_config` (Task 2),
   `api.refresh_system_prompt`/`add_prompt_section` (Task 6).
 
-- [ ] **Step 1: Write failing tests** (fake supervisor + real runtime):
+- [x] **Step 1: Write failing tests** (fake supervisor + real runtime):
 
 1. first `input` while a server is `connecting` → handler awaits
    `wait_ready(timeout=10.0)` exactly once (fake records); second input does
@@ -1183,9 +1183,9 @@ git commit -m "feat: MCP built-in extension with trust gating and live registrat
 5. async work from the sync command handler is scheduled onto the running
    loop (assert via recorded fake calls after `await`-ing a tick).
 
-- [ ] **Step 2: Run and see them fail.**
+- [x] **Step 2: Run and see them fail.**
 
-- [ ] **Step 3: Implement.** `_on_input` (async): if `self._admitted` or
+- [x] **Step 3: Implement.** `_on_input` (async): if `self._admitted` or
   supervisor is None or `not any_connecting()` → return `None`; set
   `self._admitted = True`; `await wait_ready(timeout=10.0)`; return `None`.
   `_sync` (already invoked by `on_change`): recompute the section body and call
@@ -1196,7 +1196,7 @@ git commit -m "feat: MCP built-in extension with trust gating and live registrat
   toggle re-reads config with the same trust rule as boot and persists via
   `set_server_enabled` (port of pi's `/mcp` persistence semantics).
 
-- [ ] **Step 4: Run tests, gates, commit**
+- [x] **Step 4: Run tests, gates, commit**
 
 ```bash
 uv run pytest -q tests/coding/extensions/test_mcp_extension.py
@@ -1429,3 +1429,18 @@ an empty section means the plan was followed as written. Entry format:
   2026-11-08): `session.py` 2037→2064 (config field + registry-filter
   helper) and `subagents/extension.py` 1620→1624 (child gate argument). Every
   added line traces to D3. Commit: Task 7's feat commit.
+- **D6 — titled prompt sections upsert per source** (Task 8, 2026-11-08):
+  `register_prompt_section` appended unconditionally, but the MCP section
+  body changes with server states and would stack duplicates. Titled
+  sections from the same source now replace the same-title entry; untitled
+  sections keep append semantics. Impact surface: all existing
+  `add_prompt_section` users register distinct titles once (grep across
+  src/tests/examples/website — no pinned duplicate-append behavior). Design
+  change? no (enables the planned section refresh).
+- **D7 — the supervisor receives disabled servers too** (Task 8,
+  2026-11-08): the plan booted only enabled servers, which left `/mcp on`
+  with no supervisor when every server started disabled. Grounded in the
+  spec's own rule (pi: disabled servers are listed "so they can be enabled
+  again") and Task 4's semantics (start connects enabled only). The prompt
+  section lists enabled servers only. Design change? no (completes the
+  planned /mcp on flow).

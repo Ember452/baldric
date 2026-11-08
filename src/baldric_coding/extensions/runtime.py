@@ -811,6 +811,16 @@ class ExtensionRuntime:
                 )
             )
             return
+        if normalized_title is not None:
+            # Titled sections upsert per source: an extension may refresh its
+            # section body as its state changes (e.g. live server listings)
+            # without stacking duplicates. Untitled sections keep append
+            # semantics, preserving the original free-form behavior.
+            self._prompt_sections = [
+                entry
+                for entry in self._prompt_sections
+                if not (entry[0] == source_id and entry[2].title == normalized_title)
+            ]
         self._prompt_sections.append(
             (
                 source_id,

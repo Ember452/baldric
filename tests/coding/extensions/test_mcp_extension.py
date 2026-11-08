@@ -40,6 +40,8 @@ class FakeSupervisor:
         self.start_calls = 0
         self.shutdown_calls = 0
         self.wait_calls = 0
+        self.enabled_calls: list[tuple[str, bool, Any]] = []
+        self.restart_calls: list[tuple[str, str]] = []
         self._servers: dict[str, dict[str, Any]] = {}
         self._on_change: Callable[[], None] | None = None
 
@@ -84,6 +86,12 @@ class FakeSupervisor:
 
     async def shutdown(self) -> None:
         self.shutdown_calls += 1
+
+    async def set_enabled(self, name: str, enabled: bool, config: Any) -> None:
+        self.enabled_calls.append((name, enabled, config))
+
+    async def restart(self, name: str, config: Any) -> None:
+        self.restart_calls.append((name, config.command))
 
     async def wait_ready(self, timeout: float = 10.0) -> None:
         self.wait_calls += 1
@@ -307,3 +315,207 @@ async def test_child_config_excludes_the_mcp_builtin(tmp_path: Path) -> None:
     )
 
     assert "mcp" not in [extension.name for extension in session._extension_runtime._extensions]  # noqa: SLF001
+
+
+async def test_first_input_waits_once_while_connecting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from baldric_coding.extensions.builtins import mcp as mcp_extension
+
+    factory = Factory()
+    monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
+    _write_user_config(BaldricPaths(home=tmp_path / "home-baldric"), {"srv": USER_SERVER})
+    runtime, captured, _, _ = _runtime(tmp_path)
+    await runtime.emit_session_start("startup")
+    await _settle()
+    supervisor = factory.supervisors[0]
+    supervisor.set_server("srv", "connecting")
+
+    await runtime.run_input_hooks("one")
+    await runtime.run_input_hooks("two")
+
+    assert supervisor.wait_calls == 1
+
+    supervisor.set_server("srv", "connected", tools=(_tool_info("search", "Search"),))
+    await runtime.run_input_hooks("three")
+
+    assert supervisor.wait_calls == 1  # admitted once; later inputs never wait
+
+
+async def test_prompt_section_registers_once_and_refreshes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from baldric_coding.extensions.builtins import mcp as mcp_extension
+
+    factory = Factory()
+    monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
+    _write_user_config(BaldricPaths(home=tmp_path / "home-baldric"), {"srv": USER_SERVER})
+    runtime, _, _, _ = _runtime(tmp_path)
+    session = runtime._session  # noqa: SLF001 - the bound RecordingSession
+    assert isinstance(session, RecordingSession)
+    await runtime.emit_session_start("startup")
+    await _settle()
+
+    supervisor = factory.supervisors[0]
+    supervisor.set_server(
+        "srv",
+        "connected",
+        tools=(_tool_info("a", "A"), _tool_info("b", "B")),
+        instructions="Inst line one.\nline two",
+    )
+    await _settle()
+
+    sections = [section for section in runtime.sourced_prompt_sections if section.title == "MCP servers"]
+    assert len(sections) == 1
+    assert sections[0].body == "- srv (stdio, 2 tools): Inst line one."
+    assert session.refresh_calls >= 1  # type: ignore[union-attr]
+
+
+async def test_prompt_section_caps_lines_and_total(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from baldric_coding.extensions.builtins import mcp as mcp_extension
+
+    factory = Factory()
+    monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
+    _write_user_config(
+        BaldricPaths(home=tmp_path / "home-baldric"),
+        {"a": USER_SERVER, "b": USER_SERVER, "c": USER_SERVER},
+    )
+    runtime, _, _, _ = _runtime(tmp_path)
+    await runtime.emit_session_start("startup")
+    await _settle()
+
+    supervisor = factory.supervisors[0]
+    long_description = "x" * 300
+    supervisor.set_server("a", "connected", tools=(), instructions=long_description)
+    supervisor.set_server("b", "connected", tools=(), instructions=long_description)
+    supervisor.set_server("c", "connected", tools=(), instructions=long_description)
+    await _settle()
+
+    sections = [section for section in runtime.sourced_prompt_sections if section.title == "MCP servers"]
+    assert len(sections) == 1
+    body = sections[0].body
+    assert len(body) <= 1200
+    for line in body.splitlines():
+        assert len(line) <= 200
+
+
+async def test_prompt_section_omits_detail_without_description_or_instructions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from baldric_coding.extensions.builtins import mcp as mcp_extension
+
+    factory = Factory()
+    monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
+    _write_user_config(BaldricPaths(home=tmp_path / "home-baldric"), {"bare": USER_SERVER})
+    runtime, _, _, _ = _runtime(tmp_path)
+    await runtime.emit_session_start("startup")
+    await _settle()
+
+    factory.supervisors[0].set_server("bare", "connected", tools=(_tool_info("t", "T"),))
+    await _settle()
+
+    sections = [section for section in runtime.sourced_prompt_sections if section.title == "MCP servers"]
+    assert sections[0].body == "- bare (stdio, 1 tools)"
+
+
+def _mcp_handler(runtime: ExtensionRuntime, api: Any) -> Callable[[str], str | None]:
+    from baldric_coding.extensions.api import ExtensionCommandContext
+
+    handler = runtime._commands["mcp"].handler  # noqa: SLF001 - test reaches the command
+    return lambda args: handler(args, ExtensionCommandContext(name="mcp", args=args, api=api))
+
+
+async def test_mcp_command_lists_servers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from baldric_coding.extensions.builtins import mcp as mcp_extension
+
+    factory = Factory()
+    monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
+    _write_user_config(BaldricPaths(home=tmp_path / "home-baldric"), {"srv": USER_SERVER})
+    runtime, captured, _, _ = _runtime(tmp_path)
+    await runtime.emit_session_start("startup")
+    await _settle()
+    factory.supervisors[0].set_server("srv", "connected", tools=(_tool_info("t", "T"),))
+    factory.supervisors[0].set_server("bad", "failed", error="boom\nstack")
+    await _settle()
+
+    message = _mcp_handler(runtime, captured[0][0])("")
+
+    assert message == "srv  connected  stdio  1 tools\nbad  failed  stdio  0 tools: boom"
+
+
+async def test_mcp_off_persists_and_disables(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from baldric_coding.extensions.builtins import mcp as mcp_extension
+
+    factory = Factory()
+    monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
+    paths = BaldricPaths(home=tmp_path / "home-baldric")
+    _write_user_config(paths, {"srv": USER_SERVER})
+    runtime, captured, _, _ = _runtime(tmp_path)
+    await runtime.emit_session_start("startup")
+    await _settle()
+
+    message = _mcp_handler(runtime, captured[0][0])("off srv")
+    await _settle()
+
+    assert message == "mcp: disabling srv"
+    text = paths.user_mcp_config_path.read_text(encoding="utf-8")
+    assert '"enabled": false' in text
+    supervisor = factory.supervisors[0]
+    assert supervisor.enabled_calls == [("srv", False, None)]
+
+
+async def test_mcp_on_rereads_and_enables(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from baldric_coding.extensions.builtins import mcp as mcp_extension
+
+    factory = Factory()
+    monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
+    paths = BaldricPaths(home=tmp_path / "home-baldric")
+    _write_user_config(paths, {"srv": {**USER_SERVER, "enabled": False}})
+    runtime, captured, _, _ = _runtime(tmp_path)
+    await runtime.emit_session_start("startup")
+    await _settle()
+
+    message = _mcp_handler(runtime, captured[0][0])("on srv")
+    await _settle()
+
+    assert message == "mcp: enabling srv"
+    supervisor = factory.supervisors[0]
+    assert len(supervisor.enabled_calls) == 1
+    name, enabled, fresh = supervisor.enabled_calls[0]
+    assert (name, enabled) == ("srv", True)
+    assert fresh is not None and fresh.command == "srv-cmd" and fresh.enabled is True
+
+
+async def test_mcp_restart_reconnects_with_fresh_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from baldric_coding.extensions.builtins import mcp as mcp_extension
+
+    factory = Factory()
+    monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
+    _write_user_config(BaldricPaths(home=tmp_path / "home-baldric"), {"srv": USER_SERVER})
+    runtime, captured, _, _ = _runtime(tmp_path)
+    await runtime.emit_session_start("startup")
+    await _settle()
+
+    message = _mcp_handler(runtime, captured[0][0])("restart srv")
+    await _settle()
+
+    assert message == "mcp: restarting srv"
+    supervisor = factory.supervisors[0]
+    assert supervisor.restart_calls == [("srv", "srv-cmd")]
+
+
+async def test_mcp_unknown_server_reports_message(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from baldric_coding.extensions.builtins import mcp as mcp_extension
+
+    factory = Factory()
+    monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
+    _write_user_config(BaldricPaths(home=tmp_path / "home-baldric"), {"srv": USER_SERVER})
+    runtime, captured, _, _ = _runtime(tmp_path)
+    await runtime.emit_session_start("startup")
+    await _settle()
+
+    message = _mcp_handler(runtime, captured[0][0])("off nope")
+
+    assert 'unknown server "nope"' in (message or "")

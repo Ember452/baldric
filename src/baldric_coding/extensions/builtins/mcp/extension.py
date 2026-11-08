@@ -47,12 +47,22 @@ class _McpExtension:
         self._context = context
         self._supervisor: McpSupervisor | None = None
         self._shut_down = False
+        self._admitted = False
+        self._configs: tuple[Any, ...] = ()
         # tool name -> owning server name; registration order = sync order.
         self._registered: dict[str, str] = {}
+        self._registered_section: str | None = None
 
     def register_handlers(self) -> None:
         self._api.on("session_start", self.on_session_start)
         self._api.on("session_shutdown", self.on_session_shutdown)
+        self._api.on("input", self.on_input)
+        self._api.register_command(
+            "mcp",
+            self.mcp_command,
+            description="List and manage MCP servers.",
+            usage="/mcp [on|off|restart] <name>",
+        )
 
     async def on_session_start(self, event: object, context: ExtensionContext) -> None:
         if self._supervisor is not None and not self._shut_down:
@@ -61,6 +71,7 @@ class _McpExtension:
         configs = self._load_configs(context)
         if not configs:
             return
+        self._configs = configs
         self._supervisor = _supervisor_factory(configs, self._context.environment)
         self._shut_down = False
         self._supervisor.on_change(self._sync)
@@ -77,6 +88,14 @@ class _McpExtension:
         await self._supervisor.shutdown()
         self._shut_down = True
 
+    async def on_input(self, event: object, context: ExtensionContext) -> None:
+        """First-turn admission: wait (bounded) for connecting servers once."""
+        supervisor = self._supervisor
+        if self._admitted or supervisor is None or not supervisor.any_connecting():
+            return
+        self._admitted = True
+        await supervisor.wait_ready(timeout=10.0)
+
     def _load_configs(self, context: ExtensionContext) -> tuple[Any, ...]:
         from baldric_mcp.config import load_mcp_config
 
@@ -91,7 +110,9 @@ class _McpExtension:
         for diagnostic in result.diagnostics:
             name = f" [{diagnostic.name}]" if diagnostic.name else ""
             self._api.notify(f"mcp: {diagnostic.path}{name}: {diagnostic.message}", "warning")
-        return tuple(server for server in result.servers if server.enabled)
+        # Disabled servers are included so `/mcp on` can reach them; the
+        # supervisor only connects the enabled ones (Task 4 semantics).
+        return tuple(result.servers)
 
     def _sync(self) -> None:
         """Bring registrations in step with the supervisor's server states.
@@ -119,6 +140,103 @@ class _McpExtension:
             if not connected.get(server, False):
                 del self._registered[name]
                 self._api.unregister_tool(name)
+        self._sync_section()
+
+    def _sync_section(self) -> None:
+        """Refresh the `MCP servers` prompt section when its body changed.
+
+        The section upserts per title, and the body only changes when a state
+        transition changed the listing; every real change rebuilds the system
+        prompt and invalidates the provider prefix cache, so identical bodies
+        must not re-register.
+        """
+        body = self._section_body()
+        if body is None or body == self._registered_section:
+            return
+        self._registered_section = body
+        self._api.add_prompt_section("MCP servers", body)
+        self._api.refresh_system_prompt()
+
+    def _section_body(self) -> str | None:
+        supervisor = self._supervisor
+        if supervisor is None or not self._configs:
+            return None
+        states = {status.name: status for status in supervisor.statuses()}
+        lines: list[str] = []
+        for config in self._configs:
+            if not config.enabled:
+                continue
+            count = states[config.name].tool_count if config.name in states else 0
+            line = f"- {config.name} ({config.server_type}, {count} tools)"
+            detail = _first_line(config.description)
+            if detail is None:
+                detail = _first_line(supervisor.instructions(config.name))
+            if detail is not None:
+                line = f"{line}: {detail}"
+            lines.append(line[:200])
+        return "\n".join(lines)[:1200]
+
+    def mcp_command(self, args: str, command_context: Any) -> str | None:
+        supervisor = self._supervisor
+        if supervisor is None:
+            return "mcp: no servers configured"
+        parts = args.split()
+        verb = parts[0] if parts else ""
+        name = parts[1] if len(parts) > 1 else ""
+        if not verb:
+            return self._listing(supervisor)
+        if verb in ("on", "off", "restart"):
+            if not name:
+                return f"usage: /mcp {verb} <name>"
+            return self._schedule_toggle(supervisor, verb, name, command_context.api)
+        return "usage: /mcp [on|off|restart] <name>"
+
+    def _listing(self, supervisor: McpSupervisor) -> str:
+        transports = {config.name: config.server_type for config in self._configs}
+        lines: list[str] = []
+        for status in supervisor.statuses():
+            transport = transports.get(status.name, "stdio")
+            line = f"{status.name}  {status.state}  {transport}  {status.tool_count} tools"
+            if status.error:
+                line += f": {status.error.splitlines()[0]}"
+            lines.append(line)
+        return "\n".join(lines) or "no servers configured"
+
+    def _schedule_toggle(self, supervisor: McpSupervisor, verb: str, name: str, api: ExtensionAPI) -> str:
+        stored = {config.name: config for config in self._configs}
+        if name not in stored:
+            return f'mcp: unknown server "{name}"'
+        if verb == "restart":
+            fresh = self._fresh_config(api, name)
+            if fresh is None:
+                return f'mcp: unknown server "{name}"'
+            asyncio.get_running_loop().create_task(supervisor.restart(name, fresh))
+            return f"mcp: restarting {name}"
+        source = stored[name].source
+        if source is None:
+            return f"mcp: cannot persist {name}: no source file"
+        from baldric_mcp.config import set_server_enabled
+
+        set_server_enabled(source, name, verb == "on")
+        if verb == "on":
+            fresh = self._fresh_config(api, name)
+            if fresh is None:
+                return f'mcp: server "{name}" disappeared while enabling'
+            asyncio.get_running_loop().create_task(supervisor.set_enabled(name, True, fresh))
+            return f"mcp: enabling {name}"
+        asyncio.get_running_loop().create_task(supervisor.set_enabled(name, False, None))
+        return f"mcp: disabling {name}"
+
+    def _fresh_config(self, api: ExtensionAPI, name: str) -> Any | None:
+        from baldric_mcp.config import load_mcp_config
+
+        context = api.context
+        user_path = self._context.paths.user_mcp_config_path
+        project_path = (
+            self._context.paths.project_mcp_config_path(context.cwd) if context.project_trusted else None
+        )
+        result = load_mcp_config(user_path, project_path, self._context.environment)
+        return next((server for server in result.servers if server.name == name), None)
 
     def _caller(self, server: str, tool: str) -> Callable[..., Any]:
         async def call(arguments: dict[str, Any], *, on_progress: Any = None) -> Any:
@@ -127,6 +245,12 @@ class _McpExtension:
             return await supervisor.call_tool(server, tool, arguments, on_progress=on_progress)
 
         return call
+
+
+def _first_line(value: str | None) -> str | None:
+    if value is None or not value.strip():
+        return None
+    return value.strip().splitlines()[0]
 
 
 def setup(api: ExtensionAPI, context: BuiltInExtensionContext | None = None) -> None:
