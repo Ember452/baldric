@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -19,6 +20,7 @@ from baldric_coding.extensions.api import EXTENSION_API_VERSION, ExtensionAPI, E
 from baldric_coding.extensions.builtin_registry import BuiltInExtensionContext
 from baldric_coding.tools.output_accumulator import write_temp_output
 from baldric_mcp.adapter import create_mcp_tool_name, mcp_tool_to_agent_tool
+from baldric_mcp.client import McpToolUnavailable
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -141,13 +143,20 @@ class _McpExtension:
             if not is_connected:
                 continue
             for info in supervisor.tool_names(server):
-                name = create_mcp_tool_name(server, info.name)
+                # is_taken: two tools whose names sanitize identically must get
+                # distinct final names (pi appends the hash suffix), not a
+                # silent first-wins drop.
+                name = create_mcp_tool_name(server, info.name, is_taken=self._registered.__contains__)
                 if name in self._registered:
                     continue
                 self._registered[name] = server
                 self._api.register_tool(
                     mcp_tool_to_agent_tool(
-                        server, info, self._caller(server, info.name), output_saver=_mcp_output_saver
+                        server,
+                        info,
+                        self._caller(server, info.name),
+                        output_saver=_mcp_output_saver,
+                        name=name,
                     )
                 )
         for name, server in list(self._registered.items()):
@@ -226,17 +235,21 @@ class _McpExtension:
                 return f'mcp: unknown server "{name}"'
             asyncio.get_running_loop().create_task(supervisor.restart(name, fresh))
             return f"mcp: restarting {name}"
-        source = stored[name].source
+        # Validate before mutating the file: a corrupt or untrusted config must
+        # not be rewritten on the way to an error message.
+        fresh = self._fresh_config(api, name)
+        if fresh is None:
+            return f'mcp: unknown server "{name}"'
+        source = fresh.source or stored[name].source
         if source is None:
             return f"mcp: cannot persist {name}: no source file"
         from baldric_mcp.config import set_server_enabled
 
         set_server_enabled(source, name, verb == "on")
         if verb == "on":
-            fresh = self._fresh_config(api, name)
-            if fresh is None:
-                return f'mcp: server "{name}" disappeared while enabling'
-            asyncio.get_running_loop().create_task(supervisor.set_enabled(name, True, fresh))
+            asyncio.get_running_loop().create_task(
+                supervisor.set_enabled(name, True, replace(fresh, enabled=True))
+            )
             return f"mcp: enabling {name}"
         asyncio.get_running_loop().create_task(supervisor.set_enabled(name, False, None))
         return f"mcp: disabling {name}"
@@ -265,7 +278,10 @@ class _McpExtension:
     def _caller(self, server: str, tool: str) -> Callable[..., Any]:
         async def call(arguments: dict[str, Any], *, on_progress: Any = None) -> Any:
             supervisor = self._supervisor
-            assert supervisor is not None  # a registered tool implies a live supervisor
+            if supervisor is None:
+                # Retire/shutdown window: a registered tool outlives its
+                # supervisor. Report it the same way any unavailable call is.
+                raise McpToolUnavailable(f'MCP server "{server}" is no longer available')
             return await supervisor.call_tool(server, tool, arguments, on_progress=on_progress)
 
         return call

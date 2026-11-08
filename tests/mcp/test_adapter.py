@@ -159,6 +159,18 @@ async def test_mcp_tool_to_agent_tool_shape() -> None:
     assert tool.parameters == {"type": "object", "properties": {"query": {"type": "string"}}}
 
 
+async def test_mcp_tool_to_agent_tool_accepts_an_explicit_name() -> None:
+    tool = mcp_tool_to_agent_tool(
+        "docs",
+        _info(),
+        await _call(McpToolResultData(blocks=(), is_error=False)),
+        name="mcp__docs__search_0123abcd",
+    )
+
+    assert tool.name == "mcp__docs__search_0123abcd"
+    assert tool.label == "docs/search"
+
+
 async def test_description_fallback_chain() -> None:
     call = await _call(McpToolResultData(blocks=(), is_error=False))
 

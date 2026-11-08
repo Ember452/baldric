@@ -15,6 +15,7 @@ import time
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import AsyncExitStack, asynccontextmanager, suppress
 from dataclasses import dataclass
+from functools import partial
 from typing import Any, Literal, Protocol
 
 import anyio
@@ -39,10 +40,6 @@ _MISSING = object()
 
 class McpToolUnavailable(RuntimeError):
     """The tool call cannot be served: server failed, needs auth, or closed."""
-
-
-class McpNeedsAuthError(RuntimeError):
-    """Sentinel for transports that surface authentication failures directly."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,23 +189,22 @@ class McpServerConnection:
         session_factory: SessionFactory | None = None,
         clock: Callable[[], float] = time.monotonic,
         retry_delays: Sequence[float] = (1.0, 3.0),
-        stderr_sink: Any = None,
+        stderr_sink_factory: Callable[[], Any] | None = None,
     ) -> None:
         self._config = config
         self._environment = environment
-        self._transport_factory = (
-            transport_factory
-            if transport_factory is not default_transport
-            else (lambda config, env, _sink=stderr_sink: default_transport(config, env, _sink))
-        )
+        self._transport_factory = transport_factory
         self._session_factory: SessionFactory = session_factory or _sdk_session_factory
         self._clock = clock
         self._retry_delays = tuple(retry_delays)
+        # A factory, not an instance: every connect attempt needs a fresh
+        # handle, because teardown closes the previous one (lazy reconnect).
+        self._stderr_sink_factory = stderr_sink_factory
         self._state: McpConnectionState = "connecting"
         self._error: str | None = None
         self._stack: AsyncExitStack | None = None
         self._session: Any = None
-        self._stderr_sink = stderr_sink
+        self._stderr_sink: Any = None
         self.tools: tuple[McpToolInfo, ...] = ()
         self.instructions: str | None = None
 
@@ -301,9 +297,12 @@ class McpServerConnection:
         stack: AsyncExitStack | None = None
         try:
             stack = AsyncExitStack()
-            transport = await stack.enter_async_context(
-                self._transport_factory(self._config, self._environment)
-            )
+            sink = self._stderr_sink_factory() if self._stderr_sink_factory is not None else None
+            self._stderr_sink = sink
+            factory = self._transport_factory
+            if factory is default_transport:
+                factory = partial(default_transport, stderr_sink=sink)
+            transport = await stack.enter_async_context(factory(self._config, self._environment))
             read, write = transport
             session = await stack.enter_async_context(self._session_factory(read, write))
             result = await session.initialize()
@@ -404,7 +403,6 @@ def _convert_result(result: Any) -> McpToolResultData:
 __all__ = [
     "McpConnectionState",
     "McpContentBlock",
-    "McpNeedsAuthError",
     "McpServerConnection",
     "McpToolInfo",
     "McpToolResultData",

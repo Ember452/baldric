@@ -1452,3 +1452,26 @@ an empty section means the plan was followed as written. Entry format:
   again") and Task 4's semantics (start connects enabled only). The prompt
   section lists enabled servers only. Design change? no (completes the
   planned /mcp on flow).
+- **D9 — dynamically registered tools are hook-wrapped** (post-review,
+  2026-11-08): the live seam appended the raw tool, so `tool_call`/
+  `tool_result` hooks (and blocking gates) never covered MCP tools, unlike
+  `compose_tools` output. `register_tool` now wraps via `_wrap_tool` and
+  tracks the wrapper in `_live_wrapped`; unregister/source-removal drop the
+  wrapper by identity. This changes Task 6's pinned "raw append" semantics
+  — the tests now pin the pipeline-consistent behavior. Design change? no
+  (pi's pipeline promise made explicit; the plan never promised raw). No
+  suppression added.
+- **D10 — stderr sink opened per connect attempt** (post-review,
+  2026-11-08): the connection captured a sink INSTANCE at construction and
+  `_teardown` closed it, so lazy reconnect handed the SDK a closed file and
+  the real reconnect path was broken (testing gap: only close() was
+  covered). The connection now takes a sink factory, opens a fresh handle
+  per connect attempt, closes the current one on teardown; regression test
+  covers drop→reconnect.
+- **D11 — adapter accepts a collision-resolved tool name** (post-review,
+  2026-11-08): passing `is_taken` at the extension alone was insufficient —
+  `mcp_tool_to_agent_tool` recomputed the name internally without the
+  taken-set, so a sanitized-name collision still landed on the first name
+  and was dropped by the registry's duplicate check. The adapter now takes
+  `name=`, and the extension passes the resolved name; a regression test
+  covers two tools sanitizing to the same base name.

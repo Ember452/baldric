@@ -234,16 +234,18 @@ async def test_statuses_reflect_states_and_tool_counts() -> None:
     assert statuses["c"].state == "closed"  # disabled from the start
 
 
-def test_stderr_sink_factory_wires_each_connection() -> None:
-    sinks: list[object] = []
+def test_stderr_sink_factory_binds_each_connection() -> None:
+    created: list[str] = []
 
     def make(config: McpServerConfig) -> object:
-        sink = object()
-        sinks.append(sink)
-        return sink
+        created.append(config.name)
+        return object()
 
-    supervisor = McpSupervisor([ENABLED_A], environment={}, stderr_sink_factory=make)
+    supervisor = McpSupervisor([ENABLED_A, ENABLED_B], environment={}, stderr_sink_factory=make)
 
-    assert len(sinks) == 1
+    # The sink opens per connect attempt, bound to that server's config.
     connection = supervisor._connections["a"]  # noqa: SLF001 - asserting the wiring
-    assert connection._stderr_sink is sinks[0]  # noqa: SLF001
+    sink_factory = connection._stderr_sink_factory  # noqa: SLF001
+    assert sink_factory is not None
+    assert sink_factory() is not None
+    assert created == ["a"]

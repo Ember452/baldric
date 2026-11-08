@@ -12,6 +12,7 @@ import time
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
+from functools import partial
 from typing import Any
 
 import anyio
@@ -148,18 +149,29 @@ class McpSupervisor:
         self._fire()
 
     async def shutdown(self) -> None:
-        """Close every connection; calls afterwards fail with ``closed``."""
-        for connection in self._connections.values():
-            await connection.close()
+        """Close every connection; calls afterwards fail with ``closed``.
+
+        Connections close concurrently (pi's ``Promise.all`` shutdown): one
+        stuck teardown must not delay the others.
+        """
+        if self._connections:
+            async with anyio.create_task_group() as tg:
+                for connection in self._connections.values():
+                    tg.start_soon(connection.close)
         self._fire()
 
     def _build(self, config: McpServerConfig) -> McpServerConnection:
         if self._connection_factory is not None:
             return self._connection_factory(config)
+        # The sink factory is bound to this server: each connect attempt opens
+        # a fresh stderr log handle (teardown closes the previous one).
+        sink_factory = (
+            partial(self._stderr_sink_factory, config) if self._stderr_sink_factory is not None else None
+        )
         return McpServerConnection(
             config,
             environment=self._environment,
-            stderr_sink=self._stderr_sink_factory(config) if self._stderr_sink_factory is not None else None,
+            stderr_sink_factory=sink_factory,
         )
 
     async def _replace_connection(self, name: str, config: McpServerConfig) -> None:

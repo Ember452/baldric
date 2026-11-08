@@ -303,7 +303,10 @@ per house rules rather than splitting in the same change.
 OAuth flows, MCP server mode, resources/prompts/sampling, deferred tool
 loading (`tool_search`/codemode), `list_changed` handling, tool annotations,
 hot config reload, direct `ImageContent` tool results for image-unsupported
-models, child-session MCP sharing.
+models, child-session MCP sharing, `!command` shell substitution in config
+values (pi's `resolve-config-value.ts` supports it; running shells during
+config parsing is a surface this MVP deliberately excludes — `${VAR}` covers
+the credential case).
 
 ## Implementation preflight findings
 

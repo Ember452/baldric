@@ -316,6 +316,11 @@ class ExtensionRuntime:
         # registrations reach the harness per run instead of at next load.
         self._live_tools: list[AgentTool] | None = None
         self._live_allowed: frozenset[str] | None = None
+        # name -> the hook-wrapped object appended to ``_live_tools``. The
+        # registry keeps the raw tool (compose_tools wraps at the next load);
+        # the live list must carry the same wrapped shape compose_tools
+        # produces, or tool_call/tool_result hooks would bypass dynamic tools.
+        self._live_wrapped: dict[str, AgentTool] = {}
         self._ui: UiBridge = ui or NullUiBridge()
         self._turn_requested: TurnRequestedCallback | None = None
         self._harness_unsubscribe: Callable[[], None] | None = None
@@ -413,6 +418,7 @@ class ExtensionRuntime:
         self._renderer_failures_reported.clear()
         self._live_tools = None
         self._live_allowed = None
+        self._live_wrapped.clear()
         self._turn_requested = None
         self._session = None
         self._unload_loaded_modules()
@@ -509,17 +515,17 @@ class ExtensionRuntime:
             )
 
     def _remove_registrations(self, source_id: str) -> None:
-        removed_tools = [
-            registration.tool
-            for name, registration in self._tools.items()
-            if registration.source_id == source_id
+        removed_names = [
+            name for name, registration in self._tools.items() if registration.source_id == source_id
         ]
         self._tools = {
             name: registration
             for name, registration in self._tools.items()
             if registration.source_id != source_id
         }
-        self._drop_live_tools(removed_tools)
+        self._drop_live_tools(
+            [self._live_wrapped.pop(name) for name in removed_names if name in self._live_wrapped]
+        )
         self._commands = {
             name: command for name, command in self._commands.items() if command.source_id != source_id
         }
@@ -585,7 +591,9 @@ class ExtensionRuntime:
             tool=tool,
         )
         if self._live_tools is not None:
-            self._live_tools.append(tool)
+            wrapped = self._wrap_tool(tool)
+            self._live_wrapped[tool.name] = wrapped
+            self._live_tools.append(wrapped)
 
     def unregister_tool(self, source_id: str, extension_name: str, name: str) -> None:
         """Remove this extension's tool registration; a no-op when absent.
@@ -598,7 +606,8 @@ class ExtensionRuntime:
         if registered is None or registered.source_id != source_id:
             return
         del self._tools[name]
-        self._drop_live_tools([registered.tool])
+        wrapped = self._live_wrapped.pop(name, None)
+        self._drop_live_tools([wrapped] if wrapped is not None else [])
 
     def register_command(
         self,
@@ -1098,11 +1107,14 @@ class ExtensionRuntime:
 
         The bound object is the same list handed to the agent harness, which
         reads it per run; register/unregister keep registry and list in step.
-        Each load binds its own materialized list, replacing any previous
-        binding, mirroring ``set_ui_bridge``.
+        Appended tools are hook-wrapped like ``compose_tools`` output, so the
+        tool pipeline covers dynamically registered tools too. Each load
+        binds its own materialized list, replacing any previous binding,
+        mirroring ``set_ui_bridge``.
         """
         self._live_tools = tools
         self._live_allowed = allowed
+        self._live_wrapped.clear()
 
     def request_system_prompt_refresh(self) -> None:
         """Ask the bound session to rebuild its system prompt."""

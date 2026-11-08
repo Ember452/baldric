@@ -11,7 +11,6 @@ import mcp.types as mt
 import pytest
 
 from baldric_mcp.client import (
-    McpNeedsAuthError,
     McpServerConnection,
     McpToolUnavailable,
 )
@@ -350,16 +349,50 @@ async def test_close_closes_the_stderr_sink() -> None:
             self.closed = True
 
     harness = Harness([FakeSession()])
-    sink = Sink()
-    connection = harness.connection(stderr_sink=sink)
+    sinks: list[Sink] = []
+
+    def open_sink() -> Sink:
+        sink = Sink()
+        sinks.append(sink)
+        return sink
+
+    connection = harness.connection(stderr_sink_factory=open_sink)
     await connection.connect()
 
     await connection.close()
 
-    assert sink.closed is True
+    assert [sink.closed for sink in sinks] == [True]
 
 
-async def test_needs_auth_sentinel_exists() -> None:
-    """The 401 sentinel stays importable for the transport error path."""
+async def test_reconnect_opens_a_fresh_stderr_sink() -> None:
+    """The drop path closes the sink; reconnecting must not reuse it."""
 
-    assert issubclass(McpNeedsAuthError, RuntimeError)
+    class Sink:
+        def __init__(self) -> None:
+            self.closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+    dropped = FakeSession(call_results=[ConnectionError("pipe closed")])
+    restored = FakeSession()
+    harness = Harness([dropped, restored])
+    sinks: list[Sink] = []
+
+    def open_sink() -> Sink:
+        sink = Sink()
+        sinks.append(sink)
+        return sink
+
+    connection = harness.connection(stderr_sink_factory=open_sink)
+    assert await connection.connect() is True
+
+    with pytest.raises(McpToolUnavailable):
+        await connection.call_tool("echo", {})
+
+    assert [sink.closed for sink in sinks] == [True]  # the dropped attempt's sink
+
+    await connection.call_tool("echo", {})
+
+    assert len(sinks) == 2  # a fresh handle for the reconnected attempt
+    assert sinks[1].closed is False

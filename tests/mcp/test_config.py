@@ -152,12 +152,18 @@ def test_home_expansion(tmp_path: Path) -> None:
     home = Path.home()
     user = _write(
         tmp_path / "user.json",
-        {"mcpServers": {"a": {"command": "~/tool"}, "b": {"command": "run", "cwd": "~"}}},
+        {
+            "mcpServers": {
+                "a": {"command": "~/tool", "args": ["~/arg", "--plain"]},
+                "b": {"command": "run", "cwd": "~"},
+            }
+        },
     )
 
     result = load_mcp_config(user, None, ENV)
 
     assert _server(result, "a").command == str(home / "tool")
+    assert _server(result, "a").args == (str(home / "arg"), "--plain")
     assert _server(result, "b").cwd == str(home)
 
 

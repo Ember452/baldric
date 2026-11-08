@@ -74,8 +74,13 @@ def _image_placeholders(images: list[McpContentBlock]) -> list[TextContent]:
     serialization in the loop is unverified (spec's deliberate boundary)."""
     placeholders: list[TextContent] = []
     for block in images:
-        size = len(base64.b64decode(block.image_data or ""))
-        placeholders.append(TextContent(text=f"[image: {block.image_mime or 'unknown'}, {size} bytes]"))
+        mime = block.image_mime or "unknown"
+        try:
+            size = f"{len(base64.b64decode(block.image_data or ''))} bytes"
+        except ValueError:
+            # A malformed base64 payload must not abort the whole result.
+            size = "invalid base64"
+        placeholders.append(TextContent(text=f"[image: {mime}, {size}]"))
     return placeholders
 
 
@@ -115,8 +120,13 @@ def mcp_tool_to_agent_tool(
     call: McpToolCaller,
     *,
     output_saver: OutputSaver | None = None,
+    name: str | None = None,
 ) -> AgentTool:
-    """Wrap one advertised MCP tool as an ordinary agent tool."""
+    """Wrap one advertised MCP tool as an ordinary agent tool.
+
+    ``name`` lets the caller pass a collision-resolved name (computed with
+    ``is_taken``); otherwise the canonical name is derived here.
+    """
 
     async def executor(
         tool_call_id: str,
@@ -135,7 +145,7 @@ def mcp_tool_to_agent_tool(
 
     description = info.description.strip() or info.title or f"MCP tool {info.name} from server {server}"
     return AgentTool(
-        name=create_mcp_tool_name(server, info.name),
+        name=name or create_mcp_tool_name(server, info.name),
         label=f"{server}/{info.name}",
         description=description,
         parameters=normalize_input_schema(info.input_schema),

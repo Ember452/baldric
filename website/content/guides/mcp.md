@@ -88,6 +88,11 @@ Each server moves through `connecting`, `connected`, `disconnected`,
 ## Known limits
 
 - No MCP OAuth, resources, prompts, or sampling — tools only.
+- Only text and images are surfaced from tool results: images become
+  `[image: mime, N bytes]` placeholders and other content blocks (embedded
+  resources, audio) become `[unsupported content block: …]`.
+- `${NAME}` expansion is supported; pi's `!command` shell substitution is
+  deliberately not (running shells while parsing config is out of scope).
 - Servers that add tools after connecting keep their connect-time tool set
   until you run `/mcp restart <name>`.
 - Subagent child sessions do not get MCP: each child spawning its own server

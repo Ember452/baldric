@@ -250,6 +250,33 @@ async def test_trusted_project_servers_boot_and_tools_register(
     assert names == ["mcp__srv__fetch", "mcp__srv__search"]
 
 
+async def test_sanitized_name_collisions_get_distinct_final_names(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from baldric_coding.extensions.builtins import mcp as mcp_extension
+
+    factory = Factory()
+    monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
+    _write_user_config(BaldricPaths(home=tmp_path / "home-baldric"), {"srv": USER_SERVER})
+    runtime, _, _, _ = _runtime(tmp_path)
+    live: list[Any] = []
+    runtime.bind_live_tools(live, None)
+    await runtime.emit_session_start("startup")
+    await _settle()
+
+    factory.supervisors[0].set_server(
+        "srv",
+        "connected",
+        tools=(_tool_info("a-b", "A"), _tool_info("a_b", "B")),
+    )
+    await _settle()
+
+    names = sorted(tool.name for tool in live)
+    assert len(names) == 2  # neither tool is silently dropped
+    assert names[0] == "mcp__srv__a_b"
+    assert names[1].startswith("mcp__srv__a_b_")
+
+
 async def test_failed_server_withdraws_its_tools(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from baldric_coding.extensions.builtins import mcp as mcp_extension
 

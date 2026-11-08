@@ -343,7 +343,7 @@ def _stdio_config(
         description=description,
         timeout=timeout,
         command=_expand_home(expanded_command),
-        args=tuple(args) if args is not None else (),
+        args=tuple(_expand_home(arg) for arg in args) if args is not None else (),
         env=expanded_env,
         cwd=None if expanded_cwd is None else _expand_home(expanded_cwd),
     )
