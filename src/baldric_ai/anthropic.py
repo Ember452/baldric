@@ -32,6 +32,7 @@ from baldric_ai.env import (
     CACHE_RETENTION_SHORT,
     AnthropicConfig,
     CacheRetention,
+    thinking_level_from_effort,
 )
 from baldric_ai.events import AssistantMessageEvent
 from baldric_ai.http import create_async_client, iter_sse_lines
@@ -111,7 +112,13 @@ class AnthropicProvider:
         raw = self._stream_provider_events(
             model=model, system=system, messages=messages, tools=tools, signal=signal
         )
-        return canonicalize_provider_stream(raw, api="anthropic-messages", provider="anthropic", model=model)
+        return canonicalize_provider_stream(
+            raw,
+            api="anthropic-messages",
+            provider="anthropic",
+            model=model,
+            thinking_level=thinking_level_from_effort(self._config.thinking_effort),
+        )
 
     def _stream_provider_events(
         self,

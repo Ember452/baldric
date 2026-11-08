@@ -22,7 +22,7 @@ from baldric_ai.content import (
     NON_VISION_USER_IMAGE_PLACEHOLDER,
     text_and_images,
 )
-from baldric_ai.env import OpenAICompatibleConfig
+from baldric_ai.env import OpenAICompatibleConfig, thinking_level_from_effort
 from baldric_ai.events import AssistantMessageEvent
 from baldric_ai.http import create_async_client, iter_sse_lines
 from baldric_ai.http_errors import provider_http_error_message
@@ -86,7 +86,13 @@ class GoogleGenerativeAIProvider:
         raw = self._stream_provider_events(
             model=model, system=system, messages=messages, tools=tools, signal=signal
         )
-        return canonicalize_provider_stream(raw, api="google-generative-ai", provider="google", model=model)
+        return canonicalize_provider_stream(
+            raw,
+            api="google-generative-ai",
+            provider="google",
+            model=model,
+            thinking_level=thinking_level_from_effort(self._config.reasoning_effort),
+        )
 
     def _stream_provider_events(
         self,

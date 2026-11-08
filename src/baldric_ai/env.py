@@ -40,6 +40,19 @@ type RuntimeProviderAuthResolver = Callable[[], Awaitable[RuntimeProviderAuth]]
 type RuntimeResponseHeadersObserver = Callable[[Mapping[str, str]], None]
 
 
+def thinking_level_from_effort(effort: str | None) -> str | None:
+    """Return the requested thinking level recorded on assistant messages.
+
+    Provider configs carry the level encoded as a reasoning effort ("none" is
+    the wire spelling of the "off" level); invert that encoding so the stamped
+    value matches pi's ``AssistantMessage.thinkingLevel`` semantics - the level
+    the request asked for. ``None`` stays ``None``: the config carries no level.
+    """
+    if effort is None:
+        return None
+    return "off" if effort == "none" else effort
+
+
 @dataclass(frozen=True, slots=True)
 class OpenAICompatibleConfig:
     """Configuration for an OpenAI-compatible chat completions endpoint."""

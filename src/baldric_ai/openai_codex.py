@@ -32,6 +32,7 @@ from baldric_ai.env import (
     DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
     DEFAULT_OPENAI_COMPATIBLE_MAX_RETRY_DELAY_SECONDS,
     DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS,
+    thinking_level_from_effort,
 )
 from baldric_ai.events import AssistantMessageEvent
 from baldric_ai.http import create_async_client, iter_sse_lines
@@ -200,7 +201,11 @@ class OpenAICodexProvider:
             session_id=session_id,
         )
         return canonicalize_provider_stream(
-            raw, api="openai-codex-responses", provider="openai-codex", model=model
+            raw,
+            api="openai-codex-responses",
+            provider="openai-codex",
+            model=model,
+            thinking_level=thinking_level_from_effort(self._config.reasoning_effort),
         )
 
     def _stream_provider_events(

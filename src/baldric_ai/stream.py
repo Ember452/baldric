@@ -129,6 +129,7 @@ async def canonicalize_provider_stream(
     api: str,
     provider: str,
     model: str,
+    thinking_level: str | None = None,
     independent_channels: bool = False,
 ) -> AsyncIterator[AssistantMessageEvent]:
     """Canonicalize one old internal parser stream.
@@ -138,7 +139,7 @@ async def canonicalize_provider_stream(
     Chat Completions uses independent channels: a channel switch does not end
     either block. Other transports preserve their sequential block ordering.
     """
-    partial = AssistantMessage(api=api, provider=provider, model=model)
+    partial = AssistantMessage(api=api, provider=provider, model=model, thinking_level=thinking_level)
     active_index: int | None = None
     active_kind: str | None = None
     channel_indices: dict[str, int] = {}
@@ -307,6 +308,7 @@ async def canonicalize_provider_stream(
             final.api = api
             final.provider = provider
             final.model = model
+            final.thinking_level = thinking_level
             final.response_provider = event.message.response_provider or partial.response_provider
             final.content = [block.model_copy(deep=True) for block in partial.content]
             if not final.content and event.message.content:
