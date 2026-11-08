@@ -155,7 +155,14 @@ decisions where they apply):
   when `api.context.project_trusted`; otherwise one diagnostic) and registers
   handlers. The async `session_start` handler boots the supervisor
   non-blocking (background connect tasks — the house pattern:
-  `asyncio.get_running_loop().create_task`). `session_shutdown(quit|reload)`
+  `asyncio.get_running_loop().create_task`). `session_start` is **idempotent
+  per runtime generation**: new/resume/branch rebuild the session on the SAME
+  runtime (`lifecycle.py:740`) and fire `session_shutdown(reason)` then
+  `session_start(reason)` — an existing live supervisor is kept and only
+  re-synced (no second supervisor, no duplicate registrations; the registry
+  survives rebind and `compose_tools` already re-merges its tools into the
+  fresh list, so no re-seed mechanism exists or is needed). Only
+  `startup`/`reload` build a new supervisor. `session_shutdown(quit|reload)`
   closes every subprocess and connection; `new`/`resume`/`branch` keep
   connections (same cwd, same config).
 - **First-turn admission.** An async `input` hook (awaited by the session run

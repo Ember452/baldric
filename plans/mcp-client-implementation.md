@@ -107,6 +107,44 @@ construction (`CodingSession` / `CodingSessionConfig(` usage). Determine:
 
 Record the outcome and the exact file:line evidence.
 
+- [ ] **Step 2b: Verify the rebind lifecycle matrix (MUST-HOLD for Task 7's guard)**
+
+Read `src/baldric_coding/session/lifecycle.py:440-455` (reload: old runtime
+shuts down, a NEW staged runtime starts) and `lifecycle.py:700-764` +
+`lifecycle.py:925-940` (new/resume/branch: `type(session).load(...)` with
+`extension_runtime=session._extension_runtime` at `:740`, then
+`emit_session_shutdown(reason)` then `emit_session_start(reason)` on that SAME
+runtime). Record the matrix:
+
+| reason | runtime instance | shutdown fires | start fires |
+| --- | --- | --- | --- |
+| startup | fresh | no | yes |
+| reload | fresh (staged) | yes (old) | yes (staged) |
+| new/resume/branch | SAME as before | yes | yes |
+| quit | same | yes | no |
+
+**MUST-HOLD**: new/resume/branch reuse the runtime, so a naive
+`session_start` handler would build a second supervisor. Task 7's handler must
+be idempotent (existing live supervisor → re-sync only). Also verify and
+record (read `runtime.py:1034-1060`) that `compose_tools` re-merges registry
+tools into the rebuilt list on rebind — so the plan must NOT add any re-seed
+mechanism. Separately record the pre-existing observation that rebind with
+non-empty `config.tools` re-wraps already-wrapped tools (`lifecycle.py:716` +
+`runtime.py:1046`) — this affects all extensions, is NOT fixed on this
+branch; note it for a future issue.
+
+- [ ] **Step 2c: Verify the tool executor signature and the print/RPC input path**
+
+1. Read `src/baldric_protocol/tools.py:64-111`: confirm `ToolExecutor` is
+   `(tool_call_id, arguments, signal, on_update) -> Awaitable[AgentToolResult]`
+   and `AgentTool.execute` forwards all four (Task 5's `on_update` mapping
+   depends on this). **MUST-HOLD.**
+2. Read how print mode (`-p`) and RPC mode reach their first prompt (grep
+   `run_input_hooks` callers in `src/baldric_coding/`). Record whether the
+   first-turn admission wait applies in every mode. If a mode bypasses the
+   hook, record it as a known limitation in the docs task (the live seam
+   still delivers tools on subsequent turns).
+
 - [ ] **Step 3: Verify the prompt-builder inputs (MUST-HOLD for `refresh_system_prompt`)**
 
 Read `src/baldric_coding/context/system_prompt.py:55-90`
@@ -209,11 +247,9 @@ __all__: list[str] = []
 ```
 
 `tests/mcp/test_import_direction.py`: a test asserting
-`importlib.import_module("baldric_mcp")` succeeds and `sys.modules` shows no
-`baldric_agent`/`baldric_ai`/`baldric_coding` pulled in by that import (fresh
-`sys.path` import via `importlib` in a subprocess if needed — keep it simple:
-assert the module's `__dict__` contains no references; if that is flaky, just
-assert importability plus the guard tests above).
+`importlib.import_module("baldric_mcp")` succeeds. The import-graph guard
+(Task 1 Step 2) is the enforcement layer; no `__dict__` introspection here —
+it would be unreliable.
 
 - [ ] **Step 4: SDK API pin-down (MUST-HOLD before Tasks 3-5)**
 
@@ -551,7 +587,11 @@ async def _call_with_deadline(self, coro_factory, on_progress):
 Progress notifications (via the session `message_handler` pinned in Task 1)
 call `on_progress(f"Progress {progress}/{total} {message}")` and push the
 deadline out — share the deadline via a small mutable holder both the handler
-and watchdog close over.
+and watchdog close over. Hardening notes: `box["result"]` needs an explicit
+`cast(object, ...)`-style narrowing under mypy strict; after a timeout the SDK
+may still deliver the late response — it is dropped by the request id and is
+benign; leave a one-line comment saying so at the cancel site so a future
+reader does not "fix" it.
 
 - Lazy reconnect (pi's `disconnected` semantics): `call_tool` when
   `self._state == "disconnected"` performs one `connect()`; on failure raises
@@ -608,6 +648,7 @@ class McpSupervisor:
         environment: Mapping[str, str],
         connection_factory: Callable[[McpServerConfig], McpServerConnection] | None = None,
         wait_ready_cap: float = 10.0,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None: ...
     def statuses(self) -> tuple[McpServerStatus, ...]
     def any_connecting(self) -> bool
@@ -924,8 +965,10 @@ _supervisor_factory: Callable[[Sequence[McpServerConfig], Mapping[str, str]], Mc
 ```
 
 - [ ] **Step 1: Verify (MUST-HOLD)** — re-read `builtin_registry.py` (sync
-  setup contract, `setup_with_context`), and confirm Task 0 Step 2's child
-  session decision. If the flag branch was chosen, also verify
+  setup contract, `setup_with_context`), confirm Task 0 Step 2's child
+  session decision, and confirm Task 0 Step 2b's lifecycle matrix still holds
+  on this branch (rebind shares the runtime; the guard below is required, not
+  optional). If the flag branch was chosen, also verify
   `CodingSessionConfig` field placement and the child construction site from
   Task 0's recorded file:line.
 
@@ -948,6 +991,16 @@ _supervisor_factory: Callable[[Sequence[McpServerConfig], Mapping[str, str]], Mc
    `session_shutdown(branch)` → not shut down.
 6. `_session_wants_mcp` gate: with the flag branch, a child config
    (`mcp_enabled=False`) boots nothing.
+7. **Rebind idempotence (MUST-HOLD)**: fire `session_shutdown("resume")` then
+   `session_start("resume")` on the same runtime (the Task 0 Step 2b matrix)
+   → the fake supervisor's `start` was called exactly once (no second
+   supervisor), the supervisor identity is unchanged, tools registered before
+   the rebind are still present, and no duplicate-registration diagnostics
+   were emitted.
+8. **No `tools/list_changed` handling**: a server that adds tools after
+   connect keeps its connect-time tool set (spec non-goal) — the extension
+   registers no handler for the notification and the behavior is asserted as
+   "tool count unchanged".
 
 - [ ] **Step 3: Run and see them fail.**
 
@@ -960,13 +1013,22 @@ baldric.on("input")(self._on_input)                     # Task 8 wires the body
 baldric.register_command("mcp", self._mcp_command, ...) # Task 8 wires the body
 ```
 
-`_on_session_start`: gate → `load_mcp_config(user_path=context.paths.user_mcp_config_path, project_path=context.paths.project_mcp_config_path(api.context.cwd) if api.context.project_trusted else None, environment=context.environment)` → diagnostics via `api.notify(..., "warning")` → build enabled list → if any, `_supervisor = _supervisor_factory(enabled, context.environment)`, `on_change(self._sync)`, then
+`_on_session_start`: **idempotent boot guard first** (Task 0 Step 2b): if
+`self._supervisor is not None` and it is not shut down → call `self._sync()`
+and return (rebind path: new/resume/branch reuse the runtime; the registry
+already holds the tools and `compose_tools` re-merges them — do NOT re-seed
+and do NOT re-register blindly; the `_registered` map dedupes). Otherwise:
+gate → `load_mcp_config(user_path=context.paths.user_mcp_config_path, project_path=context.paths.project_mcp_config_path(api.context.cwd) if api.context.project_trusted else None, environment=context.environment)` → diagnostics via `api.notify(..., "warning")` → build enabled list → if any, `_supervisor = _supervisor_factory(enabled, context.environment)`, `on_change(self._sync)`, then
 `asyncio.get_running_loop().create_task(self._supervisor.start())` (house
 pattern, `subagents/extension.py:387`). `_sync` registers connected servers'
-tools: for each connected connection, build the caller closure
+tools: for each connected connection, skip names already in
+`self._registered`; build the caller closure
 `async def call(arguments, *, on_progress=None): return await self._supervisor.call_tool(server, info.name, arguments, on_progress=on_progress)`
 and register `api.register_tool(mcp_tool_to_agent_tool(server, info, call))`;
-withdraw on `failed`/`needs-auth` via `api.unregister_tool(name)`.
+withdraw on `failed`/`needs-auth` via `api.unregister_tool(name)`. If nothing
+visible changed (same tool-name set and same section body), `_sync` is a
+no-op — every real change rebuilds the system prompt and invalidates the
+provider prefix cache, so churn must be avoided by design.
 `_on_session_shutdown`:
 `reason in ("quit", "reload")` → `await supervisor.shutdown()`, else return.
 Register `builtin_registry.py` entry: `BuiltInExtension(name="mcp",
@@ -1159,8 +1221,11 @@ paths explicitly.)
 - [ ] **Step 1: Write the user guide**: what MCP is, `mcp.json` (user +
   project, trust gating), `/mcp` usage, `enabled`/`timeout`/`description`/`type`
   fields, `${ENV}` expansion, tool naming `mcp__<server>__<tool>`, states and
-  lazy reconnect, known MVP limits (no OAuth, resources/prompts deferred —
-  mirror the spec's non-goals).
+  lazy reconnect, and the known costs/limits: tool churn rebuilds the system
+  prompt (provider prefix-cache invalidation — accepted, minimized by the
+  `_sync` no-op rule), no OAuth, no resources/prompts, no `list_changed`,
+  modes that bypass the `input` hook get tools from turn two (mirror the
+  spec's non-goals and Task 0 Step 2c findings).
 - [ ] **Step 2: Write the dev-notes journal entry** (what was added, why, how
   it maps to pi's design, how to test) per the repo's documentation
   expectations.
