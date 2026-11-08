@@ -10,19 +10,19 @@ from typing import cast
 
 from pydantic import BaseModel
 
-from baldric_agent.messages import AssistantMessage, UserMessage
-from baldric_agent.session import JsonlSessionStorage
-from baldric_agent.session.entries import SessionEntry
-from baldric_agent.types import JSONValue
 from baldric_coding.modes.rpc.session import RpcSession
 from baldric_coding.providers.config import (
     AnthropicProviderConfig,
     OpenAICompatibleProviderConfig,
     provider_thinking_levels,
 )
+from baldric_coding.session import JsonlSessionStorage
 from baldric_coding.session.session import (
     ModelChoice,
 )
+from baldric_protocol.messages import AssistantMessage, UserMessage
+from baldric_protocol.session.entries import SessionEntry
+from baldric_protocol.types import JSONValue
 
 
 def _required_string(command: Mapping[str, object], key: str) -> str:

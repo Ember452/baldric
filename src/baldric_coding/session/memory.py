@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Final, TypeGuard, cast
 
-from baldric_agent.messages import AgentMessage, CustomMessage, UserMessage
-from baldric_agent.session.entries import (
+from baldric_protocol.messages import AgentMessage, CustomMessage, UserMessage
+from baldric_protocol.session.entries import (
     BranchSummaryEntry,
     CompactionEntry,
     CustomEntry,
@@ -14,7 +14,7 @@ from baldric_agent.session.entries import (
     SessionEntry,
     SessionInfoEntry,
 )
-from baldric_agent.session.tree import path_to_entry
+from baldric_protocol.session.tree import path_to_entry
 
 _UNSET_LEAF_ID: Final[object] = object()
 

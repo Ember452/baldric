@@ -1,13 +1,13 @@
-"""Provider contract owned by Baldric's portable agent layer."""
+"""Provider contract owned by the Baldric protocol layer."""
 
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from typing import Protocol
 
-from baldric_agent.messages import AgentMessage
-from baldric_agent.provider_events import AssistantMessageEvent
-from baldric_agent.tools import AgentTool
+from baldric_protocol.messages import AgentMessage
+from baldric_protocol.provider_events import AssistantMessageEvent
+from baldric_protocol.tools import AgentTool
 
 
 class CancellationToken(Protocol):

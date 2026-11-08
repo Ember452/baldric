@@ -8,7 +8,7 @@ from typing import Annotated, Any, TypeAliasType, Union, get_args, get_origin
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
-from baldric_agent.session.entries import (
+from baldric_protocol.session.entries import (
     CURRENT_SCHEMA_VERSION,
     SESSION_ENTRY_MODELS,
     SessionEntry,

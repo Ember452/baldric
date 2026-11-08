@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from baldric_agent.provider import ModelProvider
 from baldric_coding.session.session import CodingSession, CodingSessionConfig
+from baldric_protocol.provider import ModelProvider
 
 
 @dataclass(frozen=True, slots=True)

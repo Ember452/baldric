@@ -15,15 +15,6 @@ from urllib.parse import urlsplit, urlunsplit
 import httpx
 
 from baldric_agent.harness import SimpleCancellationToken
-from baldric_agent.messages import TextContent, UserMessage
-from baldric_agent.provider import CancellationToken
-from baldric_agent.provider_events import (
-    AssistantErrorEvent,
-    AssistantStartEvent,
-    ToolCallEndEvent,
-)
-from baldric_agent.tools import AgentTool, AgentToolResult, ToolCancellationToken
-from baldric_agent.types import JSONValue
 from baldric_ai.env import DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS, OpenAICompatibleConfig
 from baldric_ai.http import create_async_client
 from baldric_ai.openai_compatible import OpenAICompatibleProvider
@@ -58,6 +49,15 @@ from baldric_coding.extensions.providers import (
     ResolvedProviderAuth,
     resolve_provider_auth,
 )
+from baldric_protocol.messages import TextContent, UserMessage
+from baldric_protocol.provider import CancellationToken
+from baldric_protocol.provider_events import (
+    AssistantErrorEvent,
+    AssistantStartEvent,
+    ToolCallEndEvent,
+)
+from baldric_protocol.tools import AgentTool, AgentToolResult, ToolCancellationToken
+from baldric_protocol.types import JSONValue
 
 from .huggingface import (
     HuggingFaceSearchError,

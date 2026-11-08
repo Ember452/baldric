@@ -5,9 +5,9 @@ import json
 import httpx
 import pytest
 
-from baldric_agent.messages import ThinkingContent
 from baldric_ai import OpenAICompatibleConfig, OpenAICompatibleProvider
 from baldric_ai.events import AssistantDoneEvent, TextDeltaEvent
+from baldric_protocol.messages import ThinkingContent
 
 
 @pytest.mark.anyio

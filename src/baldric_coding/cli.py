@@ -14,8 +14,6 @@ from typing import Annotated, Literal
 import anyio
 import typer
 
-from baldric_agent.provider import ModelProvider
-from baldric_agent.session import JsonlSessionStorage, SessionEntry, SessionStorage
 from baldric_ai.env import (
     DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
     DEFAULT_OPENAI_COMPATIBLE_MAX_RETRIES,
@@ -62,6 +60,7 @@ from baldric_coding.providers.stores.models_dev_store import (
     refresh_models_dev_catalog,
 )
 from baldric_coding.rendering import PrintOutputMode, create_event_renderer
+from baldric_coding.session import JsonlSessionStorage, SessionStorage
 from baldric_coding.session.export import (
     default_session_export_artifact_path,
     export_session_artifact,
@@ -87,6 +86,8 @@ from baldric_coding.update.check import (
 )
 from baldric_coding.update.updater import update_baldric
 from baldric_coding.version import current_version as _current_version
+from baldric_protocol.provider import ModelProvider
+from baldric_protocol.session import SessionEntry
 
 
 def _is_utf8_encoding(encoding: str | None) -> bool:

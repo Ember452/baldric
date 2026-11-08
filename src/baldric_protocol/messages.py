@@ -8,7 +8,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from baldric_agent.types import JSONValue
+from baldric_protocol.types import JSONValue
 
 
 def _to_camel(name: str) -> str:

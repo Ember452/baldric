@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from baldric_agent.session import SessionEntry
+from baldric_protocol.session import SessionEntry
 
 
 def _session_jsonl_text(entries: Sequence[SessionEntry]) -> str:

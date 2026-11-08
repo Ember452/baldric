@@ -15,9 +15,9 @@ from typing import Protocol
 
 import httpx
 
-from baldric_agent.types import JSONValue
 from baldric_ai._provider_events import ProviderRetryEvent
 from baldric_ai.provider import CancellationToken
+from baldric_protocol.types import JSONValue
 
 RETRY_POLL_SECONDS = 0.05
 RETRY_BASE_DELAY_SECONDS = 0.25

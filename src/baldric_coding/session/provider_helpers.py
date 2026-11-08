@@ -8,14 +8,6 @@ from dataclasses import dataclass, replace
 from os import environ
 from typing import TYPE_CHECKING, Any, cast
 
-from baldric_agent.messages import (
-    BashExecutionMessage,
-    bash_execution_text,
-)
-from baldric_agent.session import (
-    SessionState,
-)
-from baldric_agent.tools import AgentTool
 from baldric_ai.model_catalog import ModelCatalogProvider, RuntimeModelCatalog
 from baldric_coding.auth.credentials import FileCredentialStore
 from baldric_coding.context.thinking import (
@@ -40,9 +32,15 @@ from baldric_coding.providers.runtime import (
     ClosableModelProvider,
     create_dynamic_model_provider,
 )
+from baldric_coding.session import SessionState
 from baldric_coding.session.manager import (
     InferenceProviderMode,
 )
+from baldric_protocol.messages import (
+    BashExecutionMessage,
+    bash_execution_text,
+)
+from baldric_protocol.tools import AgentTool
 
 if TYPE_CHECKING:
     from baldric_coding.session.session import CodingSession, CodingSessionConfig

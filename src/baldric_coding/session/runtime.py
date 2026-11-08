@@ -9,29 +9,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, Literal
 
 from baldric_agent.events import AgentEndEvent, AgentEvent, MessageEndEvent, ToolExecutionEndEvent
-from baldric_agent.messages import (
-    AgentMessage,
-    AssistantMessage,
-    CustomMessage,
-    Usage,
-    UsageCost,
-    UserMessage,
-    sum_usage,
-)
-from baldric_agent.provider import ModelProvider
-from baldric_agent.provider_events import AssistantDoneEvent, AssistantErrorEvent, TextDeltaEvent
-from baldric_agent.session import (
-    CompactionEntry,
-    CustomEntry,
-    CustomMessageEntry,
-    MessageEntry,
-    ModelChangeEntry,
-    SessionState,
-    ThinkingLevelChangeEntry,
-)
-from baldric_agent.session.entries import SessionEntry
 from baldric_agent.tool_history import ToolHistoryRepair
-from baldric_agent.types import JSONValue
 from baldric_coding.context.resources import (
     ResourceDiagnostic,
     ResourceError,
@@ -54,6 +32,7 @@ from baldric_coding.providers.config import (
     ProviderConfig,
     provider_has_usable_credentials,
 )
+from baldric_coding.session import SessionState
 from baldric_coding.session.branch_summary import summarize_branch_messages_with_model
 from baldric_coding.session.compaction.context_window import (
     SUMMARIZATION_SYSTEM_PROMPT,
@@ -262,6 +241,27 @@ from baldric_coding.session.tree_helpers import (
 from baldric_coding.session.tree_helpers import (
     is_retryable_huggingface_route_error as is_retryable_huggingface_route_error,
 )
+from baldric_protocol.messages import (
+    AgentMessage,
+    AssistantMessage,
+    CustomMessage,
+    Usage,
+    UsageCost,
+    UserMessage,
+    sum_usage,
+)
+from baldric_protocol.provider import ModelProvider
+from baldric_protocol.provider_events import AssistantDoneEvent, AssistantErrorEvent, TextDeltaEvent
+from baldric_protocol.session import (
+    CompactionEntry,
+    CustomEntry,
+    CustomMessageEntry,
+    MessageEntry,
+    ModelChangeEntry,
+    ThinkingLevelChangeEntry,
+)
+from baldric_protocol.session.entries import SessionEntry
+from baldric_protocol.types import JSONValue
 
 if TYPE_CHECKING:
     from baldric_coding.session.session import CodingSession

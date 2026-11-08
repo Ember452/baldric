@@ -6,9 +6,6 @@ import asyncio
 from collections.abc import Mapping
 from pathlib import Path
 
-from baldric_agent.messages import ImageContent, TextContent
-from baldric_agent.tools import AgentTool, AgentToolResult, ToolCancellationToken
-from baldric_agent.types import JSONValue
 from baldric_coding.tools.base import (
     DEFAULT_MAX_OUTPUT_BYTES,
     DEFAULT_MAX_OUTPUT_LINES,
@@ -31,6 +28,9 @@ from baldric_coding.tools.image_processing import (
 )
 from baldric_coding.tools.output_accumulator import format_size
 from baldric_coding.tools.truncate import truncate_head
+from baldric_protocol.messages import ImageContent, TextContent
+from baldric_protocol.tools import AgentTool, AgentToolResult, ToolCancellationToken
+from baldric_protocol.types import JSONValue
 
 
 def _validate_local_read_path(path: Path) -> None:

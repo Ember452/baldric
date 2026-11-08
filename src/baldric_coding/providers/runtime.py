@@ -11,7 +11,6 @@ from os import environ
 from typing import Protocol
 from weakref import WeakKeyDictionary
 
-from baldric_agent.provider import ModelProvider
 from baldric_ai.anthropic import AnthropicProvider
 from baldric_ai.env import AnthropicConfig, OpenAICompatibleConfig, RuntimeProviderAuth
 from baldric_ai.google import GoogleGenerativeAIProvider
@@ -65,6 +64,7 @@ from baldric_coding.providers.config import (
     validate_provider_model,
 )
 from baldric_coding.providers.stores.codex_version import CodexClientVersionResolver
+from baldric_protocol.provider import ModelProvider
 
 
 class ClosableModelProvider(ModelProvider, Protocol):

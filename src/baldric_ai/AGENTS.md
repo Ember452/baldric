@@ -3,9 +3,9 @@
 Provider adapters: they talk to a model endpoint and emit
 `AssistantMessageEvent` streams, and know nothing about sessions, files, or UI.
 
-This is an **adapter layer over the harness contract**, not the lowest layer:
-`baldric_agent` owns the wire types and the `ModelProvider` port. The arrow is
-`baldric_ai -> baldric_agent`, restricted by CI to five contract modules.
+This is an **adapter layer over the protocol contract**: `baldric_protocol`
+owns the wire types and the `ModelProvider` port. The arrow is
+`baldric_ai -> baldric_protocol`, restricted by CI to the contract modules.
 
 ## Responsibilities
 
@@ -17,9 +17,9 @@ This is an **adapter layer over the harness contract**, not the lowest layer:
 
 ## Boundaries
 
-- Import `baldric_agent` only through `messages`, `provider`,
-  `provider_events`, `tools`, and `types`; never `loop`, `harness`, `session`,
-  `tool_calls`, or `context_projection`.
+- Import `baldric_protocol` only through `messages`, `provider`,
+  `provider_events`, `tools`, and `types`; never `baldric_agent` or
+  `baldric_coding`.
 - No `baldric_coding`, UI, terminal, Rich, or Textual imports.
 - Provider quirks stay in adapters; `stream.py` and `retry.py` stay neutral.
 

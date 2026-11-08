@@ -10,10 +10,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol, cast
 from uuid import uuid4
 
-from baldric_agent.messages import AgentMessage, ToolResultMessage
 from baldric_agent.tool_calls import BeforeToolCall
-from baldric_agent.tools import AgentTool, AgentToolResult
-from baldric_agent.types import JSONValue
+from baldric_protocol.messages import AgentMessage, ToolResultMessage
+from baldric_protocol.tools import AgentTool, AgentToolResult
+from baldric_protocol.types import JSONValue
 
 if TYPE_CHECKING:
     from textual import events

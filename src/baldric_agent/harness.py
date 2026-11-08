@@ -12,16 +12,16 @@ from typing import Literal
 
 from baldric_agent.events import AgentEvent, MessageEndEvent, MessageStartEvent
 from baldric_agent.loop import run_agent_loop
-from baldric_agent.messages import (
+from baldric_agent.tool_calls import AfterToolCall, BeforeToolCall
+from baldric_protocol.messages import (
     AgentMessage,
     AssistantMessage,
     TextContent,
     ToolResultMessage,
     UserMessage,
 )
-from baldric_agent.provider import ModelProvider
-from baldric_agent.tool_calls import AfterToolCall, BeforeToolCall
-from baldric_agent.tools import AgentTool
+from baldric_protocol.provider import ModelProvider
+from baldric_protocol.tools import AgentTool
 
 EventListener = Callable[[AgentEvent], Awaitable[None] | None]
 QueueMode = Literal["one_at_a_time", "all"]

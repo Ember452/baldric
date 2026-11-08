@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from baldric_agent.session.entries import SessionEntry
+from baldric_protocol.session.entries import SessionEntry
 
 
 class SessionTreeError(ValueError):

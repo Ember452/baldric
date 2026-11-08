@@ -14,7 +14,6 @@ from pathlib import Path
 
 import pytest
 
-from baldric_agent.messages import AssistantMessage, UserMessage
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.extensions.builtins.subagents.output_file import (
     OutputFileWriter,
@@ -24,6 +23,7 @@ from baldric_coding.extensions.builtins.subagents.output_file import (
     sweep_transcripts,
     transcripts_root,
 )
+from baldric_protocol.messages import AssistantMessage, UserMessage
 
 pytestmark = pytest.mark.anyio
 

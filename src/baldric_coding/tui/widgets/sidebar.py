@@ -22,7 +22,6 @@ from textual.message import Message
 from textual.widget import Widget
 from textual.widgets import Collapsible, Static
 
-from baldric_agent.tools import AgentTool
 from baldric_coding.context.prompts import PromptTemplate
 from baldric_coding.context.skills.skills import Skill
 from baldric_coding.context.system_prompt import (
@@ -33,6 +32,7 @@ from baldric_coding.session.compaction.context_window import estimate_text_token
 from baldric_coding.session.stats import SessionStats
 from baldric_coding.tui.config import BALDRIC_DARK_THEME, TuiTheme
 from baldric_coding.version import current_version
+from baldric_protocol.tools import AgentTool
 
 BALDRIC_SIDEBAR_LOGO = "τ = 2π"
 

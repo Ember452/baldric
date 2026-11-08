@@ -25,11 +25,11 @@ from typing import TYPE_CHECKING
 
 from rich.markup import escape as _escape
 
-from baldric_agent.types import JSONValue
+from baldric_protocol.types import JSONValue
 
 if TYPE_CHECKING:
-    from baldric_agent.tools import AgentToolResult
     from baldric_coding.extensions.api import CustomMessageView, MessageRenderOptions
+    from baldric_protocol.tools import AgentToolResult
 
 FAILURE_STATUSES = ("error", "stopped", "aborted", "cancelled")
 # User-initiated stops render neutral-dim, not failure-red: the user asked for

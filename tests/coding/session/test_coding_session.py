@@ -23,25 +23,6 @@ from baldric_agent import (
     Usage,
     UserMessage,
 )
-from baldric_agent.messages import (
-    AssistantMessageDiagnostic,
-    BashExecutionMessage,
-    assistant_content,
-)
-from baldric_agent.provider_events import AssistantErrorEvent
-from baldric_agent.session import (
-    CompactionEntry,
-    CustomEntry,
-    CustomMessageEntry,
-    JsonlSessionStorage,
-    LabelEntry,
-    LeafEntry,
-    MessageEntry,
-    ModelChangeEntry,
-    SessionEntry,
-    SessionInfoEntry,
-    ThinkingLevelChangeEntry,
-)
 from baldric_ai import (
     CancellationToken,
     FakeProvider,
@@ -93,6 +74,7 @@ from baldric_coding.providers.stores.codex_model_store import (
     cached_codex_model_catalog,
     save_codex_model_catalog,
 )
+from baldric_coding.session import JsonlSessionStorage
 from baldric_coding.session import session as coding_session_module
 from baldric_coding.session.compaction.context_window import estimate_message_tokens
 from baldric_coding.session.session import (
@@ -102,6 +84,24 @@ from baldric_coding.session.session import (
     _tree_branch_indents,
     is_retryable_huggingface_route_error,
     parse_terminal_command,
+)
+from baldric_protocol.messages import (
+    AssistantMessageDiagnostic,
+    BashExecutionMessage,
+    assistant_content,
+)
+from baldric_protocol.provider_events import AssistantErrorEvent
+from baldric_protocol.session import (
+    CompactionEntry,
+    CustomEntry,
+    CustomMessageEntry,
+    LabelEntry,
+    LeafEntry,
+    MessageEntry,
+    ModelChangeEntry,
+    SessionEntry,
+    SessionInfoEntry,
+    ThinkingLevelChangeEntry,
 )
 from tests.helpers.conftest_utils import isolate_home
 from tests.helpers.pi_event_helpers import (

@@ -44,7 +44,7 @@ def _image_history() -> list[AgentMessage]:
 
 
 def _tool(execute: Any) -> Any:
-    from baldric_agent.tools import AgentTool
+    from baldric_protocol.tools import AgentTool
 
     return AgentTool(
         name="read",
@@ -134,7 +134,7 @@ async def test_success_resets_error_streak_and_tools_are_not_rerun() -> None:
     ) -> Any:
         nonlocal executions
         executions += 1
-        from baldric_agent.tools import AgentToolResult
+        from baldric_protocol.tools import AgentToolResult
 
         return AgentToolResult(content=[ImageContent(data="AA==", mime_type="image/png")])
 

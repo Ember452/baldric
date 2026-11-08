@@ -45,8 +45,8 @@ from baldric_agent import (
     UsageCost,
     UserMessage,
 )
-from baldric_agent.messages import AssistantMessageDiagnostic, ResponseTiming, WireModel
-from baldric_agent.provider_events import (
+from baldric_protocol.messages import AssistantMessageDiagnostic, ResponseTiming, WireModel
+from baldric_protocol.provider_events import (
     AssistantDoneEvent,
     AssistantErrorEvent,
     AssistantMessageEvent,

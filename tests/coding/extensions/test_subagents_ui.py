@@ -26,8 +26,6 @@ from textual.app import App, ComposeResult
 from textual.events import Key
 from textual.widgets import Input
 
-from baldric_agent.messages import AssistantMessage, ToolResultMessage, UserMessage
-from baldric_agent.tools import ToolCall
 from baldric_coding.extensions.builtins.subagents.extension import AgentRun, SubagentManager
 from baldric_coding.extensions.builtins.subagents.ui.controller import STRIP_KEY, SubagentUiController
 from baldric_coding.extensions.builtins.subagents.ui.strip import AgentStripWidget
@@ -35,6 +33,8 @@ from baldric_coding.extensions.builtins.subagents.ui.viewer import ConversationV
 from baldric_coding.tui.app import _theme_css_variables
 from baldric_coding.tui.config import BALDRIC_DARK_THEME
 from baldric_coding.tui.widgets import TranscriptMessageWidget
+from baldric_protocol.messages import AssistantMessage, ToolResultMessage, UserMessage
+from baldric_protocol.tools import ToolCall
 
 # Sibling test module (pytest prepend import mode puts tests/ on sys.path).
 from tests.helpers.subagents_shared import RecordingSession, _load_runtime

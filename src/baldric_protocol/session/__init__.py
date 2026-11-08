@@ -1,8 +1,13 @@
-"""Append-only session tree primitives for Baldric."""
+"""Persisted session wire contract: entry shape, tree traversal, and JSONL format.
+
+`memory` (SessionState projection) and `storage` (file I/O) deliberately live in
+`baldric_coding`, not here: the projection carries session-application semantics
+and storage carries platform I/O, neither of which belongs in the pure contract.
+"""
 
 from __future__ import annotations
 
-from baldric_agent.session.entries import (
+from baldric_protocol.session.entries import (
     CURRENT_SCHEMA_VERSION,
     SESSION_ENTRY_MODELS,
     BaseSessionEntry,
@@ -18,16 +23,19 @@ from baldric_agent.session.entries import (
     SessionInfoEntry,
     ThinkingLevelChangeEntry,
 )
-from baldric_agent.session.jsonl import (
+from baldric_protocol.session.jsonl import (
     SessionJsonlError,
     SessionVersionError,
     entries_from_json_lines,
+    entries_from_transcript,
     entry_from_json_line,
     entry_to_json_line,
 )
-from baldric_agent.session.memory import SessionState
-from baldric_agent.session.storage import InMemorySessionStorage, JsonlSessionStorage, SessionStorage
-from baldric_agent.session.tree import SessionTreeError, entries_by_id, path_to_entry
+from baldric_protocol.session.tree import (
+    SessionTreeError,
+    entries_by_id,
+    path_to_entry,
+)
 
 __all__ = [
     "CURRENT_SCHEMA_VERSION",
@@ -37,23 +45,20 @@ __all__ = [
     "CompactionEntry",
     "CustomEntry",
     "CustomMessageEntry",
-    "InMemorySessionStorage",
-    "JsonlSessionStorage",
     "LabelEntry",
     "LeafEntry",
     "MessageEntry",
     "ModelChangeEntry",
     "SessionEntry",
     "SessionInfoEntry",
-    "SessionJsonlError",
-    "SessionState",
-    "SessionStorage",
-    "SessionTreeError",
-    "SessionVersionError",
     "ThinkingLevelChangeEntry",
-    "entries_by_id",
+    "SessionJsonlError",
+    "SessionVersionError",
     "entries_from_json_lines",
+    "entries_from_transcript",
     "entry_from_json_line",
     "entry_to_json_line",
+    "SessionTreeError",
+    "entries_by_id",
     "path_to_entry",
 ]

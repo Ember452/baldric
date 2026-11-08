@@ -8,8 +8,8 @@ from typing import Literal, Protocol
 
 from pydantic import Field, model_validator
 
-from baldric_agent.messages import ImageContent, TextContent, ToolCall, WireModel
-from baldric_agent.types import JSONValue
+from baldric_protocol.messages import ImageContent, TextContent, ToolCall, WireModel
+from baldric_protocol.types import JSONValue
 
 
 class ToolCancellationToken(Protocol):

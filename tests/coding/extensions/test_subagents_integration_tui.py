@@ -26,7 +26,6 @@ from baldric_agent import (
     ToolExecutionEndEvent,
     ToolExecutionStartEvent,
 )
-from baldric_agent.messages import AssistantMessage
 from baldric_ai import AssistantDoneEvent, AssistantStartEvent, FakeProvider
 from baldric_coding.context.skills.skills import Skill
 from baldric_coding.context.system_prompt import ProjectContextFile
@@ -39,6 +38,7 @@ from baldric_coding.tools.registry import create_coding_tools
 from baldric_coding.trust.policy import ProjectTrustResolution
 from baldric_coding.tui.app import BaldricTuiApp, PromptInput
 from baldric_coding.tui.widgets import TranscriptMessageWidget, TranscriptView
+from baldric_protocol.messages import AssistantMessage
 
 # Sibling test modules (pytest prepend import mode puts tests/ on sys.path).
 from tests.helpers.subagents_shared import (

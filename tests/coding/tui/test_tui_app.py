@@ -55,12 +55,6 @@ from baldric_agent import (
     ToolResultMessage,
     UserMessage,
 )
-from baldric_agent.messages import assistant_content
-from baldric_agent.provider_events import (
-    TextDeltaEvent,
-    ThinkingDeltaEvent,
-    ThinkingEndEvent,
-)
 from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric_coding.commands.base import CommandKind, CommandOutcome, MessageDisplay
 from baldric_coding.commands.registry import CommandResult
@@ -201,6 +195,12 @@ from baldric_coding.tui.widgets import (
     transcript_item_selection_text,
 )
 from baldric_coding.version import current_version
+from baldric_protocol.messages import assistant_content
+from baldric_protocol.provider_events import (
+    TextDeltaEvent,
+    ThinkingDeltaEvent,
+    ThinkingEndEvent,
+)
 from tests.helpers.conftest_utils import isolate_home
 from tests.helpers.tui_helpers import (
     FakeSession,

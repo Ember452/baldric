@@ -16,7 +16,7 @@ import time
 from datetime import datetime
 from typing import TYPE_CHECKING, Literal, Protocol
 
-from baldric_agent.messages import AgentMessage, AssistantMessage, TextContent, UserMessage
+from baldric_protocol.messages import AgentMessage, AssistantMessage, TextContent, UserMessage
 
 if TYPE_CHECKING:
     from .extension import AgentRun, SubagentManager

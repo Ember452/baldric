@@ -6,7 +6,6 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Literal, Protocol
 
-from baldric_agent.session.entries import SessionEntry
 from baldric_coding.commands.registry import CommandRegistry
 from baldric_coding.events import CodingSessionEvent
 from baldric_coding.providers.config import (
@@ -19,6 +18,7 @@ from baldric_coding.session.session import (
     TerminalCommandResult,
 )
 from baldric_coding.session.stats import SessionStats
+from baldric_protocol.session.entries import SessionEntry
 
 
 class RpcSession(Protocol):

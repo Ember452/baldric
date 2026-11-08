@@ -13,8 +13,8 @@ follows Pi's extension system, adapted to Python.
 Create `~/.baldric/extensions/greet.py`:
 
 ```python
-from baldric_agent.messages import TextContent
-from baldric_agent.tools import AgentTool, AgentToolResult
+from baldric_protocol.messages import TextContent
+from baldric_protocol.tools import AgentTool, AgentToolResult
 
 
 async def run_greet(tool_call_id, arguments, signal=None, on_update=None):
@@ -185,7 +185,7 @@ manually placed files.
 ```python
 def setup(baldric):
     # registration
-    baldric.register_tool(agent_tool)            # baldric_agent.tools.AgentTool
+    baldric.register_tool(agent_tool)            # baldric_protocol.tools.AgentTool
     baldric.register_provider(dynamic_provider)  # process-local
     baldric.register_command("name", handler, description="...")
     baldric.add_prompt_guideline("Never commit directly to main")
@@ -391,7 +391,7 @@ management and Hugging Face model mutations remain outside this phase.
 
 ### Tools
 
-`register_tool` takes a plain `baldric_agent.tools.AgentTool`: a name, label,
+`register_tool` takes a plain `baldric_protocol.tools.AgentTool`: a name, label,
 description, a hand-written JSON-schema `parameters` mapping, and an async
 `execute_fn(tool_call_id, arguments, signal=None, on_update=None)`. Give the tool a
 `prompt_snippet` to list it in the system prompt's "Available tools"

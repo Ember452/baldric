@@ -16,8 +16,8 @@ from pathlib import Path
 
 import pytest
 
-from baldric_agent.session import JsonlSessionStorage
 from baldric_ai import FakeProvider
+from baldric_coding.session import JsonlSessionStorage
 from baldric_coding.session.session import CodingSession, CodingSessionConfig
 
 

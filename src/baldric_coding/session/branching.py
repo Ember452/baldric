@@ -5,14 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from baldric_agent.messages import (
-    UserMessage,
-)
-from baldric_agent.session import (
-    BranchSummaryEntry,
-    LabelEntry,
-)
-from baldric_agent.session.entries import SessionEntry
 from baldric_coding.session.provider_helpers import (
     _default_thinking_level_for_active_model as _default_thinking_level_for_active_model,
 )
@@ -40,6 +32,11 @@ from baldric_coding.session.tree_helpers import (
 from baldric_coding.session.tree_helpers import (
     _tree_layout as _tree_layout,
 )
+from baldric_protocol.messages import (
+    UserMessage,
+)
+from baldric_protocol.session import BranchSummaryEntry, LabelEntry
+from baldric_protocol.session.entries import SessionEntry
 
 if TYPE_CHECKING:
     from baldric_coding.session.session import CodingSession

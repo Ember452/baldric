@@ -6,8 +6,8 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-from baldric_agent.types import JSONValue
 from baldric_coding.auth.credentials import OAuthCredential
+from baldric_protocol.types import JSONValue
 
 OAuthFlowKind = Literal["browser", "device_code"]
 

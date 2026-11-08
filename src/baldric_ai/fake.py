@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Iterable
 
-from baldric_agent.messages import AgentMessage
-from baldric_agent.tools import AgentTool
 from baldric_ai.events import AssistantMessageEvent
 from baldric_ai.provider import CancellationToken
+from baldric_protocol.messages import AgentMessage
+from baldric_protocol.tools import AgentTool
 
 
 class FakeProvider:

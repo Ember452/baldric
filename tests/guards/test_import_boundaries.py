@@ -7,10 +7,13 @@ is worse than no gate at all.
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 from scripts.check_import_graph import (
-    AI_AGENT_SURFACE,
+    AI_PROTOCOL_SURFACE,
     RULES,
     ImportViolation,
     scan_surface_violations,
@@ -28,6 +31,18 @@ def test_rules_declare_the_layer_direction() -> None:
     assert ("baldric_agent", "textual") in pairs
     assert ("baldric_ai", "baldric_coding") in pairs
     assert ("baldric_coding.rendering", "baldric_coding.tui") in pairs
+
+
+def test_protocol_is_the_bottom_layer() -> None:
+    """The protocol package must not depend on upper layers or platform I/O."""
+    pairs = set(RULES)
+    for forbidden in ("baldric_agent", "baldric_ai", "baldric_coding", "textual", "rich", "fcntl", "msvcrt"):
+        assert ("baldric_protocol", forbidden) in pairs, f"missing protocol rule: {forbidden}"
+
+
+def test_kernel_cannot_depend_on_providers() -> None:
+    """The reverse arrow: the agent kernel must not import provider adapters."""
+    assert ("baldric_agent", "baldric_ai") in set(RULES)
 
 
 def test_repository_has_no_layer_violations() -> None:
@@ -87,20 +102,20 @@ def test_scanner_detects_rendering_importing_the_frontend(tmp_path: Path) -> Non
     ]
 
 
-def test_ai_agent_surface_is_declared_and_real() -> None:
+def test_ai_protocol_surface_is_declared_and_real() -> None:
     """The surface must stay non-empty and must point at modules that exist."""
-    assert AI_AGENT_SURFACE
+    assert AI_PROTOCOL_SURFACE
     missing = [
         module
-        for module in AI_AGENT_SURFACE
+        for module in AI_PROTOCOL_SURFACE
         if not (REPO_ROOT / "src" / module.replace(".", "/")).with_suffix(".py").exists()
     ]
 
-    assert missing == [], f"AI_AGENT_SURFACE lists modules that no longer exist: {missing}"
+    assert missing == [], f"AI_PROTOCOL_SURFACE lists modules that no longer exist: {missing}"
 
 
-def test_provider_layer_stays_on_the_agent_contract_surface() -> None:
-    """``baldric_ai`` may use the harness's wire contract and nothing else."""
+def test_provider_layer_stays_on_the_protocol_contract_surface() -> None:
+    """``baldric_ai`` may use the protocol contract and nothing else."""
     violations = scan_surface_violations(REPO_ROOT)
 
     assert violations == [], "\n".join(
@@ -108,8 +123,8 @@ def test_provider_layer_stays_on_the_agent_contract_surface() -> None:
     )
 
 
-def test_surface_scanner_detects_deeper_agent_import(tmp_path: Path) -> None:
-    """Importing the loop or harness from the provider layer must be reported."""
+def test_surface_scanner_detects_harness_import_from_provider(tmp_path: Path) -> None:
+    """Importing the harness from the provider layer must be reported."""
     package = tmp_path / "src" / "baldric_ai"
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
@@ -123,8 +138,8 @@ def test_surface_scanner_detects_deeper_agent_import(tmp_path: Path) -> None:
     assert violations == [ImportViolation(module="baldric_ai.leaky", lineno=1, imported="baldric_agent.loop")]
 
 
-def test_surface_scanner_rejects_package_root_import(tmp_path: Path) -> None:
-    """The package root runs ``__init__``, which pulls session storage."""
+def test_surface_scanner_rejects_agent_package_root_import(tmp_path: Path) -> None:
+    """Importing the harness package root from the provider layer is a violation."""
     package = tmp_path / "src" / "baldric_ai"
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
@@ -138,15 +153,57 @@ def test_surface_scanner_rejects_package_root_import(tmp_path: Path) -> None:
     assert violations == [ImportViolation(module="baldric_ai.rooted", lineno=1, imported="baldric_agent")]
 
 
-def test_surface_scanner_allows_contract_modules(tmp_path: Path) -> None:
+def test_surface_scanner_allows_protocol_contract_modules(tmp_path: Path) -> None:
     package = tmp_path / "src" / "baldric_ai"
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
     (package / "allowed.py").write_text(
-        "from baldric_agent.messages import AssistantMessage\n"
-        "from baldric_agent.tools import AgentTool\n"
-        "from baldric_agent.provider_events import TextDeltaEvent\n",
+        "from baldric_protocol.messages import AssistantMessage\n"
+        "from baldric_protocol.tools import AgentTool\n"
+        "from baldric_protocol.provider_events import TextDeltaEvent\n",
         encoding="utf-8",
     )
 
     assert scan_surface_violations(tmp_path) == []
+
+
+def _loaded_modules_after_import(module_name: str) -> set[str]:
+    """Import ``module_name`` in a clean subprocess and return ``sys.modules``."""
+    code = f"import {module_name}\nimport sys\nprint(chr(10).join(sys.modules))"
+    env = {**os.environ, "PYTHONPATH": "src"}
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    return set(result.stdout.split())
+
+
+def _loads_only(module_name: str, forbidden: tuple[str, ...]) -> list[str]:
+    loaded = _loaded_modules_after_import(module_name)
+    leaked: list[str] = []
+    for name in forbidden:
+        leaked.extend(sorted(m for m in loaded if m == name or m.startswith(name + ".")))
+    return leaked
+
+
+def test_protocol_loads_no_upper_layer_at_runtime() -> None:
+    """The contract package must not pull the runtime, adapters, or frontend.
+
+    Static import checks miss coupling that flows through a package ``__init__``
+    re-export; asserting on ``sys.modules`` after a bare import catches it.
+    """
+    leaked = _loads_only(
+        "baldric_protocol",
+        ("baldric_agent", "baldric_ai", "baldric_coding", "textual", "rich"),
+    )
+    assert leaked == [], f"baldric_protocol pulled in: {leaked}"
+
+
+def test_kernel_and_providers_do_not_load_each_other_at_runtime() -> None:
+    """The agent kernel and the provider layer must stay decoupled at runtime."""
+    assert _loads_only("baldric_agent", ("baldric_ai", "baldric_coding")) == []
+    assert _loads_only("baldric_ai", ("baldric_agent", "baldric_coding")) == []

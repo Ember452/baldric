@@ -9,9 +9,6 @@ from pathlib import Path
 from time import monotonic
 from typing import Any
 
-from baldric_agent.messages import TextContent
-from baldric_agent.tools import AgentTool, AgentToolResult, ToolCancellationToken
-from baldric_agent.types import JSONValue
 from baldric_coding.tools.base import (
     DEFAULT_MAX_OUTPUT_BYTES,
     DEFAULT_MAX_OUTPUT_LINES,
@@ -23,6 +20,9 @@ from baldric_coding.tools.base import (
 from baldric_coding.tools.output_accumulator import _write_temp_output, append_status_block, format_size
 from baldric_coding.tools.shell import kill_process_tree, resolve_shell
 from baldric_coding.tools.truncate import truncate_tail
+from baldric_protocol.messages import TextContent
+from baldric_protocol.tools import AgentTool, AgentToolResult, ToolCancellationToken
+from baldric_protocol.types import JSONValue
 
 
 def create_bash_tool_definition(

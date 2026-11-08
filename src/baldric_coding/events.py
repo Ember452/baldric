@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 from pydantic import Field
 
 from baldric_agent.events import AgentEvent
-from baldric_agent.messages import AgentMessage, WireModel
+from baldric_protocol.messages import AgentMessage, WireModel
 
 
 class SessionAgentEndEvent(WireModel):

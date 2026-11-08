@@ -11,11 +11,11 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-from baldric_agent.messages import AssistantMessage
 from baldric_ai import AssistantDoneEvent, AssistantStartEvent
 from baldric_coding import BaldricResourcePaths
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.extensions import ExtensionRuntime
+from baldric_protocol.messages import AssistantMessage
 
 EXTENSION_DIR = (
     Path(__file__).resolve().parents[2] / "src" / "baldric_coding" / "extensions" / "builtins" / "subagents"

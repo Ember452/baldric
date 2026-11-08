@@ -5,12 +5,12 @@ from __future__ import annotations
 import asyncio  # noqa: F401 - tests monkeypatch this module's asyncio.to_thread
 from pathlib import Path
 
-from baldric_agent.tools import AgentTool
 from baldric_coding.tools.base import ImageSupportState, ReadOperations, ToolDefinition, ToolInputError
 from baldric_coding.tools.bash import create_bash_tool, create_bash_tool_definition
 from baldric_coding.tools.edit import create_edit_tool, create_edit_tool_definition
 from baldric_coding.tools.read import create_read_tool, create_read_tool_definition
 from baldric_coding.tools.write import create_write_tool, create_write_tool_definition
+from baldric_protocol.tools import AgentTool
 
 __all__ = [
     "ImageSupportState",

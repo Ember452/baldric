@@ -9,10 +9,6 @@ from os import environ
 from typing import TYPE_CHECKING
 
 from baldric_agent.events import AgentEndEvent, MessageEndEvent, ToolExecutionEndEvent
-from baldric_agent.messages import (
-    AssistantMessage,
-)
-from baldric_agent.provider import ModelProvider
 from baldric_ai.model_catalog import ModelCatalogProvider
 from baldric_ai.model_limits import ModelLimitsProvider
 from baldric_coding.events import (
@@ -45,6 +41,10 @@ from baldric_coding.session.tree_helpers import (
 from baldric_coding.session.tree_helpers import (
     is_retryable_huggingface_route_error as is_retryable_huggingface_route_error,
 )
+from baldric_protocol.messages import (
+    AssistantMessage,
+)
+from baldric_protocol.provider import ModelProvider
 
 if TYPE_CHECKING:
     from baldric_coding.session.session import CodingSession

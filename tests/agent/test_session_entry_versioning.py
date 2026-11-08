@@ -14,8 +14,8 @@ import json
 
 import pytest
 
-from baldric_agent.messages import AssistantMessage, TextContent, UserMessage
-from baldric_agent.session import (
+from baldric_protocol.messages import AssistantMessage, TextContent, UserMessage
+from baldric_protocol.session import (
     CURRENT_SCHEMA_VERSION,
     CustomEntry,
     MessageEntry,

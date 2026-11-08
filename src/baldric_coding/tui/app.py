@@ -44,24 +44,6 @@ from baldric_agent.events import (
     ToolExecutionStartEvent,
     ToolExecutionUpdateEvent,
 )
-from baldric_agent.messages import (
-    AgentMessage,
-    AssistantMessage,
-    CustomMessage,
-    ThinkingContent,
-    ToolCall,
-    UserMessage,
-)
-from baldric_agent.provider import CancellationToken
-from baldric_agent.provider_events import (
-    AssistantErrorEvent,
-    AssistantMessageEvent,
-    TextDeltaEvent,
-    ThinkingDeltaEvent,
-    ThinkingEndEvent,
-)
-from baldric_agent.tools import AgentTool
-from baldric_agent.types import JSONValue
 from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
 
 # Re-exported on purpose: ``tui/screens/login.py`` resolves the OAuth provider via
@@ -346,6 +328,24 @@ from baldric_coding.tui.widgets.prompt_input import (
 from baldric_coding.tui.widgets.prompt_input import (
     _terminal_command_prefix_span as _terminal_command_prefix_span,
 )
+from baldric_protocol.messages import (
+    AgentMessage,
+    AssistantMessage,
+    CustomMessage,
+    ThinkingContent,
+    ToolCall,
+    UserMessage,
+)
+from baldric_protocol.provider import CancellationToken
+from baldric_protocol.provider_events import (
+    AssistantErrorEvent,
+    AssistantMessageEvent,
+    TextDeltaEvent,
+    ThinkingDeltaEvent,
+    ThinkingEndEvent,
+)
+from baldric_protocol.tools import AgentTool
+from baldric_protocol.types import JSONValue
 
 _textual_theme_for_baldric_theme = textual_theme_for_tui_theme
 _theme_css_variables = theme_css_variables

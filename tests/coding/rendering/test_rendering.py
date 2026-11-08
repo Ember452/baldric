@@ -15,9 +15,9 @@ from baldric_agent import (
     ToolExecutionStartEvent,
     ToolExecutionUpdateEvent,
 )
-from baldric_agent.provider_events import TextDeltaEvent, ThinkingDeltaEvent
 from baldric_coding.events import AutoRetryEndEvent, AutoRetryStartEvent, QueueUpdateEvent
 from baldric_coding.rendering import FinalTextRenderer, JsonEventRenderer, TranscriptRenderer
+from baldric_protocol.provider_events import TextDeltaEvent, ThinkingDeltaEvent
 
 
 def _assistant_update(event) -> MessageUpdateEvent:  # noqa: ANN001

@@ -14,11 +14,11 @@ from baldric_agent.events import (
     ToolExecutionStartEvent,
     ToolExecutionUpdateEvent,
 )
-from baldric_agent.messages import AssistantMessage, TextContent, ToolCall, ToolResultMessage
-from baldric_agent.provider import CancellationToken
 from baldric_agent.tool_arguments import argument_problems, invalid_arguments_message
-from baldric_agent.tools import AgentTool, AgentToolResult
-from baldric_agent.types import JSONValue
+from baldric_protocol.messages import AssistantMessage, TextContent, ToolCall, ToolResultMessage
+from baldric_protocol.provider import CancellationToken
+from baldric_protocol.tools import AgentTool, AgentToolResult
+from baldric_protocol.types import JSONValue
 
 BeforeToolCall = Callable[[ToolCall], Awaitable[tuple[bool, str | None]]]
 AfterToolCall = Callable[

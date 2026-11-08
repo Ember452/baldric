@@ -8,21 +8,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from baldric_agent.messages import (
-    AgentMessage,
-    AssistantMessage,
-    BashExecutionMessage,
-    BranchSummaryMessage,
-    CompactionSummaryMessage,
-    CustomMessage,
-    TextContent,
-    ThinkingContent,
-    ToolResultMessage,
-    UserMessage,
-    bash_execution_text,
-)
-from baldric_agent.tools import AgentToolResult, ToolCall
-from baldric_agent.types import JSONValue
 from baldric_coding.context.skills.skills import Skill, parse_skill_invocation
 from baldric_coding.context.system_prompt import SystemPromptSource
 from baldric_coding.extensions.api import (
@@ -39,6 +24,21 @@ from baldric_coding.rendering.tool_calls import (
     format_tool_call_invocation,
 )
 from baldric_coding.rendering.widths import cell_width, truncate_to_cells
+from baldric_protocol.messages import (
+    AgentMessage,
+    AssistantMessage,
+    BashExecutionMessage,
+    BranchSummaryMessage,
+    CompactionSummaryMessage,
+    CustomMessage,
+    TextContent,
+    ThinkingContent,
+    ToolResultMessage,
+    UserMessage,
+    bash_execution_text,
+)
+from baldric_protocol.tools import AgentToolResult, ToolCall
+from baldric_protocol.types import JSONValue
 
 ChatItemRole = TranscriptRole
 TOOL_RESULT_PREVIEW_LINES = 8

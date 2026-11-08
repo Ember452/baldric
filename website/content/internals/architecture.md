@@ -1,17 +1,25 @@
 ---
 title: Architecture overview
-description: How Baldric is split into three layers — and why that boundary is the whole point.
+description: How Baldric is split into four packages — and why that boundary is the whole point.
 ---
 
 Baldric is deliberately small and layered. The most important design idea is a
 **boundary**: the reusable agent "brain" knows nothing about terminals, file
 paths, or rendering. Everything app-specific wraps around it.
 
-## Three packages
+## Four packages
 
 ```text
-baldric_coding  →  baldric_agent  →  baldric_ai
+baldric_coding  →  { baldric_agent, baldric_ai }  →  baldric_protocol
 ```
+
+### `baldric_protocol` — the shared wire contract
+
+Owns the provider-neutral shapes every other layer speaks: message and content
+models, the tool contract, provider-stream events, and the persisted session
+wire (entry shape, tree traversal, JSONL format). Its only dependency is
+pydantic — no I/O, no platform code, nothing above it. Third parties (provider
+adapters, frontends, session tooling) can build against this package alone.
 
 ### `baldric_ai` — talking to models
 
@@ -21,8 +29,9 @@ above it has to care which model vendor is in use.
 
 ### `baldric_agent` — the portable brain
 
-Owns the reusable agent core: messages, tools, events, the
-[agent loop](/internals/agent-loop/), the harness, and session primitives. This package
+Owns the reusable agent core: the [agent loop](/internals/agent-loop/), the
+harness, event emission, and tool-call orchestration, all built on the
+`baldric_protocol` contract. This package
 must **not** import CLI, Rich, Textual, or resource-loading code. That's what
 keeps it portable.
 
@@ -60,7 +69,8 @@ downtime without making the local backend an implicit fallback.
 
 ## Dependency direction
 
-Dependencies only point one way: `baldric_coding → baldric_agent → baldric_ai`. UI code
+Dependencies only point one way: `baldric_coding → {baldric_agent, baldric_ai} → baldric_protocol`,
+and `baldric_protocol` depends on nothing but pydantic. UI code
 *consumes* events; the core never reaches up to render anything. In one line:
 
 ```text

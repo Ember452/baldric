@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from baldric_agent.messages import (
+from baldric_agent.tool_history import repair_tool_history
+from baldric_protocol.messages import (
     AgentMessage,
     AssistantMessage,
     BashExecutionMessage,
@@ -12,7 +13,6 @@ from baldric_agent.messages import (
     UserMessage,
     bash_execution_text,
 )
-from baldric_agent.tool_history import repair_tool_history
 
 
 def provider_context(messages: list[AgentMessage]) -> list[AgentMessage]:

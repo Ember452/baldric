@@ -29,14 +29,13 @@ from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.widgets import Input, Static
 
-from baldric_agent.messages import AgentMessage, UserMessage
-
 # Host-internal rendering reuse (the measured coupling): the viewer renders an
 # agent's conversation through the very same state + transcript widget the host
 # uses for the main chat, so message/tool/thinking formatting stays identical.
 from baldric_coding.tui.config import TuiKeybindings
 from baldric_coding.tui.state import TuiState
 from baldric_coding.tui.widgets import TranscriptView
+from baldric_protocol.messages import AgentMessage, UserMessage
 
 from ..agents_menu import run_snapshot_messages, steer_run, stop_run
 

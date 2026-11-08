@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 
-from baldric_agent.messages import (
+from baldric_protocol.messages import (
     AgentMessage,
     AssistantMessage,
     ToolResultMessage,
@@ -14,8 +14,8 @@ from baldric_agent.messages import (
     message_text,
     sum_usage,
 )
-from baldric_agent.provider import ModelProvider
-from baldric_agent.provider_events import AssistantDoneEvent, AssistantErrorEvent
+from baldric_protocol.provider import ModelProvider
+from baldric_protocol.provider_events import AssistantDoneEvent, AssistantErrorEvent
 
 BRANCH_SUMMARY_SYSTEM_PROMPT = (
     "You are a context summarization assistant. Your task is to read a conversation "

@@ -16,20 +16,20 @@ from baldric_agent.events import (
     TurnEndEvent,
     TurnStartEvent,
 )
-from baldric_agent.messages import (
-    AgentMessage,
-    AssistantMessage,
-    AssistantMessageDiagnostic,
-    ToolResultMessage,
-)
-from baldric_agent.provider import CancellationToken, ModelProvider
 from baldric_agent.tool_calls import (
     AfterToolCall,
     BeforeToolCall,
     execute_tool_call,
     fail_truncated_tool_calls,
 )
-from baldric_agent.tools import AgentTool, AgentToolResult
+from baldric_protocol.messages import (
+    AgentMessage,
+    AssistantMessage,
+    AssistantMessageDiagnostic,
+    ToolResultMessage,
+)
+from baldric_protocol.provider import CancellationToken, ModelProvider
+from baldric_protocol.tools import AgentTool, AgentToolResult
 
 # A model that keeps hitting the output limit on tool calls would otherwise loop
 # forever: a truncated turn executes nothing, so the provider-failure counter

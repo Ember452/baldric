@@ -27,7 +27,6 @@ from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import Static
 
-from baldric_agent.types import JSONValue
 from baldric_coding.extensions.api import (
     KeyInterceptor,
     MainViewFactory,
@@ -47,6 +46,7 @@ from baldric_coding.tui.widgets import (
     _custom_markup_to_text,
     _sidebar_separator,
 )
+from baldric_protocol.types import JSONValue
 
 if TYPE_CHECKING:
     from baldric_coding.session.session import CodingSession

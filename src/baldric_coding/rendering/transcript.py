@@ -14,12 +14,12 @@ from baldric_agent.events import (
     ToolExecutionStartEvent,
     ToolExecutionUpdateEvent,
 )
-from baldric_agent.messages import AssistantMessage, CustomMessage, ToolCall
 from baldric_ai.events import TextDeltaEvent
 from baldric_coding.events import AutoRetryEndEvent, AutoRetryStartEvent, CodingSessionEvent
 from baldric_coding.extensions.api import CustomMessageMarkup
 from baldric_coding.rendering.base import is_failed_stop_reason
 from baldric_coding.rendering.tool_calls import format_tool_call_block
+from baldric_protocol.messages import AssistantMessage, CustomMessage, ToolCall
 
 
 class TranscriptRenderer:

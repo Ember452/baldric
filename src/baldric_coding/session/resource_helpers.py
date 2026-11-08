@@ -7,15 +7,6 @@ from dataclasses import dataclass, replace
 from os import environ
 from pathlib import Path
 
-from baldric_agent.messages import (
-    AgentMessage,
-)
-from baldric_agent.session import (
-    JsonlSessionStorage,
-    SessionStorage,
-)
-from baldric_agent.session.entries import SessionEntry
-from baldric_agent.session.jsonl import entry_to_json_line
 from baldric_agent.tool_history import ToolHistoryRepair, repair_tool_history
 from baldric_ai.model_catalog import RuntimeModel, RuntimeModelCatalog
 from baldric_coding.auth.credentials import FileCredentialStore
@@ -48,7 +39,13 @@ from baldric_coding.providers.config import (
     ProviderModelMetadata,
     ProviderSettings,
 )
+from baldric_coding.session import JsonlSessionStorage, SessionStorage
 from baldric_coding.update.reload import ReloadCategorySummary
+from baldric_protocol.messages import (
+    AgentMessage,
+)
+from baldric_protocol.session.entries import SessionEntry
+from baldric_protocol.session.jsonl import entry_to_json_line
 
 
 @dataclass(frozen=True, slots=True)

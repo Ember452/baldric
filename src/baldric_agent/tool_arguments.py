@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from baldric_agent.types import JSONValue
+from baldric_protocol.types import JSONValue
 
 _TYPE_NAMES = ("string", "integer", "number", "boolean", "array", "object", "null")
 

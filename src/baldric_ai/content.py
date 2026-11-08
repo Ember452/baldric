@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from baldric_agent.messages import ImageContent, TextContent, ToolResultMessage, UserMessage
+from baldric_protocol.messages import ImageContent, TextContent, ToolResultMessage, UserMessage
 
 NON_VISION_USER_IMAGE_PLACEHOLDER = (
     "(image omitted: current model does not support image input; image contents are "

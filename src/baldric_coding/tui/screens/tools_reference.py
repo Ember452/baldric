@@ -18,10 +18,10 @@ from textual.widgets import (
     Static,
 )
 
-from baldric_agent.tools import AgentTool
 from baldric_coding.tui.config import (
     TuiTheme,
 )
+from baldric_protocol.tools import AgentTool
 
 if TYPE_CHECKING:
     pass

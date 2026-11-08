@@ -4,17 +4,17 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from baldric_agent.messages import (
+from baldric_coding.extensions.builtins.subagents.fork import (
+    FORK_FILLER_RESULT,
+    capture_fork,
+    wrap_fork_task,
+)
+from baldric_protocol.messages import (
     AssistantMessage,
     TextContent,
     ToolCall,
     ToolResultMessage,
     UserMessage,
-)
-from baldric_coding.extensions.builtins.subagents.fork import (
-    FORK_FILLER_RESULT,
-    capture_fork,
-    wrap_fork_task,
 )
 
 

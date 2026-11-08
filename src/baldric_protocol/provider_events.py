@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
-from baldric_agent.messages import AssistantMessage, ToolCall, WireModel
+from baldric_protocol.messages import AssistantMessage, ToolCall, WireModel
 
 
 class AssistantStartEvent(WireModel):

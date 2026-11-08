@@ -17,7 +17,8 @@ from baldric_agent import (
     ToolExecutionStartEvent,
     ToolResultMessage,
 )
-from baldric_agent.provider_events import (
+from baldric_ai import FakeProvider
+from baldric_protocol.provider_events import (
     AssistantDoneEvent,
     AssistantStartEvent,
     TextDeltaEvent,
@@ -26,7 +27,6 @@ from baldric_agent.provider_events import (
     ToolCallEndEvent,
     ToolCallStartEvent,
 )
-from baldric_ai import FakeProvider
 
 
 def test_baldric_agent_does_not_import_baldric_ai() -> None:

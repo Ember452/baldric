@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from baldric_agent.messages import (
+from baldric_protocol.messages import (
     AgentMessage,
     AssistantMessage,
     ThinkingContent,
@@ -12,7 +12,7 @@ from baldric_agent.messages import (
     UserMessage,
     message_text,
 )
-from baldric_agent.tools import AgentTool
+from baldric_protocol.tools import AgentTool
 
 CHARS_PER_TOKEN = 4
 MESSAGE_OVERHEAD_TOKENS = 4

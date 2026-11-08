@@ -12,9 +12,9 @@ from baldric_agent.events import (
     MessageUpdateEvent,
     RetryAttemptEvent,
 )
-from baldric_agent.messages import AgentMessage, ResponseTiming
-from baldric_agent.provider import CancellationToken, ModelProvider
-from baldric_agent.provider_events import (
+from baldric_protocol.messages import AgentMessage, ResponseTiming
+from baldric_protocol.provider import CancellationToken, ModelProvider
+from baldric_protocol.provider_events import (
     AssistantDoneEvent,
     AssistantErrorEvent,
     AssistantMessageEvent,
@@ -26,7 +26,7 @@ from baldric_agent.provider_events import (
     ToolCallEndEvent,
     ToolCallStartEvent,
 )
-from baldric_agent.tools import AgentTool
+from baldric_protocol.tools import AgentTool
 
 
 async def assistant_events(

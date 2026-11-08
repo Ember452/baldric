@@ -26,7 +26,6 @@ from textual.widget import Widget
 from textual.widgets import Markdown as TextualMarkdown
 from textual.widgets import Static
 
-from baldric_agent.tools import ToolCall
 from baldric_coding.context.system_prompt import (
     SystemPromptSource,
 )
@@ -54,6 +53,7 @@ from baldric_coding.tui.widgets.markdown import (
     _render_fenced_body,
     _system_prompt_markdown,
 )
+from baldric_protocol.tools import ToolCall
 
 
 @dataclass(frozen=True, slots=True)

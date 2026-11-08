@@ -4,8 +4,18 @@ from pathlib import Path
 
 import pytest
 
-from baldric_agent import (
+from baldric_coding.rendering.themes import BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME
+from baldric_coding.session.export import export_session_html, render_session_html
+from baldric_protocol.messages import (
     AssistantMessage,
+    TextContent,
+    ToolCall,
+    ToolResultMessage,
+    Usage,
+    UserMessage,
+    assistant_content,
+)
+from baldric_protocol.session import (
     CompactionEntry,
     CustomMessageEntry,
     LabelEntry,
@@ -13,14 +23,7 @@ from baldric_agent import (
     MessageEntry,
     ModelChangeEntry,
     SessionInfoEntry,
-    TextContent,
-    ToolCall,
-    ToolResultMessage,
-    UserMessage,
 )
-from baldric_agent.messages import Usage, assistant_content
-from baldric_coding.rendering.themes import BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME
-from baldric_coding.session.export import export_session_html, render_session_html
 
 
 def test_render_session_html_preserves_branch_tree() -> None:

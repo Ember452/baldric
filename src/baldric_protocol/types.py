@@ -1,4 +1,4 @@
-"""Shared low-level types for Baldric's portable agent layer."""
+"""Shared low-level types for the Baldric protocol contract layer."""
 
 from __future__ import annotations
 

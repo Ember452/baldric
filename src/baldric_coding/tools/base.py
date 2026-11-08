@@ -8,14 +8,14 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from baldric_agent.tools import (
+from baldric_protocol.tools import (
     AgentTool,
     AgentToolResult,
     ToolArgumentPreparer,
     ToolCancellationToken,
     ToolUpdateCallback,
 )
-from baldric_agent.types import JSONValue
+from baldric_protocol.types import JSONValue
 
 DEFAULT_MAX_OUTPUT_BYTES = 50 * 1024
 DEFAULT_MAX_OUTPUT_LINES = 2_000

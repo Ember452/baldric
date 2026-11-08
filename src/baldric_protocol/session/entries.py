@@ -8,8 +8,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from baldric_agent.messages import AgentMessage, Usage, UserContent
-from baldric_agent.types import JSONValue
+from baldric_protocol.messages import AgentMessage, Usage, UserContent
+from baldric_protocol.types import JSONValue
 
 CURRENT_SCHEMA_VERSION = 1
 """Shape version of the persisted session-entry protocol.

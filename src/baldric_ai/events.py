@@ -1,6 +1,6 @@
 """Public re-exports of the canonical assistant stream event contract."""
 
-from baldric_agent.provider_events import (
+from baldric_protocol.provider_events import (
     AssistantDoneEvent,
     AssistantErrorEvent,
     AssistantMessageEvent,
