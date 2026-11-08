@@ -5015,6 +5015,8 @@ def test_tui_app_registers_only_baldric_themes_with_textual() -> None:
         "baldric-dark",
         "baldric-light",
         "high-contrast",
+        "opencode-dark",
+        "pi-dark",
     )
 
 
@@ -5037,7 +5039,8 @@ def test_baldric_dark_theme_uses_aqua_as_its_shared_accent() -> None:
     assert theme.screen_background == "#000000"
     assert theme.transcript_background == "#000000"
     assert theme.prompt_background == "#101419"
-    assert theme.role_styles["user"].body.endswith(f"on {theme.prompt_background}")
+    # The user card sits on its own raised tier now, not on the prompt colour.
+    assert theme.role_styles["user"].body == "#d8dee9 on #1e2430"
     assert theme.role_styles["assistant"].body.endswith("on #000000")
 
 
@@ -5703,6 +5706,8 @@ async def test_tui_app_theme_command_opens_picker_and_persists_selection(
             "✓ baldric-dark",
             "  baldric-light",
             "  high-contrast",
+            "  opencode-dark",
+            "  pi-dark",
         ]
 
         theme_list = picker.query_one("#theme-picker-list", ListView)
@@ -12697,3 +12702,21 @@ async def test_run_tui_app_ignores_uncredentialed_provider_when_matching_resume_
 # host bridge, using an in-test caller with no subagents vocabulary. The legacy
 # agents-strip pilot tests they once coexisted with were deleted in Step 3
 # (the transcript-source seam and host agent UI left core).
+
+
+def test_user_message_renders_a_visible_card_background() -> None:
+    """The user card surface is the raised-layer brightness (opencode tier)."""
+    item = ChatItem(role="user", text="hello")
+    widget = TranscriptMessageWidget(item, theme=BALDRIC_DARK_THEME, show_tool_results=False)
+
+    assert widget.styles.background == Color(0x1E, 0x24, 0x30)
+    assert widget.styles.border_left[0] == "tall"
+
+
+def test_assistant_message_has_no_card_background() -> None:
+    """Assistant and thinking rows are deliberately bare (borderless roles)."""
+    item = ChatItem(role="assistant", text="hi")
+    widget = TranscriptMessageWidget(item, theme=BALDRIC_DARK_THEME, show_tool_results=False)
+
+    assert widget.styles.background == Color(0, 0, 0, 0)
+    assert widget.styles.border_left[0] == ""
