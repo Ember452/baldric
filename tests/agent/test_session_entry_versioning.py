@@ -14,7 +14,6 @@ import json
 
 import pytest
 
-from baldric_agent.messages import AssistantMessage, TextContent, UserMessage
 from baldric_agent.session import (
     CURRENT_SCHEMA_VERSION,
     CustomEntry,
@@ -26,6 +25,7 @@ from baldric_agent.session import (
     entry_from_json_line,
     entry_to_json_line,
 )
+from baldric_protocol.messages import AssistantMessage, TextContent, UserMessage
 
 
 def _message_entry() -> MessageEntry:

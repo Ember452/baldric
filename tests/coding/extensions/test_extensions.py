@@ -10,7 +10,6 @@ from typing import cast
 import pytest
 
 from baldric_agent import AssistantMessage, ToolCall, UserMessage
-from baldric_agent.messages import AgentMessage, assistant_content, message_to_user
 from baldric_agent.session import (
     CustomEntry,
     CustomMessageEntry,
@@ -18,8 +17,6 @@ from baldric_agent.session import (
     LeafEntry,
     MessageEntry,
 )
-from baldric_agent.tools import AgentTool, AgentToolResult
-from baldric_agent.types import JSONValue
 from baldric_ai import FakeProvider
 from baldric_coding import (
     BaldricPaths,
@@ -55,6 +52,9 @@ from baldric_coding.extensions import (
     load_extensions,
 )
 from baldric_coding.trust.policy import ProjectTrustRequest, ProjectTrustResolution, TrustChoice
+from baldric_protocol.messages import AgentMessage, assistant_content, message_to_user
+from baldric_protocol.tools import AgentTool, AgentToolResult
+from baldric_protocol.types import JSONValue
 from tests.helpers.pi_event_helpers import assistant_done, assistant_start
 
 pytestmark = pytest.mark.anyio
@@ -81,7 +81,7 @@ def _write_extension(directory: Path, name: str, body: str) -> Path:
 
 
 HELLO_TOOL_EXTENSION = """
-from baldric_agent.tools import AgentTool, AgentToolResult
+from baldric_protocol.tools import AgentTool, AgentToolResult
 
 
 async def _run(tool_call_id, arguments, signal=None, on_update=None):
@@ -737,7 +737,7 @@ async def test_built_in_order_preserves_tool_command_and_provider_precedence(
         _user_extensions_dir(paths),
         "shadow",
         """
-from baldric_agent.tools import AgentTool, AgentToolResult
+from baldric_protocol.tools import AgentTool, AgentToolResult
 from baldric_coding.extensions import DynamicProvider, NoAuth, OpenAICompatibleTransport
 
 
@@ -937,7 +937,7 @@ async def test_separately_loaded_same_name_sources_keep_first_tool_and_command(
     def body(marker: str, *, fail: bool = False) -> str:
         failure = "\n    raise RuntimeError('setup exploded')" if fail else ""
         return f"""
-from baldric_agent.tools import AgentTool, AgentToolResult
+from baldric_protocol.tools import AgentTool, AgentToolResult
 
 
 async def _run(tool_call_id, arguments, signal=None, on_update=None):
@@ -996,7 +996,7 @@ async def test_failed_setup_cleans_every_registration_after_entry_symlink_retarg
         f"""
 from pathlib import Path
 
-from baldric_agent.tools import AgentTool, AgentToolResult
+from baldric_protocol.tools import AgentTool, AgentToolResult
 from baldric_coding.extensions import DynamicProvider, NoAuth, OpenAICompatibleTransport
 
 
@@ -1432,8 +1432,8 @@ async def test_extension_turn_events_include_pi_session_metadata(tmp_path: Path)
     from baldric_agent.events import AgentStartEvent
     from baldric_agent.events import TurnEndEvent as AgentTurnEndEvent
     from baldric_agent.events import TurnStartEvent as AgentTurnStartEvent
-    from baldric_agent.messages import UserMessage
     from baldric_coding.extensions import TurnEndEvent, TurnStartEvent
+    from baldric_protocol.messages import UserMessage
 
     runtime = ExtensionRuntime()
     api = _register_inline_extension(runtime, "turn_observer")
@@ -1472,8 +1472,8 @@ async def test_extension_turn_index_resets_for_each_agent_run(tmp_path: Path) ->
     from baldric_agent.events import AgentStartEvent
     from baldric_agent.events import TurnEndEvent as AgentTurnEndEvent
     from baldric_agent.events import TurnStartEvent as AgentTurnStartEvent
-    from baldric_agent.messages import UserMessage
     from baldric_coding.extensions import TurnStartEvent
+    from baldric_protocol.messages import UserMessage
 
     runtime = ExtensionRuntime()
     api = _register_inline_extension(runtime, "turn_observer")

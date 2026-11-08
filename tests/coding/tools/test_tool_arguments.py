@@ -6,11 +6,11 @@ from typing import Any
 import pytest
 
 from baldric_agent.events import MessageEndEvent
-from baldric_agent.messages import TextContent, ToolCall, ToolResultMessage
 from baldric_agent.tool_arguments import argument_problems, invalid_arguments_message
 from baldric_agent.tool_calls import execute_tool_call
-from baldric_agent.tools import AgentTool, AgentToolResult
-from baldric_agent.types import JSONValue
+from baldric_protocol.messages import TextContent, ToolCall, ToolResultMessage
+from baldric_protocol.tools import AgentTool, AgentToolResult
+from baldric_protocol.types import JSONValue
 
 READ_SCHEMA: dict[str, JSONValue] = {
     "type": "object",

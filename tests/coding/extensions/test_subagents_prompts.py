@@ -9,13 +9,6 @@ from types import SimpleNamespace
 
 import pytest
 
-from baldric_agent.messages import (
-    AssistantMessage,
-    CustomMessage,
-    TextContent,
-    ToolResultMessage,
-    UserMessage,
-)
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.extensions.builtins.subagents import prompts as prompts_module
 from baldric_coding.extensions.builtins.subagents.agents import AgentDefinition
@@ -28,6 +21,13 @@ from baldric_coding.extensions.builtins.subagents.prompts import (
     detect_environment,
     inherited_resource_paths,
     resolve_skill_blocks,
+)
+from baldric_protocol.messages import (
+    AssistantMessage,
+    CustomMessage,
+    TextContent,
+    ToolResultMessage,
+    UserMessage,
 )
 
 pytestmark = pytest.mark.anyio

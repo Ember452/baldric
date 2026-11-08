@@ -7,8 +7,8 @@ the transcript loader renders the same text for them.
 
 from __future__ import annotations
 
-from baldric_agent.messages import BashExecutionMessage
 from baldric_coding.tui.state import TuiState
+from baldric_protocol.messages import BashExecutionMessage
 
 
 def test_a_loaded_bash_execution_renders_as_a_user_item() -> None:

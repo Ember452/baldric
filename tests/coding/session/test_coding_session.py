@@ -23,12 +23,6 @@ from baldric_agent import (
     Usage,
     UserMessage,
 )
-from baldric_agent.messages import (
-    AssistantMessageDiagnostic,
-    BashExecutionMessage,
-    assistant_content,
-)
-from baldric_agent.provider_events import AssistantErrorEvent
 from baldric_agent.session import (
     CompactionEntry,
     CustomEntry,
@@ -103,6 +97,12 @@ from baldric_coding.session.session import (
     is_retryable_huggingface_route_error,
     parse_terminal_command,
 )
+from baldric_protocol.messages import (
+    AssistantMessageDiagnostic,
+    BashExecutionMessage,
+    assistant_content,
+)
+from baldric_protocol.provider_events import AssistantErrorEvent
 from tests.helpers.conftest_utils import isolate_home
 from tests.helpers.pi_event_helpers import (
     assistant_done,

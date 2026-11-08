@@ -19,8 +19,8 @@ from baldric_agent import (
     ToolResultMessage,
     UserMessage,
 )
-from baldric_agent.provider_events import TextDeltaEvent
-from baldric_agent.types import JSONValue
+from baldric_protocol.provider_events import TextDeltaEvent
+from baldric_protocol.types import JSONValue
 
 
 def test_user_message_serializes_with_pi_wire_shape() -> None:

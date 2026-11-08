@@ -16,7 +16,6 @@ import pytest
 
 import baldric_coding.session.session as coding_session_module
 from baldric_agent.events import MessageEndEvent
-from baldric_agent.messages import AssistantMessage
 from baldric_ai import FakeProvider
 from baldric_coding.cli import run_print_mode
 from baldric_coding.context.resources import BaldricResourcePaths
@@ -24,6 +23,7 @@ from baldric_coding.providers.config import OpenAICompatibleProviderConfig, Prov
 from baldric_coding.rendering.json import JsonEventRenderer
 from baldric_coding.rendering.plain import FinalTextRenderer
 from baldric_coding.rendering.transcript import TranscriptRenderer
+from baldric_protocol.messages import AssistantMessage
 
 
 def _settings() -> ProviderSettings:

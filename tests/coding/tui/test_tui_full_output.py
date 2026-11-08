@@ -12,8 +12,6 @@ of the escape hatch:
 
 from __future__ import annotations
 
-from baldric_agent.messages import TextContent
-from baldric_agent.tools import AgentToolResult
 from baldric_coding.tui.state import (
     TERMINAL_COMMAND_OUTPUT_PREVIEW_LINES,
     TOOL_RESULT_PREVIEW_LINES,
@@ -22,6 +20,8 @@ from baldric_coding.tui.state import (
     format_terminal_command_result_block,
     format_tool_result_block,
 )
+from baldric_protocol.messages import TextContent
+from baldric_protocol.tools import AgentToolResult
 
 
 def _long_output(lines: int) -> str:

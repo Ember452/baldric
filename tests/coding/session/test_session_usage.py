@@ -8,8 +8,8 @@ from baldric_agent import (
     ToolCall,
     UserMessage,
 )
-from baldric_agent.messages import Usage, UsageCost, assistant_content
 from baldric_coding.session.usage import USAGE_SCRIPT, collect_session_usage, render_usage_dashboard
+from baldric_protocol.messages import Usage, UsageCost, assistant_content
 
 
 def _assistant(

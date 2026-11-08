@@ -8,7 +8,6 @@ that it is indistinguishable from a full replay.
 
 from __future__ import annotations
 
-from baldric_agent.messages import AssistantMessage, UserMessage
 from baldric_agent.session import (
     CompactionEntry,
     LabelEntry,
@@ -17,6 +16,7 @@ from baldric_agent.session import (
     SessionInfoEntry,
     SessionState,
 )
+from baldric_protocol.messages import AssistantMessage, UserMessage
 
 
 def _message(content: str, parent_id: str | None) -> MessageEntry:

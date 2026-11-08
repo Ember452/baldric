@@ -13,7 +13,6 @@ from pathlib import Path
 
 import pytest
 
-from baldric_agent.messages import AssistantMessage, Usage, UsageCost
 from baldric_agent.session import InMemorySessionStorage, MessageEntry
 from baldric_ai import FakeProvider
 from baldric_coding.providers.config import (
@@ -22,6 +21,7 @@ from baldric_coding.providers.config import (
     ProviderSettings,
 )
 from baldric_coding.session.session import CodingSession, CodingSessionConfig
+from baldric_protocol.messages import AssistantMessage, Usage, UsageCost
 from tests.helpers.pi_event_helpers import assistant_done, assistant_start
 
 

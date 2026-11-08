@@ -12,10 +12,10 @@ from pathlib import Path
 
 import pytest
 
-from baldric_agent.messages import TextContent
-from baldric_agent.tools import AgentTool, AgentToolResult
 from baldric_coding import BaldricResourcePaths
 from baldric_coding.extensions import ExtensionRuntime, NullUiBridge
+from baldric_protocol.messages import TextContent
+from baldric_protocol.tools import AgentTool, AgentToolResult
 
 pytestmark = pytest.mark.anyio
 

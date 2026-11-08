@@ -14,7 +14,6 @@ from textual.containers import Vertical
 from textual.widgets import Label, ListItem, ListView, Static
 from typer.testing import CliRunner
 
-from baldric_agent.provider import ModelProvider
 from baldric_agent.session import SessionEntry
 from baldric_coding import SessionManager, jsonl_session_storage
 from baldric_coding.cli import app
@@ -38,6 +37,7 @@ from baldric_coding.trust.policy import (
     format_trust_diagnostic,
 )
 from baldric_coding.tui.trust import ProjectTrustScreen, _ProjectTrustApp
+from baldric_protocol.provider import ModelProvider
 
 
 def _paths(tmp_path: Path) -> BaldricPaths:

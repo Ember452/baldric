@@ -11,7 +11,6 @@ from baldric_agent import (
     ToolResultMessage,
     UserMessage,
 )
-from baldric_agent.tools import AgentTool, ToolCall
 from baldric_ai.anthropic import (
     MAX_CACHE_BREAKPOINTS,
     _build_messages_payload,
@@ -21,6 +20,7 @@ from baldric_ai.env import (
     CACHE_RETENTION_NONE,
     CACHE_RETENTION_SHORT,
 )
+from baldric_protocol.tools import AgentTool, ToolCall
 
 OAUTH_PROMPT = "You are Claude Code, Anthropic's official CLI for Claude."
 

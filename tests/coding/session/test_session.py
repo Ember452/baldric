@@ -15,7 +15,6 @@ from baldric_agent import (
     UsageCost,
     UserMessage,
 )
-from baldric_agent.messages import message_to_user, sum_usage
 from baldric_agent.session import (
     BranchSummaryEntry,
     CompactionEntry,
@@ -34,6 +33,7 @@ from baldric_agent.session import (
     entry_to_json_line,
     path_to_entry,
 )
+from baldric_protocol.messages import message_to_user, sum_usage
 
 
 def test_session_entry_round_trips_canonical_jsonl() -> None:

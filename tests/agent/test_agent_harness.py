@@ -15,8 +15,8 @@ from baldric_agent import (
     ToolCall,
     ToolResultMessage,
 )
-from baldric_agent.types import JSONValue
 from baldric_ai import FakeProvider
+from baldric_protocol.types import JSONValue
 from tests.helpers.pi_event_helpers import assistant_done, assistant_start, text_delta, tool_call_end
 
 

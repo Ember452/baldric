@@ -24,15 +24,15 @@ from baldric_agent import (
     UserMessage,
 )
 from baldric_agent.loop import run_agent_loop
-from baldric_agent.provider_events import (
+from baldric_agent.tool_calls import execute_tool_call
+from baldric_ai import CancellationToken, FakeProvider
+from baldric_protocol.provider_events import (
     AssistantDoneEvent,
     AssistantErrorEvent,
     AssistantRetryEvent,
     ThinkingDeltaEvent,
 )
-from baldric_agent.tool_calls import execute_tool_call
-from baldric_agent.types import JSONValue
-from baldric_ai import CancellationToken, FakeProvider
+from baldric_protocol.types import JSONValue
 from tests.helpers.pi_event_helpers import (
     assistant_done,
     assistant_error,

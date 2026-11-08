@@ -18,8 +18,6 @@ from baldric_agent import (
     UserMessage,
 )
 from baldric_agent.loop import run_agent_loop
-from baldric_agent.messages import assistant_content
-from baldric_agent.types import JSONValue
 from baldric_ai import (
     AnthropicConfig,
     AnthropicProvider,
@@ -43,6 +41,8 @@ from baldric_ai import (
     ToolCallEndEvent,
     openai_compatible_config_from_env,
 )
+from baldric_protocol.messages import assistant_content
+from baldric_protocol.types import JSONValue
 
 
 async def _collect(stream: AsyncIterator[object]) -> list[object]:

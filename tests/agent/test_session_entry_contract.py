@@ -29,7 +29,7 @@ from baldric_agent import (
     Usage,
     UserMessage,
 )
-from baldric_agent.session.jsonl import entry_from_json_line, entry_to_json_line
+from baldric_protocol.session.jsonl import entry_from_json_line, entry_to_json_line
 from tests.helpers.golden import assert_matches_expected
 
 _TIMESTAMP = 1_700_000_000.0

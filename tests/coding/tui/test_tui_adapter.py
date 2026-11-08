@@ -19,7 +19,6 @@ from baldric_agent import (
     ToolResultMessage,
     UserMessage,
 )
-from baldric_agent.provider_events import TextDeltaEvent, ThinkingDeltaEvent
 from baldric_coding.context.skills.skills import Skill, format_skill_invocation
 from baldric_coding.events import (
     AgentSettledEvent,
@@ -36,6 +35,7 @@ from baldric_coding.tui.state import (
     format_tool_call_invocation,
     format_tool_result_block,
 )
+from baldric_protocol.provider_events import TextDeltaEvent, ThinkingDeltaEvent
 
 
 def _update(event) -> MessageUpdateEvent:  # noqa: ANN001

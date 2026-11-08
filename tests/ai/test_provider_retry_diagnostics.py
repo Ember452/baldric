@@ -14,7 +14,6 @@ import httpx
 import pytest
 
 from baldric_agent import AssistantMessage, TextContent, UserMessage
-from baldric_agent.messages import AssistantMessageDiagnostic
 from baldric_ai import (
     AssistantDoneEvent,
     AssistantErrorEvent,
@@ -35,6 +34,7 @@ from baldric_ai.env import (
     openai_compatible_config_from_env,
 )
 from baldric_ai.stream import canonicalize_provider_stream
+from baldric_protocol.messages import AssistantMessageDiagnostic
 
 _SSE_BODY = 'data: {"choices":[{"delta":{"content":"Hi"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'
 

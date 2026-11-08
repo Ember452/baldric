@@ -14,7 +14,6 @@ from types import SimpleNamespace
 
 import pytest
 
-from baldric_agent.messages import AssistantMessage, TextContent, ToolCall, Usage, UserMessage
 from baldric_ai import (
     AssistantDoneEvent,
     AssistantErrorEvent,
@@ -22,6 +21,7 @@ from baldric_ai import (
     FakeProvider,
 )
 from baldric_coding.extensions import ExtensionRuntime
+from baldric_protocol.messages import AssistantMessage, TextContent, ToolCall, Usage, UserMessage
 from tests.helpers.subagents_shared import (
     EXTENSION_DIR,
     BlockingProvider,
