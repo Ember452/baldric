@@ -51,8 +51,9 @@ class TurnContext:
 
     message: AgentMessage
     tool_results: list[ToolResultMessage]
-    # The live loop context; hooks may read it freely. Replacement goes through
-    # the hook's update value, not by mutating this list mid-turn.
+    # The live loop context. Hooks read it; they never mutate it - turn
+    # updates append through `TurnUpdate.messages`, request updates replace
+    # it through `RequestUpdate.messages`.
     context: list[AgentMessage]
     new_messages: list[AgentMessage]
 
@@ -81,7 +82,9 @@ class RequestState:
 class RequestUpdate:
     """Hook-provided replacement state for the upcoming request (pi AgentRequestUpdate)."""
 
-    # Replaces the raw loop context in place; the request is built from it.
+    # Replaces the raw loop context in place (an adopt, not an append - turn
+    # updates append). The rewrite lives in memory only: durable entries are
+    # append-only, so reloading a session rebuilds the unrewritten projection.
     messages: list[AgentMessage] | None = None
     model: str | None = None
 
