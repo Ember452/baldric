@@ -529,7 +529,7 @@
       "max_function_stmts": 4
     },
     "src/baldric_coding/rendering/activity.py": {
-      "lines": 63,
+      "lines": 91,
       "max_function_stmts": 10
     },
     "src/baldric_coding/rendering/approval_card.py": {
@@ -885,7 +885,7 @@
       "max_function_stmts": 8
     },
     "src/baldric_coding/tui/widgets/sidebar.py": {
-      "lines": 1019,
+      "lines": 1033,
       "max_function_stmts": 24
     },
     "src/baldric_coding/update/__init__.py": {

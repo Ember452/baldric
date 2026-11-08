@@ -95,6 +95,7 @@ from baldric_coding.providers.config import (
     save_provider_settings,
 )
 from baldric_coding.providers.loader import user_catalog_path
+from baldric_coding.rendering.activity import THINKING_LEVEL_COLORS
 from baldric_coding.rendering.diffs import DiffPalette
 from baldric_coding.session.manager import CodingSessionRecord
 from baldric_coding.session.session import (
@@ -685,14 +686,33 @@ def test_compact_session_info_renders_sidebar_facts() -> None:
 
     console.print(render_compact_session_info(FakeSession()))
 
-    output = console.export_text()
-    lines = output.splitlines()
-    assert len(lines) == 2
-    assert lines[0].strip() == "/workspace/project (--)"
-    assert lines[1].strip().startswith("openai:fake-model (medium)")
-    assert lines[1].rstrip().endswith("12k/200k")
-    assert len(lines[1].rstrip()) == 120
-    assert "context 12k/200k" not in output
+    # Behavior intentionally changed: the two-line compact info merges into one
+    # status line (cwd · model · context · cost · speed · latency).
+    lines = [line for line in console.export_text().splitlines() if line.strip()]
+    assert len(lines) == 1
+    line = lines[0]
+    assert "/workspace/project (--)" in line
+    assert "openai:fake-model (medium)" in line
+    assert "12k/200k (6%)" in line
+    assert "$1.24" in line
+    assert "40 tps" in line
+    assert "TTFT 1.2s" in line
+
+
+def test_compact_session_info_omits_cost_speed_and_latency_without_data() -> None:
+    from baldric_coding.session.stats import SessionStats
+
+    session = FakeSession()
+    session.session_stats = SessionStats()
+    console = Console(record=True, width=120)
+
+    console.print(render_compact_session_info(session))
+
+    line = next(line for line in console.export_text().splitlines() if "openai:fake-model" in line)
+    assert "$" not in line
+    assert "tps" not in line
+    assert "TTFT" not in line
+    assert "12k/200k (6%)" in line
 
 
 def test_compact_session_info_omits_unavailable_thinking_controls() -> None:
@@ -3890,6 +3910,47 @@ def test_activity_prompt_border_uses_tool_running_color_in_shell_mode() -> None:
     )
 
 
+def test_activity_prompt_border_follows_thinking_level() -> None:
+    # Pi's thinkingOff→Max ramp (rendering/prompt_border.py) tints the prompt.
+    theme = BALDRIC_DARK_THEME
+
+    assert (
+        _activity_prompt_border_color(theme, frame=0, running=False, shell_mode=False, thinking_level="max")
+        == "#dd093b"
+    )
+    assert (
+        _activity_prompt_border_color(theme, frame=0, running=False, shell_mode=False, thinking_level="off")
+        == "#444c4f"
+    )
+    # An unknown level falls back to the theme's own prompt border.
+    assert (
+        _activity_prompt_border_color(theme, frame=0, running=False, shell_mode=False, thinking_level="turbo")
+        == theme.prompt_border
+    )
+    assert (
+        _activity_prompt_border_color(theme, frame=0, running=False, shell_mode=False, thinking_level=None)
+        == theme.prompt_border
+    )
+
+
+@pytest.mark.anyio
+async def test_tui_app_prompt_border_tints_with_thinking_level() -> None:
+    app = BaldricTuiApp(FakeSession())
+
+    async with app.run_test(size=(120, 30)) as pilot:
+        prompt = app.query_one("#prompt", PromptInput)
+        await pilot.pause()
+        # FakeSession starts at medium: pi's ramp colours the border.
+        assert prompt.styles.border_top == ("solid", Color.parse("#3e5e9f"))
+
+        app.session.thinking_level = "max"
+        app._apply_activity_indicator()
+        await pilot.pause()
+
+        assert prompt.styles.border_top == ("solid", Color.parse("#dd093b"))
+        assert prompt.styles.border_bottom == ("solid", Color.parse("#dd093b"))
+
+
 @pytest.mark.anyio
 async def test_tui_app_highlights_prompt_shell_mode() -> None:
     app = BaldricTuiApp(FakeSession())
@@ -5129,8 +5190,11 @@ async def test_tui_app_shows_activity_indicator_while_running() -> None:
 
         assert not app.query("#status")
         assert not app.query("#activity-status")
-        assert prompt.styles.border_top == ("solid", Color.parse("#2d3748"))
-        assert prompt.styles.border_bottom == ("solid", Color.parse("#2d3748"))
+        # Behavior intentionally changed: the idle border follows the session's
+        # thinking level (FakeSession starts at medium) instead of the theme's
+        # static prompt border.
+        assert prompt.styles.border_top == ("solid", Color.parse(THINKING_LEVEL_COLORS["medium"]))
+        assert prompt.styles.border_bottom == ("solid", Color.parse(THINKING_LEVEL_COLORS["medium"]))
         assert prompt.styles.border_left[0] == ""
         assert prompt.styles.border_right[0] == ""
         assert indicator.render().plain == "τ"
@@ -5140,19 +5204,19 @@ async def test_tui_app_shows_activity_indicator_while_running() -> None:
 
         assert pytest.approx(tui_app.ACTIVITY_TICK_SECONDS) == 0.15
         assert tui_app.ACTIVITY_COLOR_FADE_STEPS == 24
-        assert prompt.styles.border_top[1].hex.lower() == "#2d3748"
+        assert prompt.styles.border_top[1].hex.lower() == THINKING_LEVEL_COLORS["medium"]
         assert indicator.render().plain == "⣾"
 
         app._tick_activity()
 
-        assert prompt.styles.border_top[1].hex.lower() == "#2d3748"
+        assert prompt.styles.border_top[1].hex.lower() == THINKING_LEVEL_COLORS["medium"]
         assert indicator.render().plain == "⣽"
 
         app.adapter.apply(AgentEndEvent())
         app._refresh()
 
         assert not app.query("#status")
-        assert prompt.styles.border_top[1].hex.lower() == "#2d3748"
+        assert prompt.styles.border_top[1].hex.lower() == THINKING_LEVEL_COLORS["medium"]
         assert indicator.render().plain == "τ"
 
 
@@ -5546,8 +5610,8 @@ async def test_tui_app_clears_activity_status_on_error() -> None:
 
         assert not app.query("#status")
         assert not app.query("#activity-status")
-        assert prompt.styles.border_top == ("solid", Color.parse("#2d3748"))
-        assert prompt.styles.border_bottom == ("solid", Color.parse("#2d3748"))
+        assert prompt.styles.border_top == ("solid", Color.parse(THINKING_LEVEL_COLORS["medium"]))
+        assert prompt.styles.border_bottom == ("solid", Color.parse(THINKING_LEVEL_COLORS["medium"]))
         assert prompt.styles.border_left[0] == ""
         assert prompt.styles.border_right[0] == ""
         assert indicator.render().plain == "τ"

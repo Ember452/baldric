@@ -1,4 +1,4 @@
-"""Activity spinner chrome for the prompt prefix.
+"""Prompt chrome for the prompt prefix: spinner and thinking-tinted border.
 
 The braille glyph, its orbiting gap, and the accent fade live here so the
 prompt stays wiring-only. Extracted verbatim from ``tui/app.py``; the spinner
@@ -16,6 +16,34 @@ ACTIVITY_TICK_SECONDS = 0.15
 ACTIVITY_COLOR_FADE_STEPS = 24
 ACTIVITY_SPINNER_FRAMES = ("⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷")
 ACTIVITY_SPINNER_MAX_FADE = 0.55
+
+# Pi's thinkingOff→Max ramp (pi-main/packages/coding-agent/src/modes/
+# interactive/theme/dark.json), converted from okhsl with the tested
+# okhsl_to_hex port (see theme_schema.py) — the same ramp pi-dark.json carries
+# under text.thinking_levels. Until themes ship their own ramps, this one
+# tints every theme's prompt border (spec 2026-11-08 §5.4).
+THINKING_LEVEL_COLORS: dict[str, str] = {
+    "off": "#444c4f",
+    "minimal": "#445761",
+    "low": "#366075",
+    "medium": "#3e5e9f",
+    "high": "#754cc4",
+    "xhigh": "#b62b9c",
+    "max": "#dd093b",
+}
+
+
+def thinking_prompt_border_color(theme: TuiTheme, level: str | None, *, shell_mode: bool) -> str:
+    """Return the prompt border colour for the thinking level.
+
+    Shell mode keeps the tool border, an unknown or absent level falls back to
+    the theme's own prompt border, and a known level picks pi's ramp colour.
+    """
+    if shell_mode:
+        return theme.role_styles["tool"].border
+    if level is None:
+        return theme.prompt_border
+    return THINKING_LEVEL_COLORS.get(level, theme.prompt_border)
 
 
 def render_activity_indicator(

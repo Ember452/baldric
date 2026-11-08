@@ -14,7 +14,6 @@ from rich.align import Align
 from rich.console import Console, ConsoleOptions, Group, RenderableType, RenderResult
 from rich.padding import Padding
 from rich.rule import Rule
-from rich.table import Table
 from rich.text import Text
 from textual.containers import Container, Vertical, VerticalScroll
 from textual.content import Content
@@ -474,29 +473,44 @@ def render_compact_session_info(
     *,
     theme: TuiTheme = BALDRIC_DARK_THEME,
 ) -> RenderableType:
-    """Render the session facts below the prompt.
+    """Render the session facts as one status line below the prompt.
 
-    The first line shows the working directory; the second line shows the model
-    identity on the left and active context usage on the right.
+    Segments whose data is absent are dropped; every value already existed on
+    the session (spec 2026-11-08 §5.4, zero new queries) and ``fold`` keeps
+    narrow terminals wrapping instead of truncating.
     """
-    model_line = Text(style=theme.muted_text, overflow="fold", no_wrap=False)
-    model_line.append(session.provider_name, style=theme.completion_description)
-    model_line.append(f":{session.model}", style=theme.prompt_text)
+    segments: list[Text] = [_styled_cwd(session.cwd, theme=theme)]
+    model_segment = Text(style=theme.muted_text)
+    model_segment.append(session.provider_name, style=theme.completion_description)
+    model_segment.append(f":{session.model}", style=theme.prompt_text)
     thinking_level = _thinking_level(session)
     if thinking_level is not None:
-        model_line.append(" ")
-        model_line.append(f"({thinking_level})", style=theme.completion_description)
-    context = Text(
-        _context_usage(session),
-        style=theme.completion_description,
-        no_wrap=True,
-        justify="right",
-    )
-    second_line = Table.grid(expand=True)
-    second_line.add_column(ratio=1)
-    second_line.add_column(justify="right", no_wrap=True)
-    second_line.add_row(model_line, context)
-    return Group(_styled_cwd(session.cwd, theme=theme), second_line)
+        model_segment.append(f" ({thinking_level})", style=theme.completion_description)
+    segments.append(model_segment)
+    context_segment = Text(_context_usage(session), style=theme.completion_description)
+    if session.has_provider_context_usage:
+        limit = session.auto_compact_token_threshold
+        if limit is None or limit <= 0:
+            limit = session.context_window_tokens
+        if limit > 0:
+            share = round(session.context_token_estimate * 100 / limit)
+            context_segment.append(f" ({share}%)")
+    segments.append(context_segment)
+    stats = session.session_stats
+    if stats.estimated_cost is not None:
+        segments.append(Text(f"${stats.estimated_cost:.2f}", style=theme.completion_description))
+    tokens_per_second = stats.output_tokens_per_second
+    if tokens_per_second is not None:
+        segments.append(Text(f"{tokens_per_second:.0f} tps", style=theme.completion_description))
+    ttft_ms = stats.average_time_to_first_output_ms
+    if ttft_ms is not None:
+        segments.append(Text(f"TTFT {ttft_ms / 1000:.1f}s", style=theme.completion_description))
+    line = Text(style=theme.muted_text, overflow="fold", no_wrap=False)
+    for index, segment in enumerate(segments):
+        if index:
+            line.append(" · ", style=theme.muted_text)
+        line.append_text(segment)
+    return line
 
 
 def _context_usage(session: SessionSummarySource) -> str:

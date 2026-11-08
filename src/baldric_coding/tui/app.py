@@ -3697,11 +3697,18 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         except NoMatches:
             return
         shell_mode = _is_terminal_command_prompt(prompt.text)
+        border_color = _activity_prompt_border_color(
+            theme,
+            frame=self._activity_frame,
+            running=self._is_working(),
+            shell_mode=shell_mode,
+            thinking_level=getattr(self.session, "thinking_level", None),
+        )
         render_key = (
             theme.name,
             theme.accent,
             theme.screen_background,
-            theme.prompt_border,
+            border_color,
             self._activity_frame,
             self._is_working(),
             shell_mode,
@@ -3709,12 +3716,6 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         if render_key == self._last_activity_indicator_key:
             return
         self._last_activity_indicator_key = render_key
-        border_color = _activity_prompt_border_color(
-            theme,
-            frame=self._activity_frame,
-            running=self._is_working(),
-            shell_mode=shell_mode,
-        )
         prompt.styles.border_top = ("solid", border_color)
         prompt.styles.border_bottom = ("solid", border_color)
         prompt_prefix.update(
@@ -3840,12 +3841,11 @@ def _activity_prompt_border_color(
     frame: int,
     running: bool,
     shell_mode: bool,
+    thinking_level: str | None = None,
 ) -> str:
     """Return the prompt border color for the current activity animation frame."""
     del frame, running
-    if shell_mode:
-        return theme.role_styles["tool"].border
-    return theme.prompt_border
+    return activity.thinking_prompt_border_color(theme, thinking_level, shell_mode=shell_mode)
 
 
 def _is_terminal_command_prompt(text: str) -> bool:
