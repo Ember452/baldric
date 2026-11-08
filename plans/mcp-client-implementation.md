@@ -3,6 +3,8 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to
 > implement this plan task-by-task (inline execution; the project owner has
 > asked not to use subagents). Steps use checkbox (`- [ ]`) syntax for tracking.
+> This plan encodes verified hypotheses, not guarantees — the **Execution
+> Rules** section below is binding on every task and outranks convenience.
 
 **Goal:** Give Baldric an MCP client — configured servers' tools become ordinary
 agent tools — as `baldric_mcp` (new top-level package) plus a thin built-in
@@ -49,7 +51,9 @@ reconcile before coding.
 - Every task below starts with a **Verify** step. The Verify step is mandatory:
   read the named code before writing anything. If a fact marked
   **MUST-HOLD** does not hold, STOP, update the spec/plan, and re-review — do
-  not improvise (project owner's hard rule: 严禁没有想清楚就动手).
+  not improvise (project owner's hard rule: 严禁没有想清楚就动手). This is the
+  floor, not the ceiling: the **Execution Rules** section below extends it to
+  every action.
 - Editing rule (house rule): use editor tools only; never bulk-rewrite files
   with scripts/sed.
 - Quality gate per task: `uv run ruff check . && uv run ruff format --check .`
@@ -60,6 +64,80 @@ reconcile before coding.
   `"asyncio"` (see `tests/coding/extensions/test_extensions.py:55-59`).
 - Commits are atomic per task with explicit paths (`git add <path>...`), no
   `git add -A`.
+
+## Execution Rules (owner mandate, binding)
+
+The project owner set these rules on 2026-11-08. They apply to every task,
+step, fix, and deviation in this plan and outrank convenience.
+
+### R1 — The plan is a hypothesis; re-verify before every action
+
+Every path, line number, signature, and behavior claim in this plan was
+verified once, when the plan was written. It is not guaranteed to still hold:
+the working tree moves, and the plan itself can simply be wrong.
+
+- Before starting each task — and again before any step that touches code —
+  re-open the named files and confirm the facts that step depends on. Grep the
+  surrounding area for drift (new callers, renamed symbols, changed
+  signatures) instead of navigating from the plan's line numbers or memory.
+- If reality disagrees with the plan, the plan loses. STOP, reconcile the
+  plan/spec first, then continue. 严禁没有想清楚就动手.
+
+### R2 — Full impact surface before touching anything (看全面)
+
+Before modifying any existing file — even one line — enumerate its impact
+surface and record it in the task notes or commit message:
+
+- Both directions: who calls/imports the symbol, and what it calls/imports —
+  grep across `src/`, `tests/`, `scripts/`, `website/`.
+- Which tests and guards (`tests/guards/`, ratchet baselines) pin the current
+  behavior and would catch a change.
+- Downstream consumers of the behavior: TUI, print mode, RPC, commands,
+  session files/resume, docs.
+- What the pi reference tree does at the same seam (see R3).
+
+A change without an enumerated surface does not get made. If the surface turns
+out bigger than the plan assumed, that is a plan defect: go back to R1.
+
+### R3 — Consult pi for important problems, bugs, and designs
+
+Whenever an important problem, a bug, or a design decision comes up — not only
+the ones this plan anticipates — check how pi solves the same thing before
+inventing a solution. The pi tree lives at `D:\DEVELOP\Solis\pi-main`; the MCP
+code is under `pi-main/packages/mcp/` and
+`pi-main/packages/coding-agent/src/extensions/mcp/`. Record what pi does and
+why, then adapt it to Baldric's architecture — port the judgment, not
+necessarily the code. If pi has no equivalent, say so in the notes and reason
+from first principles.
+
+### R4 — Deviations are allowed, but never silent
+
+Genuinely necessary work beyond this plan — including changes to existing code
+outside the spec's touchpoint table — is permitted. Every deviation must:
+
+1. State why the plan as written is wrong or insufficient — one concrete fact
+   from R1/R2, not a preference.
+2. Carry the full impact-surface analysis from R2.
+3. Meet the quality bar in R5; a deviation never licenses a looser design.
+4. Be appended to **Execution deviations log** at the end of this file and
+   flagged in the commit message with a `deviation:` note.
+5. If it changes the *design* (not just the implementation route), surface it
+   to the owner before continuing.
+
+### R5 — Quality bar: high cohesion, low coupling, maintainable
+
+- `baldric_mcp` stays self-contained: config, connection, supervision, and
+  adaptation each live in their own module; the extension layer in
+  `baldric_coding` remains thin glue over them.
+- Every seam added to the agent core (`bind_live_tools`,
+  `refresh_system_prompt`, `unregister_tool`) must be a generic capability
+  with a generic name — no MCP-specific semantics leak into core. If a seam
+  cannot be stated generically, the design is wrong: back to R1.
+- Match the house style of each file touched; new modules follow existing
+  package conventions (pydantic models, explicit async boundaries, typed
+  dataclasses).
+- A senior engineer reading the final diff should find nothing overcomplicated
+  and nothing clever for its own sake.
 
 ---
 
@@ -1267,4 +1345,17 @@ git commit -m "docs: MCP servers guide and build journal"
   run `uv run baldric`, `/mcp` shows connected, a tool call works, `/mcp off`
   persists.
 - [ ] The branch diff contains nothing outside the touchpoint table in the
-  spec (plus preflight findings and docs).
+  spec (plus preflight findings and docs) — every exception is logged in
+  **Execution deviations log** with its impact analysis and a `deviation:`
+  commit note.
+- [ ] Spec and plan still describe what was actually built (any drift found
+  via Execution Rules R1 was reconciled, not worked around).
+
+## Execution deviations log
+
+Appended during execution per Execution Rules R4. One entry per deviation;
+an empty section means the plan was followed as written. Entry format:
+
+- **D\<n\> — \<short title\>** (Task \<n\>, \<date\>): why the plan was wrong or
+  insufficient; impact surface checked (callers / tests / guards / consumers);
+  design change? (yes → owner consulted); commits.
