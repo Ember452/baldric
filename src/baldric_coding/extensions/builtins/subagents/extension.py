@@ -949,8 +949,6 @@ def _effective_max_turns(frontmatter: int | None, param: int | None, default: in
     return max(1, raw)
 
 
-
-
 def setup(baldric: ExtensionAPI) -> None:
     """Register subagent tools, the /agents command, and shutdown cleanup."""
     manager = SubagentManager(baldric)
