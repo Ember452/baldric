@@ -1,6 +1,6 @@
 # 内核补齐计划：baldric_agent ↔ pi packages/agent 字段级对齐
 
-> 状态：提案（待执行）
+> 状态：**已执行（2026-11-08，分支 `feat/agent-kernel-parity`）**——阶段 A/B/C/D 完成（各阶段执行结论已回写本文件），阶段 E 推迟（§6 决策），阶段 F 决策见 `adr-0003-transcript-as-truth.md`（暂不采纳）。`PROTOCOL_VERSION` 维持 1。
 > 依据：2026-11-08 对 pi `packages/agent` v1.5.0 全文（types.ts 551 行 / agent-loop.ts 1025 行 / agent.ts 623 行）与 `baldric_agent` 重构后全文的逐字段对照。控制流已确认一致，差距全部在**扩展面与字段**。
 > 行数口径：正文引用均为**物理行**（splitlines）；loop.py 实际 260、harness.py 实际 344（早前 234/284 为非空行口径，已修正）。
 > 目标：在产品开发开始前把"该加的"一次补齐，避免功能期再做侵入式内核改动。
@@ -121,6 +121,7 @@
 ## 6. 阶段 E：嵌套工具调用管线（`run_tool_call`）——**可选，排最后**
 
 > 降级说明：全计划唯一零消费方项，与 `execution_mode` 同一模式（先例：收下但没兑现成了陷阱）。**规格保留于此；推荐在 subagents 出现嵌套调用需求时立即按本节执行。** 若随本轮执行，排在 D 之后。
+> **执行决策（2026-11-08）：推迟。** 执行前复核确认当前零消费方（subagents 未发生工具调工具），按"不做有用的东西"纪律不兑现规格；触发条件与上同——subagents 出现嵌套调用需求时按本节执行，届时同步验收表 E 行。
 
 pi 的 `runToolCall`（agent-loop.ts:955-963）：工具调工具时走与模型发起调用**完全相同**的 prepare→validate→before→execute→after 管线，权限钩子对嵌套调用同样生效；不发事件、不产生消息、永不 reject（一切失败以 isError 返回）。
 
@@ -131,6 +132,8 @@ pi 的 `runToolCall`（agent-loop.ts:955-963）：工具调工具时走与模型
 5. 使用方：当前无（subagents 将来内部调工具时用）——这是"避免到用的时候再加"的直接标的
 
 ## 7. 阶段 F：transcript-as-truth 决策 ADR（只写决策，不实现）
+
+> **已完成（2026-11-08）**：决策 = **暂不采纳**，弱化替代方案为 coding 层扩展 entry 类型记录提示词/工具变更历史（零版本成本）；重开触发条件三条见 `adr-0003-transcript-as-truth.md`。
 
 pi 1.5.0 的核心设计分歧：SystemMessage 携带 systemPrompt 与工具声明，工具集变更以 `toolsAdded/toolsRemoved` 增量系统消息声明（agent-loop.ts:438-485，`declareToolChanges` 保证回放收敛到 `context.tools`）；`AgentState.systemPrompt` 从 transcript 回放（agent.ts:86-91）。
 

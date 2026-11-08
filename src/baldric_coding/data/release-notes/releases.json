@@ -5,12 +5,16 @@
     "sections": {
       "Added": [
         "A new `baldric_protocol` package owns the provider-neutral wire contract: message and content models, the tool contract, provider-stream events, and the persisted session wire (entry shape, tree traversal, JSONL format). Its only dependency is pydantic, it has no I/O, and third parties can build against it alone.",
-        "`baldric_protocol.PROTOCOL_VERSION` pins the wire contract, backed by golden snapshots and a version test so any wire change shows up as a reviewed diff."
+        "`baldric_protocol.PROTOCOL_VERSION` pins the wire contract, backed by golden snapshots and a version test so any wire change shows up as a reviewed diff.",
+        "The agent loop exposes Pi's turn-boundary hooks - `finish_turn`, `prepare_next_turn`, `prepare_request` - plus injectable `convert_to_llm` / `transform_context` context seams. All are optional; with none set the behavior is unchanged.",
+        "The harness exposes run observability reduced from the event stream (`streaming_message`, `pending_tool_calls`, `error_message`, active `signal`), and `queue_mode` is runtime-switchable.",
+        "Tools can report failure without raising via `AgentToolResult.is_error`; persisted tool results carry `duration_ms`; assistant messages record the requested `thinking_level`, stamped once in the provider funnel."
       ],
       "Changed": [
         "The agent kernel shrinks to nine modules with zero I/O: JSONL storage (locking, fsync, torn-tail repair) and the `SessionState` projection moved from `baldric_agent` into `baldric_coding`, matching pi's placement of SessionManager in coding-agent.",
         "The provider layer now imports the protocol contract instead of the harness: `baldric_ai` and `baldric_agent` no longer depend on each other, and import-boundary guards are enforced both statically and at runtime via subprocess `sys.modules` assertions.",
-        "Breaking: `baldric_agent` no longer ships the `messages`, `tools`, `types`, `provider`, or `provider_events` modules, and `baldric_agent.session` is gone. Import contract types from `baldric_protocol`, and `SessionState` plus the storages from `baldric_coding.session`.",
+        "Breaking: a crashed run now ends with a synthesized error message and a complete event tail instead of propagating the exception to the consumer (pi handleRunFailure semantics).",
+        "Breaking: `continue_()` drains queued steering or follow-up messages as the new prompt when the transcript ends with an assistant turn, and rejects an empty transcript; assistant tails without queues still continue because every run's prelude repair keeps requests provider-safe (deliberate divergence from pi, recorded in the parity plan).",
         "Extension examples, the published extension guide, and the bundled example extensions import the contract from `baldric_protocol`.",
         "The subagents extension's notification formatting helpers moved to a dedicated `notification_format.py` module; no behavior change."
       ]

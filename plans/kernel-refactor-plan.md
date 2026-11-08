@@ -1,6 +1,7 @@
 # 内核架构改造计划（基于 pi 源码对照 + 本项目 Python 实际）
 
 > 状态：**已执行完毕（2026-11-08，分支 `refactor/kernel-protocol-extraction`）**
+> 后续内核补齐：字段级 pi 对齐见 `agent-kernel-parity-plan.md`（已执行，分支 `feat/agent-kernel-parity`）；transcript-as-truth 决策见 `adr-0003-transcript-as-truth.md`（暂不采纳）。
 > 执行结果：阶段 0（缺陷复核，三条伪缺陷否决见 §0.2）、阶段 1（protocol 抽取 + shim + 删 shim）、阶段 2（session I/O/投影下沉，内核 9 文件零 I/O）、阶段 3（静态 + 运行时双向守卫）、阶段 4（PROTOCOL_VERSION 冻结 + golden 存在性锁）全部完成；阶段 5 收窄为 subagents 纯函数抽取（extension.py 1791→1622），两个 god-class 不拆，见 `adr-0002-god-class-deferral.md`；阶段 6（产品扩展点 guard）按计划留给产品化启动时，存量 8 处直连已记录在 `adr-0001-kernel-boundary.md`。
 > 边界与决策记录：`adr-0001-kernel-boundary.md`（D3 / D-pydantic / 包发布 / 机器守卫 / 遗留债务）。
 > 依据：对 `pi-main/packages/{agent,ai,schema,coding-agent}` 的源码通读 + 对 `baldric/src/{baldric_agent,baldric_ai,baldric_coding}` 的逐文件通读。
