@@ -755,7 +755,7 @@ class McpSupervisor:
 The supervisor never reads config files or paths (low coupling): `restart` and
 `set_enabled(..., config)` receive re-read configs from the extension layer.
 
-- [ ] **Step 1: Write failing tests** (`tests/mcp/test_supervisor.py`, fake
+- [x] **Step 1: Write failing tests** (`tests/mcp/test_supervisor.py`, fake
   connections only — no SDK): start connects all enabled concurrently and
   ignores disabled; `wait_ready` returns promptly when nothing is connecting
   and caps at `wait_ready_cap` when a connection stays `connecting` (injected
@@ -765,8 +765,8 @@ The supervisor never reads config files or paths (low coupling): `restart` and
   connection and its tools vanish from `statuses()`; `set_enabled(True,
   config)` connects with the provided config; `restart` replaces the
   connection; `shutdown` closes all and further `call_tool` raises.
-- [ ] **Step 2: Run and see them fail.**
-- [ ] **Step 3: Implement.** Connections created through `connection_factory`
+- [x] **Step 2: Run and see them fail.**
+- [x] **Step 3: Implement.** Connections created through `connection_factory`
   (default builds real `McpServerConnection` with the constructor's
   environment). `start` uses `anyio.create_task_group` connecting each enabled
   server concurrently; per-connection failures are recorded in the connection
@@ -775,7 +775,7 @@ The supervisor never reads config files or paths (low coupling): `restart` and
   `anyio.sleep(0.05)` until `not any_connecting()` or deadline passes — never
   raises. `on_change` fires (synchronously) after any state-affecting
   operation.
-- [ ] **Step 4: Run tests, gates, commit**
+- [x] **Step 4: Run tests, gates, commit**
 
 ```bash
 uv run pytest -q tests/mcp/test_supervisor.py
