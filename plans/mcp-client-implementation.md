@@ -1056,10 +1056,18 @@ _supervisor_factory: Callable[[Sequence[McpServerConfig], Mapping[str, str]], Mc
 - [ ] **Step 1: Verify (MUST-HOLD)** — re-read `builtin_registry.py` (sync
   setup contract, `setup_with_context`), confirm Task 0 Step 2's child
   session decision, and confirm Task 0 Step 2b's lifecycle matrix still holds
-  on this branch (rebind shares the runtime; the guard below is required, not
-  optional). If the flag branch was chosen, also verify
-  `CodingSessionConfig` field placement and the child construction site from
-  Task 0's recorded file:line.
+  on this branch. **CORRECTED MATRIX (Task 6 execution finding)**: `load`
+  ALWAYS stages a fresh runtime (`session.py:643-670`: "never reuse
+  source-project code across replacement trust boundaries";
+  `config.extension_runtime` only carries credentials into the new runtime).
+  On new/resume/branch the OLD runtime gets `session_shutdown`, the NEW
+  runtime's fresh extension instances get `session_start`, then the old
+  runtime retires. Each extension instance therefore boots at most once per
+  generation; the guard below stays as defense (a host may re-emit
+  `session_start` on one runtime) and the registry re-populates naturally in
+  the fresh generation — do NOT re-seed. If the flag branch was chosen, also
+  verify `CodingSessionConfig` field placement and the child construction
+  site from Task 0's recorded file:line.
 
 - [ ] **Step 2: Write failing tests** (`tests/coding/extensions/test_mcp_extension.py`,
   house anyio pattern, fake supervisor injected via `monkeypatch.setattr` on
@@ -1080,12 +1088,12 @@ _supervisor_factory: Callable[[Sequence[McpServerConfig], Mapping[str, str]], Mc
    `session_shutdown(branch)` → not shut down.
 6. `_session_wants_mcp` gate: with the flag branch, a child config
    (`mcp_enabled=False`) boots nothing.
-7. **Rebind idempotence (MUST-HOLD)**: fire `session_shutdown("resume")` then
-   `session_start("resume")` on the same runtime (the Task 0 Step 2b matrix)
-   → the fake supervisor's `start` was called exactly once (no second
+7. **Boot guard (defense-in-depth)**: fire `session_start` twice on the same
+   runtime → the fake supervisor's `start` was called exactly once (no second
    supervisor), the supervisor identity is unchanged, tools registered before
-   the rebind are still present, and no duplicate-registration diagnostics
-   were emitted.
+   the second start are still present, and no duplicate-registration
+   diagnostics were emitted. (The per-generation fresh runtime already makes
+   double-boot impossible across rebind; this pins the in-generation guard.)
 8. **No `tools/list_changed` handling**: a server that adds tools after
    connect keeps its connect-time tool set (spec non-goal) — the extension
    registers no handler for the notification and the behavior is asserted as
@@ -1102,11 +1110,14 @@ baldric.on("input")(self._on_input)                     # Task 8 wires the body
 baldric.register_command("mcp", self._mcp_command, ...) # Task 8 wires the body
 ```
 
-`_on_session_start`: **idempotent boot guard first** (Task 0 Step 2b): if
+`_on_session_start`: **idempotent boot guard first** (defense against a
+repeated `session_start` on one runtime; the corrected Task 0 Step 2b matrix
+stages a fresh runtime per generation, so each instance normally boots once):
+if
 `self._supervisor is not None` and it is not shut down → call `self._sync()`
-and return (rebind path: new/resume/branch reuse the runtime; the registry
-already holds the tools and `compose_tools` re-merges them — do NOT re-seed
-and do NOT re-register blindly; the `_registered` map dedupes). Otherwise:
+and return (the registry already holds the tools and `compose_tools` re-merges
+them — do NOT re-seed and do NOT re-register blindly; the `_registered` map
+dedupes). Otherwise:
 gate → `load_mcp_config(user_path=context.paths.user_mcp_config_path, project_path=context.paths.project_mcp_config_path(api.context.cwd) if api.context.project_trusted else None, environment=context.environment)` → diagnostics via `api.notify(..., "warning")` → build enabled list → if any, `_supervisor = _supervisor_factory(enabled, context.environment)`, `on_change(self._sync)`, then
 `asyncio.get_running_loop().create_task(self._supervisor.start())` (house
 pattern, `subagents/extension.py:387`). `_sync` registers connected servers'

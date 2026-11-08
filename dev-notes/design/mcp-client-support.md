@@ -336,28 +336,37 @@ a real flag: `CodingSessionConfig.mcp_enabled: bool = True`, and the child
 construction passes `mcp_enabled=False`. Isolated children additionally narrow
 `config.tools` to core names post-load (`extension.py:753-763`).
 
-### Rebind lifecycle matrix (MUST-HOLD for the guard — holds)
+### Rebind lifecycle matrix (MUST-HOLD for the guard — CORRECTED during Task 6)
+
+Initial verification read `lifecycle.py` correctly but missed what `load`
+does with the runtime it is handed. `session.py:643-670` settles it: a
+runtime is cwd-bound and may hold project registrations, so **`load` always
+stages a fresh runtime** for the destination snapshot
+("never reuse source-project code across replacement trust boundaries");
+`config.extension_runtime` (`lifecycle.py:740`, `:899`) only carries
+credentials/environment into the new generation.
 
 | reason | runtime instance | evidence |
 | --- | --- | --- |
 | startup | fresh | session construction |
 | reload | fresh staged runtime | shutdown old → bind staged → start staged (`lifecycle.py:446-451`); resources re-stored (`:459-474`) |
-| new | SAME runtime | `replace(session._config, ..., extension_runtime=session._extension_runtime)` (`lifecycle.py:899`) → `_adopt_replacement(..., reason="new")` (`:906`) |
-| resume | SAME runtime | `load(..., extension_runtime=session._extension_runtime)` (`lifecycle.py:740`) → `_adopt_replacement(..., reason="resume")` (`:764`) |
-| branch | not yet implemented | `_adopt_replacement` accepts `Literal["new", "resume", "branch"]` (`lifecycle.py:911`) but no call site passes `"branch"` today; when it lands it is expected to follow the new/resume pattern, which the idempotent guard already covers |
+| new/resume/branch | **fresh runtime for the replacement** | old runtime `emit_session_shutdown` (`lifecycle.py:935`) → replacement's fresh runtime `emit_session_start` (`:937`) → `old_runtime.retire()` (`:946`); the fresh runtime re-binds to the surviving session facade (`:998`) |
 | quit | same runtime | shutdown only |
 
-In `_adopt_replacement` the shared runtime fires `emit_session_shutdown(reason)`
-(`lifecycle.py:935`) then `emit_session_start(reason)` (`:937`) — a naive
-`session_start` handler would build a second supervisor on new/resume. The
-Task 7 handler must be idempotent (existing live supervisor → re-sync only).
-`compose_tools` re-merges the registry on every call
-(`extensions/runtime.py:1034-1046`), and the rebind path re-runs
-`session.py:818` against the same runtime — no re-seed mechanism may be added.
+Consequences for the extension: each extension **instance** (one per runtime
+generation) receives `setup` fresh and boots its supervisor at most once per
+generation; the outgoing generation's `session_shutdown` shuts its supervisor
+down. The idempotent `session_start` guard stays as defense-in-depth, and the
+registry re-populates naturally in the fresh generation (no re-seed).
 Pre-existing issue recorded for a future issue, **not** fixed on this branch:
 a rebind whose `config.tools` is non-empty re-wraps already-wrapped tools
 (`lifecycle.py:716` passes the old list; `runtime.py:1046` wraps
-unconditionally), so tool hooks run twice for hosts that set `config.tools`.
+unconditionally). Related caveat for the live-tool seam: the subagents
+isolated-child narrowing REPLACES `session._harness.config.tools`
+(`subagents/extension.py:761-763`), which detaches the list the runtime bound
+during load; MCP children are gated off (`mcp_enabled=False`), so the MCP
+extension never registers into a narrowed list, but a future live-list user
+must re-bind after narrowing.
 
 ### Tool executor signature and input path (MUST-HOLD — holds)
 
