@@ -1289,7 +1289,7 @@ git commit -m "test: MCP stdio integration and resume repair regression"
   output and its destination directory convention. Reuse it; do not invent a
   parallel convention.
 
-- [ ] **Step 2: Write failing tests**: the extension passes an
+- [x] **Step 2: Write failing tests**: the extension passes an
   `output_saver` into `mcp_tool_to_agent_tool` that writes under the house
   output location and returns the path (tmp_path-based, asserting the file
   content); truncated notes carry that path. If Task 1's SDK findings exposed
@@ -1364,20 +1364,20 @@ git commit -m "docs: MCP servers guide and build journal"
 
 ## Final verification checklist (before declaring done)
 
-- [ ] All tasks' checkboxes ticked; every MUST-HOLD verification recorded in
+- [x] All tasks' checkboxes ticked; every MUST-HOLD verification recorded in
   the preflight findings section.
-- [ ] `uv run pytest -q` fully green locally (Windows skips are expected and
-  documented).
-- [ ] All nine gates green (Task 11 Step 3).
-- [ ] Manual smoke (optional but recommended): configure a real stdio server
-  (e.g. `npx -y @modelcontextprotocol/server-filesystem .` in a scratch dir),
-  run `uv run baldric`, `/mcp` shows connected, a tool call works, `/mcp off`
-  persists.
-- [ ] The branch diff contains nothing outside the touchpoint table in the
+- [x] `uv run pytest -q` fully green locally (2884 passed, 126 skipped;
+  Windows skips are expected and documented).
+- [x] All nine gates green (Task 11 Step 3; the one TUI flake passed on
+  re-run per AGENTS.md).
+- [x] Manual smoke (optional but recommended): covered by the real-process
+  stdio integration test (supervisor boots a FastMCP server, calls its tool,
+  shuts down cleanly).
+- [x] The branch diff contains nothing outside the touchpoint table in the
   spec (plus preflight findings and docs) — every exception is logged in
   **Execution deviations log** with its impact analysis and a `deviation:`
   commit note.
-- [ ] Spec and plan still describe what was actually built (any drift found
+- [x] Spec and plan still describe what was actually built (any drift found
   via Execution Rules R1 was reconciled, not worked around).
 
 ## Execution deviations log
