@@ -94,6 +94,10 @@ class RecordingSession:
         self.custom_entries: list[tuple[str, dict[str, object]]] = []
         self.messages: list[object] = []
         self.followed_up_custom: list[tuple[str | None, dict[str, object] | None]] = []
+        self.refresh_calls = 0
+
+    def refresh_system_prompt(self) -> None:
+        self.refresh_calls += 1
 
     def queue_steering_message(
         self,

@@ -27,6 +27,7 @@ command palette with **Ctrl+K**.
 | `/sidebar` | Toggle the sidebar for this session without changing `tui.json` |
 | `/logout [provider]` | Remove saved credentials for a provider |
 | `/extensions` | Open a searchable inventory of loaded extensions and extension diagnostics |
+| `/mcp [on\|off\|restart] [name]` | List configured MCP servers, or enable/disable/restart one; `on`/`off` are remembered in `mcp.json` |
 | `/reload` | Reload local skills, prompts, extensions, and project context |
 | `/prompts` | Search loaded prompt templates; press Enter to insert an invocation or Ctrl+E to edit the file |
 | `/hotkeys` | Show the keyboard shortcuts |

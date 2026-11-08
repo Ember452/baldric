@@ -42,6 +42,18 @@ RULES: tuple[tuple[str, str], ...] = (
     # The provider layer now depends on the protocol contract, not the harness.
     ("baldric_ai", "baldric_agent"),
     ("baldric_ai", "baldric_coding"),
+    # The MCP client core is an application-layer package beside the coding
+    # app: it delegates protocol work to the official `mcp` SDK and must stay
+    # importable without the harness, providers, or the TUI stack.
+    ("baldric_mcp", "baldric_agent"),
+    ("baldric_mcp", "baldric_ai"),
+    ("baldric_mcp", "baldric_coding"),
+    ("baldric_mcp", "textual"),
+    ("baldric_mcp", "rich"),
+    # The harness and providers must not learn MCP exists; the coding app
+    # reaches MCP only through its built-in extension.
+    ("baldric_agent", "baldric_mcp"),
+    ("baldric_ai", "baldric_mcp"),
     ("baldric_coding.session", "baldric_coding.tui"),
     ("baldric_coding.tools", "baldric_coding.tui"),
     ("baldric_coding.backends", "baldric_coding.tui"),

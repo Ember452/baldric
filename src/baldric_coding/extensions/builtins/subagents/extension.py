@@ -735,6 +735,10 @@ class SubagentManager:
                 # filter below, because a switch that only covers filesystem
                 # extensions cannot remove a capability that ships built in.
                 extensions_enabled=not run.requested_isolated,
+                # Children never get MCP: every child spawning its own server
+                # processes is waste (the composition-level gate, see the
+                # session config field). Revisit with a shared supervisor.
+                disabled_built_in_extensions=frozenset({"mcp"}),
                 # Inherit the parent's approval gate: a child session that
                 # dropped it would let subagents run mutating tools behind the
                 # user's back while approval mode is on.

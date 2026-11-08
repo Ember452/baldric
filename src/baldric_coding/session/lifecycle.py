@@ -983,6 +983,7 @@ async def _adopt_replacement(
     session._pending_message_writes = replacement._pending_message_writes
     session._extension_runtime = replacement._extension_runtime
     session._provider_registry = replacement._provider_registry
+    session._adopt_system_prompt_builder(replacement)
     session._credential_store = replacement._credential_store
     session._diagnostic_logger = replacement._diagnostic_logger
     session._runtime_model_limits = replacement._runtime_model_limits

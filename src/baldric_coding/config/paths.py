@@ -109,6 +109,11 @@ class BaldricPaths:
         return self.home / "subagents.json"
 
     @property
+    def user_mcp_config_path(self) -> Path:
+        """Return the user-level MCP server config path."""
+        return self.home / "mcp.json"
+
+    @property
     def subagent_transcripts_dir(self) -> Path:
         """Return the durable root for subagent conversation transcripts."""
         return self.home / "subagents"
@@ -163,6 +168,10 @@ class BaldricPaths:
     def project_subagent_settings_path(self, cwd: Path) -> Path:
         """Return the project-local subagent settings file."""
         return self.project_baldric_dir(cwd) / "subagents.json"
+
+    def project_mcp_config_path(self, cwd: Path) -> Path:
+        """Return the project-local MCP server config path."""
+        return self.project_baldric_dir(cwd) / "mcp.json"
 
     def project_agent_memory_dir(self, cwd: Path) -> Path:
         """Return the project-scoped root for per-agent persistent memory."""

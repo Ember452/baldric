@@ -188,6 +188,8 @@ class BoundSession(Protocol):
 
     def set_inference_provider(self, route: str | None) -> str: ...
 
+    def refresh_system_prompt(self) -> None: ...
+
 
 @dataclass(frozen=True, slots=True)
 class ExtensionCommand:
@@ -310,6 +312,15 @@ class ExtensionRuntime:
         # authoritative resource-path snapshot.
         self._paths: BaldricPaths = paths or BaldricPaths()
         self._session: BoundSession | None = None
+        # The session's materialized tool list, bound by ``load`` so extension
+        # registrations reach the harness per run instead of at next load.
+        self._live_tools: list[AgentTool] | None = None
+        self._live_allowed: frozenset[str] | None = None
+        # name -> the hook-wrapped object appended to ``_live_tools``. The
+        # registry keeps the raw tool (compose_tools wraps at the next load);
+        # the live list must carry the same wrapped shape compose_tools
+        # produces, or tool_call/tool_result hooks would bypass dynamic tools.
+        self._live_wrapped: dict[str, AgentTool] = {}
         self._ui: UiBridge = ui or NullUiBridge()
         self._turn_requested: TurnRequestedCallback | None = None
         self._harness_unsubscribe: Callable[[], None] | None = None
@@ -405,6 +416,9 @@ class ExtensionRuntime:
         self._prompt_sections.clear()
         self._message_renderers.clear()
         self._renderer_failures_reported.clear()
+        self._live_tools = None
+        self._live_allowed = None
+        self._live_wrapped.clear()
         self._turn_requested = None
         self._session = None
         self._unload_loaded_modules()
@@ -501,11 +515,17 @@ class ExtensionRuntime:
             )
 
     def _remove_registrations(self, source_id: str) -> None:
+        removed_names = [
+            name for name, registration in self._tools.items() if registration.source_id == source_id
+        ]
         self._tools = {
             name: registration
             for name, registration in self._tools.items()
             if registration.source_id != source_id
         }
+        self._drop_live_tools(
+            [self._live_wrapped.pop(name) for name in removed_names if name in self._live_wrapped]
+        )
         self._commands = {
             name: command for name, command in self._commands.items() if command.source_id != source_id
         }
@@ -556,11 +576,38 @@ class ExtensionRuntime:
                 )
             )
             return
+        if self._live_allowed is not None and tool.name not in self._live_allowed:
+            self._load_diagnostics.append(
+                ResourceDiagnostic(
+                    kind="extension",
+                    name=extension_name,
+                    message=f"tool `{tool.name}` is not in allowed_tool_names; ignoring",
+                )
+            )
+            return
         self._tools[tool.name] = RegisteredExtensionTool(
             extension=extension_name,
             source_id=source_id,
             tool=tool,
         )
+        if self._live_tools is not None:
+            wrapped = self._wrap_tool(tool)
+            self._live_wrapped[tool.name] = wrapped
+            self._live_tools.append(wrapped)
+
+    def unregister_tool(self, source_id: str, extension_name: str, name: str) -> None:
+        """Remove this extension's tool registration; a no-op when absent.
+
+        Only the extension that registered the name may withdraw it, and the
+        same object is removed from the bound live list so the next run stops
+        offering the tool.
+        """
+        registered = self._tools.get(name)
+        if registered is None or registered.source_id != source_id:
+            return
+        del self._tools[name]
+        wrapped = self._live_wrapped.pop(name, None)
+        self._drop_live_tools([wrapped] if wrapped is not None else [])
 
     def register_command(
         self,
@@ -773,6 +820,16 @@ class ExtensionRuntime:
                 )
             )
             return
+        if normalized_title is not None:
+            # Titled sections upsert per source: an extension may refresh its
+            # section body as its state changes (e.g. live server listings)
+            # without stacking duplicates. Untitled sections keep append
+            # semantics, preserving the original free-form behavior.
+            self._prompt_sections = [
+                entry
+                for entry in self._prompt_sections
+                if not (entry[0] == source_id and entry[2].title == normalized_title)
+            ]
         self._prompt_sections.append(
             (
                 source_id,
@@ -1044,6 +1101,32 @@ class ExtensionRuntime:
             merged.append(override.tool if override is not None else tool)
         merged.extend(registration.tool for registration in extension_tools.values())
         return [self._wrap_tool(tool) for tool in merged]
+
+    def bind_live_tools(self, tools: list[AgentTool], allowed: frozenset[str] | None) -> None:
+        """Bind the session's materialized tool list for live registration.
+
+        The bound object is the same list handed to the agent harness, which
+        reads it per run; register/unregister keep registry and list in step.
+        Appended tools are hook-wrapped like ``compose_tools`` output, so the
+        tool pipeline covers dynamically registered tools too. Each load
+        binds its own materialized list, replacing any previous binding,
+        mirroring ``set_ui_bridge``.
+        """
+        self._live_tools = tools
+        self._live_allowed = allowed
+        self._live_wrapped.clear()
+
+    def request_system_prompt_refresh(self) -> None:
+        """Ask the bound session to rebuild its system prompt."""
+        if self._session is not None:
+            self._session.refresh_system_prompt()
+
+    def _drop_live_tools(self, tools: list[AgentTool]) -> None:
+        """Remove exact tool objects from the bound list, when bound."""
+        if self._live_tools is None:
+            return
+        withdrawn = {id(tool) for tool in tools}
+        self._live_tools[:] = [tool for tool in self._live_tools if id(tool) not in withdrawn]
 
     def _wrap_tool(self, tool: AgentTool) -> AgentTool:
         async def executor(

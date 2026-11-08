@@ -463,5 +463,15 @@ class AgentHarness:
         self._append_interrupted_tool_results()
         return len(self._messages) - before
 
+    def update_system_prompt(self, system: str) -> None:
+        """Replace the system prompt used by subsequent runs.
+
+        The run path reads ``config.system`` per run, so the next prompt picks
+        this up without touching the durable history.
+        """
+        if not system:
+            raise ValueError("system prompt must be a non-empty string")
+        self._config.system = system
+
     def _append_interrupted_tool_results(self) -> None:
         self._messages.extend(interrupted_tool_results(self._messages))
