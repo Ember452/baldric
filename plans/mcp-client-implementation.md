@@ -150,7 +150,7 @@ committed separately.
 **Interfaces:**
 - Produces: confirmed facts (or spec corrections) every later task depends on.
 
-- [ ] **Step 1: Verify the tool-materialization chain (MUST-HOLD)**
+- [x] **Step 1: Verify the tool-materialization chain (MUST-HOLD)**
 
 Read `src/baldric_coding/session/session.py:805-870` and
 `src/baldric_agent/harness.py:55-90, 336-370`. Confirm:
@@ -168,7 +168,7 @@ Read `src/baldric_coding/session/session.py:805-870` and
 If any point fails, STOP: the live-seam design is wrong and the spec must be
 revised before any code.
 
-- [ ] **Step 2: Verify child sessions and the extension runtime (MUST-HOLD for Task 7's gate)**
+- [x] **Step 2: Verify child sessions and the extension runtime (MUST-HOLD for Task 7's gate)**
 
 Read `src/baldric_coding/extensions/runtime.py:1034-1080` (`compose_tools`),
 `src/baldric_coding/session/provider_helpers.py:252` (`_filter_tools`), and
@@ -185,7 +185,7 @@ construction (`CodingSession` / `CodingSessionConfig(` usage). Determine:
 
 Record the outcome and the exact file:line evidence.
 
-- [ ] **Step 2b: Verify the rebind lifecycle matrix (MUST-HOLD for Task 7's guard)**
+- [x] **Step 2b: Verify the rebind lifecycle matrix (MUST-HOLD for Task 7's guard)**
 
 Read `src/baldric_coding/session/lifecycle.py:440-455` (reload: old runtime
 shuts down, a NEW staged runtime starts) and `lifecycle.py:700-764` +
@@ -211,7 +211,7 @@ non-empty `config.tools` re-wraps already-wrapped tools (`lifecycle.py:716` +
 `runtime.py:1046`) — this affects all extensions, is NOT fixed on this
 branch; note it for a future issue.
 
-- [ ] **Step 2c: Verify the tool executor signature and the print/RPC input path**
+- [x] **Step 2c: Verify the tool executor signature and the print/RPC input path**
 
 1. Read `src/baldric_protocol/tools.py:64-111`: confirm `ToolExecutor` is
    `(tool_call_id, arguments, signal, on_update) -> Awaitable[AgentToolResult]`
@@ -223,7 +223,7 @@ branch; note it for a future issue.
    hook, record it as a known limitation in the docs task (the live seam
    still delivers tools on subsequent turns).
 
-- [ ] **Step 3: Verify the prompt-builder inputs (MUST-HOLD for `refresh_system_prompt`)**
+- [x] **Step 3: Verify the prompt-builder inputs (MUST-HOLD for `refresh_system_prompt`)**
 
 Read `src/baldric_coding/context/system_prompt.py:55-90`
 (`BuildSystemPromptOptions`, `build_system_prompt`) and
@@ -234,14 +234,14 @@ same scope (`config.*`, `resources.*`, `extension_runtime.*`, local `tools`).
 List any input that is NOT stable in that scope; such an input must be stored
 on the session before Task 6 relies on the closure.
 
-- [ ] **Step 4: Verify the input-hook seam (MUST-HOLD for first-turn admission)**
+- [x] **Step 4: Verify the input-hook seam (MUST-HOLD for first-turn admission)**
 
 Read `src/baldric_coding/session/runtime.py:320-345`. Confirm
 `run_input_hooks` is awaited before the run starts and that returning `None`
 continues unchanged. Confirm the `input` hook receives
 `InputEvent(source=...)` (`extensions/api.py:484-502`).
 
-- [ ] **Step 5: Verify the resume/repair and unknown-tool behavior**
+- [x] **Step 5: Verify the resume/repair and unknown-tool behavior**
 
 Read `src/baldric_agent/harness.py:336-356` (prelude
 `_append_interrupted_tool_results`) and `src/baldric_agent/tool_history.py`.
@@ -253,14 +253,14 @@ pins whichever behavior exists, and the spec's "tool unavailable" promise is
 implemented at the adapter layer (a withdrawn MCP tool stays registered with an
 error executor) rather than relying on loop behavior.
 
-- [ ] **Step 6: Verify BoundSession protocol surface**
+- [x] **Step 6: Verify BoundSession protocol surface**
 
 Read `src/baldric_coding/extensions/runtime.py` for `class BoundSession` and
 `bind`. Confirm where to add `refresh_system_prompt() -> None` to the protocol
 and that `runtime._session` is the bound session (used by
 `request_system_prompt_refresh` in Task 6).
 
-- [ ] **Step 7: Commit the findings**
+- [x] **Step 7: Commit the findings**
 
 Append a "## Implementation preflight findings" section to
 `dev-notes/design/mcp-client-support.md` with each fact and file:line. Commit:

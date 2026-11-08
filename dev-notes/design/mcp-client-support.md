@@ -303,3 +303,119 @@ OAuth flows, MCP server mode, resources/prompts/sampling, deferred tool
 loading (`tool_search`/codemode), `list_changed` handling, tool annotations,
 hot config reload, direct `ImageContent` tool results for image-unsupported
 models, child-session MCP sharing.
+
+## Implementation preflight findings
+
+Recorded 2026-11-08, executing Task 0 of `plans/mcp-client-implementation.md`
+on `feat/mcp-client`. Every planned MUST-HOLD was re-verified against the
+working tree (line numbers below are today's, not the plan's).
+
+### Tool-materialization chain (MUST-HOLD — holds)
+
+1. `session.py:818` materializes once:
+   `tools = _filter_tools(extension_runtime.compose_tools(base_tools), config.allowed_tool_names)`;
+   `base_tools` is `config.tools` or fresh coding tools (`session.py:808-817`).
+2. The same local `tools` goes to `build_system_prompt(tools=tools)`
+   (`session.py:825`) and `AgentHarnessConfig(tools=tools)` (`session.py:852`).
+3. `AgentHarnessConfig` is `@dataclass(slots=True)`, **not frozen**:
+   `tools: list[AgentTool] = field(default_factory=list)` (`harness.py:66-71`).
+   Field assignment is an established pattern — the subagents isolated-child
+   narrowing writes `session._harness.config.tools = [...]`
+   (`extensions/builtins/subagents/extension.py:761-763`).
+4. `_run` reads `tools=self._config.tools` (`harness.py:356`) and
+   `system=self._config.system` (`harness.py:352`) per run.
+
+### Child sessions (MUST-HOLD for the gate — flag required)
+
+Subagent children construct via `CodingSession.load(CodingSessionConfig(...))`
+without passing `extension_runtime` (`extensions/builtins/subagents/extension.py:695-743`)
+— each child gets a **fresh** runtime, and built-ins load natively ("Children
+load extensions natively (pi parity)", `extension.py:731-737`;
+`extensions_enabled=not run.requested_isolated`, `:737`). Therefore the gate is
+a real flag: `CodingSessionConfig.mcp_enabled: bool = True`, and the child
+construction passes `mcp_enabled=False`. Isolated children additionally narrow
+`config.tools` to core names post-load (`extension.py:753-763`).
+
+### Rebind lifecycle matrix (MUST-HOLD for the guard — holds)
+
+| reason | runtime instance | evidence |
+| --- | --- | --- |
+| startup | fresh | session construction |
+| reload | fresh staged runtime | shutdown old → bind staged → start staged (`lifecycle.py:446-451`); resources re-stored (`:459-474`) |
+| new | SAME runtime | `replace(session._config, ..., extension_runtime=session._extension_runtime)` (`lifecycle.py:899`) → `_adopt_replacement(..., reason="new")` (`:906`) |
+| resume | SAME runtime | `load(..., extension_runtime=session._extension_runtime)` (`lifecycle.py:740`) → `_adopt_replacement(..., reason="resume")` (`:764`) |
+| branch | not yet implemented | `_adopt_replacement` accepts `Literal["new", "resume", "branch"]` (`lifecycle.py:911`) but no call site passes `"branch"` today; when it lands it is expected to follow the new/resume pattern, which the idempotent guard already covers |
+| quit | same runtime | shutdown only |
+
+In `_adopt_replacement` the shared runtime fires `emit_session_shutdown(reason)`
+(`lifecycle.py:935`) then `emit_session_start(reason)` (`:937`) — a naive
+`session_start` handler would build a second supervisor on new/resume. The
+Task 7 handler must be idempotent (existing live supervisor → re-sync only).
+`compose_tools` re-merges the registry on every call
+(`extensions/runtime.py:1034-1046`), and the rebind path re-runs
+`session.py:818` against the same runtime — no re-seed mechanism may be added.
+Pre-existing issue recorded for a future issue, **not** fixed on this branch:
+a rebind whose `config.tools` is non-empty re-wraps already-wrapped tools
+(`lifecycle.py:716` passes the old list; `runtime.py:1046` wraps
+unconditionally), so tool hooks run twice for hosts that set `config.tools`.
+
+### Tool executor signature and input path (MUST-HOLD — holds)
+
+`ToolExecutor` is `(tool_call_id, arguments, signal, on_update) ->
+Awaitable[AgentToolResult]` (`baldric_protocol/tools.py:64-73`); `AgentTool.execute`
+forwards all four (`:103-111`). Task 5's `on_update` → progress mapping stands.
+
+Every turn enters through `CodingSession` `prompt()` — the single
+`run_input_hooks` await is `session/runtime.py:335`, before expansion and run
+(`:338-353`). Callers: print/JSON (`cli.py:1505`), RPC server
+(`modes/rpc/server.py:124`), TUI (`tui/app.py:2509`, `:2530`), subagent child
+runs (`subagents/extension.py:414`, `:772`), and the extension
+`send_user_message` wrapper (`session.py:1839`). The first-turn MCP admission
+wait therefore applies in every mode; no bypass exists and no known-limitation
+note is needed.
+
+### Prompt-builder closure (MUST-HOLD — holds)
+
+`BuildSystemPromptOptions` (`context/system_prompt.py:54-68`) and
+`build_system_prompt(options)` are pure (`:71-73`). Every input used at
+`session.py:819-846` is either a `config` field, a session-stored resource
+field (`session.py:865-872`), an `extension_runtime` property, or the local
+`tools` list. Reload re-stores all of them (`lifecycle.py:459-474`).
+`current_date` stays defaulted (`date.today()`), same as the reload rebuild. A
+zero-arg closure built in the `load` scope can capture the session and local
+`tools` — no unstable input, nothing extra to store before Task 6.
+
+### Input-hook seam (MUST-HOLD — holds)
+
+`run_input_hooks` is awaited before the run starts
+(`session/runtime.py:335`); `handled` short-circuits the turn, otherwise
+`content = input_outcome.text` (`:338-342`). The `input` hook payload is
+`InputEvent(text, source, streaming_behavior)` with
+`source: Literal["interactive", "extension"]`
+(`extensions/api.py:484-502`).
+
+### Resume repair and unknown tools (holds)
+
+`_run` repairs dangling tool calls before the loop
+(`harness.py:346-348` → `_append_interrupted_tool_results`, `:466-467`) by
+appending `ToolResultMessage(text="Tool call interrupted by user",
+is_error=True)` for every unanswered call id (`tool_history.py:17-44`). An
+unknown tool name resolves via `tools.get(call.name)` and yields a synthesized
+`error_result("Tool <name> not found")` that reaches the model as an error
+tool result — it does not raise (`baldric_agent/tool_calls.py:64-67`). Task 9
+pins this; the adapter-layer "tool unavailable" promise stays as specified.
+
+### BoundSession protocol (verified)
+
+`BoundSession` spans `extensions/runtime.py:115-189` (properties, then
+mutators ending at `set_inference_provider`, `:189`); `bind` at `:803`;
+`_session: BoundSession | None` at `:312`. `refresh_system_prompt() -> None`
+does not exist yet and will be added to the protocol and to `CodingSession`.
+
+### Corrections to the plan
+
+- The lifecycle matrix's `branch` row describes behavior that does not exist
+  yet (accepted by the adopt literal, never called). No design change: the
+  idempotent guard covers the future implementation regardless.
+- The plan's "if a mode bypasses the hook, record as known limitation"
+  contingency resolved to "no mode bypasses it" — nothing to document.
