@@ -7,6 +7,9 @@ is worse than no gate at all.
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 from scripts.check_import_graph import (
@@ -162,3 +165,45 @@ def test_surface_scanner_allows_protocol_contract_modules(tmp_path: Path) -> Non
     )
 
     assert scan_surface_violations(tmp_path) == []
+
+
+def _loaded_modules_after_import(module_name: str) -> set[str]:
+    """Import ``module_name`` in a clean subprocess and return ``sys.modules``."""
+    code = f"import {module_name}\nimport sys\nprint(chr(10).join(sys.modules))"
+    env = {**os.environ, "PYTHONPATH": "src"}
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    return set(result.stdout.split())
+
+
+def _loads_only(module_name: str, forbidden: tuple[str, ...]) -> list[str]:
+    loaded = _loaded_modules_after_import(module_name)
+    leaked: list[str] = []
+    for name in forbidden:
+        leaked.extend(sorted(m for m in loaded if m == name or m.startswith(name + ".")))
+    return leaked
+
+
+def test_protocol_loads_no_upper_layer_at_runtime() -> None:
+    """The contract package must not pull the runtime, adapters, or frontend.
+
+    Static import checks miss coupling that flows through a package ``__init__``
+    re-export; asserting on ``sys.modules`` after a bare import catches it.
+    """
+    leaked = _loads_only(
+        "baldric_protocol",
+        ("baldric_agent", "baldric_ai", "baldric_coding", "textual", "rich"),
+    )
+    assert leaked == [], f"baldric_protocol pulled in: {leaked}"
+
+
+def test_kernel_and_providers_do_not_load_each_other_at_runtime() -> None:
+    """The agent kernel and the provider layer must stay decoupled at runtime."""
+    assert _loads_only("baldric_agent", ("baldric_ai", "baldric_coding")) == []
+    assert _loads_only("baldric_ai", ("baldric_agent", "baldric_coding")) == []
