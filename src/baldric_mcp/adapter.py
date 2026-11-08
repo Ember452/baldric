@@ -97,7 +97,7 @@ def _truncate_middle(text: str, output_saver: OutputSaver | None) -> str:
         try:
             path = output_saver(text, ".txt")
             where = f"\n\n[Full output: {path} (read it with offset/limit)]"
-        except Exception as exc:  # noqa: BLE001 - saving must not break the tool result
+        except Exception as exc:
             where = f"\n\n[Could not save the full output: {exc}]"
 
     tokens = (len(encoded) + 3) // 4

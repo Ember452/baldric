@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -520,7 +519,8 @@ async def test_stderr_sink_factory_wired_and_opens_the_log(
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
-    _write_user_config(BaldricPaths(home=tmp_path / "home-baldric"), {"srv": USER_SERVER})
+    paths = BaldricPaths(home=tmp_path / "home-baldric")
+    _write_user_config(paths, {"srv": USER_SERVER})
     runtime, _, _, _ = _runtime(tmp_path)
     await runtime.emit_session_start("startup")
     await _settle()
@@ -529,9 +529,12 @@ async def test_stderr_sink_factory_wired_and_opens_the_log(
     assert callable(make_sink)
 
     sink = make_sink(factory.supervisors[0].configs[0])
-
+    log_path = paths.logs_dir / "mcp" / "srv.log"
     try:
-        assert sink.name.endswith(f"mcp{os.sep}srv.log")
+        assert log_path.exists()
+        sink.write("stderr line\n")
+        sink.flush()
+        assert log_path.read_text(encoding="utf-8") == "stderr line\n"
     finally:
         sink.close()
 

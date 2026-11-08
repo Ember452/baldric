@@ -321,8 +321,8 @@
       "max_function_stmts": 0
     },
     "src/baldric_coding/extensions/builtins/mcp/extension.py": {
-      "lines": 143,
-      "max_function_stmts": 8
+      "lines": 291,
+      "max_function_stmts": 10
     },
     "src/baldric_coding/extensions/builtins/subagents/__init__.py": {
       "lines": 8,
@@ -421,7 +421,7 @@
       "max_function_stmts": 14
     },
     "src/baldric_coding/extensions/runtime.py": {
-      "lines": 1454,
+      "lines": 1464,
       "max_function_stmts": 32
     },
     "src/baldric_coding/modes/__init__.py": {
@@ -689,7 +689,7 @@
       "max_function_stmts": 16
     },
     "src/baldric_coding/tools/output_accumulator.py": {
-      "lines": 30,
+      "lines": 39,
       "max_function_stmts": 3
     },
     "src/baldric_coding/tools/read.py": {
@@ -917,16 +917,16 @@
       "max_function_stmts": 14
     },
     "src/baldric_mcp/client.py": {
-      "lines": 408,
-      "max_function_stmts": 12
+      "lines": 415,
+      "max_function_stmts": 13
     },
     "src/baldric_mcp/config.py": {
       "lines": 386,
       "max_function_stmts": 21
     },
     "src/baldric_mcp/supervisor.py": {
-      "lines": 178,
-      "max_function_stmts": 8
+      "lines": 185,
+      "max_function_stmts": 9
     },
     "src/baldric_protocol/__init__.py": {
       "lines": 152,

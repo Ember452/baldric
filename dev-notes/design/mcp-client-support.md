@@ -155,16 +155,14 @@ decisions where they apply):
   when `api.context.project_trusted`; otherwise one diagnostic) and registers
   handlers. The async `session_start` handler boots the supervisor
   non-blocking (background connect tasks — the house pattern:
-  `asyncio.get_running_loop().create_task`). `session_start` is **idempotent
-  per runtime generation**: new/resume/branch rebuild the session on the SAME
-  runtime (`lifecycle.py:740`) and fire `session_shutdown(reason)` then
-  `session_start(reason)` — an existing live supervisor is kept and only
-  re-synced (no second supervisor, no duplicate registrations; the registry
-  survives rebind and `compose_tools` already re-merges its tools into the
-  fresh list, so no re-seed mechanism exists or is needed). Only
-  `startup`/`reload` build a new supervisor. `session_shutdown(quit|reload)`
-  closes every subprocess and connection; `new`/`resume`/`branch` keep
-  connections (same cwd, same config).
+  `asyncio.get_running_loop().create_task`). Each runtime generation stages a
+  fresh extension instance (the corrected Task 0 Step 2b matrix: `load`
+  always stages a new runtime), so `session_start` normally boots exactly one
+  supervisor per generation; an idempotent guard re-syncs instead of
+  re-booting if a host ever re-emits `session_start` on one runtime. On
+  `session_shutdown` the supervisor is **always** shut down: every shutdown
+  reason precedes retirement of that generation, so keeping connections would
+  orphan the server processes.
 - **First-turn admission.** An async `input` hook (awaited by the session run
   path before the run starts) awaits `supervisor.wait_ready()` **once** per
   session when any server is still connecting; capped at 10 s, then proceeds
@@ -182,10 +180,13 @@ decisions where they apply):
   `refresh_system_prompt()` seam; servers without instructions contribute
   name and tool count only.
 - **Child sessions.** Subagent child sessions do not get MCP in MVP — each
-  child spawning its own server processes is waste. The decision is one gate
-  function (`_session_wants_mcp`) with a docstring naming the future path
-  (shared supervisor or per-child opt-in flag); nothing else in the design
-  assumes top-level ownership, so enabling it later is a one-line change.
+  child spawning its own server processes is waste. The gate is composition
+  level, not extension level: `CodingSessionConfig` gains
+  `disabled_built_in_extensions: frozenset[str]` and the session filters the
+  built-in registry with it, so the `mcp` built-in never even loads in a
+  child. This mirrors the existing `extensions_enabled` precedent and keeps
+  `ExtensionContext` free of MCP-specific fields; enabling MCP for children
+  later is a one-line change at the child construction site.
 - **`/mcp` command** (sync handler; async work scheduled onto the loop):
   no args lists servers (name, state, transport, tool count, first error
   line); `/mcp restart <name>` re-reads config and reconnects; `/mcp off
@@ -332,8 +333,9 @@ without passing `extension_runtime` (`extensions/builtins/subagents/extension.py
 — each child gets a **fresh** runtime, and built-ins load natively ("Children
 load extensions natively (pi parity)", `extension.py:731-737`;
 `extensions_enabled=not run.requested_isolated`, `:737`). Therefore the gate is
-a real flag: `CodingSessionConfig.mcp_enabled: bool = True`, and the child
-construction passes `mcp_enabled=False`. Isolated children additionally narrow
+a real flag at composition level: `CodingSessionConfig.disabled_built_in_extensions:
+frozenset[str]` (session filters the built-in registry), and the child
+construction passes `frozenset({"mcp"})`. Isolated children additionally narrow
 `config.tools` to core names post-load (`extension.py:753-763`).
 
 ### Rebind lifecycle matrix (MUST-HOLD for the guard — CORRECTED during Task 6)
@@ -364,7 +366,8 @@ a rebind whose `config.tools` is non-empty re-wraps already-wrapped tools
 unconditionally). Related caveat for the live-tool seam: the subagents
 isolated-child narrowing REPLACES `session._harness.config.tools`
 (`subagents/extension.py:761-763`), which detaches the list the runtime bound
-during load; MCP children are gated off (`mcp_enabled=False`), so the MCP
+during load; MCP children are gated off (the child's disabled built-ins
+exclude `mcp`), so the MCP
 extension never registers into a narrowed list, but a future live-list user
 must re-bind after narrowing.
 

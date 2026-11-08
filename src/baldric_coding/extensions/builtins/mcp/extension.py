@@ -260,7 +260,7 @@ class _McpExtension:
         """
         log_dir = self._context.paths.logs_dir / "mcp"
         log_dir.mkdir(parents=True, exist_ok=True)
-        return open(log_dir / f"{config.name}.log", "a", encoding="utf-8")  # noqa: SIM115 - lifetime owned by the connection
+        return (log_dir / f"{config.name}.log").open("a", encoding="utf-8")
 
     def _caller(self, server: str, tool: str) -> Callable[..., Any]:
         async def call(arguments: dict[str, Any], *, on_progress: Any = None) -> Any:

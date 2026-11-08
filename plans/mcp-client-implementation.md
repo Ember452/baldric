@@ -1325,7 +1325,7 @@ paths explicitly.)
 - Create: `dev-notes/journal/` entry if that is the house journal location —
   verify where existing build journals live (`dev-notes/`) and follow it
 
-- [ ] **Step 1: Write the user guide**: what MCP is, `mcp.json` (user +
+- [x] **Step 1: Write the user guide**: what MCP is, `mcp.json` (user +
   project, trust gating), `/mcp` usage, `enabled`/`timeout`/`description`/`type`
   fields, `${ENV}` expansion, tool naming `mcp__<server>__<tool>`, states and
   lazy reconnect, and the known costs/limits: tool churn rebuilds the system
@@ -1333,10 +1333,10 @@ paths explicitly.)
   `_sync` no-op rule), no OAuth, no resources/prompts, no `list_changed`,
   modes that bypass the `input` hook get tools from turn two (mirror the
   spec's non-goals and Task 0 Step 2c findings).
-- [ ] **Step 2: Write the dev-notes journal entry** (what was added, why, how
+- [x] **Step 2: Write the dev-notes journal entry** (what was added, why, how
   it maps to pi's design, how to test) per the repo's documentation
   expectations.
-- [ ] **Step 3: Run every gate (cross-package change ⇒ full suite):**
+- [x] **Step 3: Run every gate (cross-package change ⇒ full suite):**
 
 ```bash
 uv run pytest -q
@@ -1353,7 +1353,7 @@ If `check_structure.py` flags `session.py` growth, record it with `--init`
 (house rule) in a separate commit `chore: record structure growth for mcp seams`.
 Coverage must stay ≥ 80%.
 
-- [ ] **Step 4: Commit docs**
+- [x] **Step 4: Commit docs**
 
 ```bash
 git add website/content/guides/mcp.md <nav-file> <journal-entry>
