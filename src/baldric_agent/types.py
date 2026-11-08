@@ -1,8 +1,11 @@
-"""Shared low-level types for Baldric's portable agent layer."""
+"""Compatibility shim: JSON types now live in ``baldric_protocol.types``.
+
+Kept during the protocol extraction so existing ``from baldric_agent.types``
+imports keep working. Remove once every importer points at the protocol package.
+"""
 
 from __future__ import annotations
 
-# Pydantic needs PEP 695 named recursive aliases for JSON-like values.
-type JSONPrimitive = str | int | float | bool | None
-type JSONValue = JSONPrimitive | list[JSONValue] | dict[str, JSONValue]
-type JSONObject = dict[str, JSONValue]
+from baldric_protocol.types import JSONObject, JSONPrimitive, JSONValue
+
+__all__ = ["JSONObject", "JSONPrimitive", "JSONValue"]

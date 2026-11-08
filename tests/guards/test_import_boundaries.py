@@ -30,6 +30,18 @@ def test_rules_declare_the_layer_direction() -> None:
     assert ("baldric_coding.rendering", "baldric_coding.tui") in pairs
 
 
+def test_protocol_is_the_bottom_layer() -> None:
+    """The protocol package must not depend on upper layers or platform I/O."""
+    pairs = set(RULES)
+    for forbidden in ("baldric_agent", "baldric_ai", "baldric_coding", "textual", "rich", "fcntl", "msvcrt"):
+        assert ("baldric_protocol", forbidden) in pairs, f"missing protocol rule: {forbidden}"
+
+
+def test_kernel_cannot_depend_on_providers() -> None:
+    """The reverse arrow: the agent kernel must not import provider adapters."""
+    assert ("baldric_agent", "baldric_ai") in set(RULES)
+
+
 def test_repository_has_no_layer_violations() -> None:
     violations = scan_violations(REPO_ROOT)
 

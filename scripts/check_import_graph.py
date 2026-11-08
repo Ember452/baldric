@@ -23,6 +23,19 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # (source prefix, forbidden imported prefix)
 RULES: tuple[tuple[str, str], ...] = (
+    # The protocol contract is the lowest layer: it may not depend on the agent
+    # runtime, provider adapters, or coding app, and may not touch platform I/O.
+    ("baldric_protocol", "baldric_agent"),
+    ("baldric_protocol", "baldric_ai"),
+    ("baldric_protocol", "baldric_coding"),
+    ("baldric_protocol", "textual"),
+    ("baldric_protocol", "rich"),
+    ("baldric_protocol", "fcntl"),
+    ("baldric_protocol", "msvcrt"),
+    ("baldric_protocol", "tempfile"),
+    # The agent kernel must not depend on provider implementations (the reverse
+    # direction of AI_AGENT_SURFACE below).
+    ("baldric_agent", "baldric_ai"),
     ("baldric_agent", "baldric_coding"),
     ("baldric_agent", "textual"),
     ("baldric_agent", "rich"),

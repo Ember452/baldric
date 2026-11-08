@@ -18,6 +18,7 @@ from baldric_agent import (
     TextContent,
     ToolCall,
     ToolExecutionEndEvent,
+    ToolExecutionStartEvent,
     ToolExecutionUpdateEvent,
     ToolResultMessage,
     UserMessage,
@@ -981,3 +982,49 @@ async def test_agent_loop_stops_with_assistant_error_after_max_turns() -> None:
     assert error.stop_reason == "error"
     assert error.error_message == "Agent stopped after max_turns=1"
     assert len(provider.calls) == 1
+
+
+@pytest.mark.anyio
+async def test_closing_tool_call_generator_mid_run_emits_clean_result_not_indexerror() -> None:
+    """Closing the tool-call generator while the tool runs must not crash.
+
+    Regression: ``run_tool`` appends the final ``(result, is_error)`` pair only
+    after the tool returns. When the consumer closes the generator mid-run (an
+    interrupted turn), ``GeneratorExit`` unwinds through ``run_tool``'s finally
+    without appending, and ``execute_tool_call`` used to do ``outcome[0]`` on an
+    empty list -> ``IndexError``. It must instead synthesize an interrupted
+    result and emit a clean ``tool_execution_end``.
+    """
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def execute(
+        tool_call_id: str,
+        arguments: Mapping[str, JSONValue],
+        signal: CancellationToken | None = None,
+        on_update=None,  # noqa: ANN001
+    ) -> AgentToolResult:
+        del tool_call_id, arguments, signal
+        assert on_update is not None
+        on_update(AgentToolResult(content="working"))  # gives run_tool a partial to yield
+        started.set()
+        await release.wait()  # runs until interrupted
+        return AgentToolResult(content="never reached")
+
+    call = ToolCall(id="call-1", name="long", arguments={})
+    generator = execute_tool_call(
+        call=call,
+        tools={"long": _tool("long", execute)},
+        signal=None,
+        before_tool_call=None,
+        after_tool_call=None,
+    )
+
+    # event 1: tool_execution_start. event 2: tool_execution_update (tool is running).
+    first = await generator.__anext__()
+    assert isinstance(first, ToolExecutionStartEvent)
+    second = await generator.__anext__()
+    assert isinstance(second, ToolExecutionUpdateEvent)
+    await asyncio.wait_for(started.wait(), timeout=1.0)
+
+    await generator.aclose()  # interrupt mid-run; must not raise IndexError

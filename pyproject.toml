@@ -59,7 +59,7 @@ show_missing = false
 precision = 1
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/baldric_ai", "src/baldric_agent", "src/baldric_coding"]
+packages = ["src/baldric_protocol", "src/baldric_ai", "src/baldric_agent", "src/baldric_coding"]
 
 [tool.ruff]
 line-length = 110
@@ -76,7 +76,7 @@ indent-style = "space"
 [tool.mypy]
 python_version = "3.12"
 strict = true
-packages = ["baldric_ai", "baldric_agent", "baldric_coding"]
+packages = ["baldric_protocol", "baldric_ai", "baldric_agent", "baldric_coding"]
 
 [[tool.mypy.overrides]]
 module = "pygments.*"
