@@ -419,3 +419,57 @@ does not exist yet and will be added to the protocol and to `CodingSession`.
   idempotent guard covers the future implementation regardless.
 - The plan's "if a mode bypasses the hook, record as known limitation"
   contingency resolved to "no mode bypasses it" — nothing to document.
+
+### SDK API pin-down (installed `mcp` 1.30.0, Task 1 Step 4)
+
+Recorded so Tasks 3-5 argue from facts, not the plan's assumptions. The HTTP
+transport difference triggered the plan's STOP RULE; the plan was amended and
+committed before any Task 3 code.
+
+1. **stdio** (`mcp/client/stdio/__init__.py`): `StdioServerParameters(command,
+   args=[], env=None, cwd=None, encoding="utf-8", encoding_error_handler="strict")`
+   — `cwd` EXISTS (`:86`). `stdio_client(server, errlog: TextIO = sys.stderr)`
+   yields `(read_stream, write_stream)` (`:189`). Env semantics (`:127`):
+   `{**get_default_environment(), **server.env}` when env is passed — merged
+   over the SDK's safe-inherited defaults, passed env wins. Windows command
+   resolution is built in (`get_windows_executable_command`,
+   `mcp/os/win32/utilities.py:36-65`, `shutil.which` + `.cmd/.bat/.exe/.ps1`
+   probing) and runs automatically inside `stdio_client` (`:229-230`) — the
+   plan's own `_resolve_windows_command` was redundant and is dropped.
+   Shutdown is built into the context manager (close stdin → wait 2s →
+   terminate process tree; Windows uses a kill-on-close Job Object).
+2. **HTTP** (`mcp/client/streamable_http.py`): `streamablehttp_client` is
+   DEPRECATED (`:709-711`). Use
+   `streamable_http_client(url, *, http_client=None, terminate_on_close=True)`;
+   headers/timeouts/auth go on the httpx client via
+   `create_mcp_http_client(headers=..., timeout=...)` passed as `http_client`.
+   Yields `(read_stream, write_stream, get_session_id)` (`:695-699`).
+3. **ClientSession** (`mcp/client/session.py`): `ClientSession(read_stream,
+   write_stream, read_timeout_seconds: timedelta | None = None,
+   sampling_callback, elicitation_callback, list_roots_callback,
+   logging_callback, message_handler, client_info, ...)` (`:122-136`).
+   `initialize() -> InitializeResult` raises `RuntimeError` on unsupported
+   protocol version (`:202-203`); `InitializeResult.instructions: str | None`
+   exists (`types.py:698`). `list_tools() -> ListToolsResult` (`.tools`).
+   `call_tool(name, arguments=None, read_timeout_seconds=None,
+   progress_callback=None, *, meta=None) -> CallToolResult` (`:386-394`);
+   `CallToolResult(content, isError, structuredContent)` (`types.py:1363-1367`).
+   NOTE: `call_tool` may raise — output-schema validation on success results
+   (`:412-413`, `RuntimeError` at `:435/:443/:448`) and an internal
+   `list_tools` refresh (`:419-421`). The adapter catches exceptions per call.
+4. **Progress**: `progress_callback` is invoked as
+   `await callback(progress, total, message)` (positional triple), matched by
+   the request's progress token (`mcp/shared/session.py:409-420`).
+5. **HTTP 401**: the POST handler calls `response.raise_for_status()`
+   (`streamable_http.py:381`), so a 401 during `initialize()` surfaces as
+   `httpx.HTTPStatusError` (`.response.status_code == 401`), possibly wrapped
+   in an anyio `ExceptionGroup` by the transport task group. `connect()`
+   unwraps the group and maps 401 → `needs-auth`.
+6. **Test helpers**: `mcp/shared/memory.py` provides
+   `create_client_server_memory_streams()` (yields `(client_streams,
+   server_streams)`) and `create_connected_server_and_client_session(server:
+   Server | FastMCP, read_timeout_seconds=..., ...) -> AsyncGenerator[ClientSession]`
+   (yields an initialized session; FastMCP unwrapped via `_mcp_server`).
+   **FastMCP** (`mcp/server/fastmcp/server.py`): `FastMCP(name)` (`:157`),
+   `@mcp.tool()` (`:462`), `mcp.run(transport="stdio")` is synchronous and
+   defaults to stdio (`:295-312`).

@@ -614,9 +614,11 @@ inject a fake session with scripted `initialize()`, `list_tools()`,
     `image_data`/`image_mime`; empty content + `structuredContent` → one text
     block of JSON; `isError=True` → `is_error=True`.
 11. `close()` → state `closed`; exits transport context (fake records exit).
-12. `_resolve_windows_command` table tests: extensionless command on Windows
-    resolves through `shutil.which` (inject a fake PATH/which), absolute or
-    suffixed commands pass through unchanged, non-Windows always unchanged.
+12. (dropped — the pinned SDK resolves Windows `.cmd`/`.bat`/`.exe` shims
+    itself via `get_windows_executable_command` inside `stdio_client`; the
+    planned `_resolve_windows_command` helper was redundant and is removed.
+    The stdio factory test instead asserts `config.command` reaches
+    `StdioServerParameters` verbatim.)
 
 - [ ] **Step 2: Run and see them fail**
 
@@ -662,32 +664,41 @@ async def _call_with_deadline(self, coro_factory, on_progress):
     return box["result"]
 ```
 
-Progress notifications (via the session `message_handler` pinned in Task 1)
-call `on_progress(f"Progress {progress}/{total} {message}")` and push the
-deadline out — share the deadline via a small mutable holder both the handler
-and watchdog close over. Hardening notes: `box["result"]` needs an explicit
-`cast(object, ...)`-style narrowing under mypy strict; after a timeout the SDK
-may still deliver the late response — it is dropped by the request id and is
-benign; leave a one-line comment saying so at the cancel site so a future
-reader does not "fix" it.
+Progress notifications arrive through `call_tool`'s `progress_callback`
+(SDK 1.30.0: `await callback(progress, total, message)`, matched by the
+request's progress token — `mcp/shared/session.py:409-420`): map it to
+`on_update` and push the deadline out — share the deadline via a small
+mutable holder both the callback and watchdog close over. Hardening notes:
+`box["result"]` needs an explicit `cast(object, ...)`-style narrowing under
+mypy strict; after a timeout the SDK may still deliver the late response — it
+is dropped by the request id and is benign; leave a one-line comment saying
+so at the cancel site so a future reader does not "fix" it. `call_tool` can
+also raise (output-schema validation, internal `list_tools` refresh): the
+executor catches exceptions per call and converts them to the error result
+(Task 5's fallback text).
 
 - Lazy reconnect (pi's `disconnected` semantics): `call_tool` when
   `self._state == "disconnected"` performs one `connect()`; on failure raises
   `McpToolUnavailable(self._error or ...)`.
-- `default_transport`: http → `streamablehttp_client(config.url,
-  headers=dict(config.headers))`; stdio → command resolved by
-  `_resolve_windows_command` (Task 9's helper lives in this module:
-  `shutil.which(command)` on Windows for extensionless commands, returning the
-  input unchanged otherwise/non-Windows), then
+- `default_transport`: http →
+  `streamable_http_client(config.url, http_client=create_mcp_http_client(headers=dict(config.headers)))`
+  (SDK 1.30.0 renamed `streamablehttp_client` → `streamable_http_client` and
+  moved headers/timeouts onto the httpx client; the old name is deprecated —
+  use the new one; the yield is `(read_stream, write_stream, get_session_id)`);
+  stdio → pass `config.command` verbatim (the SDK resolves Windows shims
+  itself — see test 12), then
   `stdio_client(StdioServerParameters(command=..., args=list(config.args),
-  env={**environment, **config.env}, cwd=config.cwd))` (drop `cwd=` if Task 1
-  found the pinned SDK lacks it; the merged env is passed verbatim — Task 1
-  findings govern).
-- Stderr capture hook: constructor kwarg
-  `stderr_sink: Callable[[str], None] | None = None`; stdio transport's stderr
-  piping is wired through it if the pinned SDK exposes it (Task 1 item 1
-  decides; if not exposed, keep the hook and note the limitation — Task 10
-  wires what the SDK allows).
+  env={**environment, **config.env}, cwd=config.cwd))` (`cwd` exists in the
+  pinned SDK; the SDK merges the passed env over `get_default_environment()`,
+  and the full snapshot supersedes those defaults; yield is
+  `(read_stream, write_stream)`).
+- Stderr capture: the SDK seam is `stdio_client(server, errlog=<TextIO>)` —
+  the constructor kwarg is `stderr_sink: TextIO | None = None` (Task 10 opens
+  the log file and passes it). HTTP transports have no stderr.
+- HTTP 401 during `initialize()` surfaces as `httpx.HTTPStatusError`
+  (`response.raise_for_status()` in the POST handler, `streamable_http.py:381`),
+  possibly wrapped in an anyio `ExceptionGroup`; `connect()` unwraps the group
+  and maps status 401 to `needs-auth`.
 
 - [ ] **Step 4: Run tests, gates, commit**
 
@@ -1268,9 +1279,10 @@ git commit -m "test: MCP stdio integration and resume repair regression"
   a stderr pipe: client test asserts the tail lands in the sink.
 
 - [ ] **Step 3: Implement** — wire `output_saver` in the extension's
-  `mcp_tool_to_agent_tool(...)` call; wire `stderr_sink` to
-  `paths.logs_dir / "mcp" / f"{server}.log"` (append mode, create parents)
-  where Task 1 allows; document any SDK limitation inline.
+  `mcp_tool_to_agent_tool(...)` call; wire `stderr_sink` by opening
+  `paths.logs_dir / "mcp" / f"{server}.log"` (append mode, create parents) and
+  passing it as `stdio_client(server, errlog=...)`; http servers get `None`
+  (no stderr); document the seam inline.
 
 - [ ] **Step 4: Run, gates, commit**
 
