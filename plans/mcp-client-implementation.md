@@ -1253,7 +1253,7 @@ supervisor.start()`; assert one `connected` status with exactly one tool;
 process-spawning is flaky there? No — subprocess spawning is cross-platform;
 do NOT add skips (house rule against weakening).
 
-- [ ] **Step 3: Write the resume regression test**
+- [x] **Step 3: Write the resume regression test**
 
 Using the session test helpers (fake provider): craft initial messages
 containing an assistant `ToolCall` named `mcp__gone__server__tool` with no
@@ -1283,7 +1283,7 @@ git commit -m "test: MCP stdio integration and resume repair regression"
   wiring
 - Modify: `tests/coding/extensions/test_mcp_extension.py`
 
-- [ ] **Step 1: Verify** — read `src/baldric_coding/tools/truncate.py` and
+- [x] **Step 1: Verify** — read `src/baldric_coding/tools/truncate.py` and
   `src/baldric_coding/tools/output_accumulator.py` (and the bash tool's
   output-file path convention) to find the house helper for saving full tool
   output and its destination directory convention. Reuse it; do not invent a
@@ -1295,13 +1295,13 @@ git commit -m "test: MCP stdio integration and resume repair regression"
   content); truncated notes carry that path. If Task 1's SDK findings exposed
   a stderr pipe: client test asserts the tail lands in the sink.
 
-- [ ] **Step 3: Implement** — wire `output_saver` in the extension's
+- [x] **Step 3: Implement** — wire `output_saver` in the extension's
   `mcp_tool_to_agent_tool(...)` call; wire `stderr_sink` by opening
   `paths.logs_dir / "mcp" / f"{server}.log"` (append mode, create parents) and
   passing it as `stdio_client(server, errlog=...)`; http servers get `None`
   (no stderr); document the seam inline.
 
-- [ ] **Step 4: Run, gates, commit**
+- [x] **Step 4: Run, gates, commit**
 
 ```bash
 uv run pytest -q tests/coding/extensions/test_mcp_extension.py tests/mcp
@@ -1429,6 +1429,14 @@ an empty section means the plan was followed as written. Entry format:
   2026-11-08): `session.py` 2037→2064 (config field + registry-filter
   helper) and `subagents/extension.py` 1620→1624 (child gate argument). Every
   added line traces to D3. Commit: Task 7's feat commit.
+- **D8 — "house output location" is the temp-file convention** (Task 10,
+  2026-11-08): the plan assumed a managed output directory; the house
+  convention (bash tool) is `tempfile.NamedTemporaryFile(delete=False)` with
+  a tool-specific prefix. The helper moved to
+  `tools.output_accumulator.write_temp_output(output, *, prefix, suffix)`
+  (bash delegates unchanged) and the MCP saver uses prefix
+  `baldric-mcp-`. Impact surface: bash tool output paths (unchanged), its
+  tests (pass). Design change? no.
 - **D6 — titled prompt sections upsert per source** (Task 8, 2026-11-08):
   `register_prompt_section` appended unconditionally, but the MCP section
   body changes with server states and would stack duplicates. Titled

@@ -17,6 +17,7 @@ from baldric_coding.auth.credentials import FileCredentialStore, credentials_pat
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.extensions.api import EXTENSION_API_VERSION, ExtensionAPI, ExtensionCapabilities
 from baldric_coding.extensions.builtin_registry import BuiltInExtensionContext
+from baldric_coding.tools.output_accumulator import write_temp_output
 from baldric_mcp.adapter import create_mcp_tool_name, mcp_tool_to_agent_tool
 
 if TYPE_CHECKING:
@@ -29,14 +30,19 @@ API_VERSION = EXTENSION_API_VERSION
 CAPABILITIES = ExtensionCapabilities(tools=True, hooks=True)
 
 
-def _default_supervisor_factory(configs: Any, environment: Any) -> Any:
+def _default_supervisor_factory(configs: Any, environment: Any, stderr_sink_factory: Any = None) -> Any:
     from baldric_mcp.supervisor import McpSupervisor
 
-    return McpSupervisor(configs, environment=environment)
+    return McpSupervisor(configs, environment=environment, stderr_sink_factory=stderr_sink_factory)
 
 
 # Module-level so tests can inject a fake supervisor without the SDK.
-_supervisor_factory: Callable[[Any, Any], Any] = _default_supervisor_factory
+_supervisor_factory: Callable[..., Any] = _default_supervisor_factory
+
+
+def _mcp_output_saver(full_text: str, suffix: str) -> str:
+    """Save full MCP tool output with the house temp-file convention."""
+    return write_temp_output(full_text, prefix="baldric-mcp-", suffix=suffix)
 
 
 class _McpExtension:
@@ -72,7 +78,11 @@ class _McpExtension:
         if not configs:
             return
         self._configs = configs
-        self._supervisor = _supervisor_factory(configs, self._context.environment)
+        self._supervisor = _supervisor_factory(
+            configs,
+            self._context.environment,
+            stderr_sink_factory=self._make_stderr_sink,
+        )
         self._shut_down = False
         self._supervisor.on_change(self._sync)
         # Non-blocking boot: session_start must not wait on server connects;
@@ -135,7 +145,11 @@ class _McpExtension:
                 if name in self._registered:
                     continue
                 self._registered[name] = server
-                self._api.register_tool(mcp_tool_to_agent_tool(server, info, self._caller(server, info.name)))
+                self._api.register_tool(
+                    mcp_tool_to_agent_tool(
+                        server, info, self._caller(server, info.name), output_saver=_mcp_output_saver
+                    )
+                )
         for name, server in list(self._registered.items()):
             if not connected.get(server, False):
                 del self._registered[name]
@@ -237,6 +251,16 @@ class _McpExtension:
         )
         result = load_mcp_config(user_path, project_path, self._context.environment)
         return next((server for server in result.servers if server.name == name), None)
+
+    def _make_stderr_sink(self, config: Any) -> Any:
+        """Open the per-server stderr log (`~/.baldric/logs/mcp/<server>.log`).
+
+        The connection closes the handle when its transport goes away; http
+        servers have no stderr and never ask for a sink.
+        """
+        log_dir = self._context.paths.logs_dir / "mcp"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        return open(log_dir / f"{config.name}.log", "a", encoding="utf-8")  # noqa: SIM115 - lifetime owned by the connection
 
     def _caller(self, server: str, tool: str) -> Callable[..., Any]:
         async def call(arguments: dict[str, Any], *, on_progress: Any = None) -> Any:

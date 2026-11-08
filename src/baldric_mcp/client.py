@@ -208,6 +208,7 @@ class McpServerConnection:
         self._error: str | None = None
         self._stack: AsyncExitStack | None = None
         self._session: Any = None
+        self._stderr_sink = stderr_sink
         self.tools: tuple[McpToolInfo, ...] = ()
         self.instructions: str | None = None
 
@@ -365,6 +366,12 @@ class McpServerConnection:
         stack, self._stack, self._session = self._stack, None, None
         if stack is not None:
             await self._aclose(stack)
+        sink, self._stderr_sink = self._stderr_sink, None
+        if sink is not None and hasattr(sink, "close"):
+            # The stderr log file handle lives exactly as long as the
+            # connection that opened it.
+            with suppress(Exception):
+                sink.close()
 
     @staticmethod
     async def _aclose(stack: AsyncExitStack) -> None:

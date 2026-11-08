@@ -12,6 +12,7 @@ import time
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
+from typing import Any
 
 import anyio
 
@@ -47,11 +48,13 @@ class McpSupervisor:
         connection_factory: Callable[[McpServerConfig], McpServerConnection] | None = None,
         wait_ready_cap: float = 10.0,
         clock: Callable[[], float] = time.monotonic,
+        stderr_sink_factory: Callable[[McpServerConfig], Any] | None = None,
     ) -> None:
         self._environment = environment
         self._connection_factory = connection_factory
         self._wait_ready_cap = wait_ready_cap
         self._clock = clock
+        self._stderr_sink_factory = stderr_sink_factory
         self._configs: dict[str, McpServerConfig] = {}
         self._connections: dict[str, McpServerConnection] = {}
         self._on_change: Callable[[], None] | None = None
@@ -153,7 +156,11 @@ class McpSupervisor:
     def _build(self, config: McpServerConfig) -> McpServerConnection:
         if self._connection_factory is not None:
             return self._connection_factory(config)
-        return McpServerConnection(config, environment=self._environment)
+        return McpServerConnection(
+            config,
+            environment=self._environment,
+            stderr_sink=self._stderr_sink_factory(config) if self._stderr_sink_factory is not None else None,
+        )
 
     async def _replace_connection(self, name: str, config: McpServerConfig) -> None:
         old = self._connections.get(name)

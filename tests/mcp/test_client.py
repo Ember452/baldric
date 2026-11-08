@@ -341,6 +341,24 @@ async def test_close_exits_transport() -> None:
     await connection.close()  # idempotent
 
 
+async def test_close_closes_the_stderr_sink() -> None:
+    class Sink:
+        def __init__(self) -> None:
+            self.closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+    harness = Harness([FakeSession()])
+    sink = Sink()
+    connection = harness.connection(stderr_sink=sink)
+    await connection.connect()
+
+    await connection.close()
+
+    assert sink.closed is True
+
+
 async def test_needs_auth_sentinel_exists() -> None:
     """The 401 sentinel stays importable for the transport error path."""
 

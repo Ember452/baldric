@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -34,14 +35,16 @@ PROJECT_SERVER = {"command": "proj-cmd"}
 class FakeSupervisor:
     """Scripted stand-in; the extension sees the real supervisor surface."""
 
-    def __init__(self, configs: Any, environment: Any) -> None:
+    def __init__(self, configs: Any, environment: Any, **kwargs: Any) -> None:
         self.configs = tuple(configs)
         self.environment = dict(environment)
+        self.kwargs = kwargs
         self.start_calls = 0
         self.shutdown_calls = 0
         self.wait_calls = 0
         self.enabled_calls: list[tuple[str, bool, Any]] = []
         self.restart_calls: list[tuple[str, str]] = []
+        self.next_result: Any = None
         self._servers: dict[str, dict[str, Any]] = {}
         self._on_change: Callable[[], None] | None = None
 
@@ -99,6 +102,8 @@ class FakeSupervisor:
     async def call_tool(
         self, server: str, tool: str, arguments: dict[str, Any], *, on_progress: Any = None
     ) -> McpToolResultData:
+        if self.next_result is not None:
+            return self.next_result
         return McpToolResultData(blocks=(McpContentBlock(text=f"{server}/{tool}"),), is_error=False)
 
 
@@ -110,11 +115,13 @@ class Factory:
     def __init__(self) -> None:
         self.supervisors: list[FakeSupervisor] = []
         self.config_lists: list[tuple[McpServerConfig, ...]] = []
+        self.kwargs: dict[str, Any] = {}
 
-    def __call__(self, configs: Any, environment: Any) -> FakeSupervisor:
-        supervisor = FakeSupervisor(configs, environment)
+    def __call__(self, configs: Any, environment: Any, **kwargs: Any) -> FakeSupervisor:
+        supervisor = FakeSupervisor(configs, environment, **kwargs)
         self.supervisors.append(supervisor)
         self.config_lists.append(supervisor.configs)
+        self.kwargs.update(kwargs)
         return supervisor
 
 
@@ -504,6 +511,57 @@ async def test_mcp_restart_reconnects_with_fresh_config(
     assert message == "mcp: restarting srv"
     supervisor = factory.supervisors[0]
     assert supervisor.restart_calls == [("srv", "srv-cmd")]
+
+
+async def test_stderr_sink_factory_wired_and_opens_the_log(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from baldric_coding.extensions.builtins import mcp as mcp_extension
+
+    factory = Factory()
+    monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
+    _write_user_config(BaldricPaths(home=tmp_path / "home-baldric"), {"srv": USER_SERVER})
+    runtime, _, _, _ = _runtime(tmp_path)
+    await runtime.emit_session_start("startup")
+    await _settle()
+
+    make_sink = factory.kwargs["stderr_sink_factory"]
+    assert callable(make_sink)
+
+    sink = make_sink(factory.supervisors[0].configs[0])
+
+    try:
+        assert sink.name.endswith(f"mcp{os.sep}srv.log")
+    finally:
+        sink.close()
+
+
+async def test_output_saver_saves_full_text(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from baldric_coding.extensions.builtins import mcp as mcp_extension
+
+    factory = Factory()
+    monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
+    _write_user_config(BaldricPaths(home=tmp_path / "home-baldric"), {"srv": USER_SERVER})
+    runtime, captured, _, _ = _runtime(tmp_path)
+    live: list[Any] = []
+    runtime.bind_live_tools(live, None)
+    await runtime.emit_session_start("startup")
+    await _settle()
+
+    full_text = "y" * 40000
+    factory.supervisors[0].set_server("srv", "connected", tools=(_tool_info("big", "Big"),))
+    await _settle()
+    factory.supervisors[0].next_result = McpToolResultData(
+        blocks=(McpContentBlock(text=full_text),), is_error=False
+    )
+
+    result = await live[0].execute("call-1", {}, None, None)
+
+    note = result.content[0].text
+    marker = "[Full output: "
+    assert marker in note
+    saved_path = note.split(marker, 1)[1].split(" (read it with offset/limit)]", 1)[0]
+    assert Path(saved_path).read_text(encoding="utf-8") == full_text
 
 
 async def test_mcp_unknown_server_reports_message(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

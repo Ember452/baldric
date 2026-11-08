@@ -18,13 +18,22 @@ def append_status_block(text: str, status: str) -> str:
     return f"{text}\n\n{status}" if text else status
 
 
-def _write_temp_output(output: str) -> str:
+def write_temp_output(output: str, *, prefix: str, suffix: str) -> str:
+    """Persist full tool output to a temp file and return its path.
+
+    The house convention for outputs too large for the model: a system temp
+    file (``delete=False``) named with the tool-specific ``prefix``.
+    """
     with tempfile.NamedTemporaryFile(
         mode="w",
         encoding="utf-8",
-        prefix="baldric-bash-",
-        suffix=".log",
+        prefix=prefix,
+        suffix=suffix,
         delete=False,
     ) as handle:
         handle.write(output)
         return handle.name
+
+
+def _write_temp_output(output: str) -> str:
+    return write_temp_output(output, prefix="baldric-bash-", suffix=".log")
