@@ -71,7 +71,25 @@ from baldric_protocol.tools import (
 )
 from baldric_protocol.types import JSONObject, JSONPrimitive, JSONValue
 
+PROTOCOL_VERSION = 1
+"""Version of the wire contract defined by this package.
+
+Third parties (provider adapters, frontends, session tooling) may depend on these
+shapes directly, so the contract is explicitly versioned. The persisted session
+wire shape additionally carries ``schema_version`` per entry (see
+``baldric_protocol.session.entries``); ``PROTOCOL_VERSION`` is the umbrella for
+the whole contract (messages, tools, provider events, session wire).
+
+Compatibility policy: additive, non-breaking changes do not bump this number; an
+incompatible wire change bumps it and is announced in the changelog. The golden
+snapshots in ``tests/agent/test_wire_contract.py`` and
+``tests/agent/test_session_entry_contract.py`` lock the exact bytes, so any
+change to the wire shape fails CI until the diff is reviewed and the snapshots
+are updated deliberately.
+"""
+
 __all__ = [
+    "PROTOCOL_VERSION",
     "AgentMessage",
     "AssistantContent",
     "AssistantDiagnosticError",
