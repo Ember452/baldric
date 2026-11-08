@@ -17,23 +17,27 @@
       "max_function_stmts": 0
     },
     "src/baldric_agent/harness.py": {
-      "lines": 408,
-      "max_function_stmts": 9
+      "lines": 443,
+      "max_function_stmts": 10
     },
     "src/baldric_agent/loop.py": {
       "lines": 393,
       "max_function_stmts": 19
+    },
+    "src/baldric_agent/run_state.py": {
+      "lines": 69,
+      "max_function_stmts": 3
     },
     "src/baldric_agent/tool_arguments.py": {
       "lines": 127,
       "max_function_stmts": 7
     },
     "src/baldric_agent/tool_calls.py": {
-      "lines": 225,
+      "lines": 235,
       "max_function_stmts": 12
     },
     "src/baldric_agent/tool_history.py": {
-      "lines": 162,
+      "lines": 190,
       "max_function_stmts": 20
     },
     "src/baldric_ai/__init__.py": {

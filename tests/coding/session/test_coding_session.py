@@ -977,9 +977,10 @@ async def test_cancelled_continue_dispatches_agent_settled_after_teardown(
     tmp_path: Path,
 ) -> None:
     provider = CancellableWaitingProvider()
-    session = await CodingSession.load(
-        _config(tmp_path, provider, JsonlSessionStorage(tmp_path / "session.jsonl"))
-    )
+    # A continuation needs a continuable transcript.
+    storage = JsonlSessionStorage(tmp_path / "session.jsonl")
+    await storage.append(MessageEntry(message=UserMessage(content="Start the work")))
+    session = await CodingSession.load(_config(tmp_path, provider, storage))
     extension_events: list[object] = []
     running_when_settled: list[bool] = []
     emit_event = session.extension_runtime.emit_event

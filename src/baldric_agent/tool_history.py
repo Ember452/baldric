@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from baldric_protocol.messages import (
@@ -14,6 +15,33 @@ from baldric_protocol.messages import (
 )
 
 _INTERRUPTED_TOOL_RESULT = "Tool call interrupted by user"
+
+
+def interrupted_tool_results(messages: Sequence[AgentMessage]) -> list[ToolResultMessage]:
+    """Return repairs for assistant tool calls left without a result.
+
+    The next provider request rejects an assistant tool call that never got a
+    result, so a run that died mid-tool-phase must have these appended before
+    anything else talks to the model.
+    """
+    returned_ids = {message.tool_call_id for message in messages if isinstance(message, ToolResultMessage)}
+    repairs: list[ToolResultMessage] = []
+    for message in messages:
+        if not isinstance(message, AssistantMessage):
+            continue
+        for call in message.tool_calls:
+            if call.id in returned_ids:
+                continue
+            returned_ids.add(call.id)
+            repairs.append(
+                ToolResultMessage(
+                    tool_call_id=call.id,
+                    tool_name=call.name,
+                    content=[TextContent(text=_INTERRUPTED_TOOL_RESULT)],
+                    is_error=True,
+                )
+            )
+    return repairs
 
 
 @dataclass(frozen=True, slots=True)

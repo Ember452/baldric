@@ -41,7 +41,7 @@
 ## 1. 决策点（执行前需拍板，已给推荐）
 
 - **D-T1 `thinking_level` 从哪里盖戳**：pi 由循环盖（agent-loop.ts:527 `Object.assign(await response.result(), { thinkingLevel: config.reasoning ?? "off" })`——**盖请求级**；provider 原生生效值是独立字段 `providerThinkingLevel`，types.ts:600-603 原文 "the agent loop **requested**"）。baldric 的 `ModelProvider.stream_response` 签名没有 thinking 参数，循环也不知道等级。**执行前复核结论（2026-11-08，修正原推荐）**："盖实际生效值"前提不成立——5 个适配器的请求路径均无 catalog 降级（codex/openai 直取 config `openai_codex.py:226`、`openai_compatible.py:183`；唯一的"降级"是 `supportsReasoningEffort=False` 时丢弃 effort，openai_compatible.py:824）；且"生效值"在各适配器内无单一定义（google 把 none 映射为 gemini3-pro 的 LOW、mistral 硬编码 high、anthropic budget 模式无等级名），复制这套映射必然漂移。**定稿**：字段进 protocol，语义 = pi 的**请求级**；盖戳走 `baldric_ai/stream.py:141` 的 `canonicalize_provider_stream` 单一漏斗，新增 `thinking_level` 参数（partial 与 final 两处赋值）；适配器用共享 helper `thinking_level_from_effort(config 中的 effort)`（none→off，其余恒等）从自身 config 派生后传入；config 不携带等级时（anthropic budget 模式、协议层 provider）盖 None——对应 pi 文档 "Absent for legacy or unmanaged responses" 的豁免口径。
-- **D-T2 `continue_()` 校验会破坏一个既有测试契约**：pi 语义是"末条为 assistant 且队列无货 → 抛错"（agent.ts:403-417）。现有 `test_continue_also_arms_its_cancel_token_immediately`（tests/agent/test_harness_lifecycle.py:94）在末条 assistant 时调用 continue_ 并期望收到 aborted 消息。**推荐**：采纳 pi 校验（阻止注定被 provider 拒绝的请求），该测试改为末条 user 消息 + 新增校验的失败测试；commit message 说明行为有意变更（符合 AGENTS.md 铁律）。
+- **D-T2 `continue_()` 校验会破坏一个既有测试契约**：pi 语义是"末条为 assistant 且队列无货 → 抛错"（agent.ts:403-417）。现有 `test_continue_also_arms_its_cancel_token_immediately`（tests/agent/test_harness_lifecycle.py:94）在末条 assistant 时调用 continue_ 并期望收到 aborted 消息。**执行结论（2026-11-08，半采纳修正原推荐）**：采纳 pi 的**排空分支**（末条 assistant 时整队排空 steering，其次 follow_up，作为新 prompt，pi drain() 语义）与**空历史拒绝**；**不采纳** assistant 尾的一刀切拒绝——(1) baldric 每次 run 的 prelude 修复已保证无悬空工具调用到达 provider（被拒的"注定请求"不存在），(2) coding 层 HF 自动 failover 的重试流真实依赖"错误轮后 continue_"（pi 不需要该路径，因其 failover 在传输层）。严格版曾让 5 个 session 测试失败，其中 3 个是 failover 主干流。测试影响：arming 测试改为 user 尾；空会话 continue 测试补种子消息。
 - **D-T3 循环崩溃是否合成事件**：pi 合成 error 消息 + 全套事件后**正常收尾**（不 re-raise）。baldric 目前让异常传播到消费方。**推荐**：采纳 pi——`_run` 捕获 `Exception`（`CancelledError` 照旧穿透），合成 assistant error 消息 + `turn_end` + `agent_end` 后正常结束迭代器；消费方从此永远收到结构完整的 run。破坏性变更（原来 catch 异常的消费方改行为），在发布说明列出。
 
 ---
@@ -155,7 +155,7 @@ pi 1.5.0 的核心设计分歧：SystemMessage 携带 systemPrompt 与工具声�
 | A | `AgentToolResult.is_error` 不抛错路径有测试且绿；ToolResultMessage.duration_ms 出现在落盘 JSONL；thinking_level 经 stream.py 漏斗盖**实际生效**等级并有 tests/ai 断言；快照 diff 已人工核对；PROTOCOL_VERSION 仍为 1 |
 | B | 不传钩子时全仓测试零变化；注入 convert/transform 的顺序与过滤断言通过；**每个新钩子各一条"抛异常→合成错误 run"测试绿** |
 | C | 三钩子各有独立测试；显式继续恰好多一轮；steering 重轮询不双投递；error 轮 continue 被忽略；全 None 回归零差异 |
-| D | 观测属性时序测试绿；continue 校验三分支绿；**after 钩子抛异常不炸循环**；steering/follow_up 模式运行时可切换；harness 保持 <400 行 |
+| D | 观测属性时序测试绿；continue 校验按 D-T2 执行结论（排空分支 + 空历史拒绝）；**after 钩子抛异常不炸循环**；queue_mode 运行时可切换（单一模式覆盖两队列，有意分歧：不拆 pi 的双模式）；harness 443 行为登记后的实测值（计划原目标 <400 低估了 C/D 的配置面；run_state 抽取与 tool_history 修复搬迁已完成，余量是 run 生命周期+合成+校验的内聚本体） |
 | E（可选） | `execute_tool_call` 对外行为零变化（现有测试守护）；`run_tool_call` 嵌套调用命中 before 钩子且不发事件；全部失败路径 isError 不抛；outcome 不变式注释随行 |
 | F | ADR-0003 提交，含采纳/不采纳论证与替代方案；无实现代码 |
 | 全部 | CI 全绿；`baldric_coding` 零改动（runtime.py 不迁移）；guidance/structure/suppression 棘轮不涨 |

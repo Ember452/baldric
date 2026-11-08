@@ -1430,3 +1430,56 @@ async def test_prepare_next_turn_long_run_repolls_steering_once() -> None:
     ]
     assert len(steer_starts) == 1
     assert steer_starts[0].message in provider.calls[1][2]
+
+
+@pytest.mark.anyio
+async def test_after_tool_call_violation_becomes_error_result_not_crash() -> None:
+    """Pi agent-loop.ts:1043-1046: a failing after-hook cannot kill the run.
+
+    The tool result is replaced wholesale by an error result; the model sees
+    the failure text and the turn completes normally.
+    """
+    call = ToolCall(id="call-1", name="read", arguments={})
+    assistant = AssistantMessage(content=[call], model="fake")
+    messages: list[AgentMessage] = [UserMessage(content="Use it")]
+    provider = FakeProvider(
+        [
+            [assistant_start(), tool_call_end(call), assistant_done(assistant, "toolUse")],
+            [assistant_start(), assistant_done(AssistantMessage(content="recovered", model="fake"))],
+        ]
+    )
+
+    async def execute(
+        tool_call_id: str,
+        arguments: Mapping[str, JSONValue],
+        signal: CancellationToken | None,
+        on_update: object,
+    ) -> AgentToolResult:
+        return AgentToolResult(content=[TextContent(text="ok")], details={})
+
+    async def after(
+        call: ToolCall,
+        result: AgentToolResult,
+        is_error: bool,
+    ) -> tuple[AgentToolResult, bool]:
+        raise RuntimeError("hook exploded")
+
+    events = await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=messages,
+            tools=[_tool("read", execute)],
+            after_tool_call=after,
+        )
+    )
+
+    end = next(event for event in events if isinstance(event, ToolExecutionEndEvent))
+    assert end.is_error is True
+    assert end.result.text == "hook exploded"
+    result = next(message for message in messages if isinstance(message, ToolResultMessage))
+    assert result.is_error is True
+    assert result.text == "hook exploded"
+    assert events[-1].type == "agent_end"
+    assert len(provider.calls) == 2
