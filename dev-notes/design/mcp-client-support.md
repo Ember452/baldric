@@ -246,7 +246,7 @@ Every change traces to this design; nothing adjacent is "improved":
 | `src/baldric_coding/extensions/runtime.py` | add `bind_live_tools(list)`; `register_tool`/`unregister_tool` also mutate the bound live list |
 | `src/baldric_coding/extensions/api.py` | add `unregister_tool(name)` (source-owned removal, generation-guarded) |
 | `src/baldric_coding/session/session.py` | bind the composed tool list into the runtime; add `refresh_system_prompt()` re-running the existing builder from current registries |
-| `src/baldric_agent/harness.py` | add `update_system_prompt(str)` (per-run read of `config.system` already exists; the config is replaced, not mutated) |
+| `src/baldric_agent/harness.py` | add `update_system_prompt(str)` (`AgentHarnessConfig` is a non-frozen slots dataclass and the run path reads `config.system` per run; the method assigns the field) |
 | `src/baldric_coding/extensions/builtin_registry.py` | declare the `mcp` built-in extension |
 
 If the structure ratchet flags `session.py` growth, record it with `--init`
