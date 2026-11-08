@@ -8,7 +8,7 @@ from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from baldric_agent.events import AgentEvent
 from baldric_agent.harness import AgentHarness, AgentHarnessConfig, QueuedMessages
@@ -53,6 +53,10 @@ from baldric_coding.observability.diagnostics import (
     AgentCallDiagnosticContext,
     AgentCallDiagnosticLogger,
 )
+
+if TYPE_CHECKING:
+    from baldric_coding.extensions.builtin_registry import BuiltInExtension
+
 from baldric_coding.providers.config import (
     OpenAICodexProviderConfig,
     ProviderConfig,
@@ -500,6 +504,14 @@ class CodingSessionConfig:
     extension_paths: tuple[Path, ...] = ()
     extensions_enabled: bool = True
     project_extensions_enabled: bool = False
+    disabled_built_in_extensions: frozenset[str] = frozenset()
+    """Built-in extension names this session must not load.
+
+    A host composes capabilities per session: a subagent child passes
+    ``frozenset({"mcp"})`` so the bundled MCP client never boots inside it.
+    Unknown names are ignored; filesystem extensions are unaffected (they are
+    gated by ``extensions_enabled``).
+    """
     extension_runtime: ExtensionRuntime | None = None
     before_tool_call: BeforeToolCall | None = None
     """Harness gate run before every tool execution.
@@ -516,6 +528,24 @@ class CodingSessionConfig:
     # Shared preparation keeps transcript/trust/index writes staged until
     # PreparedCodingSession.adopt() reaches its durable commit point.
     defer_authoritative_writes: bool = False
+
+
+def _eligible_built_in_extensions(config: CodingSessionConfig) -> tuple[BuiltInExtension, ...] | None:
+    """Filter the built-in registry by the session's disabled set.
+
+    ``None`` keeps the runtime's default registry, so sessions that disable
+    nothing behave exactly as before; an explicit tuple makes the exclusion
+    real — a disabled built-in never runs its setup.
+    """
+    if not config.disabled_built_in_extensions:
+        return None
+    from baldric_coding.extensions.builtin_registry import BUILT_IN_EXTENSIONS
+
+    return tuple(
+        built_in
+        for built_in in BUILT_IN_EXTENSIONS
+        if built_in.name not in config.disabled_built_in_extensions
+    )
 
 
 class CodingSession:
@@ -663,6 +693,7 @@ class CodingSession:
                 previous_runtime.built_in_http_client if previous_runtime is not None else None
             ),
             durable_providers=(config.provider_settings.providers if config.provider_settings else ()),
+            built_in_extensions=_eligible_built_in_extensions(config),
         )
         extension_runtime.load(
             unfiltered_resource_paths,

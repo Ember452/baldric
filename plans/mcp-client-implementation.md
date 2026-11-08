@@ -1053,7 +1053,7 @@ _supervisor_factory: Callable[[Sequence[McpServerConfig], Mapping[str, str]], Mc
 # module-level, monkeypatched by tests; default builds McpSupervisor
 ```
 
-- [ ] **Step 1: Verify (MUST-HOLD)** — re-read `builtin_registry.py` (sync
+- [x] **Step 1: Verify (MUST-HOLD)** — re-read `builtin_registry.py` (sync
   setup contract, `setup_with_context`), confirm Task 0 Step 2's child
   session decision, and confirm Task 0 Step 2b's lifecycle matrix still holds
   on this branch. **CORRECTED MATRIX (Task 6 execution finding)**: `load`
@@ -1069,7 +1069,7 @@ _supervisor_factory: Callable[[Sequence[McpServerConfig], Mapping[str, str]], Mc
   verify `CodingSessionConfig` field placement and the child construction
   site from Task 0's recorded file:line.
 
-- [ ] **Step 2: Write failing tests** (`tests/coding/extensions/test_mcp_extension.py`,
+- [x] **Step 2: Write failing tests** (`tests/coding/extensions/test_mcp_extension.py`,
   house anyio pattern, fake supervisor injected via `monkeypatch.setattr` on
   the module-level factory):
 
@@ -1084,10 +1084,15 @@ _supervisor_factory: Callable[[Sequence[McpServerConfig], Mapping[str, str]], Mc
    provider) contains them.
 4. server transitions to `failed` → its tools are withdrawn from the live
    list (via `unregister_tool`).
-5. `session_shutdown(quit)` → fake supervisor's `shutdown` awaited;
-   `session_shutdown(branch)` → not shut down.
-6. `_session_wants_mcp` gate: with the flag branch, a child config
-   (`mcp_enabled=False`) boots nothing.
+5. `session_shutdown(<any reason>)` → fake supervisor's `shutdown` awaited
+   (corrected matrix: every shutdown reason precedes that generation's
+   retirement, so the supervisor is always closed; keeping connections on
+   new/resume/branch would orphan server processes).
+6. **Child gate (corrected mechanism, deviation D3)**: the gate is
+   composition level — `CodingSessionConfig.disabled_built_in_extensions`
+   filters the built-in registry in `load`, and the subagents child
+   construction passes `frozenset({"mcp"})`, so the extension never loads in
+   a child (no supervisor, no tools, no `/mcp` command).
 7. **Boot guard (defense-in-depth)**: fire `session_start` twice on the same
    runtime → the fake supervisor's `start` was called exactly once (no second
    supervisor), the supervisor identity is unchanged, tools registered before
@@ -1099,9 +1104,9 @@ _supervisor_factory: Callable[[Sequence[McpServerConfig], Mapping[str, str]], Mc
    registers no handler for the notification and the behavior is asserted as
    "tool count unchanged".
 
-- [ ] **Step 3: Run and see them fail.**
+- [x] **Step 3: Run and see them fail.**
 
-- [ ] **Step 4: Implement `extension.py`.** Sync `setup` stores context, then:
+- [x] **Step 4: Implement `extension.py`.** Sync `setup` stores context, then:
 
 ```python
 baldric.on("session_start")(self._on_session_start)     # async handler
@@ -1129,13 +1134,14 @@ withdraw on `failed`/`needs-auth` via `api.unregister_tool(name)`. If nothing
 visible changed (same tool-name set and same section body), `_sync` is a
 no-op — every real change rebuilds the system prompt and invalidates the
 provider prefix cache, so churn must be avoided by design.
-`_on_session_shutdown`:
-`reason in ("quit", "reload")` → `await supervisor.shutdown()`, else return.
+`_on_session_shutdown`: `await supervisor.shutdown()` for every reason —
+the corrected Task 0 Step 2b matrix retires the generation after every
+shutdown, so keeping connections would orphan server processes.
 Register `builtin_registry.py` entry: `BuiltInExtension(name="mcp",
 setup=_mcp_setup, hidden=True, setup_with_context=_mcp_setup_with_context)`
 with lazy imports mirroring the llama.cpp pattern.
 
-- [ ] **Step 5: Run tests, gates, commit**
+- [x] **Step 5: Run tests, gates, commit**
 
 ```bash
 uv run pytest -q tests/coding/extensions/test_mcp_extension.py
@@ -1399,3 +1405,27 @@ an empty section means the plan was followed as written. Entry format:
   `_connect_quietly`/`unregister_tool` additions. Reviewing the diff line by
   line, every added line traces to the touchpoint table or deviation D1.
   Commit: Task 6's feat commit.
+- **D3 — child gate moved to composition level** (Task 7, 2026-11-08): the
+  plan's `CodingSessionConfig.mcp_enabled: bool = True` + `_session_wants_mcp`
+  had no reading mechanism: `ExtensionContext` exposes no session config, and
+  adding an MCP-named member to the `BoundSession` protocol would leak MCP
+  semantics into the core (R5). Replaced with
+  `disabled_built_in_extensions: frozenset[str]` on the session config plus a
+  built-in-registry filter in `load` (`_eligible_built_in_extensions`),
+  mirroring the existing `extensions_enabled` precedent; the subagents child
+  construction passes `frozenset({"mcp"})`. The extension never loads in a
+  child, so no supervisor, tools, or `/mcp` command exist there. Design
+  change? no (same product decision, different seam). Commits: Task 7's.
+- **D4 — session_shutdown always closes the supervisor** (Task 7,
+  2026-11-08): the plan kept connections open on new/resume/branch, which
+  followed from the incorrect shared-runtime matrix. With the corrected
+  fresh-runtime-per-generation matrix, every shutdown reason precedes that
+  generation's retirement, so keeping connections would orphan server
+  processes. Impact surface: `runtime._emit_lifecycle` (shutdown fires on the
+  outgoing runtime for every reason), `retire()` semantics. Design change?
+  yes at the matrix level — covered by the committed matrix correction
+  (674e3fc) and the spec update.
+- **D5 — structure-baseline growth recorded with --init** (Task 7,
+  2026-11-08): `session.py` 2037→2064 (config field + registry-filter
+  helper) and `subagents/extension.py` 1620→1624 (child gate argument). Every
+  added line traces to D3. Commit: Task 7's feat commit.
