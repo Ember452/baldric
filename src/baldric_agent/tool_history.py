@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 
-from baldric_agent.messages import (
+from baldric_protocol.messages import (
     AgentMessage,
     AssistantMessage,
     TextContent,

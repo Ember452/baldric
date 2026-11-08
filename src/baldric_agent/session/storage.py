@@ -12,8 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO, Protocol
 
-from baldric_agent.session.entries import SessionEntry
-from baldric_agent.session.jsonl import (
+from baldric_protocol.session.entries import SessionEntry
+from baldric_protocol.session.jsonl import (
     SessionJsonlError,
     entries_from_transcript,
     entry_from_json_line,

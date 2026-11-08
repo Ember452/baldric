@@ -6,10 +6,10 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
-from baldric_agent.messages import AgentMessage, ToolResultMessage, WireModel
-from baldric_agent.provider_events import AssistantMessageEvent
-from baldric_agent.tools import AgentToolResult
-from baldric_agent.types import JSONValue
+from baldric_protocol.messages import AgentMessage, ToolResultMessage, WireModel
+from baldric_protocol.provider_events import AssistantMessageEvent
+from baldric_protocol.tools import AgentToolResult
+from baldric_protocol.types import JSONValue
 
 
 class AgentStartEvent(WireModel):

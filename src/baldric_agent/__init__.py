@@ -24,7 +24,22 @@ from baldric_agent.harness import (
     SimpleCancellationToken,
 )
 from baldric_agent.loop import run_agent_loop
-from baldric_agent.messages import (
+from baldric_agent.session import (
+    BranchSummaryEntry,
+    CompactionEntry,
+    CustomEntry,
+    CustomMessageEntry,
+    JsonlSessionStorage,
+    LabelEntry,
+    LeafEntry,
+    MessageEntry,
+    ModelChangeEntry,
+    SessionEntry,
+    SessionInfoEntry,
+    SessionState,
+    ThinkingLevelChangeEntry,
+)
+from baldric_protocol.messages import (
     AgentMessage,
     AssistantMessage,
     BashExecutionMessage,
@@ -43,22 +58,7 @@ from baldric_agent.messages import (
     content_text,
     message_text,
 )
-from baldric_agent.session import (
-    BranchSummaryEntry,
-    CompactionEntry,
-    CustomEntry,
-    CustomMessageEntry,
-    JsonlSessionStorage,
-    LabelEntry,
-    LeafEntry,
-    MessageEntry,
-    ModelChangeEntry,
-    SessionEntry,
-    SessionInfoEntry,
-    SessionState,
-    ThinkingLevelChangeEntry,
-)
-from baldric_agent.tools import (
+from baldric_protocol.tools import (
     AgentTool,
     AgentToolResult,
     ToolCancellationToken,
@@ -66,7 +66,7 @@ from baldric_agent.tools import (
     ToolExecutor,
     ToolUpdateCallback,
 )
-from baldric_agent.types import JSONObject, JSONPrimitive, JSONValue
+from baldric_protocol.types import JSONObject, JSONPrimitive, JSONValue
 
 __all__ = [
     "AgentEndEvent",
