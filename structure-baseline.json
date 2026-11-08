@@ -29,7 +29,7 @@
       "max_function_stmts": 7
     },
     "src/baldric_agent/tool_calls.py": {
-      "lines": 220,
+      "lines": 225,
       "max_function_stmts": 12
     },
     "src/baldric_agent/tool_history.py": {
@@ -49,7 +49,7 @@
       "max_function_stmts": 5
     },
     "src/baldric_ai/anthropic.py": {
-      "lines": 757,
+      "lines": 764,
       "max_function_stmts": 12
     },
     "src/baldric_ai/content.py": {
@@ -57,7 +57,7 @@
       "max_function_stmts": 7
     },
     "src/baldric_ai/env.py": {
-      "lines": 160,
+      "lines": 173,
       "max_function_stmts": 7
     },
     "src/baldric_ai/events.py": {
@@ -69,7 +69,7 @@
       "max_function_stmts": 5
     },
     "src/baldric_ai/google.py": {
-      "lines": 584,
+      "lines": 590,
       "max_function_stmts": 17
     },
     "src/baldric_ai/http.py": {
@@ -81,7 +81,7 @@
       "max_function_stmts": 6
     },
     "src/baldric_ai/mistral.py": {
-      "lines": 579,
+      "lines": 585,
       "max_function_stmts": 15
     },
     "src/baldric_ai/model_catalog.py": {
@@ -97,11 +97,11 @@
       "max_function_stmts": 3
     },
     "src/baldric_ai/openai_codex.py": {
-      "lines": 1197,
+      "lines": 1202,
       "max_function_stmts": 17
     },
     "src/baldric_ai/openai_compatible.py": {
-      "lines": 1439,
+      "lines": 1440,
       "max_function_stmts": 19
     },
     "src/baldric_ai/provider.py": {
@@ -113,7 +113,7 @@
       "max_function_stmts": 12
     },
     "src/baldric_ai/stream.py": {
-      "lines": 343,
+      "lines": 345,
       "max_function_stmts": 14
     },
     "src/baldric_ai/tool_call_ids.py": {
@@ -329,7 +329,7 @@
       "max_function_stmts": 8
     },
     "src/baldric_coding/extensions/builtins/subagents/extension.py": {
-      "lines": 1622,
+      "lines": 1620,
       "max_function_stmts": 32
     },
     "src/baldric_coding/extensions/builtins/subagents/fork.py": {
@@ -901,7 +901,7 @@
       "max_function_stmts": 0
     },
     "src/baldric_protocol/messages.py": {
-      "lines": 338,
+      "lines": 345,
       "max_function_stmts": 8
     },
     "src/baldric_protocol/provider.py": {
@@ -929,7 +929,7 @@
       "max_function_stmts": 8
     },
     "src/baldric_protocol/tools.py": {
-      "lines": 120,
+      "lines": 124,
       "max_function_stmts": 5
     },
     "src/baldric_protocol/types.py": {

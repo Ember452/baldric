@@ -53,7 +53,7 @@
 **提交序（跨包依赖序，每步全绿）**：① protocol 字段 + wire 快照更新 → ② ai 盖戳 + `tests/ai` 断言 → ③ agent 消费。
 
 1. `AgentToolResult.is_error: bool | None = None`（protocol/tools.py；**agent 消费**；执行时修正：pi 的 `isError?: boolean` 可选且缺省省略，`bool = False` 会让每条工具结果都序列化出 `"isError":false` 的 wire 噪音，故取 None 语义，循环侧只认 `is True` 为失败）
-   - `run_tool` / `execute_tool_call`：结果对象的 `is_error=True` 视同失败（对齐 pi agent-loop.ts:988），异常路径改为构造 `AgentToolResult(content=..., is_error=True)` 而非丢弃 details
+   - `run_tool` / `execute_tool_call`：结果对象的 `is_error=True` 视同失败（对齐 pi agent-loop.ts:988 的 `isError: result.isError === true`）。**执行前复核**：原计划"异常路径改为构造 AgentToolResult(..., is_error=True) 而非丢弃 details"不成立——pi 的 `createErrorToolResult`（agent-loop.ts:1057-1062）同样是 content=错误文本、details={}，baldric 的 `error_result` 已与之一致，异常路径零改动；本项实际改动 = outcome 消费处的 is_error OR + ToolResultMessage 带 duration_ms
    - **`outcome[0]` 不变式随行**：该函数已被实证无空 outcome 路径（GeneratorExit/CancelledError 均使 85 行不可达；回归测试 tests/agent/test_agent_loop.py:988 已提交）。阶段 E 拆分时**测试随行 + 核心处注释固化不变式**，不加死防御代码
    - 测试：工具返回 is_error=True 不抛异常 → 模型见错误文本、details 完整到达 ToolExecutionEndEvent
 2. `ToolResultMessage.duration_ms: int | None = None`（protocol/messages.py；**字段源在 pi-ai/types.ts，非 agent**）

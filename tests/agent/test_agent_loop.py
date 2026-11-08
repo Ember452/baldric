@@ -807,6 +807,80 @@ async def test_agent_loop_records_unknown_tool_as_canonical_error_result() -> No
 
 
 @pytest.mark.anyio
+async def test_tool_result_is_error_flag_reports_failure_without_raising() -> None:
+    """Pi agent-loop.ts:988: ``result.isError === true`` makes the call an error.
+
+    The tool stays in control of its own output: content and details reach the
+    model as an error result instead of being replaced by a stack trace.
+    """
+    call = ToolCall(id="call-1", name="write", arguments={"path": "out.txt"})
+    assistant = AssistantMessage(content=[call], model="fake")
+    messages: list[AgentMessage] = [UserMessage(content="Save it")]
+    provider = FakeProvider([[assistant_start(), tool_call_end(call), assistant_done(assistant, "toolUse")]])
+
+    async def execute(
+        tool_call_id: str,
+        arguments: Mapping[str, JSONValue],
+        signal: CancellationToken | None,
+        on_update: object,
+    ) -> AgentToolResult:
+        return AgentToolResult(content=[TextContent(text="disk full")], details={"code": 42}, is_error=True)
+
+    events = await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=messages,
+            tools=[_tool("write", execute)],
+            max_turns=1,
+        )
+    )
+
+    end = next(event for event in events if isinstance(event, ToolExecutionEndEvent))
+    assert end.is_error is True
+    assert end.result.text == "disk full"
+    assert end.result.details == {"code": 42}
+    result = next(message for message in messages if isinstance(message, ToolResultMessage))
+    assert result.is_error is True
+    assert result.text == "disk full"
+    assert result.details == {"code": 42}
+
+
+@pytest.mark.anyio
+async def test_tool_result_message_records_execution_duration() -> None:
+    call = ToolCall(id="call-1", name="probe", arguments={})
+    assistant = AssistantMessage(content=[call], model="fake")
+    messages: list[AgentMessage] = [UserMessage(content="Run it")]
+    provider = FakeProvider([[assistant_start(), tool_call_end(call), assistant_done(assistant, "toolUse")]])
+
+    async def execute(
+        tool_call_id: str,
+        arguments: Mapping[str, JSONValue],
+        signal: CancellationToken | None,
+        on_update: object,
+    ) -> AgentToolResult:
+        return AgentToolResult(content=[TextContent(text="ok")], details={})
+
+    events = await _collect(
+        run_agent_loop(
+            provider=provider,
+            model="fake",
+            system="You are Baldric.",
+            messages=messages,
+            tools=[_tool("probe", execute)],
+            max_turns=1,
+        )
+    )
+
+    end = next(event for event in events if isinstance(event, ToolExecutionEndEvent))
+    assert end.duration_ms is not None
+    result = next(message for message in messages if isinstance(message, ToolResultMessage))
+    assert result.duration_ms == end.duration_ms
+    assert result.is_error is False
+
+
+@pytest.mark.anyio
 async def test_agent_loop_converts_provider_error_to_assistant_error_message() -> None:
     messages: list[AgentMessage] = [UserMessage(content="hello")]
     provider = FakeProvider([[assistant_error("provider failed")]])

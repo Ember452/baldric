@@ -83,6 +83,10 @@ async def execute_tool_call(
                 # Same boundary Pi reports: the execute step only, not the hooks.
                 duration_ms = (monotonic_ns() - started_ns) // 1_000_000
                 result, is_error = outcome[0]
+                # Pi agent-loop.ts:988: a tool that reports is_error without
+                # raising failed on its own terms; keep its content/details.
+                if result.is_error:
+                    is_error = True
 
     if after_tool_call is not None:
         result, is_error = await after_tool_call(call, result, is_error)
@@ -101,6 +105,7 @@ async def execute_tool_call(
         details=result.details,
         added_tool_names=result.added_tool_names,
         is_error=is_error,
+        duration_ms=duration_ms,
     )
     yield MessageStartEvent(message=message)
     yield MessageEndEvent(message=message)
