@@ -12,9 +12,13 @@ from rich.text import Text
 
 from baldric_coding.rendering.themes import TuiTheme
 
-ACTIVITY_TICK_SECONDS = 0.15
+ACTIVITY_TICK_SECONDS = 0.08
 ACTIVITY_COLOR_FADE_STEPS = 24
-ACTIVITY_SPINNER_FRAMES = ("⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷")
+# opencode's SPINNER_FRAMES and pi's loader DEFAULT_FRAMES are identical
+# (opencode-dev/packages/tui/src/component/spinner-frames.ts,
+# pi-main/packages/tui/src/components/loader.ts); the 80 ms tick matches
+# opencode's dots interval.
+ACTIVITY_SPINNER_FRAMES = ("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
 ACTIVITY_SPINNER_MAX_FADE = 0.55
 
 # Pi's thinkingOff→Max ramp (pi-main/packages/coding-agent/src/modes/

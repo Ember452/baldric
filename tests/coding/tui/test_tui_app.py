@@ -3884,7 +3884,7 @@ def test_activity_indicator_cycles_spinner_in_place_of_baldric() -> None:
         for frame in range(len(tui_app.ACTIVITY_SPINNER_FRAMES) + 1)
     ]
 
-    assert frames == ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷", "⣾"]
+    assert frames == ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", "⠋"]
     assert all(len(frame) == 1 for frame in frames)
 
 
@@ -5241,15 +5241,15 @@ async def test_tui_app_shows_activity_indicator_while_running() -> None:
         app.adapter.apply(AgentStartEvent())
         app._refresh()
 
-        assert pytest.approx(tui_app.ACTIVITY_TICK_SECONDS) == 0.15
+        assert pytest.approx(tui_app.ACTIVITY_TICK_SECONDS) == 0.08
         assert tui_app.ACTIVITY_COLOR_FADE_STEPS == 24
         assert prompt.styles.border_top[1].hex.lower() == THINKING_LEVEL_COLORS["medium"]
-        assert indicator.render().plain == "⣾"
+        assert indicator.render().plain == "⠋"
 
         app._tick_activity()
 
         assert prompt.styles.border_top[1].hex.lower() == THINKING_LEVEL_COLORS["medium"]
-        assert indicator.render().plain == "⣽"
+        assert indicator.render().plain == "⠙"
 
         app.adapter.apply(AgentEndEvent())
         app._refresh()
