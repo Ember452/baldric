@@ -16,6 +16,7 @@ from baldric_agent import (
     TextContent,
     ToolCall,
     ToolResultMessage,
+    TurnStartEvent,
 )
 from baldric_ai import FakeProvider
 from baldric_protocol.types import JSONValue
@@ -204,6 +205,25 @@ async def test_mid_run_crash_synthesizes_error_and_releases_the_harness() -> Non
     assert _texts(harness)[-1] == ("assistant", "")
     assert len(provider.calls) == 1
     assert harness.is_running is False
+
+
+@pytest.mark.anyio
+async def test_config_turn_hooks_reach_the_loop() -> None:
+    """AgentHarnessConfig passes the turn hooks through to run_agent_loop."""
+
+    harness = AgentHarness(
+        AgentHarnessConfig(
+            provider=FakeProvider([[assistant_start(), assistant_done(AssistantMessage(content="Hi"))]]),
+            model="fake",
+            system="You are Baldric.",
+            finish_turn=lambda turn: "end",
+        )
+    )
+
+    events = [event async for event in harness.prompt("Hi")]
+
+    assert sum(isinstance(event, TurnStartEvent) for event in events) == 1
+    assert events[-1].type == "agent_end"
 
 
 @pytest.mark.anyio

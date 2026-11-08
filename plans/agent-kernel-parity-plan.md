@@ -77,6 +77,8 @@
 
 `run_agent_loop` 新增三个可选钩子 + `AgentHarnessConfig` 透传。全部 None = 现行为不变。
 
+> **执行结论（2026-11-08）**：prepared 消息在 turn_start **之后**、与 pending 一起统一 emit（pi :285，先收集后发）；`prepare_request` 的模型替换**持续生效**（pi types.ts:268-269 "for this and later requests"，测试按此断言）；RequestUpdate 的 messages 替换以 `messages[:] = ...` 原位采纳——loop 与 harness 共享同一 list 对象，整体换新对象会分叉持久历史（别名约束下的 pi context 语义等价物）。error/aborted 轮的 TurnContext 照常构造（tool_results=[]），finish_turn 返回值被忽略。
+
 1. `finish_turn(turn: TurnContext) -> Literal["continue","end"] | None`
    - `TurnContext`：message / tool_results / context(=messages) / new_messages
    - 调用点 ①：**error/aborted 轮也调用**（对齐 pi agent-loop.ts:326-337，在 turn_end 之前）——返回值在 error 轮被忽略（pi：error/aborted 保持硬退出）

@@ -1,7 +1,7 @@
 {
   "files": {
     "src/baldric_agent/__init__.py": {
-      "lines": 101,
+      "lines": 121,
       "max_function_stmts": 0
     },
     "src/baldric_agent/assistant_stream.py": {
@@ -17,12 +17,12 @@
       "max_function_stmts": 0
     },
     "src/baldric_agent/harness.py": {
-      "lines": 344,
+      "lines": 408,
       "max_function_stmts": 9
     },
     "src/baldric_agent/loop.py": {
-      "lines": 260,
-      "max_function_stmts": 17
+      "lines": 393,
+      "max_function_stmts": 19
     },
     "src/baldric_agent/tool_arguments.py": {
       "lines": 127,

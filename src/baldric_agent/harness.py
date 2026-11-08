@@ -19,6 +19,9 @@ from baldric_agent.events import (
 )
 from baldric_agent.loop import (
     ConvertToLlm,
+    FinishTurn,
+    PrepareNextTurn,
+    PrepareRequest,
     TransformContext,
     aborted_message,
     error_message,
@@ -66,6 +69,11 @@ class AgentHarnessConfig:
     # the run with a synthesized error message (fail-visible).
     convert_to_llm: ConvertToLlm | None = None
     transform_context: TransformContext | None = None
+    # Turn-boundary hooks (pi finishTurn / prepareNextTurn / prepareRequest).
+    # Same contract: must not raise; a violation ends the run fail-visible.
+    finish_turn: FinishTurn | None = None
+    prepare_next_turn: PrepareNextTurn | None = None
+    prepare_request: PrepareRequest | None = None
 
 
 class SimpleCancellationToken:
@@ -293,6 +301,9 @@ class AgentHarness:
                 after_tool_call=self._config.after_tool_call,
                 convert_to_llm=self._config.convert_to_llm,
                 transform_context=self._config.transform_context,
+                finish_turn=self._config.finish_turn,
+                prepare_next_turn=self._config.prepare_next_turn,
+                prepare_request=self._config.prepare_request,
             ).__aiter__()
             while True:
                 try:

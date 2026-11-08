@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable, Sequence
+from dataclasses import dataclass
+from typing import Literal
 
 from baldric_agent.assistant_stream import assistant_events
 from baldric_agent.context_projection import has_image_tool_results, provider_context
@@ -43,6 +45,52 @@ ConvertToLlm = Callable[[list[AgentMessage]], list[AgentMessage]]
 TransformContext = Callable[[list[AgentMessage]], list[AgentMessage]]
 
 
+@dataclass(frozen=True, slots=True)
+class TurnContext:
+    """One completed turn, handed to the turn-boundary hooks (pi AgentTurnContext)."""
+
+    message: AgentMessage
+    tool_results: list[ToolResultMessage]
+    # The live loop context; hooks may read it freely. Replacement goes through
+    # the hook's update value, not by mutating this list mid-turn.
+    context: list[AgentMessage]
+    new_messages: list[AgentMessage]
+
+
+@dataclass(frozen=True, slots=True)
+class TurnUpdate:
+    """Hook-provided replacement state before the next turn (pi AgentLoopTurnUpdate)."""
+
+    # Appended to the context with full message lifecycle events.
+    messages: Sequence[AgentMessage] = ()
+    # Replaces the model string for this and later requests in the run.
+    model: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RequestState:
+    """Runtime state right before a provider request (pi PrepareRequestContext)."""
+
+    # The raw loop context (pending messages already appended); the transform
+    # and convert seams run after this hook.
+    messages: list[AgentMessage]
+    model: str
+
+
+@dataclass(frozen=True, slots=True)
+class RequestUpdate:
+    """Hook-provided replacement state for the upcoming request (pi AgentRequestUpdate)."""
+
+    # Replaces the raw loop context in place; the request is built from it.
+    messages: list[AgentMessage] | None = None
+    model: str | None = None
+
+
+FinishTurn = Callable[[TurnContext], Literal["continue", "end"] | None]
+PrepareNextTurn = Callable[[TurnContext], TurnUpdate | None]
+PrepareRequest = Callable[[RequestState], RequestUpdate | None]
+
+
 async def run_agent_loop(
     *,
     provider: ModelProvider,
@@ -61,6 +109,9 @@ async def run_agent_loop(
     after_tool_call: AfterToolCall | None = None,
     convert_to_llm: ConvertToLlm | None = None,
     transform_context: TransformContext | None = None,
+    finish_turn: FinishTurn | None = None,
+    prepare_next_turn: PrepareNextTurn | None = None,
+    prepare_request: PrepareRequest | None = None,
 ) -> AsyncIterator[AgentEvent]:
     """Run the provider/tool loop and emit Pi-compatible agent events."""
     new_messages = list(prompts)
@@ -94,15 +145,32 @@ async def run_agent_loop(
     pending = tuple(get_steering_messages() if get_steering_messages else ())
     # Error text of the tool call that cancelled the run, e.g. a hook's reason.
     stop_note: str | None = None
+    explicit_continuation = False
+    last_completed_turn: TurnContext | None = None
 
     while True:
         has_more_tools = True
         while has_more_tools or pending:
+            # Pi agent-loop.ts:250-280: prepare the next turn from the last
+            # completed one (never before the first); its messages are held
+            # for emission after turn_start. Preparation can run long, so
+            # steering queued while it ran is picked up here - but only when
+            # the earlier poll came back empty, or one-at-a-time mode would
+            # deliver two messages in this turn.
+            prepared: list[AgentMessage] = []
+            if last_completed_turn is not None and prepare_next_turn is not None:
+                update = prepare_next_turn(last_completed_turn)
+                if update is not None:
+                    prepared = list(update.messages)
+                    if update.model is not None:
+                        model = update.model
+            if last_completed_turn is not None and not pending and get_steering_messages is not None:
+                pending = tuple(get_steering_messages())
             if not first_turn:
                 yield TurnStartEvent()
             first_turn = False
 
-            for message in pending:
+            for message in (*prepared, *pending):
                 messages.append(message)
                 new_messages.append(message)
                 yield MessageStartEvent(message=message)
@@ -129,6 +197,19 @@ async def run_agent_loop(
                 yield TurnEndEvent(message=aborted)
                 yield AgentEndEvent(messages=new_messages)
                 return
+
+            # Pi agent-loop.ts:295-316: every provider request, including the
+            # first, passes prepare_request after the pending messages are on
+            # record. A returned context is adopted in place - the loop shares
+            # this list object with the harness, so replacing it wholesale
+            # would fork durable history.
+            if prepare_request is not None:
+                request_update = prepare_request(RequestState(messages=messages, model=model))
+                if request_update is not None:
+                    if request_update.messages is not None:
+                        messages[:] = request_update.messages
+                    if request_update.model is not None:
+                        model = request_update.model
 
             # Python async generators cannot pass a yielding callback through a
             # normal await cleanly, so consume the assistant sub-generator and
@@ -182,6 +263,17 @@ async def run_agent_loop(
             new_messages.append(assistant)
             if assistant.stop_reason in {"error", "aborted"}:
                 consecutive_errors += 1
+                # Pi agent-loop.ts:326-337: error and aborted turns still see
+                # finish_turn, but the decision is ignored - they remain hard
+                # exits.
+                last_completed_turn = TurnContext(
+                    message=assistant,
+                    tool_results=[],
+                    context=messages,
+                    new_messages=new_messages,
+                )
+                if finish_turn is not None:
+                    finish_turn(last_completed_turn)
                 yield TurnEndEvent(message=assistant)
                 if assistant.is_tool_result_recovery:
                     # Replay replaces rejected images with the API error in the
@@ -247,13 +339,36 @@ async def run_agent_loop(
             has_more_tools = bool(final_tool_results) and not all(
                 result.terminate is True for result in final_tool_results
             )
+            # Pi agent-loop.ts:366-388: snapshot the turn, let finish_turn
+            # decide, then emit turn_end. "end" stops the run without polling
+            # queues; "continue" is honored below only when no tool result,
+            # steering, or follow-up satisfied the request naturally.
+            last_completed_turn = TurnContext(
+                message=assistant,
+                tool_results=tool_results,
+                context=messages,
+                new_messages=new_messages,
+            )
+            decision = finish_turn(last_completed_turn) if finish_turn is not None else None
             yield TurnEndEvent(message=assistant, tool_results=tool_results)
+            if decision == "end":
+                yield AgentEndEvent(messages=new_messages)
+                return
+            explicit_continuation = decision == "continue"
             turn += 1
             pending = tuple(get_steering_messages() if get_steering_messages else ())
+            if has_more_tools or pending:
+                explicit_continuation = False
 
         follow_ups = tuple(get_follow_up_messages() if get_follow_up_messages else ())
         if follow_ups:
+            explicit_continuation = False
             pending = follow_ups
+            continue
+        # Pi agent-loop.ts:403-408: no natural request is queued, so honor the
+        # finish_turn "continue" decision with one context-only extra turn.
+        if explicit_continuation:
+            explicit_continuation = False
             continue
         break
 
