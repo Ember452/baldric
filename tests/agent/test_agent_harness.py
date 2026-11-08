@@ -149,6 +149,11 @@ async def test_convert_violation_ends_run_with_synthesized_error() -> None:
     assert isinstance(failure, AssistantMessage)
     assert failure.stop_reason == "error"
     assert failure.error_message == "bad hook"
+    # The forensics the old raise-through path provided ride with the message.
+    crash = next(diagnostic for diagnostic in failure.diagnostics or [] if diagnostic.type == "agent_crash")
+    assert crash.details["type"] == "RuntimeError"
+    assert crash.details["message"] == "bad hook"
+    assert "bad hook" in crash.details["traceback"]
     assert _texts(harness) == [("user", "Hi"), ("assistant", "")]
     assert harness.is_running is False
 

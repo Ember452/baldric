@@ -429,6 +429,14 @@ async def test_session_export_writes_jsonl_to_destination_directory(
 
 @pytest.mark.anyio
 async def test_prompt_logs_unexpected_agent_call_exception(tmp_path: Path) -> None:
+    """Behavior change (parity plan D-T3): a crashed run is synthesized, not raised.
+
+    The consumer sees a complete event tail ending in an error assistant
+    message; the forensic exception record - type, message, traceback - rides
+    on the message as an ``agent_crash`` diagnostic, which the ops log
+    surfaces. The assertions keep every guarantee of the old raise-through
+    contract: context fields, the traceback, and no prompt content in the log.
+    """
     storage = JsonlSessionStorage(tmp_path / "session.jsonl")
     baldric_paths = BaldricPaths(home=tmp_path / "baldric-home", agents_home=tmp_path / "agents-home")
     session = await CodingSession.load(
@@ -444,21 +452,33 @@ async def test_prompt_logs_unexpected_agent_call_exception(tmp_path: Path) -> No
         )
     )
 
-    with pytest.raises(RuntimeError, match="provider exploded"):
-        await _collect_session_events(session.prompt("Hello"))
+    events = await _collect_session_events(session.prompt("Hello"))
+
+    failure = next(
+        event.message
+        for event in reversed(events)
+        if isinstance(event, MessageEndEvent) and isinstance(event.message, AssistantMessage)
+    )
+    assert failure.stop_reason == "error"
+    assert failure.error_message == "provider exploded"
+    crash = next(diagnostic for diagnostic in failure.diagnostics or [] if diagnostic.type == "agent_crash")
+    assert crash.details["type"] == "RuntimeError"
+    assert crash.details["message"] == "provider exploded"
+    assert "provider exploded" in crash.details["traceback"]
 
     log_path = baldric_paths.agent_calls_log_path
     assert session.last_diagnostic_log_path == log_path
     entry = json.loads(log_path.read_text(encoding="utf-8").splitlines()[-1])
-    assert entry["kind"] == "exception"
+    assert entry["kind"] == "assistant_error"
     assert entry["phase"] == "agent_loop"
     assert entry["provider_name"] == "fake-provider"
     assert entry["model"] == "fake"
     assert entry["session_id"] == "session-1"
     assert entry["cwd"] == str(tmp_path)
-    assert entry["exception"]["type"] == "RuntimeError"
-    assert entry["exception"]["message"] == "provider exploded"
-    assert "provider exploded" in entry["exception"]["traceback"]
+    assert entry["error"]["message"] == "provider exploded"
+    assert entry["error"]["exception"]["type"] == "RuntimeError"
+    assert entry["error"]["exception"]["message"] == "provider exploded"
+    assert "provider exploded" in entry["error"]["exception"]["traceback"]
     assert "Hello" not in log_path.read_text(encoding="utf-8")
 
 

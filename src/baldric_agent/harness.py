@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import traceback
 from collections import deque
 from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import suppress
@@ -33,6 +34,7 @@ from baldric_agent.tool_history import interrupted_tool_results
 from baldric_protocol.messages import (
     AgentMessage,
     AssistantMessage,
+    AssistantMessageDiagnostic,
     UserMessage,
 )
 from baldric_protocol.provider import ModelProvider
@@ -40,6 +42,15 @@ from baldric_protocol.tools import AgentTool
 
 EventListener = Callable[[AgentEvent], Awaitable[None] | None]
 QueueMode = Literal["one_at_a_time", "all"]
+
+# Crash diagnostics keep the traceback bounded the way provider diagnostics
+# are; the tail carries the frames nearest the raise.
+_CRASH_TRACEBACK_MAX_CHARS = 2000
+
+
+def _bounded_traceback(exc: BaseException) -> str:
+    text = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    return text if len(text) <= _CRASH_TRACEBACK_MAX_CHARS else text[-_CRASH_TRACEBACK_MAX_CHARS:]
 
 
 @dataclass(frozen=True, slots=True)
@@ -378,6 +389,19 @@ class AgentHarness:
                         if signal.is_cancelled()
                         else error_message(self._config.model, reason)
                     )
+                    # The synthesized message replaces the propagated
+                    # exception, so the forensics ride with it: same bounded
+                    # redaction discipline as provider error diagnostics.
+                    failure.diagnostics = [
+                        AssistantMessageDiagnostic(
+                            type="agent_crash",
+                            details={
+                                "type": type(exc).__name__,
+                                "message": reason,
+                                "traceback": _bounded_traceback(exc),
+                            },
+                        )
+                    ]
                     self._messages.append(failure)
                     await self._notify(MessageStartEvent(message=failure))
                     yield MessageStartEvent(message=failure)
