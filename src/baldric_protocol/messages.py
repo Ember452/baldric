@@ -170,6 +170,10 @@ class AssistantMessage(WireModel):
     timing: ResponseTiming | None = None
     stop_reason: StopReason = "stop"
     error_message: str | None = None
+    # Pi semantics (pi-ai types.ts:603): the thinking level the request asked
+    # for, not the provider-native effective value. Absent when the request
+    # configuration carries no level (unmanaged providers, budget-only setup).
+    thinking_level: str | None = None
     timestamp: int = Field(default_factory=current_timestamp_ms)
 
     @model_validator(mode="before")
@@ -218,6 +222,9 @@ class ToolResultMessage(WireModel):
     details: JSONValue = None
     added_tool_names: list[str] | None = None
     is_error: bool = False
+    # Milliseconds the tool's execute step took; absent when it never ran
+    # (blocked, cancelled, unknown, or invalid arguments).
+    duration_ms: int | None = None
     timestamp: int = Field(default_factory=current_timestamp_ms)
 
     @model_validator(mode="before")

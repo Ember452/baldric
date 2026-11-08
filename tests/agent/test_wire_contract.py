@@ -104,6 +104,7 @@ def _assistant_message() -> AssistantMessage:
         ),
         timing=ResponseTiming(time_to_first_output_ms=120, total_duration_ms=900),
         stop_reason="toolUse",
+        thinking_level="medium",
         timestamp=_TIMESTAMP,
     )
 
@@ -119,6 +120,7 @@ def _tool_result_message() -> ToolResultMessage:
         details={"bytes": 13, "truncated": False},
         added_tool_names=["extra-tool"],
         is_error=False,
+        duration_ms=250,
         timestamp=_TIMESTAMP,
     )
 

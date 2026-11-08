@@ -1,1 +1,1 @@
-{"role":"toolResult","toolCallId":"call-1","toolName":"read","content":[{"type":"text","text":"file contents"}],"isError":false,"timestamp":1700000000000}
+{"role":"toolResult","toolCallId":"call-1","toolName":"read","content":[{"type":"text","text":"file contents"}],"isError":false,"durationMs":180,"timestamp":1700000000000}
