@@ -114,12 +114,12 @@ baldric_ai    baldric_agent            ← 两层都只依赖 protocol，互不�
 
 **决策**：阶段 0 无真实内核缺陷可修；**直接进入阶段 1 结构重构**。回归 guard 测试保留（防未来回归）。
 
-### 阶段 0.5：ai 层行为对齐（只修真实场景，不扩 provider 功能）
-以下两条属"行为正确"，不属"新功能"，必须在抽包前修：
-4. `baldric_ai/retry.py:88-105` — 服务器 `Retry-After` 超长时照睡。pi 的语义：服务器要求的超长延迟应快速失败上抛，而不是照睡。→ 引入 `maxRetryDelayMs` 语义（超上限立即失败），补测试。
-5. `baldric_agent/tree_helpers.py:100-118`（溢出检测在 agent 侧工具辅助）— 只认 12 个关键词，静默溢出（`stop` 且 input+cacheRead 超 contextWindow）会被当正常响应。→ 补静默溢出信号检测（至少覆盖 pi 已识别的 stop+超窗路径），补测试。
-- **范围铁律**：只修这两条**有真实场景**的行为差异；**不借机新增 provider / 不新增 API 形状**（那是死代码）。超出范围的一律拒绝。
-- **验证**：`uv run pytest -q tests/ai` 全绿 + 两条新增行为测试。
+### 阶段 0.5：ai 层行为对齐（**执行时已复核改判，见下**）
+> ⚠️ **2026-11-08 复核改判**：本节写下后被逐项实测，结论与原判不同（详见 §0.2）：
+> - **第 4 项（retry.py 照睡）为伪缺陷**：`classify_http_failure`（retry.py:178-189）已实现"服务器 `Retry-After` 超上限 → `retryable=False, code="retry_after_too_long"` 立即失败"的 pi 语义；原判引用的 88-105 行是 fallback 退避函数，其"只管 fallback"的 docstring 被误读为缺陷。
+> - **第 5 项（静默溢出检测）真实存在，但改判为带规格的独立特性任务，不并入内核重构。** 执行时的影响面核实：现有 overflow 自愈只在 `stop_reason=="error"` 的事件上触发（runtime.py:410-422），TUI 路由（adapter.py:186/334）同样只处理 failed-end；而静默溢出是 `stop` 正常结束。接线需要四处联动——① `is_context_overflow_error` 增加可选 `context_window_tokens` 并识别 stop+超窗与 length+零输出两个信号；② runtime 监听器扩到 stop 事件并传入会话窗口；③ `context_projection` 需处理"空 stop turn"的回放丢弃（当前只丢空 error/aborted）；④ TUI 的 pending-overflow 路由适配。这是 pi 的 overflow 自愈特性移植，需要 failing-then-passing 测试与独立评审，塞进重构 PR 违反原子性。**未来任务以本清单为规格。**
+>
+> 保留本节原文仅作决策轨迹记录。**"必须在抽包前修"的说法以本改判为准。**
 
 ### 阶段 1：抽 `baldric_protocol`（契约归位，**模块粒度原子切换 + 兼容 shim**）
 

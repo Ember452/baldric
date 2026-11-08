@@ -131,7 +131,8 @@ detects violations - a green gate that no longer fires is worse than no gate.
 
 ## Known Limitations (do not "fix" these)
 
-- **14 mypy errors on Windows only** (`trust/policy.py`, `session/storage.py`):
+- **14 mypy errors on Windows only** (`trust/policy.py`,
+  `baldric_coding/session/storage.py`):
   `fcntl` does not exist on Windows. CI runs mypy on Linux where it is green. Do
   not add platform shims or delete the POSIX code to silence local output.
 - **121 skipped tests on Windows**: POSIX/timing semantics that run on Linux CI.
@@ -174,11 +175,11 @@ Baldric should be organized around these layers:
 
 ```text
 baldric_ai      provider/model streaming layer
-baldric_agent   portable agent harness, loop, tools, events, sessions
+baldric_agent   portable agent harness, loop, tools, events
 baldric_coding  CLI app, resources, skills, extensions, commands, TUI integration
 ```
 
-Keep the core agent package independent of CLI, Textual, Rich rendering, session file locations, and application-specific resource loading.
+Keep the core agent package independent of CLI, Textual, Rich rendering, session file locations, and app-specific resource loading.
 
 ## TUI Direction
 
