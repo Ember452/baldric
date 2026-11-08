@@ -34,11 +34,13 @@ RULES: tuple[tuple[str, str], ...] = (
     ("baldric_protocol", "msvcrt"),
     ("baldric_protocol", "tempfile"),
     # The agent kernel must not depend on provider implementations (the reverse
-    # direction of AI_AGENT_SURFACE below).
+    # direction of the provider surface below).
     ("baldric_agent", "baldric_ai"),
     ("baldric_agent", "baldric_coding"),
     ("baldric_agent", "textual"),
     ("baldric_agent", "rich"),
+    # The provider layer now depends on the protocol contract, not the harness.
+    ("baldric_ai", "baldric_agent"),
     ("baldric_ai", "baldric_coding"),
     ("baldric_coding.session", "baldric_coding.tui"),
     ("baldric_coding.tools", "baldric_coding.tui"),
@@ -49,18 +51,21 @@ RULES: tuple[tuple[str, str], ...] = (
     ("baldric_coding.rendering", "baldric_coding.tui"),
 )
 
-# The provider layer may use the harness's provider-neutral wire contract and
-# nothing else. This records today's surface so it cannot deepen while the
-# contract's home is still being settled: an adapter that imports the loop, the
-# harness, or the session would tie the provider layer to the harness runtime and
-# make the declared direction of the two packages untrue in a second way.
-AI_AGENT_SURFACE: tuple[str, ...] = (
-    "baldric_agent.messages",
-    "baldric_agent.provider",
-    "baldric_agent.provider_events",
-    "baldric_agent.tools",
-    "baldric_agent.types",
+# The provider layer depends on the protocol contract only. It may not import the
+# harness (``baldric_agent``) at all; that direction is now a plain RULES entry.
+# This surface records the protocol modules an adapter is allowed to build on, so
+# an adapter that reaches for a non-contract module is caught even inside protocol.
+AI_PROTOCOL_SURFACE: tuple[str, ...] = (
+    "baldric_protocol.messages",
+    "baldric_protocol.provider",
+    "baldric_protocol.provider_events",
+    "baldric_protocol.tools",
+    "baldric_protocol.types",
 )
+
+# Backwards-compatible alias for the previous name; the surface now points at the
+# protocol package rather than the agent package.
+AI_AGENT_SURFACE = AI_PROTOCOL_SURFACE
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,15 +116,15 @@ def scan_violations(root: Path = ROOT) -> list[ImportViolation]:
 
 
 def _is_on_surface(imported: str) -> bool:
-    return any(imported == module or imported.startswith(module + ".") for module in AI_AGENT_SURFACE)
+    return any(imported == module or imported.startswith(module + ".") for module in AI_PROTOCOL_SURFACE)
 
 
 def scan_surface_violations(root: Path = ROOT) -> list[ImportViolation]:
-    """Return provider-layer imports of the harness beyond :data:`AI_AGENT_SURFACE`.
+    """Return provider-layer imports outside the protocol contract surface.
 
-    ``from baldric_agent import X`` counts as a violation: importing the package
-    root executes ``baldric_agent/__init__.py``, which pulls the session, storage,
-    and JSONL modules the provider layer must not depend on.
+    The provider layer may import the ``baldric_protocol`` contract and nothing
+    else from the in-project packages. Importing ``baldric_agent`` (runtime or
+    package root) ties the provider layer to the harness and is a violation.
     """
     violations: list[ImportViolation] = []
     source_root = root / "src"
@@ -133,9 +138,12 @@ def scan_surface_violations(root: Path = ROOT) -> list[ImportViolation]:
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for lineno, imported in _imports(tree):
-            if not (imported == "baldric_agent" or imported.startswith("baldric_agent.")):
+            if imported == "baldric_agent" or imported.startswith("baldric_agent."):
+                violations.append(ImportViolation(module=module, lineno=lineno, imported=imported))
                 continue
-            if not _is_on_surface(imported):
+            if (
+                imported == "baldric_protocol" or imported.startswith("baldric_protocol.")
+            ) and not _is_on_surface(imported):
                 violations.append(ImportViolation(module=module, lineno=lineno, imported=imported))
     return violations
 

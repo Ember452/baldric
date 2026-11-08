@@ -4,15 +4,6 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-from baldric_agent.messages import (
-    AssistantMessage,
-    AssistantMessageDiagnostic,
-    TextContent,
-    ThinkingContent,
-    ToolCall,
-    Usage,
-)
-from baldric_agent.types import JSONValue
 from baldric_ai._provider_events import (
     ProviderErrorEvent,
     ProviderEvent,
@@ -41,6 +32,15 @@ from baldric_ai.events import (
     ToolCallEndEvent,
     ToolCallStartEvent,
 )
+from baldric_protocol.messages import (
+    AssistantMessage,
+    AssistantMessageDiagnostic,
+    TextContent,
+    ThinkingContent,
+    ToolCall,
+    Usage,
+)
+from baldric_protocol.types import JSONValue
 
 
 def _snapshot(message: AssistantMessage) -> AssistantMessage:

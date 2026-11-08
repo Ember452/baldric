@@ -10,7 +10,7 @@ from typing import Any
 
 import httpx
 
-from baldric_agent.provider import CancellationToken
+from baldric_protocol.provider import CancellationToken
 
 _PROXY_ENV_VARS = (
     "HTTP_PROXY",

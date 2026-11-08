@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from scripts.check_import_graph import (
-    AI_AGENT_SURFACE,
+    AI_PROTOCOL_SURFACE,
     RULES,
     ImportViolation,
     scan_surface_violations,
@@ -99,20 +99,20 @@ def test_scanner_detects_rendering_importing_the_frontend(tmp_path: Path) -> Non
     ]
 
 
-def test_ai_agent_surface_is_declared_and_real() -> None:
+def test_ai_protocol_surface_is_declared_and_real() -> None:
     """The surface must stay non-empty and must point at modules that exist."""
-    assert AI_AGENT_SURFACE
+    assert AI_PROTOCOL_SURFACE
     missing = [
         module
-        for module in AI_AGENT_SURFACE
+        for module in AI_PROTOCOL_SURFACE
         if not (REPO_ROOT / "src" / module.replace(".", "/")).with_suffix(".py").exists()
     ]
 
-    assert missing == [], f"AI_AGENT_SURFACE lists modules that no longer exist: {missing}"
+    assert missing == [], f"AI_PROTOCOL_SURFACE lists modules that no longer exist: {missing}"
 
 
-def test_provider_layer_stays_on_the_agent_contract_surface() -> None:
-    """``baldric_ai`` may use the harness's wire contract and nothing else."""
+def test_provider_layer_stays_on_the_protocol_contract_surface() -> None:
+    """``baldric_ai`` may use the protocol contract and nothing else."""
     violations = scan_surface_violations(REPO_ROOT)
 
     assert violations == [], "\n".join(
@@ -120,8 +120,8 @@ def test_provider_layer_stays_on_the_agent_contract_surface() -> None:
     )
 
 
-def test_surface_scanner_detects_deeper_agent_import(tmp_path: Path) -> None:
-    """Importing the loop or harness from the provider layer must be reported."""
+def test_surface_scanner_detects_harness_import_from_provider(tmp_path: Path) -> None:
+    """Importing the harness from the provider layer must be reported."""
     package = tmp_path / "src" / "baldric_ai"
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
@@ -135,8 +135,8 @@ def test_surface_scanner_detects_deeper_agent_import(tmp_path: Path) -> None:
     assert violations == [ImportViolation(module="baldric_ai.leaky", lineno=1, imported="baldric_agent.loop")]
 
 
-def test_surface_scanner_rejects_package_root_import(tmp_path: Path) -> None:
-    """The package root runs ``__init__``, which pulls session storage."""
+def test_surface_scanner_rejects_agent_package_root_import(tmp_path: Path) -> None:
+    """Importing the harness package root from the provider layer is a violation."""
     package = tmp_path / "src" / "baldric_ai"
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
@@ -150,14 +150,14 @@ def test_surface_scanner_rejects_package_root_import(tmp_path: Path) -> None:
     assert violations == [ImportViolation(module="baldric_ai.rooted", lineno=1, imported="baldric_agent")]
 
 
-def test_surface_scanner_allows_contract_modules(tmp_path: Path) -> None:
+def test_surface_scanner_allows_protocol_contract_modules(tmp_path: Path) -> None:
     package = tmp_path / "src" / "baldric_ai"
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
     (package / "allowed.py").write_text(
-        "from baldric_agent.messages import AssistantMessage\n"
-        "from baldric_agent.tools import AgentTool\n"
-        "from baldric_agent.provider_events import TextDeltaEvent\n",
+        "from baldric_protocol.messages import AssistantMessage\n"
+        "from baldric_protocol.tools import AgentTool\n"
+        "from baldric_protocol.provider_events import TextDeltaEvent\n",
         encoding="utf-8",
     )
 

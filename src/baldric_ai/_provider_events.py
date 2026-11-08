@@ -6,9 +6,9 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from baldric_agent.messages import AssistantMessage
-from baldric_agent.tools import ToolCall
-from baldric_agent.types import JSONValue
+from baldric_protocol.messages import AssistantMessage
+from baldric_protocol.tools import ToolCall
+from baldric_protocol.types import JSONValue
 
 
 class ProviderResponseStartEvent(BaseModel):

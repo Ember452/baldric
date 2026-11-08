@@ -7,20 +7,6 @@ from typing import cast
 
 import httpx
 
-from baldric_agent.messages import (
-    AgentMessage,
-    AssistantMessage,
-    ImageContent,
-    TextContent,
-    ThinkingContent,
-    ToolResultMessage,
-    Usage,
-    UserMessage,
-    assistant_content,
-    message_to_user,
-)
-from baldric_agent.tools import AgentTool, ToolCall
-from baldric_agent.types import JSONValue
 from baldric_ai._provider_events import (
     ProviderErrorEvent,
     ProviderEvent,
@@ -60,6 +46,20 @@ from baldric_ai.retry import (
 )
 from baldric_ai.stream import canonicalize_provider_stream
 from baldric_ai.tool_call_ids import portable_tool_call_id
+from baldric_protocol.messages import (
+    AgentMessage,
+    AssistantMessage,
+    ImageContent,
+    TextContent,
+    ThinkingContent,
+    ToolResultMessage,
+    Usage,
+    UserMessage,
+    assistant_content,
+    message_to_user,
+)
+from baldric_protocol.tools import AgentTool, ToolCall
+from baldric_protocol.types import JSONValue
 
 ANTHROPIC_VERSION = "2023-06-01"
 DEFAULT_MAX_TOKENS = 4096

@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from os import environ
 from typing import Literal
 
-from baldric_agent.types import JSONValue
+from baldric_protocol.types import JSONValue
 
 DEFAULT_OPENAI_COMPATIBLE_BASE_URL = "https://api.openai.com/v1"
 DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com/v1"

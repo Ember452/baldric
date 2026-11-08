@@ -10,19 +10,6 @@ from typing import Any, Literal, cast
 
 import httpx
 
-from baldric_agent.messages import (
-    AgentMessage,
-    AssistantMessage,
-    ImageContent,
-    TextContent,
-    ThinkingContent,
-    ToolResultMessage,
-    Usage,
-    UserMessage,
-    assistant_content,
-)
-from baldric_agent.tools import AgentTool, ToolCall
-from baldric_agent.types import JSONValue
 from baldric_ai._provider_events import (
     ProviderErrorEvent,
     ProviderEvent,
@@ -63,6 +50,19 @@ from baldric_ai.retry import (
 )
 from baldric_ai.stream import canonicalize_provider_stream
 from baldric_ai.tool_call_ids import portable_tool_call_id
+from baldric_protocol.messages import (
+    AgentMessage,
+    AssistantMessage,
+    ImageContent,
+    TextContent,
+    ThinkingContent,
+    ToolResultMessage,
+    Usage,
+    UserMessage,
+    assistant_content,
+)
+from baldric_protocol.tools import AgentTool, ToolCall
+from baldric_protocol.types import JSONValue
 
 DEFAULT_OPENAI_CODEX_BASE_URL = "https://chatgpt.com/backend-api"
 DEFAULT_OPENAI_CODEX_CLIENT_VERSION = "0.153.4"
