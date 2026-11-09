@@ -1,8 +1,8 @@
-"""Parse an opencode-shaped theme schema into flat, layered tokens.
+"""Parse an opencode-shaped theme schema and project it to a flat TuiTheme.
 
 The data layer is nested (``hue.gray.200``, ``background.raised.base``) so a
-theme can express *layering*; consumers get a flat ``ThemeTokens`` because a
-renderer only ever wants "the raised surface colour", not the path to it.
+theme can express *layering*; the projection flattens it onto the frozen
+``TuiTheme`` contract the components already consume.
 
 Reference syntax follows opencode's theme files
 (``opencode-dev/packages/theme/src/tui/resolve.ts``, ``createResolver``): a
@@ -19,7 +19,6 @@ Token shape follows ``opencode-dev/packages/theme/src/tui/schema.ts``:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
@@ -112,115 +111,6 @@ def resolve_references(data: object) -> dict[str, Any]:
     return resolved
 
 
-@dataclass(frozen=True, slots=True)
-class ThemeTokens:
-    """Flat, layered view of a theme for component code.
-
-    Only the fields the first batch uses are declared; later batches append
-    fields (never rename) so consumers stay stable. ``None`` backgrounds mean
-    "no card surface" — assistant and thinking rows are deliberately bare.
-    """
-
-    name: str
-    dark: bool
-    # text
-    text_base: str
-    text_muted: str
-    text_faint: str
-    text_thinking: str
-    # surfaces: the layering the flat TuiTheme could not express
-    surface_base: str
-    surface_raised: str
-    surface_high: str
-    surface_max: str
-    # accents and status
-    accent: str
-    success: str
-    error: str
-    # diff
-    diff_added_bg: str
-    diff_removed_bg: str
-    diff_added_text: str
-    diff_removed_text: str
-    diff_context_bg: str
-    diff_line_number_text: str
-    # role card backgrounds
-    role_user_bg: str | None
-    role_tool_pending_bg: str | None
-    role_tool_success_bg: str | None
-    role_tool_error_bg: str | None
-
-
-def _get(document: dict[str, Any], *path: str, default: str) -> str:
-    node: Any = document
-    for part in path:
-        if not isinstance(node, dict) or part not in node:
-            return default
-        node = node[part]
-    return node if isinstance(node, str) and node else default
-
-
-def _optional(roles: Any, role: str, key: str) -> str | None:
-    if not isinstance(roles, dict):
-        return None
-    node = roles.get(role)
-    if not isinstance(node, dict):
-        return None
-    value = node.get(key)
-    return value if isinstance(value, str) and value else None
-
-
-def _resolve_dark(resolved: dict[str, Any]) -> bool:
-    """Resolve a document's light/dark identity.
-
-    Layered documents use ``appearance``; old flat ones use ``dark: bool``.
-    Prefer ``appearance`` when present, then an explicit ``dark`` boolean, then
-    default to dark — mirroring the flat parser's inference order.
-    """
-    appearance = resolved.get("appearance")
-    if isinstance(appearance, str) and appearance:
-        return appearance == "dark"
-    dark = resolved.get("dark")
-    if isinstance(dark, bool):
-        return dark
-    return True
-
-
-def build_tokens(schema: dict[str, Any]) -> ThemeTokens:
-    """Build the component-facing token view from a resolved schema."""
-    resolved = resolve_references(schema)
-    roles = resolved.get("roles", {})
-    return ThemeTokens(
-        name=str(resolved.get("name", "unnamed")),
-        dark=_resolve_dark(resolved),
-        text_base=_get(resolved, "text", "base", default="#d8dee9"),
-        text_muted=_get(resolved, "text", "muted", default="#808080"),
-        text_faint=_get(resolved, "text", "faint", default="#4c4c4c"),
-        text_thinking=_get(resolved, "text", "thinking", default="#9ca3af"),
-        surface_base=_get(resolved, "background", "base", default="#000000"),
-        surface_raised=_get(resolved, "background", "raised", "base", default="#1e1e1e"),
-        surface_high=_get(resolved, "background", "raised", "high", default="#2a2a2a"),
-        surface_max=_get(resolved, "background", "raised", "max", default="#363636"),
-        accent=_get(resolved, "hue", "accent", "200", default="#a7f3f0"),
-        success=_get(resolved, "hue", "green", "200", default="#9cffb1"),
-        error=_get(resolved, "hue", "red", "200", default="#ff4f4f"),
-        diff_added_bg=_get(resolved, "diff", "background", "added", default="#20303b"),
-        diff_removed_bg=_get(resolved, "diff", "background", "removed", default="#37222c"),
-        diff_added_text=_get(resolved, "diff", "text", "added", default="#4fd6be"),
-        diff_removed_text=_get(resolved, "diff", "text", "removed", default="#c53b53"),
-        diff_context_bg=_get(resolved, "diff", "background", "context", default="#000000"),
-        diff_line_number_text=_get(resolved, "diff", "lineNumber", "text", default="#8f8f8f"),
-        role_user_bg=_optional(roles, "user", "background"),
-        role_tool_pending_bg=_optional(roles, "tool_pending", "background"),
-        role_tool_success_bg=_optional(roles, "tool_success", "background"),
-        role_tool_error_bg=_optional(roles, "tool_error", "background"),
-    )
-
-
-# Flat TuiTheme colour field -> layered schema path. Only fields with a genuine
-# schema home are listed (paths follow spec 2026-11-08 §4.1, which mirrors
-# opencode's token sections); fields without one come from the ``colors``
-# overlay or the default dark palette instead of a made-up path.
 _FLAT_FIELD_SOURCE: dict[str, tuple[str, ...]] = {
     "screen_background": ("background", "base"),
     "screen_text": ("text", "base"),
@@ -265,6 +155,22 @@ def _peek(document: dict[str, Any], *path: str) -> str | None:
     return node if isinstance(node, str) and node else None
 
 
+def _resolve_dark(resolved: dict[str, Any]) -> bool:
+    """Resolve a document's light/dark identity.
+
+    Layered documents use ``appearance``; old flat ones use ``dark: bool``.
+    Prefer ``appearance`` when present, then an explicit ``dark`` boolean, then
+    default to dark — mirroring the flat parser's inference order.
+    """
+    appearance = resolved.get("appearance")
+    if isinstance(appearance, str) and appearance:
+        return appearance == "dark"
+    dark = resolved.get("dark")
+    if isinstance(dark, bool):
+        return dark
+    return True
+
+
 def project_to_tui_theme(schema: dict[str, Any]) -> TuiTheme:
     """Project a layered schema onto the flat, frozen TuiTheme contract.
 
@@ -280,9 +186,8 @@ def project_to_tui_theme(schema: dict[str, Any]) -> TuiTheme:
     3. the built-in dark palette — a partial theme fills chrome fields from
        the shipped default instead of crashing or inventing a colour.
 
-    Roles are projected only for names in ``TRANSCRIPT_ROLES``; the schema's
-    ``tool_pending``/``tool_success``/``tool_error`` entries are consumed by
-    :class:`ThemeTokens` and never leak into the flat view.
+    Roles are projected only for names in ``TRANSCRIPT_ROLES``; any other role
+    entries in the document are ignored rather than leaking into the flat view.
     """
     from baldric_coding.rendering.themes import (
         BALDRIC_DARK_THEME,

@@ -135,9 +135,6 @@ _SCHEMA_TOP_LEVEL_FIELDS = {
     "colors",
     "syntax_theme",
 }
-# Extra role entries the layered format may carry; they are consumed through
-# ThemeTokens (tool-state backgrounds), not the flat role_styles contract.
-_SCHEMA_EXTRA_ROLES = ("tool_pending", "tool_success", "tool_error")
 
 # Fields that feed Textual CSS variables and must be a single color, unlike
 # the completion fields and role bodies, which are full Rich style strings.
@@ -268,28 +265,18 @@ def _validate_schema_roles(value: object, problems: list[str]) -> None:
         return
     # Every transcript role must be present, like the flat path, so the
     # projected TuiTheme never yields a role_styles dict a widget indexes into
-    # and crashes on. The extra tool-state roles are optional.
+    # and crashes on.
     missing = [role for role in TRANSCRIPT_ROLES if role not in value]
     if missing:
         problems.append("roles missing: " + ", ".join(missing))
-    allowed = set(TRANSCRIPT_ROLES) | set(_SCHEMA_EXTRA_ROLES)
-    unknown = sorted(str(key) for key in set(value) - allowed)
+    unknown = sorted(str(key) for key in set(value) - set(TRANSCRIPT_ROLES))
     if unknown:
         problems.append("roles unknown: " + ", ".join(unknown))
     for role, spec in value.items():
-        if role not in allowed:
+        if role not in TRANSCRIPT_ROLES:
             continue
         if not isinstance(spec, dict):
             problems.append(f"roles.{role} must be an object")
-            continue
-        if role in _SCHEMA_EXTRA_ROLES:
-            background = spec.get("background")
-            if not isinstance(background, str) or not background:
-                problems.append(f"roles.{role}.background must be a non-empty string")
-                continue
-            error = _color_problem(background) or _textual_color_problem(background)
-            if error is not None:
-                problems.append(f"roles.{role}.background {error}")
             continue
         border = spec.get("border")
         if not isinstance(border, str) or not border:

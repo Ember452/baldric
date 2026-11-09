@@ -9,7 +9,6 @@ from baldric_coding.rendering.diffs import (
     parse_unified_patch,
     render_patch,
 )
-from baldric_coding.rendering.theme_schema import build_tokens
 from baldric_coding.rendering.themes import BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME
 
 
@@ -164,28 +163,6 @@ def test_context_rows_carry_no_add_or_remove_background() -> None:
     console.print(render_patch(context_only, theme=BALDRIC_DARK_THEME))
 
     styles = console.export_text(styles=True)
-    assert _ADDED_BG_ANSI not in styles
-    assert _REMOVED_BG_ANSI not in styles
-
-
-def test_tokens_override_the_default_diff_palette() -> None:
-    tokens = build_tokens(
-        {
-            "name": "custom",
-            "diff": {
-                "background": {"added": "#101010", "removed": "#202020"},
-                "text": {"added": "#cccccc", "removed": "#dddddd"},
-                "lineNumber": {"text": "#999999"},
-            },
-        }
-    )
-    console = Console(record=True, width=80, force_terminal=True, color_system="truecolor")
-    console.print(render_patch(SAMPLE_PATCH, theme=BALDRIC_DARK_THEME, tokens=tokens))
-
-    styles = console.export_text(styles=True)
-    assert "48;2;16;16;16" in styles  # #101010
-    assert "48;2;32;32;32" in styles  # #202020
-    # The default palette must not leak into a tokens-driven render.
     assert _ADDED_BG_ANSI not in styles
     assert _REMOVED_BG_ANSI not in styles
 

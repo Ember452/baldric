@@ -15,8 +15,6 @@ from pathlib import Path
 import pytest
 
 from baldric_coding.rendering.theme_schema import (
-    ThemeTokens,
-    build_tokens,
     project_to_tui_theme,
     resolve_references,
 )
@@ -117,63 +115,6 @@ def test_plain_strings_are_not_treated_as_references(value: str) -> None:
     data = {"colors": {"some_field": value}}
     resolved = resolve_references(data)
     assert resolved["colors"]["some_field"] == value
-
-
-def test_build_tokens_exposes_layering() -> None:
-    schema = {
-        "name": "demo",
-        "appearance": "dark",
-        "hue": {"gray": {"800": "#1e1e1e", "900": "#0a0a0a"}},
-        "text": {"base": "#eeeeee", "muted": "#808080"},
-        "background": {"base": "$hue.gray.900", "raised": {"base": "$hue.gray.800"}},
-        "diff": {"background": {"added": "#20303b"}},
-    }
-    tokens = build_tokens(schema)
-    assert isinstance(tokens, ThemeTokens)
-    assert tokens.name == "demo"
-    assert tokens.dark is True
-    assert tokens.text_base == "#eeeeee"
-    assert tokens.surface_base == "#0a0a0a"
-    assert tokens.surface_raised == "#1e1e1e"
-    assert tokens.diff_added_bg == "#20303b"
-
-
-def test_build_tokens_tolerates_missing_fields() -> None:
-    # A partial schema must not crash; missing sources fall back to defaults.
-    tokens = build_tokens({"name": "partial"})
-    assert isinstance(tokens, ThemeTokens)
-    assert tokens.name == "partial"
-    assert isinstance(tokens.text_base, str)
-    assert isinstance(tokens.surface_base, str)
-    # Optional role backgrounds default to None when absent.
-    assert tokens.role_user_bg is None
-    assert tokens.role_tool_pending_bg is None
-    assert tokens.role_tool_success_bg is None
-    assert tokens.role_tool_error_bg is None
-
-
-def test_build_tokens_reads_dark_from_flat_bool() -> None:
-    # Old flat themes express light/dark as a ``dark`` boolean, not
-    # ``appearance``; the token view must not mistake them for dark.
-    assert build_tokens({"name": "flat-dark", "dark": True}).dark is True
-    assert build_tokens({"name": "flat-light", "dark": False}).dark is False
-    # ``appearance`` wins when both are present.
-    assert build_tokens({"name": "x", "appearance": "light", "dark": True}).dark is False
-    # Defaults to dark when neither is stated.
-    assert build_tokens({"name": "y"}).dark is True
-
-
-def test_build_tokens_reads_optional_role_backgrounds() -> None:
-    schema = {
-        "roles": {
-            "user": {"body": "on #101419"},
-            "tool_success": {"background": "#1d783c"},
-        }
-    }
-    tokens = build_tokens(schema)
-    # roles.*.body is a Rich style string, not a plain colour, so body is not
-    # a role background source; only an explicit ``background`` key is.
-    assert tokens.role_tool_success_bg == "#1d783c"
 
 
 # --- Task 2: project a layered schema onto the flat TuiTheme (zero-break) ----

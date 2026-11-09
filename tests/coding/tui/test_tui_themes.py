@@ -471,7 +471,6 @@ def test_parse_theme_json_accepts_the_layered_format() -> None:
             "custom": {"border": "#5c9cf5", "body": ""},
             "branch_summary": {"border": "#5c9cf5", "body": ""},
             "compaction_summary": {"border": "#5c9cf5", "body": ""},
-            "tool_success": {"background": "#144922"},
         },
     }
     theme = parse_tui_theme_json(data)

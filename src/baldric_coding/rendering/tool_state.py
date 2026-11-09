@@ -1,10 +1,9 @@
 """Per-state tool row colours and duration formatting (spec 2026-11-08 §6).
 
-pi completes a tool row with a state background and the elapsed time; the
-three-state backgrounds default to opencode-dark's role values
-(``tool_pending #141414`` stays border-only, ``tool_success #144922``,
-``tool_error #410a13``). Theme-owned values arrive via ``ThemeTokens`` when
-the widget layer consumes it — the flat ``TuiTheme`` contract stays untouched.
+A finished tool row carries a state background and its elapsed time. The
+backgrounds are baldric's own constants (``tool_success #144922``,
+``tool_error #410a13``; pending stays border-only) rather than a per-theme
+setting — the row status is a fixed semantic, not a theme variable.
 """
 
 from __future__ import annotations

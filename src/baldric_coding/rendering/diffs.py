@@ -16,7 +16,6 @@ from typing import Final
 from rich.console import Group, RenderableType
 from rich.text import Text
 
-from baldric_coding.rendering.theme_schema import ThemeTokens
 from baldric_coding.rendering.themes import TuiTheme
 
 _HUNK_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
@@ -199,30 +198,17 @@ def _gutter(old_number: int | None, new_number: int | None) -> str:
     return f"{old_text:>{_GUTTER_WIDTH}} {new_text:>{_GUTTER_WIDTH}} "
 
 
-def _palette_for(tokens: ThemeTokens) -> DiffPalette:
-    """Project a theme's layered diff tokens onto a row palette."""
-    return DiffPalette(
-        added_bg=tokens.diff_added_bg,
-        removed_bg=tokens.diff_removed_bg,
-        added_text=tokens.diff_added_text,
-        removed_text=tokens.diff_removed_text,
-        context_bg=tokens.diff_context_bg,
-        line_number_text=tokens.diff_line_number_text,
-    )
-
-
-def render_patch(patch: str, *, theme: TuiTheme, tokens: ThemeTokens | None = None) -> RenderableType | None:
+def render_patch(patch: str, *, theme: TuiTheme) -> RenderableType | None:
     """Render a unified patch as a structured, per-file rich renderable.
 
-    *tokens* carries a theme's own diff palette (from its schema's ``diff``
-    section); without it the opencode defaults apply, so every caller gets
-    row backgrounds without new wiring.
+    The row palette follows the theme's light/dark appearance, so a light theme
+    gets light diff rows and a dark theme opencode's dark rows.
     """
     files = parse_unified_patch(patch)
     if not files:
         return None
 
-    palette = _palette_for(tokens) if tokens is not None else DiffPalette.for_theme(theme)
+    palette = DiffPalette.for_theme(theme)
     parts: list[RenderableType] = []
     for file in files:
         parts.append(Text(file.path, style=f"bold {theme.accent}"))
