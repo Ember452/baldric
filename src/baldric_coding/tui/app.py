@@ -2491,14 +2491,13 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         self._refresh_chrome()
 
     def _replace_tui_settings(self, *, theme: TuiThemeName) -> None:
-        """Replace the current immutable TUI settings with a new theme."""
-        self.tui_settings = TuiSettings(
-            keybindings=self.tui_settings.keybindings,
-            theme=theme,
-            auto_copy_selection=self.tui_settings.auto_copy_selection,
-            sidebar_position=self.tui_settings.sidebar_position,
-            turn_notification=self.tui_settings.turn_notification,
-        )
+        """Replace the current immutable TUI settings with a new theme.
+
+        Uses dataclasses.replace so unrelated settings (approval_mode,
+        editor_command, ...) survive a theme change; rebuilding by hand here
+        silently reset them to defaults and persisted that.
+        """
+        self.tui_settings = replace(self.tui_settings, theme=theme)
 
     def _set_tui_theme(self, theme: TuiThemeName) -> None:
         if theme not in available_tui_theme_names():
