@@ -13,7 +13,6 @@ from typing import Any, Literal
 from rich.align import Align
 from rich.console import Group, RenderableType
 from rich.padding import Padding
-from rich.style import Style
 from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
@@ -33,6 +32,14 @@ from baldric_coding.rendering.diffs import render_patch
 from baldric_coding.rendering.grouping import format_tool_run_summary, should_summarize
 from baldric_coding.rendering.thinking import format_hidden_thinking_summary
 from baldric_coding.rendering.tool_calls import format_tool_call_invocation
+from baldric_coding.rendering.tool_state import (
+    format_tool_duration,
+    tool_accent_color,
+    tool_row_role_style,
+)
+from baldric_coding.rendering.tool_state import (
+    split_rich_style_colors as _split_rich_style_colors,
+)
 from baldric_coding.tui.autocomplete import CompletionState
 from baldric_coding.tui.config import BALDRIC_DARK_THEME, TuiRoleStyle, TuiTheme
 from baldric_coding.tui.state import (
@@ -1404,14 +1411,6 @@ def _custom_body_renderable(
     return text
 
 
-def _split_rich_style_colors(style: str) -> tuple[str | None, str | None]:
-    """Split the foreground/background colors from a simple Rich style string."""
-    text_style = Style.parse(style)
-    foreground = text_style.color.name if text_style.color is not None else None
-    background = text_style.bgcolor.name if text_style.bgcolor is not None else None
-    return foreground, background
-
-
 def _use_plain_transcript_body(item: ChatItem) -> bool:
     """Return whether a transcript item can use fast selectable plain text."""
     return item.highlight in {"alert", "update"} or item.role in {
@@ -1592,25 +1591,26 @@ def _chat_item_role_style(item: ChatItem, theme: TuiTheme) -> TuiRoleStyle:
     if item.highlight == "update":
         return TuiRoleStyle(border="#ffff00", body="bold #ffff00")
     if item.role == "tool" and item.tool_result_text:
-        if item.tool_result_text.startswith("✓"):
-            return TuiRoleStyle(border=theme.success, body=theme.role_styles["tool"].body)
-        if item.tool_result_text.startswith("✗"):
-            return TuiRoleStyle(border=theme.error, body=theme.role_styles["tool"].body)
+        return tool_row_role_style(
+            tool_is_error=item.tool_is_error,
+            tool_result_text=item.tool_result_text,
+            base=theme.role_styles["tool"],
+            success_border=theme.success,
+            error_border=theme.error,
+        )
     return theme.role_styles[item.role]
 
 
 def _tool_accent_style(item: ChatItem, *, theme: TuiTheme) -> str | None:
-    # Bare colors: the accent span inherits its background from the tool body
-    # style, so it blends with any theme's transcript background.
-    if item.role != "tool":
-        return None
-    if item.tool_result_text is None or item.tool_result_text.startswith("…"):
-        return theme.role_styles["tool"].border
-    if item.tool_result_text.startswith("✓"):
-        return theme.tool_success_text
-    if item.tool_result_text.startswith("✗"):
-        return theme.tool_error_text
-    return None
+    """Return the row accent colour; the logic lives in rendering/tool_state."""
+    return tool_accent_color(
+        is_tool=item.role == "tool",
+        tool_result_text=item.tool_result_text,
+        tool_is_error=item.tool_is_error,
+        pending_border=theme.role_styles["tool"].border,
+        success_text=theme.tool_success_text,
+        error_text=theme.tool_error_text,
+    )
 
 
 def _bash_row_is_description_only(item: ChatItem) -> bool:
@@ -1645,6 +1645,8 @@ def _tool_batch_row_invocation(row: ChatItem, *, expanded: bool) -> str:
         elapsed = time.monotonic() - row.started_at
         if elapsed >= TOOL_TIMER_MIN_SECONDS:
             return f"{invocation} ({format_elapsed(elapsed)})"
+    if row.tool_result_text is not None and row.tool_duration_seconds is not None:
+        return f"{invocation} · {format_tool_duration(row.tool_duration_seconds)}"
     return invocation
 
 

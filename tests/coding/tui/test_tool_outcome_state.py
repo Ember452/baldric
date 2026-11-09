@@ -9,7 +9,14 @@ from __future__ import annotations
 
 import time
 
-from baldric_coding.tui.state import TuiState
+from baldric_coding.rendering.themes import BALDRIC_DARK_THEME
+from baldric_coding.rendering.tool_state import tool_state_background
+from baldric_coding.tui.state import ChatItem, TuiState
+from baldric_coding.tui.widgets.core import (
+    TranscriptMessageWidget,
+    _chat_item_role_style,
+    _tool_batch_row_invocation,
+)
 from baldric_protocol.messages import TextContent
 from baldric_protocol.tools import AgentToolResult
 
@@ -68,6 +75,89 @@ def test_orphan_result_stamps_error_without_duration() -> None:
     assert item.tool_is_error is True
     # No prior call row means no timing source.
     assert item.tool_duration_seconds is None
+
+
+# --- Task 3: render side — explicit outcome drives style and duration --------
+
+
+def test_completed_tool_row_header_carries_duration() -> None:
+    item = ChatItem(role="tool", text="→ bash $ ls", tool_name="bash")
+    item.tool_result_text = "✓ bash"
+    item.tool_duration_seconds = 4.2
+
+    invocation = _tool_batch_row_invocation(item, expanded=False)
+
+    assert invocation.endswith(" · 4.2s")
+    assert "4.2s" not in item.text
+
+
+def test_pending_tool_row_header_keeps_live_elapsed() -> None:
+    import time as time_module
+
+    item = ChatItem(
+        role="tool", text="→ bash $ sleep", tool_name="bash", started_at=time_module.monotonic() - 2.0
+    )
+
+    invocation = _tool_batch_row_invocation(item, expanded=False)
+
+    assert "(2s)" in invocation or "(2.0s)" in invocation
+
+
+def test_explicit_outcome_selects_border_without_text_guessing() -> None:
+    item = ChatItem(role="tool", text="→ bash", tool_name="bash")
+    item.tool_result_text = "✓ bash"  # even a SUCCESS-prefixed text...
+    item.tool_is_error = True  # ...with an explicit error outcome must lose.
+
+    style = _chat_item_role_style(item, BALDRIC_DARK_THEME)
+
+    assert style.border == BALDRIC_DARK_THEME.error
+
+
+def test_explicit_success_outcome_selects_success_border() -> None:
+    item = ChatItem(role="tool", text="→ bash", tool_name="bash")
+    item.tool_result_text = "✗ bash"  # text prefix contradicts...
+    item.tool_is_error = False  # ...the explicit outcome wins.
+
+    style = _chat_item_role_style(item, BALDRIC_DARK_THEME)
+
+    assert style.border == BALDRIC_DARK_THEME.success
+
+
+def test_missing_outcome_falls_back_to_text_prefix() -> None:
+    # Restored sessions carry no explicit outcome; the legacy heuristic stays.
+    item = ChatItem(role="tool", text="→ bash", tool_name="bash")
+    item.tool_result_text = "✗ bash"
+
+    style = _chat_item_role_style(item, BALDRIC_DARK_THEME)
+
+    assert style.border == BALDRIC_DARK_THEME.error
+
+
+def test_tool_state_background_helper() -> None:
+    assert tool_state_background(True, has_result=True) == "#410a13"
+    assert tool_state_background(False, has_result=True) == "#144922"
+    assert tool_state_background(None, has_result=True) is None
+    assert tool_state_background(True, has_result=False) is None
+
+
+def test_tool_row_body_carries_the_state_background() -> None:
+    item = ChatItem(role="tool", text="→ bash", tool_name="bash")
+    item.tool_result_text = "✓ bash"
+    item.tool_is_error = False
+
+    style = _chat_item_role_style(item, BALDRIC_DARK_THEME)
+
+    assert style.body.endswith("on #144922")
+
+
+def test_tool_row_widget_paints_the_state_background() -> None:
+    item = ChatItem(role="tool", text="→ bash", tool_name="bash")
+    item.tool_result_text = "✗ bash"
+    item.tool_is_error = True
+
+    widget = TranscriptMessageWidget(item, theme=BALDRIC_DARK_THEME, show_tool_results=False)
+
+    assert widget.styles.background == __import__("textual.color", fromlist=["Color"]).Color.parse("#410a13")
 
 
 def test_grouped_members_stamp_outcome_and_duration() -> None:

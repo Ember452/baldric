@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from subprocess import run as run
 
+from baldric_coding.rendering.tool_state import (
+    split_rich_style_colors as _split_rich_style_colors,
+)
 from baldric_coding.tui.widgets.core import (
     _BORDERLESS_TRANSCRIPT_ROLES as _BORDERLESS_TRANSCRIPT_ROLES,
 )
@@ -96,9 +99,6 @@ from baldric_coding.tui.widgets.core import (
 )
 from baldric_coding.tui.widgets.core import (
     _render_transcript_tool_invocation as _render_transcript_tool_invocation,
-)
-from baldric_coding.tui.widgets.core import (
-    _split_rich_style_colors as _split_rich_style_colors,
 )
 from baldric_coding.tui.widgets.core import (
     _split_tool_invocation_sections as _split_tool_invocation_sections,

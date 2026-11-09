@@ -2693,18 +2693,20 @@ async def test_mixed_tool_batch_uses_one_widget_and_expands_each_row() -> None:
     async with app.run_test(size=(120, 30)) as pilot:
         widget = next(w for w in app.query(TranscriptMessageWidget) if w.item.role == "tool")
         assert len([w for w in app.query(TranscriptMessageWidget) if w.item.role == "tool"]) == 1
+        # Behavior intentionally changed: completed tool rows carry their
+        # duration (instant test fixtures record 0.0s).
         assert widget.selection_text == (
-            "→ Doing thing one\n→ Read 2 files\n  - a.py\n  - b.py\n→ Doing thing two"
+            "→ Doing thing one · 0.0s\n→ Read 2 files\n  - a.py\n  - b.py\n→ Doing thing two · 0.0s"
         )
 
         await pilot.press("ctrl+o")
         await pilot.pause()
 
         assert widget.selection_text == (
-            "→ Doing thing one\n$ echo one\n\n✓ bash\none\n\n"
+            "→ Doing thing one\n$ echo one · 0.0s\n\n✓ bash\none\n\n"
             "→ read a.py\n\n✓ read\nalpha\n\n"
             "→ read b.py\n\n✓ read\nbeta\n\n"
-            "→ Doing thing two\n$ echo two\n\n✓ bash\ntwo"
+            "→ Doing thing two\n$ echo two · 0.0s\n\n✓ bash\ntwo"
         )
 
 

@@ -529,7 +529,7 @@
       "max_function_stmts": 4
     },
     "src/baldric_coding/rendering/activity.py": {
-      "lines": 91,
+      "lines": 95,
       "max_function_stmts": 10
     },
     "src/baldric_coding/rendering/approval_card.py": {
@@ -575,6 +575,10 @@
     "src/baldric_coding/rendering/tool_preview.py": {
       "lines": 28,
       "max_function_stmts": 4
+    },
+    "src/baldric_coding/rendering/tool_state.py": {
+      "lines": 97,
+      "max_function_stmts": 7
     },
     "src/baldric_coding/rendering/transcript.py": {
       "lines": 118,
@@ -757,7 +761,7 @@
       "max_function_stmts": 22
     },
     "src/baldric_coding/tui/config.py": {
-      "lines": 239,
+      "lines": 241,
       "max_function_stmts": 10
     },
     "src/baldric_coding/tui/editor.py": {
@@ -849,7 +853,7 @@
       "max_function_stmts": 8
     },
     "src/baldric_coding/tui/state.py": {
-      "lines": 1033,
+      "lines": 1047,
       "max_function_stmts": 15
     },
     "src/baldric_coding/tui/terminal_notification.py": {
@@ -873,7 +877,7 @@
       "max_function_stmts": 0
     },
     "src/baldric_coding/tui/widgets/core.py": {
-      "lines": 1944,
+      "lines": 1946,
       "max_function_stmts": 25
     },
     "src/baldric_coding/tui/widgets/markdown.py": {
