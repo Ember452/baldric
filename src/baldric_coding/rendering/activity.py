@@ -8,6 +8,7 @@ ones (batch 2 swaps the frames for opencode/pi's ten-frame set).
 
 from __future__ import annotations
 
+from rich.color import Color
 from rich.text import Text
 
 from baldric_coding.rendering.themes import TuiTheme
@@ -88,7 +89,11 @@ def _blend_hex_colors(start: str, end: str, *, fraction: float) -> str:
 
 
 def _hex_to_rgb(color: str) -> tuple[int, int, int]:
-    value = color.removeprefix("#")
-    if len(value) != 6:
-        raise ValueError(f"Expected #rrggbb color, got {color!r}")
-    return (int(value[0:2], 16), int(value[2:4], 16), int(value[4:6], 16))
+    """Parse a colour name or ``#hex`` into RGB.
+
+    Themes may carry Rich/Textual named colours (``accent: "red"``), so a
+    ``#rrggbb``-only parser would raise at runtime on a running spinner.
+    Rich's parser resolves names and hex alike.
+    """
+    parsed = Color.parse(color)
+    return parsed.get_truecolor()

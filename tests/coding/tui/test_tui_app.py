@@ -3908,6 +3908,18 @@ def test_activity_indicator_spinner_breathes_between_accent_and_background() -> 
     assert looped.style == peak.style
 
 
+def test_activity_indicator_tolerates_named_theme_colors() -> None:
+    # Themes may carry Rich named colours (``accent: "red"`` passes theme
+    # validation); the spinner blend must resolve them instead of raising.
+    from dataclasses import replace as _dc_replace
+
+    theme = _dc_replace(BALDRIC_DARK_THEME, accent="red", screen_background="#000000")
+
+    rendered = _render_activity_indicator(theme, frame=3, running=True)
+
+    assert rendered.plain in tui_app.ACTIVITY_SPINNER_FRAMES
+
+
 def test_activity_prompt_border_uses_tool_running_color_in_shell_mode() -> None:
     theme = BALDRIC_LIGHT_THEME
 

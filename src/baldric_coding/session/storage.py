@@ -79,7 +79,20 @@ class JsonlSessionStorage:
     async def append(self, entry: SessionEntry) -> None:
         """Append one entry under the session's exclusive cross-process lock."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        line = entry_to_json_line(entry)
+        self._append_locked(entry_to_json_line(entry))
+
+    def append_sync(self, entry: SessionEntry) -> None:
+        """Append one entry synchronously under the same exclusive lock.
+
+        Slash commands that cannot await storage need a synchronous append;
+        without it they would bypass the cross-process lock, the torn-tail
+        repair, and the fsync that :meth:`append` provides.
+        """
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._append_locked(entry_to_json_line(entry))
+
+    def _append_locked(self, line: str) -> None:
+        """Write one encoded line under the already-held exclusive lock."""
         with self._locked(exclusive=True):
             self._remove_incomplete_temp()
             self._repair_torn_tail()

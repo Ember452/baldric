@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
     from baldric_coding.backends.contracts import LocalBackend
     from baldric_coding.config.paths import BaldricPaths
+    from baldric_coding.extensions.provider_registry import DynamicProviderRegistry
     from baldric_coding.extensions.providers import DynamicProvider
     from baldric_coding.extensions.runtime import ExtensionRuntime
     from baldric_coding.session.session import ModelChoice
@@ -981,6 +982,12 @@ class ExtensionContext:
         """Return the active provider name."""
         self._generation.assert_active()
         return self._runtime.session_view.provider_name
+
+    @property
+    def provider_registry(self) -> DynamicProviderRegistry:
+        """Return this generation's process-local provider registry (read-only)."""
+        self._generation.assert_active()
+        return self._runtime.provider_registry
 
     @property
     def available_providers(self) -> tuple[str, ...]:

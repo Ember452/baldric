@@ -29,13 +29,15 @@ from typing import TYPE_CHECKING, Any, cast
 from baldric_coding import (
     CodingSession,
     CodingSessionConfig,
+    ProviderConfigError,
     load_provider_settings,
     resolve_provider_selection,
 )
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.thinking import THINKING_LEVELS, ThinkingLevel
 from baldric_coding.extensions import ExtensionAPI
-from baldric_coding.providers.runtime import create_model_provider
+from baldric_coding.extensions.providers import DynamicProvider
+from baldric_coding.providers.runtime import create_dynamic_model_provider, create_model_provider
 from baldric_coding.tools.registry import create_coding_tools
 from baldric_protocol.messages import AssistantMessage, TextContent
 from baldric_protocol.session import SessionEntry
@@ -135,6 +137,21 @@ class _MemoryStorage:
 
     async def read_all(self) -> list[SessionEntry]:
         return list(self.entries)
+
+
+@dataclass(slots=True)
+class ChildProviderSelection:
+    """One child run's resolved provider: exactly one of durable/dynamic.
+
+    Keeping the two apart mirrors the runtime: durable providers are created
+    synchronously from settings, dynamic ones asynchronously from the
+    session's process-local registry.
+    """
+
+    name: str
+    model: str
+    durable: Any = None
+    dynamic: DynamicProvider | None = None
 
 
 @dataclass(slots=True)
@@ -560,68 +577,100 @@ class SubagentManager:
                 return
         self._deliver_background_result(run)
 
+    async def _resolve_provider_selection(
+        self, *, provider_name: str | None, model: str | None
+    ) -> ChildProviderSelection:
+        """Resolve a provider/model for a child run, dynamic providers included.
+
+        Durable settings resolve first, as before. A provider that only exists
+        in this session's process-local registry (an extension-registered
+        llama.cpp server, a Codex live catalog) is not in durable settings, so
+        the registry's effective definition is used instead — that is what
+        makes a subagent actually inherit the parent's active provider instead
+        of failing with an unknown-provider error.
+        """
+        provider_settings = load_provider_settings()
+        registry = self._api.context.provider_registry
+        target = provider_name
+        if target is None and provider_settings is not None:
+            target = provider_settings.default_provider
+        effective = registry.effective(target) if target else None
+        if effective is None or not effective.dynamic:
+            # Durable (or unknown): the settings path handles both — unknown
+            # names must still raise the familiar unknown-provider error.
+            selection = resolve_provider_selection(
+                provider_settings,
+                provider_name=provider_name,
+                model=model,
+            )
+            return ChildProviderSelection(
+                durable=selection.provider,
+                dynamic=None,
+                model=selection.model,
+                name=selection.provider.name,
+            )
+        definition = cast("DynamicProvider", effective.definition)
+        selected_model = model or definition.default_model
+        if not selected_model:
+            raise ProviderConfigError(f"Provider {definition.id} does not define a default model")
+        return ChildProviderSelection(
+            durable=None,
+            dynamic=definition,
+            model=selected_model,
+            name=definition.id,
+        )
+
     async def _execute(self, run: AgentRun, definition: AgentDefinition) -> None:
         settings = self._get_settings()
         cwd = self._api.context.cwd
         # Create the provider before the first await so concurrent spawns
         # claim providers in spawn order (tests script provider sequences).
-        # Frontmatter wins over the tool param, per pi precedence.
-        # When neither the agent definition nor the tool call specifies a
-        # provider/model, inherit the parent session's active selection so
-        # subagents naturally match the caller instead of falling back to
-        # the durable Baldric settings default.
+        # Frontmatter wins over the tool param, per pi precedence. With no
+        # provider/model specified anywhere, the child inherits the parent's
+        # active selection (see _resolve_provider_selection).
         parent_provider = self._api.context.provider_name
         parent_model = self._api.context.model
-        provider_settings = load_provider_settings()
         if definition.fork:
             capture = run.fork_capture
             assert capture is not None
-            # A fork resolves against the snapshot taken at tool-call time,
-            # not the live parent: a queued fork must run the model the
-            # parent had when it forked (a /model switch in between would
-            # otherwise break the shared prompt cache).
-            selection = resolve_provider_selection(
-                provider_settings,
+            # A fork resolves against the tool-call-time snapshot, not the live
+            # parent: a queued fork must run the model the parent had when it
+            # forked (a /model switch in between would break the prompt cache).
+            selection = await self._resolve_provider_selection(
                 provider_name=capture.provider_name,
                 model=capture.model,
             )
             thinking_level = capture.thinking_level
         else:
-            selection = resolve_provider_selection(
-                provider_settings,
+            selection = await self._resolve_provider_selection(
                 provider_name=run.requested_provider or parent_provider,
                 model=definition.model or run.requested_model or parent_model,
             )
-            # An explicit level (frontmatter or parameter) passes through
-            # untouched: it is a stated intent, and the provider reports it when
-            # the model cannot honour it.
-            #
-            # With no explicit level, a child on the parent's own provider and
-            # model continues at the parent's live level. The hardcoded default
-            # this replaces failed outright on models that do not offer it, and
-            # made a child think less than the conversation that spawned it.
-            #
-            # A child on a different model gets nothing, which is the host's "no
-            # thinking parameter" case - the model's own default then applies
-            # (provider_config.py:1775, 1809 return early on None). The parent's
-            # level says nothing about that model's supported set.
+            # An explicit level is a stated intent and passes through. With no
+            # explicit level, a child on the parent's own provider+model
+            # continues at the parent's live level; a child on a different
+            # model gets None (the model's own default applies — see
+            # provider_config.py:1775/1809 early returns).
             explicit = definition.thinking or run.requested_thinking
             if explicit:
                 thinking_level = explicit
-            elif selection.provider.name == parent_provider and selection.model == parent_model:
+            elif selection.name == parent_provider and selection.model == parent_model:
                 thinking_level = self._api.context.thinking_level
             else:
                 thinking_level = None
-        provider = create_model_provider(
-            selection.provider,
-            model=selection.model,
-            # Forks run the parent's live thinking level (captured at
-            # tool-call time). Any other level would put a different thinking
-            # config in the fork's request and cost (part of) the shared
-            # prompt cache. A capture without the level leaves the model's own
-            # default in place.
-            thinking_level=cast("ThinkingLevel | None", thinking_level),
-        )
+        if selection.dynamic is not None:
+            provider = await create_dynamic_model_provider(
+                selection.dynamic,
+                model=selection.model,
+            )
+        else:
+            provider = create_model_provider(
+                selection.durable,
+                model=selection.model,
+                # A fork's captured level (see above) avoids breaking the
+                # shared prompt cache; None leaves the model's own default.
+                thinking_level=cast("ThinkingLevel | None", thinking_level),
+            )
         run.provider = provider
         run.model = selection.model
         # A viewer opened on the queued run painted its header without a
@@ -726,7 +775,7 @@ class SubagentManager:
                     if definition.skills is True
                     else None
                 ),
-                provider_name=selection.provider.name,
+                provider_name=selection.name,
                 auto_compact_enabled=False,
                 # Children load extensions natively (pi parity), so subagents
                 # can spawn subagents and a fork's tool pool matches the

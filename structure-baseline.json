@@ -153,7 +153,7 @@
       "max_function_stmts": 11
     },
     "src/baldric_coding/auth/oauth.py": {
-      "lines": 517,
+      "lines": 523,
       "max_function_stmts": 9
     },
     "src/baldric_coding/auth/registry.py": {
@@ -285,7 +285,7 @@
       "max_function_stmts": 0
     },
     "src/baldric_coding/extensions/api.py": {
-      "lines": 1350,
+      "lines": 1357,
       "max_function_stmts": 9
     },
     "src/baldric_coding/extensions/builtin_registry.py": {
@@ -341,7 +341,7 @@
       "max_function_stmts": 8
     },
     "src/baldric_coding/extensions/builtins/subagents/extension.py": {
-      "lines": 1624,
+      "lines": 1673,
       "max_function_stmts": 32
     },
     "src/baldric_coding/extensions/builtins/subagents/fork.py": {
@@ -529,7 +529,7 @@
       "max_function_stmts": 4
     },
     "src/baldric_coding/rendering/activity.py": {
-      "lines": 95,
+      "lines": 99,
       "max_function_stmts": 10
     },
     "src/baldric_coding/rendering/approval_card.py": {
@@ -541,7 +541,7 @@
       "max_function_stmts": 2
     },
     "src/baldric_coding/rendering/diffs.py": {
-      "lines": 331,
+      "lines": 326,
       "max_function_stmts": 13
     },
     "src/baldric_coding/rendering/grouping.py": {
@@ -557,11 +557,11 @@
       "max_function_stmts": 5
     },
     "src/baldric_coding/rendering/theme_schema.py": {
-      "lines": 534,
+      "lines": 239,
       "max_function_stmts": 13
     },
     "src/baldric_coding/rendering/themes/__init__.py": {
-      "lines": 656,
+      "lines": 643,
       "max_function_stmts": 13
     },
     "src/baldric_coding/rendering/thinking.py": {
@@ -577,7 +577,7 @@
       "max_function_stmts": 4
     },
     "src/baldric_coding/rendering/tool_state.py": {
-      "lines": 97,
+      "lines": 104,
       "max_function_stmts": 7
     },
     "src/baldric_coding/rendering/transcript.py": {
@@ -673,7 +673,7 @@
       "max_function_stmts": 20
     },
     "src/baldric_coding/session/storage.py": {
-      "lines": 355,
+      "lines": 368,
       "max_function_stmts": 9
     },
     "src/baldric_coding/session/tree_helpers.py": {
@@ -749,7 +749,7 @@
       "max_function_stmts": 16
     },
     "src/baldric_coding/tui/app.py": {
-      "lines": 4557,
+      "lines": 4556,
       "max_function_stmts": 63
     },
     "src/baldric_coding/tui/autocomplete.py": {

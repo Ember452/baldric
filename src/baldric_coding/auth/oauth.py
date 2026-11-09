@@ -12,7 +12,7 @@ import webbrowser
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from json import dumps, loads
+from json import loads
 from os import environ
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse
@@ -375,8 +375,12 @@ async def _post_openai_codex_token(
 def _required_token_field(raw: dict[str, Any], field: str, *, action: str) -> str:
     value = raw.get(field)
     if not isinstance(value, str) or not value:
+        # Do not dump the whole response: a failing token endpoint can echo the
+        # refresh/access token it was sent, so only surface the field names,
+        # never the values (mirrors anthropic.py's secret scrubbing).
+        present = sorted(k for k in raw if isinstance(k, str)) or "none"
         raise OAuthError(
-            f"OpenAI Codex token {action} response missing {field}: {dumps(raw, sort_keys=True)}"
+            f"OpenAI Codex token {action} response missing {field}; present fields: {', '.join(present)}"
         )
     return value
 
@@ -393,13 +397,15 @@ def _token_expiry(raw: dict[str, Any], access_token: str, *, action: str) -> int
     if isinstance(expires_in, int | float) and not isinstance(expires_in, bool):
         return int(time.time() * 1000) + int(expires_in * 1000)
     if expires_in is not None:
+        # Report the value's type only, never the body (secret scrubbing, see
+        # _required_token_field).
         raise OAuthError(
-            f"OpenAI Codex token {action} response has invalid expires_in: {dumps(raw, sort_keys=True)}"
+            f"OpenAI Codex token {action} response has invalid expires_in ({type(expires_in).__name__})"
         )
     expires = _access_token_expiry(access_token)
     if expires is not None:
         return expires
-    raise OAuthError(f"OpenAI Codex token {action} response missing expiry: {dumps(raw, sort_keys=True)}")
+    raise OAuthError(f"OpenAI Codex token {action} response missing expiry")
 
 
 async def _wait_for_authorization_code(

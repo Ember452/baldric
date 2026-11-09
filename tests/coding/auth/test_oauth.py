@@ -9,6 +9,8 @@ import pytest
 from baldric_coding.auth.oauth import (
     OPENAI_CODEX_ACCOUNT_CLAIM,
     OPENAI_CODEX_CLIENT_ID,
+    OAuthError,
+    _required_token_field,
     account_id_from_access_token,
     create_openai_codex_authorization_flow,
     parse_authorization_input,
@@ -107,3 +109,18 @@ def _jwt(account_id: str, *, expires: int | None = None) -> str:
 
 def _base64url(value: bytes) -> str:
     return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+
+
+def test_required_token_field_does_not_leak_response_secrets() -> None:
+    # A failing token endpoint can echo the refresh/access token it was sent;
+    # the error must surface field names only, never values.
+    secret = "sk-refresh-token-value"
+    with pytest.raises(OAuthError) as excinfo:
+        _required_token_field(
+            {"access_token": secret, "refresh_token": secret, "expires_in": 3600},
+            field="id_token",
+            action="verify",
+        )
+    assert secret not in str(excinfo.value)
+    assert "id_token" in str(excinfo.value)
+    assert "access_token" in str(excinfo.value)
