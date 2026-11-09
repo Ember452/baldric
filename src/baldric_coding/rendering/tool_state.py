@@ -69,7 +69,15 @@ def tool_row_role_style(
     border = error_border if tool_is_error else success_border
     foreground, _ = split_rich_style_colors(base.body)
     state_bg = tool_state_background(tool_is_error, has_result=True)
-    body = f"{foreground} on {state_bg}" if state_bg else base.body
+    # base.body may be an empty string (the layered schema allows omitting
+    # roles.tool.body); then there is no foreground to keep and the bare
+    # background is the correct style, not the invalid "None on <bg>".
+    if state_bg is None:
+        body = base.body
+    elif foreground:
+        body = f"{foreground} on {state_bg}"
+    else:
+        body = f"on {state_bg}"
     return TuiRoleStyle(border=border, body=body)
 
 

@@ -189,3 +189,30 @@ def test_grouped_members_stamp_outcome_and_duration() -> None:
                 assert member.tool_duration_seconds >= 1.5
         else:
             assert item.tool_is_error is is_error
+
+
+def test_tool_row_style_without_body_foreground_omits_none() -> None:
+    # The layered schema allows omitting roles.tool.body (empty string); the
+    # state style must then be the bare background, never "None on <bg>".
+    from baldric_coding.rendering.themes import TuiRoleStyle
+    from baldric_coding.rendering.tool_state import tool_row_role_style
+
+    base = TuiRoleStyle(border="#8a7a52", body="")
+    style = tool_row_role_style(
+        tool_is_error=False,
+        tool_result_text="x",
+        base=base,
+        success_border="#519671",
+        error_border="#d3565c",
+    )
+    assert style.body == "on #144922"
+    assert "None" not in style.body
+
+    style_err = tool_row_role_style(
+        tool_is_error=True,
+        tool_result_text="x",
+        base=base,
+        success_border="#519671",
+        error_border="#d3565c",
+    )
+    assert style_err.body == "on #410a13"
