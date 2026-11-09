@@ -4196,6 +4196,7 @@ async def test_tui_sidebar_context_file_opens_in_main_editor_and_saves(
     session.cwd = tmp_path
     session.context_files = (ProjectContextFile(path=str(context_path), content="Original context."),)
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.click("#sidebar-context-content .sidebar-file-item")
@@ -4232,6 +4233,7 @@ async def test_tui_sidebar_prompt_file_opens_in_main_editor(tmp_path: Path) -> N
     session.cwd = tmp_path
     session.prompt_templates = (PromptTemplate("review", prompt_path, "Review this.", "Review changes"),)
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         app.query_one("#sidebar-prompts", Collapsible).collapsed = False
