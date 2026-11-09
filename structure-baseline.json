@@ -749,7 +749,7 @@
       "max_function_stmts": 16
     },
     "src/baldric_coding/tui/app.py": {
-      "lines": 4549,
+      "lines": 4557,
       "max_function_stmts": 63
     },
     "src/baldric_coding/tui/autocomplete.py": {
@@ -893,7 +893,7 @@
       "max_function_stmts": 8
     },
     "src/baldric_coding/tui/widgets/sidebar.py": {
-      "lines": 1033,
+      "lines": 1037,
       "max_function_stmts": 24
     },
     "src/baldric_coding/tui/widgets/system_prompt.py": {
