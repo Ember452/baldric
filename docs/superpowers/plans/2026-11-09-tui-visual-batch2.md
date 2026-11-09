@@ -60,18 +60,15 @@
 
 **Files:** `widgets/core.py`（Streaming/`TranscriptMarkdownStream`）、必要时 `rendering/`。
 
-- [ ] 先写探针测试：向 `StreamingTranscriptMessageWidget` 流式喂一个跨多次 write 的未闭合 fence，观察 MarkdownStream 的中间渲染（纯文本？部分高亮？），闭合后再观察。**没有实测不设计。**
-- [ ] bug 场景：① 中间态闪烁（flush 间隔内重复 parse）；② 未闭合 fence 吞掉后续普通段落；③ finalize 与 stream.stop 的竞态（on_unmount 已处理一半）。
-- [ ] 依实测结果决定：仅需调 flush/CSS（小改）或需要自定义中间渲染（大改，可能降级为"记录现状+最小修复"）。
-- [ ] commit 视结果定，保证一件事一 commit。
+- [x] 探针实测（2026-11-09）：未闭合栅栏**已经**渲染为真实、有样式的 `MarkdownFence`（Textual 增量 Markdown），闭合瞬间自动收敛——spec 担心的"纯文本切 rich"不存在，零新代码。
+- [x] 探针转为永久回归守卫：`tests/coding/tui/test_streaming_fence.py`（commit `81ed8eb`）。
 
 ## Task 5: 思考块点击展开
 
 **Files:** `widgets/core.py`（折叠摘要行→可点击）、`tui/state.py`（按块展开状态）、`rendering/thinking.py` 不动。
 
-- [ ] 核实：折叠摘要行的 widget 类型与挂载点；`state.show_thinking`/`update_thinking_visibility` 全局开关与按块展开的正交性；重绘（`update_from_state`）会不会重置点击态 → 展开状态必须存 state（`ChatItem.thinking_expanded: bool`）而非 widget。
-- [ ] bug 场景：① 流式中 thinking 块被点击（应不可点——只折叠摘要行可点）；② 展开后 `show_thinking` 全局切换的交互（全局关时逐块展开态怎么办——定义：全局开关优先）；③ 点击命中区域是整行还是图标。
-- [ ] commit `feat(tui): click a collapsed thinking row to expand it`。
+- [x] 完成（commit `e32f507`）：`HiddenThinkingWidget` 可点击摘要行；展开态存 `TuiState.expanded_thinking_ids`（按 run 首项 id），重绘不丢；全局 Ctrl+T 优先；流式中无冲突（摘要行只存在于已完成的 run）。两条重绘路径均消费展开集合。
+- [x] 棘轮补偿：`TranscriptMarkdownStream` → `widgets/markdown_stream.py`、SystemPrompt 两件套 → `widgets/system_prompt.py`，core.py 1946 → 1860（净缩）。
 
 ## Task 6: hover/focus/selected 一致性
 
@@ -85,8 +82,8 @@
 
 **Files:** `tui/widgets/sidebar.py:211/:355`（行号以实查为准）。
 
-- [ ] 先核查：两处是否真的都渲染（读代码+跑起来看），还是有条件分支。**如属实**：单独 commit 修复 + 说明原/新行为；**如不属实**：在本文档记录结论，关闭该项。
-- [ ] bug 场景：① 两处渲染的是不同数据源（删错一个丢功能）；② `widgets/__init__.py` re-export 依赖。
+- [x] 核查结论（2026-11-09）：**不属实，关闭**。两处 `_sidebar_section("extensions", ...)` 服务于两条互斥的渲染路径——交互 widget 路径（`SessionSidebar.update_from_session` 写入 `#sidebar-extensions-content`）与静态渲染器 `render_session_sidebar`（测试/非交互）。`#sidebar-extensions-content`（已装扩展列表）与 `#sidebar-extension-sections`（扩展组件桥挂载点）也是两个不同的东西。sidebar.py 已加注释防混淆。
+- [ ] 侧栏内部样式重构（spec §5.5 后半）留第三批。
 
 ## Task 8: PickerShell / DialogShell 基类 + 首批迁移（分阶段）
 

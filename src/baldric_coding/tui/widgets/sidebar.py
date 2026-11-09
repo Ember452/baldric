@@ -181,6 +181,10 @@ class SessionSidebar(Vertical):
                 classes="sidebar-resource-section",
             )
             yield Static(_sidebar_separator(theme=BALDRIC_DARK_THEME), classes="sidebar-separator")
+            # Two different things: `#sidebar-extensions-content` is the
+            # installed-extensions list (updated from the session); the
+            # `#sidebar-extension-sections` container is the mount point for
+            # extension UI components delivered through the component bridge.
             yield Static("", id="sidebar-extensions-content")
             yield Container(id="sidebar-extension-sections")
         yield Static("", id="sidebar-brand")
