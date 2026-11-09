@@ -17,7 +17,6 @@ import pytest
 from baldric_coding.rendering.theme_schema import (
     ThemeTokens,
     build_tokens,
-    okhsl_to_hex,
     project_to_tui_theme,
     resolve_references,
 )
@@ -249,38 +248,3 @@ def test_projection_of_nested_schema_exposes_all_colour_fields() -> None:
     projected = project_to_tui_theme(schema)
     for field_name in THEME_COLOR_FIELDS:
         assert getattr(projected, field_name), field_name
-
-
-# --- Task 3: okhsl -> hex (straight port of pi's oklab.ts) -------------------
-
-
-def test_okhsl_converts_grays_and_extremes() -> None:
-    # okhsl lightness is perceptual, so 50% lightness is not #808080.
-    assert okhsl_to_hex("okhsl(0 0% 0%)") == "#000000"
-    assert okhsl_to_hex("okhsl(0 0% 100%)") == "#ffffff"
-    assert okhsl_to_hex("okhsl(0 0% 50%)") == "#4d4d4d"
-
-
-def test_okhsl_matches_pi_reference_output() -> None:
-    # Expected values produced by running pi's own oklab.ts okhslToRgb
-    # (ground truth), for the core colours of pi's dark.json.
-    assert okhsl_to_hex("okhsl(20 72% 67%)") == "#d3565c"  # red
-    assert okhsl_to_hex("okhsl(234 3% 89%)") == "#d3d5d6"  # text
-    assert okhsl_to_hex("okhsl(295 50% 67%)") == "#8a77c0"  # violet
-    assert okhsl_to_hex("okhsl(232 54% 67%)") == "#4d8eae"  # blue
-    assert okhsl_to_hex("okhsl(159 59% 67%)") == "#519671"  # green
-    assert okhsl_to_hex("okhsl(83 88% 67%)") == "#a87d19"  # yellow
-
-
-def test_okhsl_tolerance_is_within_one_per_channel() -> None:
-    # A saturated mid lightness colour must land within ±1/255 of the ground
-    # truth even where rounding could differ.
-    hex_value = okhsl_to_hex("okhsl(337 81% 61%)")
-    assert hex_value == "#b62b9c"
-
-
-def test_okhsl_rejects_malformed_input() -> None:
-    with pytest.raises(ValueError, match="not an okhsl"):
-        okhsl_to_hex("#ff0000")
-    with pytest.raises(ValueError, match="not an okhsl"):
-        okhsl_to_hex("okhsl(20 72 67)")

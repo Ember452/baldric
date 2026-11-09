@@ -22,10 +22,9 @@ ACTIVITY_SPINNER_FRAMES = ("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧
 ACTIVITY_SPINNER_MAX_FADE = 0.55
 
 # Pi's thinkingOff→Max ramp (pi-main/packages/coding-agent/src/modes/
-# interactive/theme/dark.json), converted from okhsl with the tested
-# okhsl_to_hex port (see theme_schema.py) — the same ramp pi-dark.json carries
-# under text.thinking_levels. Until themes ship their own ramps, this one
-# tints every theme's prompt border (spec 2026-11-08 §5.4).
+# interactive/theme/dark.json), already resolved to hex — the same values
+# pi-dark.json carries under text.thinking_levels. Until themes ship their own
+# ramps, this one tints every theme's prompt border (spec 2026-11-08 §5.4).
 THINKING_LEVEL_COLORS: dict[str, str] = {
     "off": "#444c4f",
     "minimal": "#445761",
