@@ -48,14 +48,15 @@
 - **token dark 误判**：`build_tokens` 只读 `appearance`，旧扁平主题（`dark:` 布尔）恒判 dark——baldric-light 变 dark。新增 `_resolve_dark`（appearance → dark 布尔 → 默认 dark），projection 同用。
 - **P3 spec §9 验收**：补 `TuiTheme` 35 字段冻结守卫 + `theme_css_variables` 32 键冻结守卫。
 
-**仍顺延（已明确记录，非遗忘）**：
+**已处置（2026-11-09，commit `d4f31ed`）**：
 
-- **token 层是建成未通车（死代码）**：`build_tokens` 零生产调用者；两处 `render_patch` 不传 tokens；`tool_state.py` 三态底色是硬编码常量。由此 pi-dark.json 的 `diff` 段、两套皮肤的 `syntax` 段、`roles.tool_success/tool_error` 目前是死数据。这不是"接线走漏了个别点"，而是整条 `ThemeTokens` 消费链未落地。**决策（2026-11-09）**：不为对齐 pi 的"三态底色随主题变"再加旁路 registry（那会给 baldric 引入全局可变状态只为两个底色）——是否要把 tool 三态当作 baldric 自身的概念，先定方向再动，不在第三批默认做。
+- **token 层从未通车 → 直接删除**。`build_tokens`/`ThemeTokens` 零生产调用者，`render_patch` 从不传 tokens，工具三态底色用常量。判定：为对齐 pi 的"三态底色随主题变"而保留的门面是债，删掉。删除内容：`ThemeTokens`/`build_tokens`/`_get`/`_optional`（约 110 行）、`render_patch` 的 `tokens` 参数与 `_palette_for`、`role_tool_*_bg` 字段、`_SCHEMA_EXTRA_ROLES`、以及 `opencode-dark.json`/`pi-dark.json` 里对应的三个 tool_* role 条目。`DiffPalette.for_theme`（light/dark）保留——它有真实调用者（`render_patch` 无 tokens 路径），light 截图 24/18→0/0 实证。
 
-- **注意区分**：`DiffPalette.for_theme`（`diffs.py`）走的是 `render_patch` **无 tokens 的真实路径**，light/dark 两套已生效（light 截图实证 24/18→0/0）；它和上面那条死掉的 `build_tokens` diff 默认不是一回事。
-- 主题级 `text.thinking_levels` 覆盖（thinking 色带现全局硬编码 pi dark ramp）。
+**仍顺延（第三批，已明确非遗忘）**：
+
+- 主题级 `text.thinking_levels` 覆盖（thinking 色带现全局硬编码 pi dark ramp，`rendering/activity.py`）。
 - 词级 diff 高亮色（spec §5.3 承诺 `diff.highlight.*`，现仍纯 `bold`）。
-- `TuiTheme` deprecated 标记 / 迁移指南 / "新模块禁用 TuiTheme" CI 守卫（spec §13.4 的 v0.3.x 必做项）——仍在 0.3.x 窗口内，进第三批追踪。
+- `TuiTheme` deprecated 标记 / 迁移指南 / "新模块禁用 TuiTheme" CI 守卫（spec §13.4 的 v0.3.x 必做项）——仍在 0.3.x 窗口内。
 
 
 ## 全量闸门（本记录提交前实测）
