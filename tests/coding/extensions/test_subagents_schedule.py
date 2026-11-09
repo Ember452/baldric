@@ -245,6 +245,8 @@ class _FakeApi:
             # The extension forwards the parent's approval gate into every child
             # CodingSessionConfig; None models approval mode being off.
             before_tool_call=None,
+            # No dynamic providers registered; durable settings resolve all.
+            provider_registry=SimpleNamespace(effective=lambda name: None),
         )
         self.followed_up: list[str] = []
         self.notifications: list[str] = []
