@@ -1124,6 +1124,11 @@ def _sgr_rgb(hex_color: str) -> str:
     return f"38;2;{value.r};{value.g};{value.b}"
 
 
+def _sgr_bg_rgb(hex_color: str) -> str:
+    value = Color.parse(hex_color)
+    return f"48;2;{value.r};{value.g};{value.b}"
+
+
 def test_expanded_edit_tool_result_renders_patch_as_colored_diff() -> None:
     item = ChatItem(
         role="tool",
@@ -1144,14 +1149,14 @@ def test_expanded_edit_tool_result_renders_patch_as_colored_diff() -> None:
     # Behavior intentionally changed: diff rows use the opencode diff palette,
     # not the theme's tool status colours.
     palette = DiffPalette()
-    error = _sgr_rgb(palette.removed_text)
-    success = _sgr_rgb(palette.added_text)
-    assert error in styled
-    assert success in styled
-    # Word-level emphasis: rich combines bold with the line color on the
-    # changed token.
-    assert f"1;{error}" in styled
-    assert f"1;{success}" in styled
+    # Behavior intentionally changed: the emphasis span carries bold plus the
+    # brighter diff.highlight colour (spec §5.3). Every token in this tiny
+    # patch is a changed token, so only the highlight colours show.
+    assert f"1;{_sgr_rgb(palette.removed_highlight)}" in styled
+    assert f"1;{_sgr_rgb(palette.added_highlight)}" in styled
+    # The row backgrounds still mark added vs removed.
+    assert _sgr_bg_rgb(palette.removed_bg) in styled
+    assert _sgr_bg_rgb(palette.added_bg) in styled
 
 
 def test_transcript_plain_tool_body_renders_patch_as_colored_diff() -> None:
@@ -1178,14 +1183,14 @@ def test_transcript_plain_tool_body_renders_patch_as_colored_diff() -> None:
     assert "- old" in plain
     assert "+ new" in plain
     palette = DiffPalette()
-    error = _sgr_rgb(palette.removed_text)
-    success = _sgr_rgb(palette.added_text)
-    assert error in styled
-    assert success in styled
-    # Word-level emphasis: rich combines bold with the line color on the
-    # changed token.
-    assert f"1;{error}" in styled
-    assert f"1;{success}" in styled
+    # Behavior intentionally changed: the emphasis span carries bold plus the
+    # brighter diff.highlight colour (spec §5.3). Every token in this tiny
+    # patch is a changed token, so only the highlight colours show.
+    assert f"1;{_sgr_rgb(palette.removed_highlight)}" in styled
+    assert f"1;{_sgr_rgb(palette.added_highlight)}" in styled
+    # The row backgrounds still mark added vs removed.
+    assert _sgr_bg_rgb(palette.removed_bg) in styled
+    assert _sgr_bg_rgb(palette.added_bg) in styled
 
 
 def test_thinking_chat_items_use_distinct_style_and_markdown() -> None:

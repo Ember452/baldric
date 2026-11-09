@@ -55,8 +55,12 @@
 **仍顺延（第三批，已明确非遗忘）**：
 
 - 主题级 `text.thinking_levels` 覆盖（thinking 色带现全局硬编码 pi dark ramp，`rendering/activity.py`）。
-- 词级 diff 高亮色（spec §5.3 承诺 `diff.highlight.*`，现仍纯 `bold`）。
-- `TuiTheme` deprecated 标记 / 迁移指南 / "新模块禁用 TuiTheme" CI 守卫（spec §13.4 的 v0.3.x 必做项）——仍在 0.3.x 窗口内。
+
+## 三件遗留项的最终处置（2026-11-09）
+
+- **词级 diff 高亮色 —— 已做**（`diffs.py`）。`DiffPalette` 增 `added_highlight`/`removed_highlight`（opencode `diff.highlight` 原值），`_line_text` 的词级强调从 `bold` 改为 `bold <highlight色>`。不需要 token 层——数据就在 opencode 调色板里。
+- **TuiTheme deprecated 标记 / CI 守卫 —— 不标，改 spec**。删除 `ThemeTokens` 后，"迁移到 ThemeTokens、v1.0 删 TuiTheme"的前提不存在了；给唯一的主题契约标 deprecated 是撒谎。正确处置是把 spec §13 标注作废、记录决策历史，`TuiTheme` 长期保留。
+- **主题级 thinking 色带 —— 不做**。它需要把 `thinking_levels` 存进 `TuiTheme`（35 字段冻结契约，加字段违反守卫）或再建一个旁路机制——正是刚删掉的那类为对齐 pi 而造的层叠复杂度。单一全局 ramp（pi dark）作为合理默认，够用。
 
 
 ## 全量闸门（本记录提交前实测）

@@ -35,23 +35,24 @@ _META: Final = "meta"
 
 @dataclass(frozen=True, slots=True)
 class DiffPalette:
-    """Row colours for added/removed/context diff lines.
+    """Row colours for added/removed/context diff lines plus word emphasis.
 
     Dark defaults are opencode's ``base.diff`` verbatim
     (opencode-dev/packages/tui/src/theme/assets/v2/opencode.json); the light
     variant is opencode's ``light.diff`` (``text.removed`` and
     ``background.context`` are absent there, so they fall back to the light
-    red.100 and the plain white surface). A theme document can override every
-    value through its schema's ``diff`` section; callers holding a
-    :class:`ThemeTokens` pass it to :func:`render_patch`. Without tokens a
-    theme still gets a palette that suits its own light/dark appearance rather
-    than dark rows on a white transcript.
+    red.100 and the plain white surface). The ``*_highlight`` colours are
+    opencode's ``diff.highlight`` values, used for the word-level emphasis on
+    the tokens that actually changed. A theme gets a palette that suits its own
+    light/dark appearance.
     """
 
     added_bg: str = "#20303b"
     removed_bg: str = "#37222c"
     added_text: str = "#4fd6be"
     removed_text: str = "#c53b53"
+    added_highlight: str = "#b8db87"
+    removed_highlight: str = "#e26a75"
     context_bg: str = "#000000"
     line_number_text: str = "#8f8f8f"
 
@@ -65,6 +66,8 @@ class DiffPalette:
             removed_bg="#f7d8db",
             added_text="#1e725c",
             removed_text="#c20f26",
+            added_highlight="#4db380",
+            removed_highlight="#f52a65",
             context_bg="#ffffff",
             line_number_text="#595959",
         )
@@ -300,17 +303,23 @@ def _line_text(
     # emphasis layers on top of, and spans compose without shifting offsets.
     if line.kind == _ADD:
         row_bg = palette.added_bg
+        highlight = palette.added_highlight
     elif line.kind == _REMOVE:
         row_bg = palette.removed_bg
+        highlight = palette.removed_highlight
     else:
         row_bg = palette.context_bg
+        highlight = None
     if row_bg:
         text.stylize(f"on {row_bg}", 0, len(text))
     # The line-number gutter reads as chrome, distinct from the content.
     text.stylize(palette.line_number_text, 0, _GUTTER_OFFSET)
+    # Word emphasis: bold plus the brighter highlight colour (opencode
+    # diff.highlight), so the changed tokens pop against the row background.
+    emphasis_style = f"bold {highlight}" if highlight else "bold"
     for start, end in emphasis_ranges:
         text.stylize(
-            "bold",
+            emphasis_style,
             _GUTTER_OFFSET + len(sign) + 1 + start,
             _GUTTER_OFFSET + len(sign) + 1 + end,
         )

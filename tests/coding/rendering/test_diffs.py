@@ -17,6 +17,11 @@ def _sgr_bg(hex_color: str) -> str:
     return f"48;2;{red};{green};{blue}"
 
 
+def _sgr_fg(hex_color: str) -> str:
+    red, green, blue = RichColor.parse(hex_color).get_truecolor()
+    return f"38;2;{red};{green};{blue}"
+
+
 def _feed(screen: pyte.Screen, ansi_text: str) -> None:
     """Feed rendered ANSI into the pyte screen.
 
@@ -192,3 +197,15 @@ def test_light_theme_diff_rows_use_a_light_background() -> None:
     assert _REMOVED_BG_ANSI not in styles
     # A light palette still colours the rows (opencode light.diff added bg).
     assert "48;2;213;229;213" in styles  # #d5e5d5
+
+
+def test_word_emphasis_uses_the_highlight_colour() -> None:
+    # spec §5.3: the changed token is bold AND the brighter diff.highlight
+    # colour, not just bold, so it pops against the row background.
+    console = Console(record=True, width=80, force_terminal=True, color_system="truecolor")
+    console.print(render_patch(SAMPLE_PATCH, theme=BALDRIC_DARK_THEME))
+
+    styles = console.export_text(styles=True)
+    # SAMPLE_PATCH changes "1" to "2"; those tokens carry the highlight colours.
+    assert f"1;{_sgr_fg('#b8db87')}" in styles  # added highlight
+    assert f"1;{_sgr_fg('#e26a75')}" in styles  # removed highlight
