@@ -39,6 +39,23 @@
 4. **T7 非 bug、T8 顺延**：两项都按"先核查、结论入文档"处理，不硬造。
 5. **模型选择器测试的 Windows flake**：`test_tui_model_picker_shows_cached_choices_before_remote_refresh` 全量跑偶现失败，单独跑必过（仓库已知 asyncio Windows flaky，Linux CI 是确定性闸门）。
 
+## 代码审查修复（2026-11-09，commit `79bffdd`）
+
+审查提出的问题经逐条核实后，属实的已修复：
+
+- **P1 用户可见**：`DiffPalette` 默认是 opencode 暗色调板且无调用者传 tokens，导致 **baldric-light 的 diff 行是暗底**。改为 `DiffPalette.for_theme(theme)` 按 light/dark 出两套（light 值抄 opencode `light.diff`）；light 截图实证暗底 24/18 → 0/0。
+- **P2-3 崩溃**：分层 schema 不强制全部 `TRANSCRIPT_ROLES`，最小新格式主题会产出空 `role_styles`，widget 渲染 `role_styles["tool"]` 直接 KeyError。schema 路径现补同扁平路径的 "roles missing" 校验（实测最小主题现在被正确拒绝）。
+- **token dark 误判**：`build_tokens` 只读 `appearance`，旧扁平主题（`dark:` 布尔）恒判 dark——baldric-light 变 dark。新增 `_resolve_dark`（appearance → dark 布尔 → 默认 dark），projection 同用。
+- **P3 spec §9 验收**：补 `TuiTheme` 35 字段冻结守卫 + `theme_css_variables` 32 键冻结守卫。
+
+**仍顺延（已明确记录，非遗忘）**：
+
+- **token 层尚未被 widget 消费**：`build_tokens` 零生产调用者，两处 `render_patch` 不传 tokens，`tool_state.py` 三态底色是硬编码常量。由此 pi-dark.json 的 `diff` 段、两套皮肤的 `syntax` 段、`roles.tool_success/tool_error` 目前是死数据。参数（`render_patch(tokens=...)`）已留好，**接线是第三批第一项**。
+- 主题级 `text.thinking_levels` 覆盖（thinking 色带现全局硬编码 pi dark ramp）。
+- 词级 diff 高亮色（spec §5.3 承诺 `diff.highlight.*`，现仍纯 `bold`）。
+- `TuiTheme` deprecated 标记 / 迁移指南 / "新模块禁用 TuiTheme" CI 守卫（spec §13.4 的 v0.3.x 必做项）——仍在 0.3.x 窗口内，进第三批追踪。
+
+
 ## 全量闸门（本记录提交前实测）
 
 见下一次全量运行结果（fast + TUI + ruff + format + import graph + structure + suppressions + mypy）。
