@@ -29,13 +29,17 @@ from typing import TYPE_CHECKING, Any, cast
 from baldric_coding import (
     CodingSession,
     CodingSessionConfig,
+    ProviderConfigError,
+    ProviderSelection,
     load_provider_settings,
     resolve_provider_selection,
 )
 from baldric_coding.config.paths import BaldricPaths
 from baldric_coding.context.thinking import THINKING_LEVELS, ThinkingLevel
 from baldric_coding.extensions import ExtensionAPI
-from baldric_coding.providers.runtime import create_model_provider
+from baldric_coding.extensions.providers import DynamicProvider
+from baldric_coding.providers.config.models import ProviderConfig
+from baldric_coding.providers.runtime import create_dynamic_model_provider, create_model_provider
 from baldric_coding.tools.registry import create_coding_tools
 from baldric_protocol.messages import AssistantMessage, TextContent
 from baldric_protocol.session import SessionEntry
@@ -560,6 +564,38 @@ class SubagentManager:
                 return
         self._deliver_background_result(run)
 
+    async def _resolve_provider_selection(
+        self, *, provider_name: str | None, model: str | None
+    ) -> ProviderSelection:
+        """Resolve a provider/model for a child run, dynamic providers included.
+
+        Durable settings resolve first, as before. A provider that only exists
+        in this session's process-local registry (an extension-registered
+        llama.cpp server, a Codex live catalog) is not in durable settings, so
+        the registry's effective definition is used instead — that is what
+        makes a subagent actually inherit the parent's active provider instead
+        of failing with an unknown-provider error.
+        """
+        provider_settings = load_provider_settings()
+        registry = self._api.context.provider_registry
+        target = provider_name
+        if target is None and provider_settings is not None:
+            target = provider_settings.default_provider
+        effective = registry.effective(target) if target else None
+        if effective is None or isinstance(effective.definition, ProviderConfig):
+            # Durable (or unknown): the settings path handles both — unknown
+            # names must still raise the familiar unknown-provider error.
+            return resolve_provider_selection(
+                provider_settings,
+                provider_name=provider_name,
+                model=model,
+            )
+        definition = effective.definition
+        selected_model = model or definition.default_model
+        if not selected_model:
+            raise ProviderConfigError(f"Provider {definition.id} does not define a default model")
+        return ProviderSelection(provider=definition, model=selected_model)
+
     async def _execute(self, run: AgentRun, definition: AgentDefinition) -> None:
         settings = self._get_settings()
         cwd = self._api.context.cwd
@@ -572,7 +608,6 @@ class SubagentManager:
         # the durable Baldric settings default.
         parent_provider = self._api.context.provider_name
         parent_model = self._api.context.model
-        provider_settings = load_provider_settings()
         if definition.fork:
             capture = run.fork_capture
             assert capture is not None
@@ -580,15 +615,13 @@ class SubagentManager:
             # not the live parent: a queued fork must run the model the
             # parent had when it forked (a /model switch in between would
             # otherwise break the shared prompt cache).
-            selection = resolve_provider_selection(
-                provider_settings,
+            selection = await self._resolve_provider_selection(
                 provider_name=capture.provider_name,
                 model=capture.model,
             )
             thinking_level = capture.thinking_level
         else:
-            selection = resolve_provider_selection(
-                provider_settings,
+            selection = await self._resolve_provider_selection(
                 provider_name=run.requested_provider or parent_provider,
                 model=definition.model or run.requested_model or parent_model,
             )
@@ -612,16 +645,22 @@ class SubagentManager:
                 thinking_level = self._api.context.thinking_level
             else:
                 thinking_level = None
-        provider = create_model_provider(
-            selection.provider,
-            model=selection.model,
-            # Forks run the parent's live thinking level (captured at
-            # tool-call time). Any other level would put a different thinking
-            # config in the fork's request and cost (part of) the shared
-            # prompt cache. A capture without the level leaves the model's own
-            # default in place.
-            thinking_level=cast("ThinkingLevel | None", thinking_level),
-        )
+        if isinstance(selection.provider, DynamicProvider):
+            provider = await create_dynamic_model_provider(
+                selection.provider,
+                model=selection.model,
+            )
+        else:
+            provider = create_model_provider(
+                selection.provider,
+                model=selection.model,
+                # Forks run the parent's live thinking level (captured at
+                # tool-call time). Any other level would put a different thinking
+                # config in the fork's request and cost (part of) the shared
+                # prompt cache. A capture without the level leaves the model's own
+                # default in place.
+                thinking_level=cast("ThinkingLevel | None", thinking_level),
+            )
         run.provider = provider
         run.model = selection.model
         # A viewer opened on the queued run painted its header without a
