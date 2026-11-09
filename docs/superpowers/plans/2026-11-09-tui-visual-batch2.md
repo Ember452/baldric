@@ -87,12 +87,20 @@
 
 ## Task 8: PickerShell / DialogShell 基类 + 首批迁移（分阶段）
 
-**Files:** 新 `tui/screens/shells.py`（或 `rendering/`？——screens 层，非 rendering）；首批迁移 4 个搜索型 picker：session/model/skill/tree。
+**Files:** 新 `tui/screens/shells.py`（screens 层）；首批迁移 4 个搜索型 picker：session/model/skill/tree。
 
-- [ ] 核实：12 个 screen 文件里 ModalScreen 的公共结构（标题/搜索/列表/边框）与差异；`spec §7` 的 150α 遮罩（`$baldric-scrim` 不存在——需新 CSS 变量？**不许加**：32 键约束——用现有字段组合或记录新键提案）。
-- [ ] 范围控制：本批只建基类 + 迁移 4 个搜索型；其余 20+ 对话框/确认屏留第三批，在本文档记录。
-- [ ] bug 场景：① 基类吸纳后某 screen 的独有快捷键丢失；② escape/取消语义不一致；③ 搜索输入与列表 focus 环。
-- [ ] commit：基类一个、每迁移一批一个。
+- [x] 核实结论（2026-11-09）：**本批顺延，不建基类**。实测 20 个 ModalScreen 的 widget 组成差异远大于共性，硬抽象会产出"为复用而设灵活开关"的基类（违反 AGENTS.md Simplicity First）：
+
+  | Screen | 容器 | 列表控件 | 搜索 | 特有逻辑 |
+  |---|---|---|---|---|
+  | ThemePicker | Vertical | ListView(Label) | 无 | 选中当前主题 |
+  | SkillPicker | Vertical | ListView(Horizontal 两列) | Input | F1 描述 / Ctrl+Enter 插入 / 过滤 |
+  | ModelPicker | Vertical | OptionList + Input | Input | scoped 模式切换 / 后台刷新 worker |
+  | SessionPicker | 双列布局 | 两个 ListView | 面板切换 | 项目/会话两级导航 |
+
+  真正的共性只有「Vertical + title + list + help + 上下键路由 + escape 取消」，约 20 行；但每个 screen 的列表类型、搜索、动作集各不相同，抽成基类只省重复、不降复杂度，还会给未来每个 picker 引入继承约束。
+- [ ] **改为独立议题**：第三批后若仍有 ≥6 个同构 picker，再用真实数据（同构 picker 数）决策引入 `PickerShell` 并系统性迁移。
+- [ ] `spec §7` 的 150α 遮罩不得引入新 CSS 变量（32 键硬约束）——记为第三批前置项。
 
 ## Task 9: 截图验收 + 全量闸门（收口）
 
