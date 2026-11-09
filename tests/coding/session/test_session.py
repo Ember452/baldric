@@ -982,3 +982,30 @@ async def test_jsonl_storage_reads_a_file_that_is_only_a_torn_line(tmp_path: Pat
     storage = JsonlSessionStorage(path)
 
     assert await storage.read_all() == []
+
+
+def test_jsonl_storage_append_sync_appends_under_the_same_lock(tmp_path: Path) -> None:
+    first = MessageEntry(id="one", message=UserMessage(content="Hi"))
+    second = MessageEntry(id="two", message=UserMessage(content="Bye"))
+    path = tmp_path / "session.jsonl"
+    storage = JsonlSessionStorage(path)
+
+    storage.append_sync(first)
+    storage.append_sync(second)
+
+    assert path.read_text(encoding="utf-8") == entry_to_json_line(first) + entry_to_json_line(second)
+    assert storage.path.with_name(f".{storage.path.name}.lock").exists()
+
+
+def test_jsonl_storage_append_sync_repairs_a_torn_tail(tmp_path: Path) -> None:
+    first = MessageEntry(id="one", message=UserMessage(content="Hi"))
+    second = MessageEntry(id="two", message=UserMessage(content="Bye"))
+    path = tmp_path / "session.jsonl"
+    path.write_text(entry_to_json_line(first) + '{"id":"torn","type":"mess', encoding="utf-8")
+    storage = JsonlSessionStorage(path)
+
+    storage.append_sync(second)
+
+    lines = [line for line in path.read_text(encoding="utf-8").split("\n") if line]
+    assert lines == [entry_to_json_line(first).rstrip("\n"), entry_to_json_line(second).rstrip("\n")]
+    assert [entry.id for entry in storage._read_unlocked()] == ["one", "two"]

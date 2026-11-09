@@ -45,7 +45,6 @@ from baldric_protocol.messages import (
     AgentMessage,
 )
 from baldric_protocol.session.entries import SessionEntry
-from baldric_protocol.session.jsonl import entry_to_json_line
 
 
 @dataclass(frozen=True, slots=True)
@@ -392,8 +391,9 @@ def jsonl_session_storage(path: str | Path) -> JsonlSessionStorage:
 def _append_session_entry_sync(storage: SessionStorage, entry: SessionEntry) -> None:
     """Append an entry synchronously for slash commands that cannot await storage."""
     if isinstance(storage, JsonlSessionStorage):
-        storage.path.parent.mkdir(parents=True, exist_ok=True)
-        with storage.path.open("a", encoding="utf-8") as file:
-            file.write(entry_to_json_line(entry))
+        # Delegate so the cross-process lock, torn-tail repair, and fsync all
+        # apply — a raw file append here would bypass them and risk gluing a
+        # new line onto a torn tail after a crash.
+        storage.append_sync(entry)
         return
     raise RuntimeError("Session storage does not support synchronous initialization")
