@@ -985,12 +985,7 @@ class ExtensionContext:
 
     @property
     def provider_registry(self) -> DynamicProviderRegistry:
-        """Return this generation's process-local provider registry.
-
-        Read-only access for extensions that must resolve the session's active
-        provider definition (e.g. a subagent inheriting a dynamic provider such
-        as llama.cpp); durable providers still resolve through settings.
-        """
+        """Return this generation's process-local provider registry (read-only)."""
         self._generation.assert_active()
         return self._runtime.provider_registry
 

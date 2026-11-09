@@ -32,3 +32,7 @@ cov-output.txt
 
 .coverage
 
+# Local-only notes
+_pytest_channels.log
+interview-prep-bytedance.md
+

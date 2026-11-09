@@ -79,20 +79,7 @@ class JsonlSessionStorage:
     async def append(self, entry: SessionEntry) -> None:
         """Append one entry under the session's exclusive cross-process lock."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        line = entry_to_json_line(entry)
-        with self._locked(exclusive=True):
-            self._remove_incomplete_temp()
-            self._repair_torn_tail()
-            previous_stamp = self._file_stamp()
-            try:
-                with self.path.open("ab") as file:
-                    file.write(line.encode("utf-8"))
-                    file.flush()
-                    os.fsync(file.fileno())
-            except BaseException:
-                self._parsed = None
-                raise
-            self._extend_parsed(previous_stamp, (line,))
+        self._append_locked(entry_to_json_line(entry))
 
     def append_sync(self, entry: SessionEntry) -> None:
         """Append one entry synchronously under the same exclusive lock.
@@ -102,7 +89,10 @@ class JsonlSessionStorage:
         repair, and the fsync that :meth:`append` provides.
         """
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        line = entry_to_json_line(entry)
+        self._append_locked(entry_to_json_line(entry))
+
+    def _append_locked(self, line: str) -> None:
+        """Write one encoded line under the already-held exclusive lock."""
         with self._locked(exclusive=True):
             self._remove_incomplete_temp()
             self._repair_torn_tail()
