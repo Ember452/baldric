@@ -1,0 +1,91 @@
+{
+  "name": "pi-dark",
+  "appearance": "dark",
+  "syntax_theme": "ansi_dark",
+  "text": {
+    "base": "#d3d5d6",
+    "muted": "#7f878b",
+    "faint": "#596266",
+    "thinking": "#778084",
+    "thinking_levels": {
+      "off": "#444c4f",
+      "minimal": "#445761",
+      "low": "#366075",
+      "medium": "#3e5e9f",
+      "high": "#754cc4",
+      "xhigh": "#b62b9c",
+      "max": "#dd093b"
+    }
+  },
+  "background": {
+    "base": "#010101",
+    "raised": {
+      "base": "#030a0e",
+      "high": "#090612",
+      "max": "#0f0602"
+    }
+  },
+  "border": {
+    "base": "#4487a7",
+    "accent": "#816bba",
+    "muted": "#50585c"
+  },
+  "scrollbar": {
+    "base": "#778085"
+  },
+  "diff": {
+    "text": {
+      "added": "#519671",
+      "removed": "#d3565c",
+      "context": "#7f878b",
+      "hunkHeader": "#7f878b"
+    },
+    "background": {
+      "added": "#040d08",
+      "removed": "#160506",
+      "context": "#020203"
+    },
+    "lineNumber": {
+      "text": "#50585c"
+    }
+  },
+  "markdown": {
+    "text": "#d3d5d6",
+    "heading": "#a87d19",
+    "link": "#4d8eae",
+    "linkText": "#7f878b",
+    "code": "#8a77c0",
+    "blockQuote": "#7f878b",
+    "emphasis": "#d3d5d6",
+    "strong": "#d3d5d6",
+    "horizontalRule": "#50585c",
+    "listItem": "#8a77c0",
+    "listEnumeration": "#8a77c0",
+    "codeBlock": "#519671"
+  },
+  "roles": {
+    "user": { "border": "#4d8eae", "body": "#d3d5d6 on #030a0e" },
+    "assistant": { "border": "#50585c", "body": "#d3d5d6" },
+    "tool": { "border": "#50585c", "body": "#7f878b" },
+    "error": { "border": "#d3565c", "body": "#d3565c" },
+    "status": { "border": "#50585c", "body": "#596266" },
+    "thinking": { "border": "#444c4f", "body": "#778084" },
+    "skill": { "border": "#8a77c0", "body": "#8a77c0" },
+    "custom": { "border": "#8a77c0", "body": "#d3d5d6 on #090612" },
+    "branch_summary": { "border": "#816bba", "body": "#816bba" },
+    "compaction_summary": { "border": "#816bba", "body": "#816bba" }
+  },
+  "colors": {
+    "accent": "#8a77c0",
+    "success": "#519671",
+    "error": "#d3565c",
+    "tool_success_text": "#519671",
+    "tool_error_text": "#d3565c",
+    "completion_selected": "bold #d3d5d6 on #030a0e",
+    "completion_selected_description": "#d3d5d6 on #030a0e",
+    "completion_description": "#7f878b",
+    "highlight_background": "#0f0602",
+    "highlight_text": "#d3d5d6",
+    "scrollbar_hover": "#778085"
+  }
+}

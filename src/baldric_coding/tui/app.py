@@ -108,6 +108,7 @@ from baldric_coding.providers.runtime import (
     ClosableModelProvider,
     create_model_provider,
 )
+from baldric_coding.rendering import activity
 from baldric_coding.rendering.themes import (
     available_tui_theme_names,
     load_custom_tui_themes,
@@ -356,13 +357,15 @@ _theme_css_variables = theme_css_variables
 _session_records = session_records
 _short_path = short_path
 
+# Activity spinner chrome moved to rendering/activity.py; the old module-level
+# names stay importable for callers and tests.
+ACTIVITY_TICK_SECONDS = activity.ACTIVITY_TICK_SECONDS
+ACTIVITY_COLOR_FADE_STEPS = activity.ACTIVITY_COLOR_FADE_STEPS
+ACTIVITY_SPINNER_FRAMES = activity.ACTIVITY_SPINNER_FRAMES
+ACTIVITY_SPINNER_MAX_FADE = activity.ACTIVITY_SPINNER_MAX_FADE
+_render_activity_indicator = activity.render_activity_indicator
+
 type BindingEntry = Binding | tuple[str, str] | tuple[str, str, str]
-SIDEBAR_MIN_WIDTH = 96
-SIDEBAR_MIN_HEIGHT = 38
-ACTIVITY_TICK_SECONDS = 0.15
-ACTIVITY_COLOR_FADE_STEPS = 24
-ACTIVITY_SPINNER_FRAMES = ("⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷")
-ACTIVITY_SPINNER_MAX_FADE = 0.55
 COMPLETION_MAX_VISIBLE_LINES = 16
 COMPLETION_INITIAL_TERMINAL_FRACTION = 3
 COMPLETION_MIN_TRANSCRIPT_LINES = 4
@@ -876,6 +879,14 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
     }
 
     ListView > ListItem.-highlight Label {
+        background: $baldric-highlight-background;
+        color: $baldric-highlight-text;
+    }
+
+    /* Mouse hover mirrors the sidebar's row hover and the keyboard selection
+       palette, so every interactive row answers the pointer the same way. */
+    ListView > ListItem:hover,
+    ListView > ListItem:hover Label {
         background: $baldric-highlight-background;
         color: $baldric-highlight-text;
     }
@@ -3084,6 +3095,10 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
             theme=self.tui_settings.resolved_theme,
         )
 
+    def action_toggle_sidebar(self) -> None:
+        """Show or hide the sidebar for this session (D6: collapsed by default)."""
+        self._toggle_sidebar_visibility()
+
     async def _archive_session_record(
         self, record: SessionCompletionRecord, picker: SessionPickerScreen
     ) -> None:
@@ -3633,7 +3648,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         if self._is_working():
             if self._activity_timer is None:
                 self._activity_timer = self.set_interval(
-                    ACTIVITY_TICK_SECONDS,
+                    activity.ACTIVITY_TICK_SECONDS,
                     self._tick_activity,
                     name="activity-indicator",
                 )
@@ -3692,11 +3707,18 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         except NoMatches:
             return
         shell_mode = _is_terminal_command_prompt(prompt.text)
+        border_color = _activity_prompt_border_color(
+            theme,
+            frame=self._activity_frame,
+            running=self._is_working(),
+            shell_mode=shell_mode,
+            thinking_level=getattr(self.session, "thinking_level", None),
+        )
         render_key = (
             theme.name,
             theme.accent,
             theme.screen_background,
-            theme.prompt_border,
+            border_color,
             self._activity_frame,
             self._is_working(),
             shell_mode,
@@ -3704,12 +3726,6 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         if render_key == self._last_activity_indicator_key:
             return
         self._last_activity_indicator_key = render_key
-        border_color = _activity_prompt_border_color(
-            theme,
-            frame=self._activity_frame,
-            running=self._is_working(),
-            shell_mode=shell_mode,
-        )
         prompt.styles.border_top = ("solid", border_color)
         prompt.styles.border_bottom = ("solid", border_color)
         prompt_prefix.update(
@@ -3790,12 +3806,9 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         )
 
     def _update_responsive_layout(self, width: int, height: int) -> None:
-        if self._sidebar_visibility_override is not None:
-            show_sidebar = self._sidebar_visibility_override
-        elif self.tui_settings.sidebar_position == "off":
-            show_sidebar = False
-        else:
-            show_sidebar = width >= SIDEBAR_MIN_WIDTH and height >= SIDEBAR_MIN_HEIGHT
+        # D6: the sidebar starts collapsed on every window size; Ctrl+B or
+        # /sidebar shows it for this session only (spec 2026-11-08 §5.5).
+        show_sidebar = self._sidebar_visibility_override is True
         self.set_class(not show_sidebar, "-hide-sidebar")
 
     def _build_completion_state(self, text: str, *, cursor: int | None = None) -> CompletionState:
@@ -3835,39 +3848,11 @@ def _activity_prompt_border_color(
     frame: int,
     running: bool,
     shell_mode: bool,
+    thinking_level: str | None = None,
 ) -> str:
     """Return the prompt border color for the current activity animation frame."""
     del frame, running
-    if shell_mode:
-        return theme.role_styles["tool"].border
-    return theme.prompt_border
-
-
-def _render_activity_indicator(
-    theme: TuiTheme,
-    *,
-    frame: int,
-    running: bool,
-    shell_mode: bool = False,
-) -> Text:
-    """Render the prompt prefix: a spinner while running, ``$`` in shell mode.
-
-    While running, the ``τ`` glyph is replaced by a braille-dot spinner whose
-    gap orbits the cell and whose accent color gently breathes toward the
-    background every ``ACTIVITY_COLOR_FADE_STEPS`` frames.
-    """
-    if shell_mode and not running:
-        return Text("$", style=f"bold {theme.role_styles['tool'].border}")
-    if not running:
-        return Text("τ", style=f"bold {theme.accent}")
-
-    glyph = ACTIVITY_SPINNER_FRAMES[frame % len(ACTIVITY_SPINNER_FRAMES)]
-    half_cycle = ACTIVITY_COLOR_FADE_STEPS / 2
-    phase = frame % ACTIVITY_COLOR_FADE_STEPS
-    distance_from_peak = phase if phase <= half_cycle else ACTIVITY_COLOR_FADE_STEPS - phase
-    fade = ACTIVITY_SPINNER_MAX_FADE * (distance_from_peak / half_cycle)
-    color = _blend_hex_colors(theme.accent, theme.screen_background, fraction=fade)
-    return Text(glyph, style=f"bold {color}")
+    return activity.thinking_prompt_border_color(theme, thinking_level, shell_mode=shell_mode)
 
 
 def _is_terminal_command_prompt(text: str) -> bool:
@@ -3884,24 +3869,6 @@ def _should_optimistically_render_prompt(text: str) -> bool:
 def _is_user_message_end_event(event: CodingSessionEvent) -> bool:
     """Return whether an agent event closes a user-context message."""
     return isinstance(event, MessageEndEvent) and isinstance(event.message, (UserMessage, CustomMessage))
-
-
-def _blend_hex_colors(start: str, end: str, *, fraction: float) -> str:
-    """Blend two ``#rrggbb`` colors by ``fraction``."""
-    start_rgb = _hex_to_rgb(start)
-    end_rgb = _hex_to_rgb(end)
-    blended = tuple(
-        round(start_channel + (end_channel - start_channel) * fraction)
-        for start_channel, end_channel in zip(start_rgb, end_rgb, strict=True)
-    )
-    return f"#{blended[0]:02x}{blended[1]:02x}{blended[2]:02x}"
-
-
-def _hex_to_rgb(color: str) -> tuple[int, int, int]:
-    value = color.removeprefix("#")
-    if len(value) != 6:
-        raise ValueError(f"Expected #rrggbb color, got {color!r}")
-    return (int(value[0:2], 16), int(value[2:4], 16), int(value[4:6], 16))
 
 
 def _completion_visible_line_limit(suggestions: Static) -> int:
@@ -4140,6 +4107,7 @@ def _app_bindings(keybindings: TuiKeybindings) -> list[Binding]:
         ),
         Binding(keybindings.toggle_tool_results, "toggle_tool_results", "Tool results"),
         Binding(keybindings.toggle_thinking, "toggle_thinking", "Thinking tokens"),
+        Binding(keybindings.toggle_sidebar, "toggle_sidebar", "Sidebar"),
         Binding(keybindings.copy_message, "clear_prompt", "Copy/Clear"),
         Binding(keybindings.quit, "quit", "Quit"),
     ]

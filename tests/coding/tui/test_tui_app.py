@@ -95,6 +95,8 @@ from baldric_coding.providers.config import (
     save_provider_settings,
 )
 from baldric_coding.providers.loader import user_catalog_path
+from baldric_coding.rendering.activity import THINKING_LEVEL_COLORS
+from baldric_coding.rendering.diffs import DiffPalette
 from baldric_coding.session.manager import CodingSessionRecord
 from baldric_coding.session.session import (
     ModelChoice,
@@ -684,14 +686,33 @@ def test_compact_session_info_renders_sidebar_facts() -> None:
 
     console.print(render_compact_session_info(FakeSession()))
 
-    output = console.export_text()
-    lines = output.splitlines()
-    assert len(lines) == 2
-    assert lines[0].strip() == "/workspace/project (--)"
-    assert lines[1].strip().startswith("openai:fake-model (medium)")
-    assert lines[1].rstrip().endswith("12k/200k")
-    assert len(lines[1].rstrip()) == 120
-    assert "context 12k/200k" not in output
+    # Behavior intentionally changed: the two-line compact info merges into one
+    # status line (cwd · model · context · cost · speed · latency).
+    lines = [line for line in console.export_text().splitlines() if line.strip()]
+    assert len(lines) == 1
+    line = lines[0]
+    assert "/workspace/project (--)" in line
+    assert "openai:fake-model (medium)" in line
+    assert "12k/200k (6%)" in line
+    assert "$1.24" in line
+    assert "40 tps" in line
+    assert "TTFT 1.2s" in line
+
+
+def test_compact_session_info_omits_cost_speed_and_latency_without_data() -> None:
+    from baldric_coding.session.stats import SessionStats
+
+    session = FakeSession()
+    session.session_stats = SessionStats()
+    console = Console(record=True, width=120)
+
+    console.print(render_compact_session_info(session))
+
+    line = next(line for line in console.export_text().splitlines() if "openai:fake-model" in line)
+    assert "$" not in line
+    assert "tps" not in line
+    assert "TTFT" not in line
+    assert "12k/200k (6%)" in line
 
 
 def test_compact_session_info_omits_unavailable_thinking_controls() -> None:
@@ -1103,6 +1124,11 @@ def _sgr_rgb(hex_color: str) -> str:
     return f"38;2;{value.r};{value.g};{value.b}"
 
 
+def _sgr_bg_rgb(hex_color: str) -> str:
+    value = Color.parse(hex_color)
+    return f"48;2;{value.r};{value.g};{value.b}"
+
+
 def test_expanded_edit_tool_result_renders_patch_as_colored_diff() -> None:
     item = ChatItem(
         role="tool",
@@ -1120,14 +1146,17 @@ def test_expanded_edit_tool_result_renders_patch_as_colored_diff() -> None:
     assert "a/README.md" in plain
     assert "- old" in plain
     assert "+ new" in plain
-    error = _sgr_rgb(BALDRIC_DARK_THEME.tool_error_text)
-    success = _sgr_rgb(BALDRIC_DARK_THEME.tool_success_text)
-    assert error in styled
-    assert success in styled
-    # Word-level emphasis: rich combines bold with the line color on the
-    # changed token.
-    assert f"1;{error}" in styled
-    assert f"1;{success}" in styled
+    # Behavior intentionally changed: diff rows use the opencode diff palette,
+    # not the theme's tool status colours.
+    palette = DiffPalette()
+    # Behavior intentionally changed: the emphasis span carries bold plus the
+    # brighter diff.highlight colour (spec §5.3). Every token in this tiny
+    # patch is a changed token, so only the highlight colours show.
+    assert f"1;{_sgr_rgb(palette.removed_highlight)}" in styled
+    assert f"1;{_sgr_rgb(palette.added_highlight)}" in styled
+    # The row backgrounds still mark added vs removed.
+    assert _sgr_bg_rgb(palette.removed_bg) in styled
+    assert _sgr_bg_rgb(palette.added_bg) in styled
 
 
 def test_transcript_plain_tool_body_renders_patch_as_colored_diff() -> None:
@@ -1153,14 +1182,15 @@ def test_transcript_plain_tool_body_renders_patch_as_colored_diff() -> None:
     assert "a/README.md" in plain
     assert "- old" in plain
     assert "+ new" in plain
-    error = _sgr_rgb(BALDRIC_DARK_THEME.tool_error_text)
-    success = _sgr_rgb(BALDRIC_DARK_THEME.tool_success_text)
-    assert error in styled
-    assert success in styled
-    # Word-level emphasis: rich combines bold with the line color on the
-    # changed token.
-    assert f"1;{error}" in styled
-    assert f"1;{success}" in styled
+    palette = DiffPalette()
+    # Behavior intentionally changed: the emphasis span carries bold plus the
+    # brighter diff.highlight colour (spec §5.3). Every token in this tiny
+    # patch is a changed token, so only the highlight colours show.
+    assert f"1;{_sgr_rgb(palette.removed_highlight)}" in styled
+    assert f"1;{_sgr_rgb(palette.added_highlight)}" in styled
+    # The row backgrounds still mark added vs removed.
+    assert _sgr_bg_rgb(palette.removed_bg) in styled
+    assert _sgr_bg_rgb(palette.added_bg) in styled
 
 
 def test_thinking_chat_items_use_distinct_style_and_markdown() -> None:
@@ -2668,18 +2698,20 @@ async def test_mixed_tool_batch_uses_one_widget_and_expands_each_row() -> None:
     async with app.run_test(size=(120, 30)) as pilot:
         widget = next(w for w in app.query(TranscriptMessageWidget) if w.item.role == "tool")
         assert len([w for w in app.query(TranscriptMessageWidget) if w.item.role == "tool"]) == 1
+        # Behavior intentionally changed: completed tool rows carry their
+        # duration (instant test fixtures record 0.0s).
         assert widget.selection_text == (
-            "→ Doing thing one\n→ Read 2 files\n  - a.py\n  - b.py\n→ Doing thing two"
+            "→ Doing thing one · 0.0s\n→ Read 2 files\n  - a.py\n  - b.py\n→ Doing thing two · 0.0s"
         )
 
         await pilot.press("ctrl+o")
         await pilot.pause()
 
         assert widget.selection_text == (
-            "→ Doing thing one\n$ echo one\n\n✓ bash\none\n\n"
+            "→ Doing thing one\n$ echo one · 0.0s\n\n✓ bash\none\n\n"
             "→ read a.py\n\n✓ read\nalpha\n\n"
             "→ read b.py\n\n✓ read\nbeta\n\n"
-            "→ Doing thing two\n$ echo two\n\n✓ bash\ntwo"
+            "→ Doing thing two\n$ echo two · 0.0s\n\n✓ bash\ntwo"
         )
 
 
@@ -3859,7 +3891,7 @@ def test_activity_indicator_cycles_spinner_in_place_of_baldric() -> None:
         for frame in range(len(tui_app.ACTIVITY_SPINNER_FRAMES) + 1)
     ]
 
-    assert frames == ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷", "⣾"]
+    assert frames == ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", "⠋"]
     assert all(len(frame) == 1 for frame in frames)
 
 
@@ -3883,6 +3915,47 @@ def test_activity_prompt_border_uses_tool_running_color_in_shell_mode() -> None:
         _activity_prompt_border_color(theme, frame=0, running=False, shell_mode=True)
         == theme.role_styles["tool"].border
     )
+
+
+def test_activity_prompt_border_follows_thinking_level() -> None:
+    # Pi's thinkingOff→Max ramp (rendering/prompt_border.py) tints the prompt.
+    theme = BALDRIC_DARK_THEME
+
+    assert (
+        _activity_prompt_border_color(theme, frame=0, running=False, shell_mode=False, thinking_level="max")
+        == "#dd093b"
+    )
+    assert (
+        _activity_prompt_border_color(theme, frame=0, running=False, shell_mode=False, thinking_level="off")
+        == "#444c4f"
+    )
+    # An unknown level falls back to the theme's own prompt border.
+    assert (
+        _activity_prompt_border_color(theme, frame=0, running=False, shell_mode=False, thinking_level="turbo")
+        == theme.prompt_border
+    )
+    assert (
+        _activity_prompt_border_color(theme, frame=0, running=False, shell_mode=False, thinking_level=None)
+        == theme.prompt_border
+    )
+
+
+@pytest.mark.anyio
+async def test_tui_app_prompt_border_tints_with_thinking_level() -> None:
+    app = BaldricTuiApp(FakeSession())
+
+    async with app.run_test(size=(120, 30)) as pilot:
+        prompt = app.query_one("#prompt", PromptInput)
+        await pilot.pause()
+        # FakeSession starts at medium: pi's ramp colours the border.
+        assert prompt.styles.border_top == ("solid", Color.parse("#3e5e9f"))
+
+        app.session.thinking_level = "max"
+        app._apply_activity_indicator()
+        await pilot.pause()
+
+        assert prompt.styles.border_top == ("solid", Color.parse("#dd093b"))
+        assert prompt.styles.border_bottom == ("solid", Color.parse("#dd093b"))
 
 
 @pytest.mark.anyio
@@ -3944,6 +4017,7 @@ async def test_tui_app_omits_footer_but_keeps_shortcuts_active() -> None:
             "Model": "ctrl+p",
             "Editor": "ctrl+e",
             "Cancel": "escape",
+            "Sidebar": "ctrl+b",
         }
 
 
@@ -3961,6 +4035,7 @@ async def test_tui_app_footer_hints_update_for_completions() -> None:
             "Choose": "Up/Down",
             "Complete": "Tab/Enter",
             "Close": "escape",
+            "Sidebar": "ctrl+b",
         }
 
 
@@ -3984,6 +4059,7 @@ async def test_tui_app_footer_hints_explain_file_reference_enter_behavior(
             "Complete": "Tab",
             "Submit raw": "enter",
             "Close": "escape",
+            "Sidebar": "ctrl+b",
         }
 
 
@@ -4001,6 +4077,7 @@ async def test_tui_app_footer_hints_update_while_running() -> None:
             "Cancel": "escape",
             "Thinking": "ctrl+t",
             "Tools": "ctrl+o",
+            "Sidebar": "ctrl+b",
         }
 
 
@@ -4035,13 +4112,21 @@ async def test_tui_compact_session_info_sits_directly_below_prompt() -> None:
 
 
 @pytest.mark.anyio
-async def test_tui_sidebar_is_visible_on_medium_windows() -> None:
+async def test_tui_sidebar_stays_hidden_until_ctrl_b_shows_it() -> None:
+    # Behavior intentionally changed (D6): the sidebar no longer auto-shows on
+    # wide windows; Ctrl+B or /sidebar shows it for this session only.
     app = BaldricTuiApp(FakeSession())
 
-    async with app.run_test(size=(120, 40)):
+    async with app.run_test(size=(120, 40)) as pilot:
+        assert app.has_class("-hide-sidebar")
+
+        await pilot.press("ctrl+b")
+        await pilot.pause()
+
         sidebar = app.query_one("#sidebar")
         sidebar_brand = app.query_one("#sidebar-brand", Static)
         compact_info = app.query_one("#compact-session-info")
+        assert not app.has_class("-hide-sidebar")
         assert sidebar.display is True
         assert sidebar.region.width == 40
         assert sidebar.styles.padding.left == 2
@@ -4052,7 +4137,11 @@ async def test_tui_sidebar_is_visible_on_medium_windows() -> None:
         assert sidebar_brand.region.bottom == sidebar.content_region.bottom
         assert sidebar.styles.background == Color.parse(BALDRIC_DARK_THEME.prompt_background)
         assert compact_info.display is True
-        assert not app.has_class("-hide-sidebar")
+
+        await pilot.press("ctrl+b")
+        await pilot.pause()
+
+        assert app.has_class("-hide-sidebar")
 
 
 @pytest.mark.anyio
@@ -4063,6 +4152,7 @@ async def test_tui_sidebar_resource_sections_expand_independently() -> None:
         PromptTemplate("fix", session.cwd / ".baldric/prompts/fix.md", "Fix"),
     )
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         skills = app.query_one("#sidebar-skills", Collapsible)
@@ -4111,6 +4201,7 @@ async def test_tui_sidebar_context_file_opens_in_main_editor_and_saves(
     session.cwd = tmp_path
     session.context_files = (ProjectContextFile(path=str(context_path), content="Original context."),)
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.click("#sidebar-context-content .sidebar-file-item")
@@ -4147,6 +4238,7 @@ async def test_tui_sidebar_prompt_file_opens_in_main_editor(tmp_path: Path) -> N
     session.cwd = tmp_path
     session.prompt_templates = (PromptTemplate("review", prompt_path, "Review this.", "Review changes"),)
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         app.query_one("#sidebar-prompts", Collapsible).collapsed = False
@@ -4182,6 +4274,7 @@ async def test_tui_sidebar_skill_opens_only_main_skill_file(tmp_path: Path) -> N
     session.cwd = tmp_path
     session.skills = (Skill("review", skill_path, "# Review", "Review changes"),)
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         app.query_one("#sidebar-skills", Collapsible).collapsed = False
@@ -4206,6 +4299,7 @@ async def test_tui_sidebar_file_items_have_clear_hover_style(tmp_path: Path) -> 
     session.cwd = tmp_path
     session.context_files = (ProjectContextFile(path=str(context_path), content="Rules."),)
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         item = app.query_one("#sidebar-context-content .sidebar-file-item", SidebarFileItem)
@@ -4227,6 +4321,7 @@ async def test_tui_sidebar_editor_keeps_contents_open_after_save_failure(
     session.cwd = tmp_path
     session.context_files = (ProjectContextFile(path=str(context_path), content="Rules."),)
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.click("#sidebar-context-content .sidebar-file-item")
@@ -4255,6 +4350,7 @@ async def test_tui_sidebar_editor_reports_unexpected_save_failure(
     session.cwd = tmp_path
     session.context_files = (ProjectContextFile(path=str(context_path), content="Rules."),)
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     def fail_unexpectedly(*args: object) -> None:
         del args
@@ -4286,6 +4382,7 @@ async def test_tui_sidebar_editor_refuses_external_file_changes(tmp_path: Path) 
     session.cwd = tmp_path
     session.context_files = (ProjectContextFile(path=str(context_path), content="Original."),)
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.click("#sidebar-context-content .sidebar-file-item")
@@ -4349,6 +4446,7 @@ async def test_tui_sidebar_editor_partial_staging_failure_is_safe(
     session.cwd = tmp_path
     session.context_files = (ProjectContextFile(path=str(context_path), content="Original rules."),)
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.click("#sidebar-context-content .sidebar-file-item")
@@ -4386,6 +4484,7 @@ async def test_tui_sidebar_editor_rejects_read_only_target(tmp_path: Path) -> No
     session.cwd = tmp_path
     session.context_files = (ProjectContextFile(path=str(context_path), content="Original rules."),)
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
     notifications: list[tuple[str, str | None]] = []
 
     def fake_notify(message: str, **kwargs: object) -> None:
@@ -4503,6 +4602,7 @@ async def test_tui_sidebar_scrolls_when_all_skills_overflow() -> None:
         for index in range(1, 31)
     )
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         scroll = app.query_one("#sidebar-scroll", VerticalScroll)
@@ -4521,6 +4621,7 @@ async def test_tui_sidebar_scrolls_when_all_skills_overflow() -> None:
 async def test_tui_sidebar_relayouts_when_reload_changes_resource_count() -> None:
     session = FakeSession()
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         sidebar = app.query_one("#sidebar", SessionSidebar)
@@ -4566,6 +4667,7 @@ async def test_tui_sidebar_relayouts_when_reload_changes_resource_count() -> Non
 @pytest.mark.anyio
 async def test_tui_sidebar_fills_workspace_height() -> None:
     app = BaldricTuiApp(FakeSession())
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)):
         workspace = app.query_one("#workspace")
@@ -4611,36 +4713,45 @@ async def test_tui_sidebar_hides_on_short_windows() -> None:
 
 
 @pytest.mark.anyio
-async def test_tui_sidebar_visibility_updates_on_resize() -> None:
+async def test_tui_sidebar_visibility_is_stable_across_resize() -> None:
+    # Behavior intentionally changed (D6): window size no longer decides
+    # sidebar visibility — only the session override does.
     app = BaldricTuiApp(FakeSession())
 
     async with app.run_test(size=(120, 40)) as pilot:
         sidebar = app.query_one("#sidebar")
         compact_info = app.query_one("#compact-session-info")
-        assert sidebar.display is True
+        assert sidebar.display is False
         assert compact_info.display is True
 
         await pilot.resize_terminal(width=80, height=40)
         await pilot.pause()
         assert sidebar.display is False
-        assert compact_info.display is True
 
         await pilot.resize_terminal(width=120, height=30)
         await pilot.pause()
         assert sidebar.display is False
         assert compact_info.display is True
 
-        await pilot.resize_terminal(width=120, height=40)
+        app._sidebar_visibility_override = True
+        app._update_responsive_layout(120, 40)
         await pilot.pause()
         assert sidebar.display is True
-        assert compact_info.display is True
+
+        await pilot.resize_terminal(width=80, height=40)
+        await pilot.pause()
+        assert sidebar.display is True
 
 
 @pytest.mark.anyio
 async def test_tui_sidebar_shows_on_right_by_default() -> None:
+    # Placement classes apply whenever the sidebar is shown; it just starts
+    # hidden now (D6), so the test shows it explicitly.
     app = BaldricTuiApp(FakeSession())
 
-    async with app.run_test(size=(120, 40)):
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.press("ctrl+b")
+        await pilot.pause()
         sidebar = app.query_one("#sidebar")
         assert sidebar.display is True
         assert app.has_class("-sidebar-right")
@@ -4651,7 +4762,9 @@ async def test_tui_sidebar_shows_on_right_by_default() -> None:
 async def test_tui_sidebar_shows_on_left_when_configured() -> None:
     app = BaldricTuiApp(FakeSession(), tui_settings=TuiSettings(sidebar_position="left"))
 
-    async with app.run_test(size=(120, 40)):
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.press("ctrl+b")
+        await pilot.pause()
         sidebar = app.query_one("#sidebar")
         assert sidebar.display is True
         assert not app.has_class("-sidebar-right")
@@ -4667,26 +4780,27 @@ async def test_tui_sidebar_command_toggles_visibility_without_changing_position(
 
     async with app.run_test(size=(120, 40)) as pilot:
         sidebar = app.query_one("#sidebar")
-        assert sidebar.display is True
-        assert app.has_class("-sidebar-right") is (position == "right")
+        assert sidebar.display is False
 
         prompt = app.query_one("#prompt", PromptInput)
         prompt.value = "/sidebar"
         await pilot.press("enter")
         await pilot.pause()
-        assert sidebar.display is False
+        assert sidebar.display is True
         assert app.has_class("-sidebar-right") is (position == "right")
         assert app.tui_settings.sidebar_position == position
 
         prompt.value = "/sidebar"
         await pilot.press("enter")
         await pilot.pause()
-        assert sidebar.display is True
+        assert sidebar.display is False
         assert app.has_class("-sidebar-right") is (position == "right")
 
 
 @pytest.mark.anyio
-async def test_tui_sidebar_command_hides_user_sidebar_across_resize() -> None:
+async def test_tui_sidebar_command_shows_user_sidebar_across_resize() -> None:
+    # Behavior intentionally changed (D6): the session override is what keeps
+    # the sidebar visible; resize can no longer hide or reveal it.
     app = BaldricTuiApp(FakeSession())
 
     async with app.run_test(size=(120, 40)) as pilot:
@@ -4695,12 +4809,12 @@ async def test_tui_sidebar_command_hides_user_sidebar_across_resize() -> None:
         prompt.value = "/sidebar"
         await pilot.press("enter")
         await pilot.pause()
-        assert sidebar.display is False
+        assert sidebar.display is True
 
         await pilot.resize_terminal(width=80, height=30)
         await pilot.resize_terminal(width=120, height=40)
         await pilot.pause()
-        assert sidebar.display is False
+        assert sidebar.display is True
 
 
 @pytest.mark.anyio
@@ -5015,6 +5129,8 @@ def test_tui_app_registers_only_baldric_themes_with_textual() -> None:
         "baldric-dark",
         "baldric-light",
         "high-contrast",
+        "opencode-dark",
+        "pi-dark",
     )
 
 
@@ -5037,7 +5153,8 @@ def test_baldric_dark_theme_uses_aqua_as_its_shared_accent() -> None:
     assert theme.screen_background == "#000000"
     assert theme.transcript_background == "#000000"
     assert theme.prompt_background == "#101419"
-    assert theme.role_styles["user"].body.endswith(f"on {theme.prompt_background}")
+    # The user card sits on its own raised tier now, not on the prompt colour.
+    assert theme.role_styles["user"].body == "#d8dee9 on #1e2430"
     assert theme.role_styles["assistant"].body.endswith("on #000000")
 
 
@@ -5121,8 +5238,11 @@ async def test_tui_app_shows_activity_indicator_while_running() -> None:
 
         assert not app.query("#status")
         assert not app.query("#activity-status")
-        assert prompt.styles.border_top == ("solid", Color.parse("#2d3748"))
-        assert prompt.styles.border_bottom == ("solid", Color.parse("#2d3748"))
+        # Behavior intentionally changed: the idle border follows the session's
+        # thinking level (FakeSession starts at medium) instead of the theme's
+        # static prompt border.
+        assert prompt.styles.border_top == ("solid", Color.parse(THINKING_LEVEL_COLORS["medium"]))
+        assert prompt.styles.border_bottom == ("solid", Color.parse(THINKING_LEVEL_COLORS["medium"]))
         assert prompt.styles.border_left[0] == ""
         assert prompt.styles.border_right[0] == ""
         assert indicator.render().plain == "τ"
@@ -5130,21 +5250,21 @@ async def test_tui_app_shows_activity_indicator_while_running() -> None:
         app.adapter.apply(AgentStartEvent())
         app._refresh()
 
-        assert pytest.approx(tui_app.ACTIVITY_TICK_SECONDS) == 0.15
+        assert pytest.approx(tui_app.ACTIVITY_TICK_SECONDS) == 0.08
         assert tui_app.ACTIVITY_COLOR_FADE_STEPS == 24
-        assert prompt.styles.border_top[1].hex.lower() == "#2d3748"
-        assert indicator.render().plain == "⣾"
+        assert prompt.styles.border_top[1].hex.lower() == THINKING_LEVEL_COLORS["medium"]
+        assert indicator.render().plain == "⠋"
 
         app._tick_activity()
 
-        assert prompt.styles.border_top[1].hex.lower() == "#2d3748"
-        assert indicator.render().plain == "⣽"
+        assert prompt.styles.border_top[1].hex.lower() == THINKING_LEVEL_COLORS["medium"]
+        assert indicator.render().plain == "⠙"
 
         app.adapter.apply(AgentEndEvent())
         app._refresh()
 
         assert not app.query("#status")
-        assert prompt.styles.border_top[1].hex.lower() == "#2d3748"
+        assert prompt.styles.border_top[1].hex.lower() == THINKING_LEVEL_COLORS["medium"]
         assert indicator.render().plain == "τ"
 
 
@@ -5538,8 +5658,8 @@ async def test_tui_app_clears_activity_status_on_error() -> None:
 
         assert not app.query("#status")
         assert not app.query("#activity-status")
-        assert prompt.styles.border_top == ("solid", Color.parse("#2d3748"))
-        assert prompt.styles.border_bottom == ("solid", Color.parse("#2d3748"))
+        assert prompt.styles.border_top == ("solid", Color.parse(THINKING_LEVEL_COLORS["medium"]))
+        assert prompt.styles.border_bottom == ("solid", Color.parse(THINKING_LEVEL_COLORS["medium"]))
         assert prompt.styles.border_left[0] == ""
         assert prompt.styles.border_right[0] == ""
         assert indicator.render().plain == "τ"
@@ -5703,6 +5823,8 @@ async def test_tui_app_theme_command_opens_picker_and_persists_selection(
             "✓ baldric-dark",
             "  baldric-light",
             "  high-contrast",
+            "  opencode-dark",
+            "  pi-dark",
         ]
 
         theme_list = picker.query_one("#theme-picker-list", ListView)
@@ -12697,3 +12819,21 @@ async def test_run_tui_app_ignores_uncredentialed_provider_when_matching_resume_
 # host bridge, using an in-test caller with no subagents vocabulary. The legacy
 # agents-strip pilot tests they once coexisted with were deleted in Step 3
 # (the transcript-source seam and host agent UI left core).
+
+
+def test_user_message_renders_a_visible_card_background() -> None:
+    """The user card surface is the raised-layer brightness (opencode tier)."""
+    item = ChatItem(role="user", text="hello")
+    widget = TranscriptMessageWidget(item, theme=BALDRIC_DARK_THEME, show_tool_results=False)
+
+    assert widget.styles.background == Color(0x1E, 0x24, 0x30)
+    assert widget.styles.border_left[0] == "tall"
+
+
+def test_assistant_message_has_no_card_background() -> None:
+    """Assistant and thinking rows are deliberately bare (borderless roles)."""
+    item = ChatItem(role="assistant", text="hi")
+    widget = TranscriptMessageWidget(item, theme=BALDRIC_DARK_THEME, show_tool_results=False)
+
+    assert widget.styles.background == Color(0, 0, 0, 0)
+    assert widget.styles.border_left[0] == ""

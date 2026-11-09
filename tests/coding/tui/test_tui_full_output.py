@@ -12,9 +12,8 @@ of the escape hatch:
 
 from __future__ import annotations
 
+from baldric_coding.rendering.tool_preview import BASH_PREVIEW_LINES, TERMINAL_COMMAND_PREVIEW_LINES
 from baldric_coding.tui.state import (
-    TERMINAL_COMMAND_OUTPUT_PREVIEW_LINES,
-    TOOL_RESULT_PREVIEW_LINES,
     ChatItem,
     TuiState,
     format_terminal_command_result_block,
@@ -32,7 +31,7 @@ def _long_output(lines: int) -> str:
 
 
 def test_terminal_command_preview_still_truncates_by_default() -> None:
-    output = _long_output(TERMINAL_COMMAND_OUTPUT_PREVIEW_LINES + 80)
+    output = _long_output(TERMINAL_COMMAND_PREVIEW_LINES + 80)
 
     preview = format_terminal_command_result_block(
         ok=True,
@@ -41,11 +40,11 @@ def test_terminal_command_preview_still_truncates_by_default() -> None:
     )
 
     assert "[Preview only:" in preview
-    assert f"line {TERMINAL_COMMAND_OUTPUT_PREVIEW_LINES + 79}" not in preview
+    assert f"line {TERMINAL_COMMAND_PREVIEW_LINES + 79}" not in preview
 
 
 def test_terminal_command_full_keeps_every_line_and_no_marker() -> None:
-    output = _long_output(TERMINAL_COMMAND_OUTPUT_PREVIEW_LINES + 80)
+    output = _long_output(TERMINAL_COMMAND_PREVIEW_LINES + 80)
 
     full = format_terminal_command_result_block(
         ok=True,
@@ -55,23 +54,26 @@ def test_terminal_command_full_keeps_every_line_and_no_marker() -> None:
     )
 
     assert "[Preview only:" not in full
-    assert full.endswith(f"line {TERMINAL_COMMAND_OUTPUT_PREVIEW_LINES + 79}")
+    assert full.endswith(f"line {TERMINAL_COMMAND_PREVIEW_LINES + 79}")
     # The status line is still present so the block stays self-describing.
     assert full.startswith("✓ bash")
 
 
 def test_tool_result_full_keeps_every_line() -> None:
-    content = _long_output(TOOL_RESULT_PREVIEW_LINES + 40)
+    content = _long_output(BASH_PREVIEW_LINES + 40)
 
     preview = format_tool_result_block(name="bash", ok=True, content=content)
     full = format_tool_result_block(name="bash", ok=True, content=content, full=True)
 
     assert "[Preview only:" in preview
     assert "[Preview only:" not in full
-    assert full.endswith(f"line {TOOL_RESULT_PREVIEW_LINES + 39}")
+    assert full.endswith(f"line {BASH_PREVIEW_LINES + 39}")
 
 
-def test_tool_patch_preview_is_also_bypassed_by_full() -> None:
+def test_tool_patch_is_never_truncated() -> None:
+    # Behavior intentionally changed (per-tool budgets): the patch is the
+    # thing the user reviews, so edit/write patches always render in full —
+    # only the content preview and full-mode escape hatch keep their roles.
     patch = _long_output(200)
 
     preview = format_tool_result_block(
@@ -88,9 +90,10 @@ def test_tool_patch_preview_is_also_bypassed_by_full() -> None:
         full=True,
     )
 
-    assert "[Preview only:" in preview
+    assert "[Preview only:" not in preview
+    assert "line 199" in preview
     assert "[Preview only:" not in full
-    assert "line 199" in full
+    assert preview == full
 
 
 def test_write_tool_result_renders_its_patch() -> None:
@@ -164,14 +167,14 @@ def test_record_tool_result_stamps_the_state_opt_in() -> None:
     state.record_tool_result(
         "call-1",
         "bash",
-        AgentToolResult(content=[TextContent(text=_long_output(TOOL_RESULT_PREVIEW_LINES + 10))]),
+        AgentToolResult(content=[TextContent(text=_long_output(BASH_PREVIEW_LINES + 10))]),
         False,
     )
 
     tool_item = state.find_tool_item("call-1")
     assert tool_item is not None
     assert tool_item.full_output is True
-    assert tool_item.result_text(expanded=True).endswith("line 17")
+    assert tool_item.result_text(expanded=True).endswith(f"line {BASH_PREVIEW_LINES + 9}")
 
 
 def test_set_full_output_updates_rows_already_in_the_transcript() -> None:
@@ -201,7 +204,7 @@ def test_record_tool_result_retains_full_text_only_when_lossy() -> None:
     state.record_tool_result(
         "call-1",
         "bash",
-        AgentToolResult(content=[TextContent(text=_long_output(TOOL_RESULT_PREVIEW_LINES + 10))]),
+        AgentToolResult(content=[TextContent(text=_long_output(BASH_PREVIEW_LINES + 10))]),
         False,
     )
 

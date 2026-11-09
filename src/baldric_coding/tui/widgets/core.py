@@ -2,37 +2,38 @@
 
 from __future__ import annotations
 
-import asyncio
 import re
 import time
-from collections.abc import Sequence
-from contextlib import suppress
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal
 
 from rich.align import Align
 from rich.console import Group, RenderableType
 from rich.padding import Padding
-from rich.style import Style
 from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
-from textual.color import Color as TextualColor
-from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.containers import Horizontal, VerticalScroll
 from textual.css.query import NoMatches
+from textual.events import Click
 from textual.geometry import Offset
 from textual.selection import Selection
 from textual.widget import Widget
-from textual.widgets import Markdown as TextualMarkdown
 from textual.widgets import Static
 
-from baldric_coding.context.system_prompt import (
-    SystemPromptSource,
-)
 from baldric_coding.rendering.diffs import render_patch
 from baldric_coding.rendering.grouping import format_tool_run_summary, should_summarize
 from baldric_coding.rendering.thinking import format_hidden_thinking_summary
 from baldric_coding.rendering.tool_calls import format_tool_call_invocation
+from baldric_coding.rendering.tool_state import (
+    format_tool_duration,
+    tool_accent_color,
+    tool_row_role_style,
+)
+from baldric_coding.rendering.tool_state import (
+    split_rich_style_colors as _split_rich_style_colors,
+)
 from baldric_coding.tui.autocomplete import CompletionState
 from baldric_coding.tui.config import BALDRIC_DARK_THEME, TuiRoleStyle, TuiTheme
 from baldric_coding.tui.state import (
@@ -53,6 +54,11 @@ from baldric_coding.tui.widgets.markdown import (
     _render_fenced_body,
     _system_prompt_markdown,
 )
+from baldric_coding.tui.widgets.markdown_stream import (
+    STREAM_FLUSH_INTERVAL_SECONDS,
+    TranscriptMarkdownStream,
+)
+from baldric_coding.tui.widgets.system_prompt import SystemPromptSourcesWidget
 from baldric_protocol.tools import ToolCall
 
 
@@ -108,112 +114,6 @@ class TranscriptWindowBoundary(Static):
         noun = "message" if count == 1 else "messages"
         arrow = "↑" if self.direction == "earlier" else "↓"
         return f"{arrow} Scroll for {count} {self.direction} {noun}"
-
-
-class SystemPromptSectionWidget(Vertical):
-    """One prompt source with a matching accent and faint background."""
-
-    DEFAULT_CSS = """
-    SystemPromptSectionWidget {
-        width: 1fr;
-        height: auto;
-        margin: 0 0 1 0;
-        padding: 1 1 0 1;
-    }
-
-    SystemPromptSectionWidget > .system-prompt-source-name,
-    SystemPromptSectionWidget > .system-prompt-source-origin {
-        width: 1fr;
-        height: auto;
-    }
-
-    SystemPromptSectionWidget > .system-prompt-source-body {
-        width: 1fr;
-        height: auto;
-        margin: 1 0 0 0;
-        padding: 0;
-    }
-
-    SystemPromptSectionWidget > .system-prompt-source-body > MarkdownParagraph {
-        margin: 0 0 1 0;
-    }
-    """
-
-    def __init__(
-        self,
-        source: SystemPromptSource,
-        *,
-        index: int,
-        theme: TuiTheme,
-    ) -> None:
-        self.source = source
-        self.index = index
-        self._theme = theme
-        self.source_color = _system_prompt_source_color(source, theme=theme)
-        super().__init__(classes=f"system-prompt-source system-prompt-source-{source.kind}")
-        background = TextualColor.parse(theme.transcript_background).blend(
-            TextualColor.parse(self.source_color),
-            0.08,
-        )
-        self.styles.background = background
-        self.styles.border_left = ("tall", self.source_color)
-
-    def compose(self) -> Any:
-        name = Text()
-        name.append(f"{self.index:02d} · ", style=self._theme.muted_text)
-        name.append(self.source.label, style=f"bold {self.source_color}")
-        origin = Text("Source: ", style=self._theme.muted_text)
-        origin.append(self.source.source, style=self.source_color)
-        yield Static(name, classes="system-prompt-source-name")
-        yield Static(origin, classes="system-prompt-source-origin")
-        yield ThemedMarkdownWidget(
-            _system_prompt_markdown(self.source.content.lstrip("\n")),
-            theme=self._theme,
-            classes="system-prompt-source-body",
-        )
-
-
-class SystemPromptSourcesWidget(Vertical):
-    """Structured rendering for a sourced system prompt."""
-
-    DEFAULT_CSS = """
-    SystemPromptSourcesWidget {
-        width: 1fr;
-        height: auto;
-    }
-
-    SystemPromptSourcesWidget > .system-prompt-title {
-        width: 1fr;
-        height: auto;
-        margin: 0 0 1 1;
-    }
-    """
-
-    def __init__(self, sources: tuple[SystemPromptSource, ...], *, theme: TuiTheme) -> None:
-        self.sources = sources
-        self._theme = theme
-        super().__init__()
-
-    def compose(self) -> Any:
-        yield Static(
-            Text("/system", style=f"bold {self._theme.accent}"),
-            classes="system-prompt-title",
-        )
-        for index, source in enumerate(self.sources, start=1):
-            yield SystemPromptSectionWidget(source, index=index, theme=self._theme)
-
-
-def _system_prompt_source_color(source: SystemPromptSource, *, theme: TuiTheme) -> str:
-    """Choose a stable theme color for one prompt-source kind."""
-    return {
-        "default": theme.accent,
-        "system": theme.role_styles["assistant"].border,
-        "append": theme.role_styles["status"].border,
-        "extension": theme.role_styles["tool"].border,
-        "context": theme.role_styles["branch_summary"].border,
-        "skill": theme.role_styles["skill"].border,
-        "runtime": theme.muted_text,
-    }[source.kind]
 
 
 class TranscriptMessageWidget(Horizontal):
@@ -414,55 +314,30 @@ class TranscriptMessageWidget(Horizontal):
         return True
 
 
-# Each Markdown append re-lays out every mounted transcript row, and providers
-# send 50-150 fragments/s, so coalesce appends to ~10/s.
-STREAM_FLUSH_INTERVAL_SECONDS = 0.1
+class HiddenThinkingWidget(TranscriptMessageWidget):
+    """A collapsed thinking-run summary row; clicking it expands the run.
 
-
-class TranscriptMarkdownStream:
-    """Like Textual's ``MarkdownStream``, but appends at most once per ``interval``.
-
-    The first fragment is appended immediately.
+    The summary is a finished run, so a click never collides with a live
+    stream. Expansion is one-directional per run; the global Ctrl+T toggle
+    remains the way to collapse or show everything.
     """
 
-    def __init__(self, markdown: TextualMarkdown, *, interval: float) -> None:
-        self._markdown = markdown
-        self._interval = interval
-        self._pending: list[str] = []
-        self._wake = asyncio.Event()
-        self._appending: asyncio.Future[None] | None = None
-        self._task = asyncio.create_task(self._run())
+    def __init__(
+        self,
+        item: ChatItem,
+        *,
+        theme: TuiTheme,
+        run_id: int,
+        on_toggle: Callable[[int], None],
+    ) -> None:
+        super().__init__(item, theme=theme, show_tool_results=False)
+        self.run_id = run_id
+        self._on_toggle = on_toggle
+        self.tooltip = "Click to show this thinking"
 
-    async def write(self, fragment: str) -> None:
-        """Queue a fragment for the next flush."""
-        if fragment:
-            self._pending.append(fragment)
-            self._wake.set()
-
-    async def stop(self) -> None:
-        """Stop the flush loop and append anything still queued."""
-        self._task.cancel()
-        with suppress(asyncio.CancelledError):
-            await self._task
-        # Markdown.append reads its parse position before taking its lock, so an
-        # append still in flight must finish before the final one starts.
-        if self._appending is not None:
-            await self._appending
-        if self._pending:
-            await self._markdown.append(self._take_pending())
-
-    def _take_pending(self) -> str:
-        text = "".join(self._pending)
-        self._pending.clear()
-        return text
-
-    async def _run(self) -> None:
-        while True:
-            await self._wake.wait()
-            self._wake.clear()
-            self._appending = asyncio.ensure_future(self._markdown.append(self._take_pending()))
-            await asyncio.shield(self._appending)
-            await asyncio.sleep(self._interval)
+    def on_click(self, event: Click) -> None:
+        event.stop()
+        self._on_toggle(self.run_id)
 
 
 class StreamingTranscriptMessageWidget(ThemedMarkdownWidget):
@@ -796,6 +671,7 @@ class TranscriptView(VerticalScroll):
         non_thinking_index = 0
         pending: list[tuple[ChatItem, TranscriptMessageWidget]] = []
         hidden_run = False
+        expanded_run = False
 
         def flush(before: Widget | None) -> None:
             nonlocal pending
@@ -810,6 +686,8 @@ class TranscriptView(VerticalScroll):
         for item in window_items:
             if item.role == "thinking":
                 if state.show_thinking:
+                    hidden_run = False
+                    expanded_run = False
                     pending.append(
                         (
                             item,
@@ -820,14 +698,31 @@ class TranscriptView(VerticalScroll):
                             ),
                         )
                     )
-                elif not hidden_run:
-                    placeholder = TranscriptMessageWidget(
+                    continue
+                if id(item) in hidden_run_summaries:
+                    expanded_run = id(item) in state.expanded_thinking_ids
+                    hidden_run = False
+                if expanded_run:
+                    pending.append(
+                        (
+                            item,
+                            TranscriptMessageWidget(
+                                item,
+                                theme=theme,
+                                show_tool_results=state.show_tool_results,
+                            ),
+                        )
+                    )
+                    continue
+                if not hidden_run:
+                    placeholder = HiddenThinkingWidget(
                         ChatItem(
                             role="thinking",
                             text=hidden_run_summaries.get(id(item), _HIDDEN_THINKING_PLACEHOLDER),
                         ),
                         theme=theme,
-                        show_tool_results=state.show_tool_results,
+                        run_id=id(item),
+                        on_toggle=self._toggle_thinking_run,
                     )
                     pending.append((item, placeholder))
                     hidden_run = True
@@ -836,6 +731,7 @@ class TranscriptView(VerticalScroll):
                 continue
 
             hidden_run = False
+            expanded_run = False
             target = None
             while non_thinking_index < len(non_thinking_children):
                 candidate = non_thinking_children[non_thinking_index]
@@ -858,6 +754,15 @@ class TranscriptView(VerticalScroll):
             self.call_after_refresh(
                 lambda: self.scroll_to(y=previous_scroll_y, animate=False, immediate=True)
             )
+
+    def _toggle_thinking_run(self, run_id: int) -> None:
+        """Expand one collapsed thinking run in place (click-to-expand)."""
+        state = self._render_state
+        if state is None:
+            return
+        state.toggle_thinking_expansion(run_id)
+        theme = self._render_theme if self._render_theme is not None else BALDRIC_DARK_THEME
+        self.update_thinking_visibility(state, theme=theme)
 
     def _redraw(self, *, scroll_end: bool, preserve_window: bool = False) -> None:
         state = self._render_state
@@ -900,20 +805,36 @@ class TranscriptView(VerticalScroll):
         window_items = state.items[self._window_start : self._window_end]
         hidden_run_summaries = _hidden_thinking_run_summaries(window_items, state.show_thinking)
         hidden_thinking_widget: TranscriptMessageWidget | None = None
+        expanded_run = False
         for item in window_items:
             if item.role == "thinking" and not state.show_thinking:
+                if id(item) in hidden_run_summaries:
+                    # A run start: freshly expanded runs render in full.
+                    expanded_run = id(item) in state.expanded_thinking_ids
+                    hidden_thinking_widget = None
+                if expanded_run:
+                    widget = TranscriptMessageWidget(
+                        item,
+                        theme=theme,
+                        show_tool_results=state.show_tool_results,
+                    )
+                    self._item_widgets[id(item)] = widget
+                    widgets.append(widget)
+                    continue
                 if hidden_thinking_widget is None:
-                    hidden_thinking_widget = TranscriptMessageWidget(
+                    hidden_thinking_widget = HiddenThinkingWidget(
                         ChatItem(
                             role="thinking",
                             text=hidden_run_summaries.get(id(item), _HIDDEN_THINKING_PLACEHOLDER),
                         ),
                         theme=theme,
-                        show_tool_results=state.show_tool_results,
+                        run_id=id(item),
+                        on_toggle=self._toggle_thinking_run,
                     )
                     widgets.append(hidden_thinking_widget)
                 self._item_widgets[id(item)] = hidden_thinking_widget
                 continue
+            expanded_run = False
             hidden_thinking_widget = None
             expanded = state.show_tool_results or item.always_show_tool_result
             widget = TranscriptMessageWidget(
@@ -1404,14 +1325,6 @@ def _custom_body_renderable(
     return text
 
 
-def _split_rich_style_colors(style: str) -> tuple[str | None, str | None]:
-    """Split the foreground/background colors from a simple Rich style string."""
-    text_style = Style.parse(style)
-    foreground = text_style.color.name if text_style.color is not None else None
-    background = text_style.bgcolor.name if text_style.bgcolor is not None else None
-    return foreground, background
-
-
 def _use_plain_transcript_body(item: ChatItem) -> bool:
     """Return whether a transcript item can use fast selectable plain text."""
     return item.highlight in {"alert", "update"} or item.role in {
@@ -1592,25 +1505,26 @@ def _chat_item_role_style(item: ChatItem, theme: TuiTheme) -> TuiRoleStyle:
     if item.highlight == "update":
         return TuiRoleStyle(border="#ffff00", body="bold #ffff00")
     if item.role == "tool" and item.tool_result_text:
-        if item.tool_result_text.startswith("✓"):
-            return TuiRoleStyle(border=theme.success, body=theme.role_styles["tool"].body)
-        if item.tool_result_text.startswith("✗"):
-            return TuiRoleStyle(border=theme.error, body=theme.role_styles["tool"].body)
+        return tool_row_role_style(
+            tool_is_error=item.tool_is_error,
+            tool_result_text=item.tool_result_text,
+            base=theme.role_styles["tool"],
+            success_border=theme.success,
+            error_border=theme.error,
+        )
     return theme.role_styles[item.role]
 
 
 def _tool_accent_style(item: ChatItem, *, theme: TuiTheme) -> str | None:
-    # Bare colors: the accent span inherits its background from the tool body
-    # style, so it blends with any theme's transcript background.
-    if item.role != "tool":
-        return None
-    if item.tool_result_text is None or item.tool_result_text.startswith("…"):
-        return theme.role_styles["tool"].border
-    if item.tool_result_text.startswith("✓"):
-        return theme.tool_success_text
-    if item.tool_result_text.startswith("✗"):
-        return theme.tool_error_text
-    return None
+    """Return the row accent colour; the logic lives in rendering/tool_state."""
+    return tool_accent_color(
+        is_tool=item.role == "tool",
+        tool_result_text=item.tool_result_text,
+        tool_is_error=item.tool_is_error,
+        pending_border=theme.role_styles["tool"].border,
+        success_text=theme.tool_success_text,
+        error_text=theme.tool_error_text,
+    )
 
 
 def _bash_row_is_description_only(item: ChatItem) -> bool:
@@ -1645,6 +1559,8 @@ def _tool_batch_row_invocation(row: ChatItem, *, expanded: bool) -> str:
         elapsed = time.monotonic() - row.started_at
         if elapsed >= TOOL_TIMER_MIN_SECONDS:
             return f"{invocation} ({format_elapsed(elapsed)})"
+    if row.tool_result_text is not None and row.tool_duration_seconds is not None:
+        return f"{invocation} · {format_tool_duration(row.tool_duration_seconds)}"
     return invocation
 
 

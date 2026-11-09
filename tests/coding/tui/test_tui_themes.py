@@ -1,3 +1,4 @@
+import dataclasses
 from collections.abc import Iterator
 from json import dumps
 from pathlib import Path
@@ -12,6 +13,7 @@ from baldric_coding.rendering.themes import (
     BUILTIN_TUI_THEME_NAMES,
     THEME_COLOR_FIELDS,
     TRANSCRIPT_ROLES,
+    TuiTheme,
     TuiThemeError,
     available_tui_theme_names,
     get_tui_theme,
@@ -245,7 +247,15 @@ def test_parse_theme_rejects_non_object_payload() -> None:
 
 
 def test_builtin_themes_are_loaded_from_packaged_json() -> None:
-    assert BUILTIN_TUI_THEME_NAMES == ("baldric-dark", "baldric-light", "high-contrast")
+    # Behavior intentionally changed: two tribute themes (opencode-dark,
+    # pi-dark) joined the built-ins, for five in total.
+    assert BUILTIN_TUI_THEME_NAMES == (
+        "baldric-dark",
+        "baldric-light",
+        "high-contrast",
+        "opencode-dark",
+        "pi-dark",
+    )
     assert BALDRIC_DARK_THEME.dark is True
     assert BALDRIC_LIGHT_THEME.dark is False
     assert get_tui_theme("baldric-dark").screen_background == "#000000"
@@ -406,3 +416,212 @@ def test_builtin_themes_wire_scrollbar_colors_to_css_variables() -> None:
         variables = theme_css_variables(theme)
         assert variables["baldric-scrollbar"] == theme.scrollbar
         assert variables["baldric-scrollbar-hover"] == theme.scrollbar_hover
+
+
+def test_each_builtin_theme_loads_with_every_field_and_role() -> None:
+    for name in BUILTIN_TUI_THEME_NAMES:
+        theme = get_tui_theme(name)
+        for field_name in THEME_COLOR_FIELDS:
+            assert getattr(theme, field_name), (name, field_name)
+        assert set(theme.role_styles) == set(TRANSCRIPT_ROLES), name
+        assert theme.name == name
+
+
+def test_opencode_dark_is_projected_from_opencode_values() -> None:
+    # Values verified against opencode-dev/packages/tui/src/theme/assets/v2/
+    # opencode.json: background.base is hue.gray.800, the accent scale aliases
+    # purple, and diff.added text is opencode's #4fd6be.
+    theme = get_tui_theme("opencode-dark")
+    assert theme.dark is True
+    assert theme.screen_background == "#0a0a0a"
+    assert theme.screen_text == "#eeeeee"
+    assert theme.muted_text == "#808080"
+    assert theme.accent == "#9d7cd8"
+    assert theme.completion_selected == "bold #0a0a0a on #fab283"
+    assert theme.role_styles["user"].body == "on #141414"
+
+
+def test_pi_dark_is_projected_from_pi_values() -> None:
+    # Hex values produced by pi's own okhslToRgb (see test_theme_schema.py).
+    theme = get_tui_theme("pi-dark")
+    assert theme.dark is True
+    assert theme.screen_text == "#d3d5d6"
+    assert theme.muted_text == "#7f878b"
+    assert theme.accent == "#8a77c0"
+    assert theme.prompt_border == "#816bba"
+    assert theme.role_styles["user"].body == "#d3d5d6 on #030a0e"
+    assert theme.role_styles["error"].border == "#d3565c"
+
+
+def test_parse_theme_json_accepts_the_layered_format() -> None:
+    data = {
+        "name": "layered-custom",
+        "appearance": "dark",
+        "text": {"base": "#eeeeee", "muted": "#808080"},
+        "background": {"base": "#0a0a0a", "raised": {"base": "#141414", "high": "#1e1e1e", "max": "#4c4c4c"}},
+        "roles": {
+            # Every transcript role is required, like the flat format.
+            "user": {"border": "#5c9cf5", "body": "on $background.raised.base"},
+            "assistant": {"border": "#5c9cf5", "body": ""},
+            "tool": {"border": "#5c9cf5", "body": ""},
+            "error": {"border": "#ff4f4f", "body": ""},
+            "status": {"border": "#5c9cf5", "body": ""},
+            "thinking": {"border": "#5c9cf5", "body": ""},
+            "skill": {"border": "#5c9cf5", "body": ""},
+            "custom": {"border": "#5c9cf5", "body": ""},
+            "branch_summary": {"border": "#5c9cf5", "body": ""},
+            "compaction_summary": {"border": "#5c9cf5", "body": ""},
+        },
+    }
+    theme = parse_tui_theme_json(data)
+    assert theme.name == "layered-custom"
+    assert theme.screen_background == "#0a0a0a"
+    assert theme.chrome_background == "#141414"
+    assert theme.role_styles["user"].body == "on #141414"
+    # Chrome fields the layered format does not model fall back to the dark
+    # palette instead of being empty.
+    assert theme.completion_selected
+
+
+def test_parse_theme_json_rejects_layered_theme_missing_roles() -> None:
+    # A minimal layered theme that omits transcript roles would project to an
+    # empty role_styles dict and crash the widget layer on first render.
+    data = {
+        "name": "missing-roles",
+        "appearance": "dark",
+        "text": {"base": "#eeeeee"},
+        "background": {"base": "#0a0a0a"},
+        "roles": {"user": {"border": "#5c9cf5", "body": ""}},
+    }
+    with pytest.raises(TuiThemeError, match="roles missing"):
+        parse_tui_theme_json(data)
+
+
+def test_parse_theme_json_rejects_layered_theme_without_roles() -> None:
+    data = {
+        "name": "no-roles",
+        "appearance": "dark",
+        "text": {"base": "#eeeeee"},
+        "background": {"base": "#0a0a0a"},
+    }
+    with pytest.raises(TuiThemeError, match="roles missing"):
+        parse_tui_theme_json(data)
+
+
+def test_parse_theme_json_rejects_broken_layered_references() -> None:
+    data = {
+        "name": "broken",
+        "text": {"base": "$hue.nope.100"},
+    }
+    with pytest.raises(TuiThemeError, match="hue.nope.100"):
+        parse_tui_theme_json(data)
+
+
+def test_parse_theme_json_reports_layered_problems_at_once() -> None:
+    data = {
+        "name": "layered-bad",
+        "not_a_section": True,
+        "text": {"base": "#eeeeee"},
+        "roles": {"user": {"border": "not-a-color", "body": ""}, "mystery": {"background": "#000000"}},
+        "colors": {"not_a_field": "#000000"},
+    }
+    with pytest.raises(TuiThemeError) as excinfo:
+        parse_tui_theme_json(data)
+    message = str(excinfo.value)
+    assert "unknown field: not_a_section" in message
+    assert "colors unknown: not_a_field" in message
+    assert "roles unknown: mystery" in message
+    assert "roles.user.border is not a valid color" in message
+
+
+def test_parse_theme_json_old_format_still_parses() -> None:
+    # A flat document without any layered section must keep taking the old
+    # path, vars substitution included.
+    data = _theme_data(vars={"bg": "#1e1e2e"})
+    data["colors"]["screen_background"] = "bg"
+    theme = parse_tui_theme_json(data)
+    assert theme.screen_background == "#1e1e2e"
+
+
+def test_tui_theme_field_set_is_frozen() -> None:
+    # v0.3.0 contract: third-party extension factories receive TuiTheme, so its
+    # field names must not drift until v1.0 removes it. This is the spec §9
+    # acceptance guard: adding, renaming, or dropping a field fails here.
+    expected = (
+        "name",
+        "dark",
+        "screen_background",
+        "screen_text",
+        "chrome_background",
+        "chrome_text",
+        "muted_text",
+        "sidebar_background",
+        "border",
+        "transcript_background",
+        "prompt_background",
+        "prompt_text",
+        "prompt_border",
+        "autocomplete_background",
+        "accent",
+        "success",
+        "error",
+        "tool_success_text",
+        "tool_error_text",
+        "highlight_background",
+        "highlight_text",
+        "markdown_heading",
+        "markdown_table_header",
+        "markdown_table_border",
+        "markdown_inline_code",
+        "markdown_code_block_background",
+        "markdown_link",
+        "markdown_bullet",
+        "completion_selected",
+        "completion_selected_description",
+        "completion_description",
+        "scrollbar",
+        "scrollbar_hover",
+        "syntax_theme",
+        "role_styles",
+    )
+    assert tuple(field.name for field in dataclasses.fields(TuiTheme)) == expected
+    assert len(THEME_COLOR_FIELDS) == 31
+
+
+def test_theme_css_variable_key_set_is_frozen() -> None:
+    # The 32-key Textual CSS contract may gain keys but never lose or rename.
+    expected = {
+        "baldric-accent",
+        "baldric-autocomplete-background",
+        "baldric-border",
+        "baldric-chrome-background",
+        "baldric-chrome-text",
+        "baldric-highlight-background",
+        "baldric-highlight-text",
+        "baldric-markdown-bullet",
+        "baldric-markdown-code-block-background",
+        "baldric-markdown-highlight",
+        "baldric-markdown-inline-code",
+        "baldric-markdown-link",
+        "baldric-markdown-table-border",
+        "baldric-markdown-table-header",
+        "baldric-muted-text",
+        "baldric-prompt-background",
+        "baldric-prompt-border",
+        "baldric-prompt-text",
+        "baldric-screen-background",
+        "baldric-screen-text",
+        "baldric-scrollbar",
+        "baldric-scrollbar-hover",
+        "baldric-sidebar-background",
+        "baldric-tool-running",
+        "baldric-transcript-background",
+        "footer-background",
+        "footer-description-background",
+        "footer-description-foreground",
+        "footer-foreground",
+        "footer-item-background",
+        "footer-key-background",
+        "footer-key-foreground",
+    }
+    assert set(theme_css_variables(BALDRIC_DARK_THEME)) == expected

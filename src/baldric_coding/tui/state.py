@@ -23,6 +23,7 @@ from baldric_coding.rendering.tool_calls import (
     format_tool_call_block,
     format_tool_call_invocation,
 )
+from baldric_coding.rendering.tool_preview import preview_budget
 from baldric_coding.rendering.widths import cell_width, truncate_to_cells
 from baldric_protocol.messages import (
     AgentMessage,
@@ -41,12 +42,9 @@ from baldric_protocol.tools import AgentToolResult, ToolCall
 from baldric_protocol.types import JSONValue
 
 ChatItemRole = TranscriptRole
-TOOL_RESULT_PREVIEW_LINES = 8
-TOOL_PATCH_PREVIEW_LINES = 32
 # Budget is terminal cells, not characters: a double-width CJK character
 # spends two, so the same budget renders at a consistent visual size.
 TOOL_RESULT_PREVIEW_CELLS = 2_000
-TERMINAL_COMMAND_OUTPUT_PREVIEW_LINES = 120
 # Show live elapsed time on an executing tool row once it stops being instant;
 # quick reads/edits never flash a "(0s)".
 TOOL_TIMER_MIN_SECONDS = 1.0
@@ -78,6 +76,10 @@ class GroupedToolCall:
     tool_result: AgentToolResult | None = None
     update_text: str | None = None
     started_at: float | None = None
+    # Explicit outcome, stamped when the result arrives; the render layer no
+    # longer has to guess it from the formatted "✓"/"✗" text.
+    tool_is_error: bool | None = None
+    tool_duration_seconds: float | None = None
 
 
 @dataclass(slots=True)
@@ -104,6 +106,9 @@ class ChatItem:
     tool_name: str | None = None
     tool_arguments: dict[str, JSONValue] | None = None
     started_at: float | None = None
+    # Explicit outcome/duration stamped at record time (see GroupedToolCall).
+    tool_is_error: bool | None = None
+    tool_duration_seconds: float | None = None
     tool_batch_id: int | None = None
     grouped_tool_calls: list[GroupedToolCall] | None = None
     tool_batch_items: list[ChatItem] | None = None
@@ -140,6 +145,10 @@ class TuiState:
     error: str | None = None
     show_tool_results: bool = False
     show_thinking: bool = False
+    # Ids of the first items of hidden thinking runs that the user expanded by
+    # clicking their summary row. The global `show_thinking` toggle takes
+    # precedence; these ids only decide which collapsed runs render in full.
+    expanded_thinking_ids: set[int] = field(default_factory=set)
     # Startup opt-in: previews exist to keep long results from flooding the
     # transcript, but a debugging user needs the whole thing. This is a
     # per-invocation startup default (`--show-full-output`), not durable state.
@@ -662,6 +671,9 @@ class TuiState:
                 member.tool_result_text = result_text
                 member.tool_result = result
                 member.update_text = None
+                if member.started_at is not None:
+                    member.tool_duration_seconds = max(0.0, time.monotonic() - member.started_at)
+                member.tool_is_error = is_error
                 member.started_at = None
                 self._refresh_tool_group(row)
             else:
@@ -670,6 +682,9 @@ class TuiState:
                 row.full_output = self.show_full_output
                 row.tool_result = result
                 row.update_text = None
+                if row.started_at is not None:
+                    row.tool_duration_seconds = max(0.0, time.monotonic() - row.started_at)
+                row.tool_is_error = is_error
                 row.started_at = None
             if item.tool_batch_items is not None:
                 self._refresh_tool_batch(item)
@@ -682,6 +697,7 @@ class TuiState:
             tool_result_full_text=full_result_text,
             full_output=self.show_full_output,
             tool_result=result,
+            tool_is_error=is_error,
         )
         self.items.append(item)
         self._tool_items_by_call_id[tool_call_id] = item
@@ -707,6 +723,10 @@ class TuiState:
         """Toggle thinking-token display and return the new state."""
         self.show_thinking = not self.show_thinking
         return self.show_thinking
+
+    def toggle_thinking_expansion(self, run_id: int) -> None:
+        """Expand one collapsed thinking run (click-to-expand; one-directional)."""
+        self.expanded_thinking_ids.add(run_id)
 
     def update_queue(self, *, steering: tuple[str, ...], follow_up: tuple[str, ...]) -> None:
         """Replace visible queued-message state."""
@@ -927,14 +947,14 @@ def format_tool_result_block(
     status = "✓" if ok else "✗"
     lines = [f"{status} {name}"]
     if content:
-        lines.append(_preview_text(content, max_lines=TOOL_RESULT_PREVIEW_LINES, full=full))
+        lines.append(_preview_text(content, max_lines=preview_budget(name), full=full))
     patch = _result_patch(name=name, ok=ok, data=data)
     if patch:
         lines.extend(
             [
                 "",
                 "Patch:",
-                _preview_text(patch, max_lines=TOOL_PATCH_PREVIEW_LINES, full=full),
+                _preview_text(patch, max_lines=preview_budget(name), full=full),
             ]
         )
     return "\n".join(lines)
@@ -959,7 +979,7 @@ def format_terminal_command_result_block(
         lines.append(
             _preview_text(
                 output,
-                max_lines=TERMINAL_COMMAND_OUTPUT_PREVIEW_LINES,
+                max_lines=preview_budget("__terminal__"),
                 full=full,
             )
         )
@@ -978,14 +998,15 @@ def _result_patch(
     return patch if isinstance(patch, str) and patch.strip() else None
 
 
-def _preview_text(text: str, *, max_lines: int, full: bool = False) -> str:
+def _preview_text(text: str, *, max_lines: int | None, full: bool = False) -> str:
     """Return *text* previewed to the TUI limits, or verbatim when *full*.
 
     The preview is lossy: it drops whole trailing lines and (once the cell
-    budget is spent) the tail of the last kept line. ``full`` bypasses both so
-    a caller can retain the exact result alongside its preview.
+    budget is spent) the tail of the last kept line. ``full`` or a ``None``
+    budget (a tool whose output must not be cut) bypasses both so a caller can
+    retain the exact result alongside its preview.
     """
-    if full:
+    if full or max_lines is None:
         return text
 
     lines = text.splitlines()

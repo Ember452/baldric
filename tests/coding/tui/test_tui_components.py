@@ -375,6 +375,9 @@ async def test_sidebar_off_is_unsupported_and_does_not_call_factory() -> None:
 
 @pytest.mark.anyio
 async def test_responsive_hidden_sidebar_keeps_sections_for_resize() -> None:
+    # Behavior intentionally changed (D6): resize can no longer reveal the
+    # sidebar — sections stay mounted while hidden; only the session override
+    # shows it.
     app = BaldricTuiApp(FakeSession())
 
     async with app.run_test(size=(80, 30)) as pilot:
@@ -387,6 +390,12 @@ async def test_responsive_hidden_sidebar_keeps_sections_for_resize() -> None:
         assert app.query_one("#sidebar-extension-sections", Container).children
 
         await pilot.resize_terminal(width=120, height=40)
+        await pilot.pause()
+        assert app.query_one("#sidebar").display is False
+        assert app.query_one("#sidebar-extension-sections", Container).children
+
+        app._sidebar_visibility_override = True
+        app._update_responsive_layout(120, 40)
         await pilot.pause()
         assert app.query_one("#sidebar").display is True
         assert app.query_one("#sidebar-extension-sections", Container).children
@@ -521,6 +530,7 @@ async def test_sidebar_render_failure_is_quarantined_and_diagnosed() -> None:
     runtime = ExtensionRuntime()
     session.extension_runtime = runtime
     app = BaldricTuiApp(session)
+    app._sidebar_visibility_override = True
 
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()

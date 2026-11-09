@@ -995,9 +995,11 @@ def test_tool_formatters_keep_human_readable_output() -> None:
     )
     content = "\n".join(f"line {index}" for index in range(1, 12))
     block = format_tool_result_block(name="read", ok=True, content=content)
-    assert "line 8" in block
-    assert "line 9" not in block
-    assert "3 more lines" in block
+    # Behavior intentionally changed: read previews show ten lines (pi's
+    # read.ts budget), not the old shared eight.
+    assert "line 10" in block
+    assert "line 11" not in block
+    assert "1 more line" in block
 
 
 def test_file_tool_formatter_shortens_absolute_paths_under_cwd(tmp_path: Path) -> None:

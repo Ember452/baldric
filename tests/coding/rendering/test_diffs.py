@@ -1,6 +1,7 @@
 """Tests for the structured diff renderer."""
 
 import pyte
+from rich.color import Color as RichColor
 from rich.console import Console
 
 from baldric_coding.rendering.diffs import (
@@ -8,7 +9,17 @@ from baldric_coding.rendering.diffs import (
     parse_unified_patch,
     render_patch,
 )
-from baldric_coding.rendering.themes import BALDRIC_DARK_THEME
+from baldric_coding.rendering.themes import BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME
+
+
+def _sgr_bg(hex_color: str) -> str:
+    red, green, blue = RichColor.parse(hex_color).get_truecolor()
+    return f"48;2;{red};{green};{blue}"
+
+
+def _sgr_fg(hex_color: str) -> str:
+    red, green, blue = RichColor.parse(hex_color).get_truecolor()
+    return f"38;2;{red};{green};{blue}"
 
 
 def _feed(screen: pyte.Screen, ansi_text: str) -> None:
@@ -129,3 +140,72 @@ def test_pyte_screen_renders_cjk_inside_diff_lines() -> None:
     assert "\ufffd" not in displayed
     assert "旧的一行宽字符" in displayed
     assert "新的一行宽字符" in displayed
+
+
+# --- Task 6: full-row backgrounds (opencode palette) ------------------------
+
+_ADDED_BG_ANSI = "48;2;32;48;59"  # #20303b
+_REMOVED_BG_ANSI = "48;2;55;34;44"  # #37222c
+
+
+def test_added_line_gets_the_opencode_row_background() -> None:
+    console = Console(record=True, width=80, force_terminal=True, color_system="truecolor")
+    console.print(render_patch(SAMPLE_PATCH, theme=BALDRIC_DARK_THEME))
+
+    assert _ADDED_BG_ANSI in console.export_text(styles=True)
+
+
+def test_removed_line_gets_the_opencode_row_background() -> None:
+    console = Console(record=True, width=80, force_terminal=True, color_system="truecolor")
+    console.print(render_patch(SAMPLE_PATCH, theme=BALDRIC_DARK_THEME))
+
+    assert _REMOVED_BG_ANSI in console.export_text(styles=True)
+
+
+def test_context_rows_carry_no_add_or_remove_background() -> None:
+    context_only = "--- a.txt\n+++ a.txt\n@@ -1,2 +1,2 @@\n keep\n also\n"
+    console = Console(record=True, width=80, force_terminal=True, color_system="truecolor")
+    console.print(render_patch(context_only, theme=BALDRIC_DARK_THEME))
+
+    styles = console.export_text(styles=True)
+    assert _ADDED_BG_ANSI not in styles
+    assert _REMOVED_BG_ANSI not in styles
+
+
+def test_leading_dashes_in_hunk_content_keep_their_row_background() -> None:
+    # A removed line whose content begins with "--" renders as a content row,
+    # not a file header; the count-based hunk detection must be untouched.
+    patch = "--- a.txt\n+++ a.txt\n@@ -1,2 +1,2 @@\n---flag\n+--flag=2\n"
+    console = Console(record=True, width=80, force_terminal=True, color_system="truecolor")
+    console.print(render_patch(patch, theme=BALDRIC_DARK_THEME))
+    styles = console.export_text(styles=True)
+    assert _REMOVED_BG_ANSI in styles
+    assert _ADDED_BG_ANSI in styles
+    assert "--flag" in styles
+
+
+def test_light_theme_diff_rows_use_a_light_background() -> None:
+    # Without tokens a theme must still get backgrounds that suit its own
+    # light/dark appearance; the dark opencode palette on a light theme paints
+    # dark rows on a white transcript.
+    console = Console(record=True, width=80, force_terminal=True, color_system="truecolor")
+    console.print(render_patch(SAMPLE_PATCH, theme=BALDRIC_LIGHT_THEME))
+
+    styles = console.export_text(styles=True)
+    # The dark opencode backgrounds must not appear on the light theme.
+    assert _ADDED_BG_ANSI not in styles
+    assert _REMOVED_BG_ANSI not in styles
+    # A light palette still colours the rows (opencode light.diff added bg).
+    assert "48;2;213;229;213" in styles  # #d5e5d5
+
+
+def test_word_emphasis_uses_the_highlight_colour() -> None:
+    # spec §5.3: the changed token is bold AND the brighter diff.highlight
+    # colour, not just bold, so it pops against the row background.
+    console = Console(record=True, width=80, force_terminal=True, color_system="truecolor")
+    console.print(render_patch(SAMPLE_PATCH, theme=BALDRIC_DARK_THEME))
+
+    styles = console.export_text(styles=True)
+    # SAMPLE_PATCH changes "1" to "2"; those tokens carry the highlight colours.
+    assert f"1;{_sgr_fg('#b8db87')}" in styles  # added highlight
+    assert f"1;{_sgr_fg('#e26a75')}" in styles  # removed highlight
