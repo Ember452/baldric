@@ -1,6 +1,7 @@
 """Tests for the structured diff renderer."""
 
 import pyte
+from rich.color import Color as RichColor
 from rich.console import Console
 
 from baldric_coding.rendering.diffs import (
@@ -9,7 +10,12 @@ from baldric_coding.rendering.diffs import (
     render_patch,
 )
 from baldric_coding.rendering.theme_schema import build_tokens
-from baldric_coding.rendering.themes import BALDRIC_DARK_THEME
+from baldric_coding.rendering.themes import BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME
+
+
+def _sgr_bg(hex_color: str) -> str:
+    red, green, blue = RichColor.parse(hex_color).get_truecolor()
+    return f"48;2;{red};{green};{blue}"
 
 
 def _feed(screen: pyte.Screen, ansi_text: str) -> None:
@@ -190,8 +196,22 @@ def test_leading_dashes_in_hunk_content_keep_their_row_background() -> None:
     patch = "--- a.txt\n+++ a.txt\n@@ -1,2 +1,2 @@\n---flag\n+--flag=2\n"
     console = Console(record=True, width=80, force_terminal=True, color_system="truecolor")
     console.print(render_patch(patch, theme=BALDRIC_DARK_THEME))
-
     styles = console.export_text(styles=True)
     assert _REMOVED_BG_ANSI in styles
     assert _ADDED_BG_ANSI in styles
     assert "--flag" in styles
+
+
+def test_light_theme_diff_rows_use_a_light_background() -> None:
+    # Without tokens a theme must still get backgrounds that suit its own
+    # light/dark appearance; the dark opencode palette on a light theme paints
+    # dark rows on a white transcript.
+    console = Console(record=True, width=80, force_terminal=True, color_system="truecolor")
+    console.print(render_patch(SAMPLE_PATCH, theme=BALDRIC_LIGHT_THEME))
+
+    styles = console.export_text(styles=True)
+    # The dark opencode backgrounds must not appear on the light theme.
+    assert _ADDED_BG_ANSI not in styles
+    assert _REMOVED_BG_ANSI not in styles
+    # A light palette still colours the rows (opencode light.diff added bg).
+    assert "48;2;213;229;213" in styles  # #d5e5d5

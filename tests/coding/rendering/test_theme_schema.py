@@ -153,6 +153,17 @@ def test_build_tokens_tolerates_missing_fields() -> None:
     assert tokens.role_tool_error_bg is None
 
 
+def test_build_tokens_reads_dark_from_flat_bool() -> None:
+    # Old flat themes express light/dark as a ``dark`` boolean, not
+    # ``appearance``; the token view must not mistake them for dark.
+    assert build_tokens({"name": "flat-dark", "dark": True}).dark is True
+    assert build_tokens({"name": "flat-light", "dark": False}).dark is False
+    # ``appearance`` wins when both are present.
+    assert build_tokens({"name": "x", "appearance": "light", "dark": True}).dark is False
+    # Defaults to dark when neither is stated.
+    assert build_tokens({"name": "y"}).dark is True
+
+
 def test_build_tokens_reads_optional_role_backgrounds() -> None:
     schema = {
         "roles": {

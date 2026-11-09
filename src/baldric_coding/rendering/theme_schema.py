@@ -173,13 +173,29 @@ def _optional(roles: Any, role: str, key: str) -> str | None:
     return value if isinstance(value, str) and value else None
 
 
+def _resolve_dark(resolved: dict[str, Any]) -> bool:
+    """Resolve a document's light/dark identity.
+
+    Layered documents use ``appearance``; old flat ones use ``dark: bool``.
+    Prefer ``appearance`` when present, then an explicit ``dark`` boolean, then
+    default to dark — mirroring the flat parser's inference order.
+    """
+    appearance = resolved.get("appearance")
+    if isinstance(appearance, str) and appearance:
+        return appearance == "dark"
+    dark = resolved.get("dark")
+    if isinstance(dark, bool):
+        return dark
+    return True
+
+
 def build_tokens(schema: dict[str, Any]) -> ThemeTokens:
     """Build the component-facing token view from a resolved schema."""
     resolved = resolve_references(schema)
     roles = resolved.get("roles", {})
     return ThemeTokens(
         name=str(resolved.get("name", "unnamed")),
-        dark=str(resolved.get("appearance", "dark")) == "dark",
+        dark=_resolve_dark(resolved),
         text_base=_get(resolved, "text", "base", default="#d8dee9"),
         text_muted=_get(resolved, "text", "muted", default="#808080"),
         text_faint=_get(resolved, "text", "faint", default="#4c4c4c"),
@@ -283,9 +299,7 @@ def project_to_tui_theme(schema: dict[str, Any]) -> TuiTheme:
     overlay = resolved.get("colors")
     overlay = overlay if isinstance(overlay, dict) else {}
 
-    dark = resolved.get("dark")
-    if not isinstance(dark, bool):
-        dark = str(resolved.get("appearance", "dark")) == "dark"
+    dark = _resolve_dark(resolved)
     syntax = resolved.get("syntax_theme")
     if not isinstance(syntax, str) or not syntax:
         syntax = "ansi_dark" if dark else "ansi_light"

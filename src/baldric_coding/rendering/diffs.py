@@ -38,12 +38,15 @@ _META: Final = "meta"
 class DiffPalette:
     """Row colours for added/removed/context diff lines.
 
-    Defaults are opencode's ``base.diff`` verbatim
-    (opencode-dev/packages/tui/src/theme/assets/v2/opencode.json), the palette
-    the visual system standardises on. A theme document can override every
+    Dark defaults are opencode's ``base.diff`` verbatim
+    (opencode-dev/packages/tui/src/theme/assets/v2/opencode.json); the light
+    variant is opencode's ``light.diff`` (``text.removed`` and
+    ``background.context`` are absent there, so they fall back to the light
+    red.100 and the plain white surface). A theme document can override every
     value through its schema's ``diff`` section; callers holding a
-    :class:`ThemeTokens` pass it to :func:`render_patch`, callers without one
-    get these defaults.
+    :class:`ThemeTokens` pass it to :func:`render_patch`. Without tokens a
+    theme still gets a palette that suits its own light/dark appearance rather
+    than dark rows on a white transcript.
     """
 
     added_bg: str = "#20303b"
@@ -52,6 +55,20 @@ class DiffPalette:
     removed_text: str = "#c53b53"
     context_bg: str = "#000000"
     line_number_text: str = "#8f8f8f"
+
+    @classmethod
+    def for_theme(cls, theme: TuiTheme) -> DiffPalette:
+        """Return the palette matching *theme*'s light/dark appearance."""
+        if theme.dark:
+            return cls()
+        return cls(
+            added_bg="#d5e5d5",
+            removed_bg="#f7d8db",
+            added_text="#1e725c",
+            removed_text="#c20f26",
+            context_bg="#ffffff",
+            line_number_text="#595959",
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -205,7 +222,7 @@ def render_patch(patch: str, *, theme: TuiTheme, tokens: ThemeTokens | None = No
     if not files:
         return None
 
-    palette = _palette_for(tokens) if tokens is not None else DiffPalette()
+    palette = _palette_for(tokens) if tokens is not None else DiffPalette.for_theme(theme)
     parts: list[RenderableType] = []
     for file in files:
         parts.append(Text(file.path, style=f"bold {theme.accent}"))

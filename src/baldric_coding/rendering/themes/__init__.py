@@ -261,10 +261,17 @@ def _parse_tui_theme_schema(data: dict[str, Any]) -> TuiTheme:
 def _validate_schema_roles(value: object, problems: list[str]) -> None:
     """Validate the layered format's roles section (resolved values)."""
     if value is None:
+        problems.append("roles missing: " + ", ".join(TRANSCRIPT_ROLES))
         return
     if not isinstance(value, dict):
         problems.append("roles must be an object")
         return
+    # Every transcript role must be present, like the flat path, so the
+    # projected TuiTheme never yields a role_styles dict a widget indexes into
+    # and crashes on. The extra tool-state roles are optional.
+    missing = [role for role in TRANSCRIPT_ROLES if role not in value]
+    if missing:
+        problems.append("roles missing: " + ", ".join(missing))
     allowed = set(TRANSCRIPT_ROLES) | set(_SCHEMA_EXTRA_ROLES)
     unknown = sorted(str(key) for key in set(value) - allowed)
     if unknown:

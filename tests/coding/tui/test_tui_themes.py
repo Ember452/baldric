@@ -1,3 +1,4 @@
+import dataclasses
 from collections.abc import Iterator
 from json import dumps
 from pathlib import Path
@@ -12,6 +13,7 @@ from baldric_coding.rendering.themes import (
     BUILTIN_TUI_THEME_NAMES,
     THEME_COLOR_FIELDS,
     TRANSCRIPT_ROLES,
+    TuiTheme,
     TuiThemeError,
     available_tui_theme_names,
     get_tui_theme,
@@ -458,7 +460,17 @@ def test_parse_theme_json_accepts_the_layered_format() -> None:
         "text": {"base": "#eeeeee", "muted": "#808080"},
         "background": {"base": "#0a0a0a", "raised": {"base": "#141414", "high": "#1e1e1e", "max": "#4c4c4c"}},
         "roles": {
+            # Every transcript role is required, like the flat format.
             "user": {"border": "#5c9cf5", "body": "on $background.raised.base"},
+            "assistant": {"border": "#5c9cf5", "body": ""},
+            "tool": {"border": "#5c9cf5", "body": ""},
+            "error": {"border": "#ff4f4f", "body": ""},
+            "status": {"border": "#5c9cf5", "body": ""},
+            "thinking": {"border": "#5c9cf5", "body": ""},
+            "skill": {"border": "#5c9cf5", "body": ""},
+            "custom": {"border": "#5c9cf5", "body": ""},
+            "branch_summary": {"border": "#5c9cf5", "body": ""},
+            "compaction_summary": {"border": "#5c9cf5", "body": ""},
             "tool_success": {"background": "#144922"},
         },
     }
@@ -470,6 +482,31 @@ def test_parse_theme_json_accepts_the_layered_format() -> None:
     # Chrome fields the layered format does not model fall back to the dark
     # palette instead of being empty.
     assert theme.completion_selected
+
+
+def test_parse_theme_json_rejects_layered_theme_missing_roles() -> None:
+    # A minimal layered theme that omits transcript roles would project to an
+    # empty role_styles dict and crash the widget layer on first render.
+    data = {
+        "name": "missing-roles",
+        "appearance": "dark",
+        "text": {"base": "#eeeeee"},
+        "background": {"base": "#0a0a0a"},
+        "roles": {"user": {"border": "#5c9cf5", "body": ""}},
+    }
+    with pytest.raises(TuiThemeError, match="roles missing"):
+        parse_tui_theme_json(data)
+
+
+def test_parse_theme_json_rejects_layered_theme_without_roles() -> None:
+    data = {
+        "name": "no-roles",
+        "appearance": "dark",
+        "text": {"base": "#eeeeee"},
+        "background": {"base": "#0a0a0a"},
+    }
+    with pytest.raises(TuiThemeError, match="roles missing"):
+        parse_tui_theme_json(data)
 
 
 def test_parse_theme_json_rejects_broken_layered_references() -> None:
@@ -505,3 +542,87 @@ def test_parse_theme_json_old_format_still_parses() -> None:
     data["colors"]["screen_background"] = "bg"
     theme = parse_tui_theme_json(data)
     assert theme.screen_background == "#1e1e2e"
+
+
+def test_tui_theme_field_set_is_frozen() -> None:
+    # v0.3.0 contract: third-party extension factories receive TuiTheme, so its
+    # field names must not drift until v1.0 removes it. This is the spec §9
+    # acceptance guard: adding, renaming, or dropping a field fails here.
+    expected = (
+        "name",
+        "dark",
+        "screen_background",
+        "screen_text",
+        "chrome_background",
+        "chrome_text",
+        "muted_text",
+        "sidebar_background",
+        "border",
+        "transcript_background",
+        "prompt_background",
+        "prompt_text",
+        "prompt_border",
+        "autocomplete_background",
+        "accent",
+        "success",
+        "error",
+        "tool_success_text",
+        "tool_error_text",
+        "highlight_background",
+        "highlight_text",
+        "markdown_heading",
+        "markdown_table_header",
+        "markdown_table_border",
+        "markdown_inline_code",
+        "markdown_code_block_background",
+        "markdown_link",
+        "markdown_bullet",
+        "completion_selected",
+        "completion_selected_description",
+        "completion_description",
+        "scrollbar",
+        "scrollbar_hover",
+        "syntax_theme",
+        "role_styles",
+    )
+    assert tuple(field.name for field in dataclasses.fields(TuiTheme)) == expected
+    assert len(THEME_COLOR_FIELDS) == 31
+
+
+def test_theme_css_variable_key_set_is_frozen() -> None:
+    # The 32-key Textual CSS contract may gain keys but never lose or rename.
+    expected = {
+        "baldric-accent",
+        "baldric-autocomplete-background",
+        "baldric-border",
+        "baldric-chrome-background",
+        "baldric-chrome-text",
+        "baldric-highlight-background",
+        "baldric-highlight-text",
+        "baldric-markdown-bullet",
+        "baldric-markdown-code-block-background",
+        "baldric-markdown-highlight",
+        "baldric-markdown-inline-code",
+        "baldric-markdown-link",
+        "baldric-markdown-table-border",
+        "baldric-markdown-table-header",
+        "baldric-muted-text",
+        "baldric-prompt-background",
+        "baldric-prompt-border",
+        "baldric-prompt-text",
+        "baldric-screen-background",
+        "baldric-screen-text",
+        "baldric-scrollbar",
+        "baldric-scrollbar-hover",
+        "baldric-sidebar-background",
+        "baldric-tool-running",
+        "baldric-transcript-background",
+        "footer-background",
+        "footer-description-background",
+        "footer-description-foreground",
+        "footer-foreground",
+        "footer-item-background",
+        "footer-key-background",
+        "footer-key-foreground",
+    }
+    assert set(theme_css_variables(BALDRIC_DARK_THEME)) == expected

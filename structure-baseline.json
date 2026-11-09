@@ -541,7 +541,7 @@
       "max_function_stmts": 2
     },
     "src/baldric_coding/rendering/diffs.py": {
-      "lines": 314,
+      "lines": 331,
       "max_function_stmts": 13
     },
     "src/baldric_coding/rendering/grouping.py": {
@@ -557,11 +557,11 @@
       "max_function_stmts": 5
     },
     "src/baldric_coding/rendering/theme_schema.py": {
-      "lines": 520,
-      "max_function_stmts": 14
+      "lines": 534,
+      "max_function_stmts": 13
     },
     "src/baldric_coding/rendering/themes/__init__.py": {
-      "lines": 649,
+      "lines": 656,
       "max_function_stmts": 13
     },
     "src/baldric_coding/rendering/thinking.py": {
