@@ -17,9 +17,6 @@ from baldric_coding.tui.widgets.core import (
     _TOOL_GROUP_INVOCATION_PATTERN as _TOOL_GROUP_INVOCATION_PATTERN,
 )
 from baldric_coding.tui.widgets.core import (
-    STREAM_FLUSH_INTERVAL_SECONDS as STREAM_FLUSH_INTERVAL_SECONDS,
-)
-from baldric_coding.tui.widgets.core import (
     TRANSCRIPT_WINDOW_ITEMS as TRANSCRIPT_WINDOW_ITEMS,
 )
 from baldric_coding.tui.widgets.core import (
@@ -32,16 +29,7 @@ from baldric_coding.tui.widgets.core import (
     StreamingTranscriptMessageWidget as StreamingTranscriptMessageWidget,
 )
 from baldric_coding.tui.widgets.core import (
-    SystemPromptSectionWidget as SystemPromptSectionWidget,
-)
-from baldric_coding.tui.widgets.core import (
-    SystemPromptSourcesWidget as SystemPromptSourcesWidget,
-)
-from baldric_coding.tui.widgets.core import (
     TranscriptLine as TranscriptLine,
-)
-from baldric_coding.tui.widgets.core import (
-    TranscriptMarkdownStream as TranscriptMarkdownStream,
 )
 from baldric_coding.tui.widgets.core import (
     TranscriptMessageWidget as TranscriptMessageWidget,
@@ -106,7 +94,7 @@ from baldric_coding.tui.widgets.core import (
 from baldric_coding.tui.widgets.core import (
     _styled_tool_invocation as _styled_tool_invocation,
 )
-from baldric_coding.tui.widgets.core import (
+from baldric_coding.tui.widgets.system_prompt import (
     _system_prompt_source_color as _system_prompt_source_color,
 )
 from baldric_coding.tui.widgets.core import (
@@ -237,6 +225,12 @@ from baldric_coding.tui.widgets.markdown import (
 )
 from baldric_coding.tui.widgets.markdown import (
     _system_prompt_uri_autolink_ranges as _system_prompt_uri_autolink_ranges,
+)
+from baldric_coding.tui.widgets.markdown_stream import (
+    STREAM_FLUSH_INTERVAL_SECONDS as STREAM_FLUSH_INTERVAL_SECONDS,
+)
+from baldric_coding.tui.widgets.markdown_stream import (
+    TranscriptMarkdownStream as TranscriptMarkdownStream,
 )
 from baldric_coding.tui.widgets.prompt_input import (
     PASTE_DISPLAY_THRESHOLD as PASTE_DISPLAY_THRESHOLD,
@@ -414,6 +408,12 @@ from baldric_coding.tui.widgets.sidebar import (
 )
 from baldric_coding.tui.widgets.sidebar import (
     render_session_sidebar as render_session_sidebar,
+)
+from baldric_coding.tui.widgets.system_prompt import (
+    SystemPromptSectionWidget as SystemPromptSectionWidget,
+)
+from baldric_coding.tui.widgets.system_prompt import (
+    SystemPromptSourcesWidget as SystemPromptSourcesWidget,
 )
 
 __all__ = [

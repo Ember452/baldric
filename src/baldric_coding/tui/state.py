@@ -145,6 +145,10 @@ class TuiState:
     error: str | None = None
     show_tool_results: bool = False
     show_thinking: bool = False
+    # Ids of the first items of hidden thinking runs that the user expanded by
+    # clicking their summary row. The global `show_thinking` toggle takes
+    # precedence; these ids only decide which collapsed runs render in full.
+    expanded_thinking_ids: set[int] = field(default_factory=set)
     # Startup opt-in: previews exist to keep long results from flooding the
     # transcript, but a debugging user needs the whole thing. This is a
     # per-invocation startup default (`--show-full-output`), not durable state.
@@ -719,6 +723,10 @@ class TuiState:
         """Toggle thinking-token display and return the new state."""
         self.show_thinking = not self.show_thinking
         return self.show_thinking
+
+    def toggle_thinking_expansion(self, run_id: int) -> None:
+        """Expand one collapsed thinking run (click-to-expand; one-directional)."""
+        self.expanded_thinking_ids.add(run_id)
 
     def update_queue(self, *, steering: tuple[str, ...], follow_up: tuple[str, ...]) -> None:
         """Replace visible queued-message state."""
