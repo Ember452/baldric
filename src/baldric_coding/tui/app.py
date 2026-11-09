@@ -883,6 +883,14 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         color: $baldric-highlight-text;
     }
 
+    /* Mouse hover mirrors the sidebar's row hover and the keyboard selection
+       palette, so every interactive row answers the pointer the same way. */
+    ListView > ListItem:hover,
+    ListView > ListItem:hover Label {
+        background: $baldric-highlight-background;
+        color: $baldric-highlight-text;
+    }
+
     OptionList > .option-list--option-highlighted {
         background: $baldric-highlight-background;
         color: $baldric-highlight-text;

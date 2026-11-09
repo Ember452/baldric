@@ -94,9 +94,6 @@ from baldric_coding.tui.widgets.core import (
 from baldric_coding.tui.widgets.core import (
     _styled_tool_invocation as _styled_tool_invocation,
 )
-from baldric_coding.tui.widgets.system_prompt import (
-    _system_prompt_source_color as _system_prompt_source_color,
-)
 from baldric_coding.tui.widgets.core import (
     _tool_accent_style as _tool_accent_style,
 )
@@ -414,6 +411,9 @@ from baldric_coding.tui.widgets.system_prompt import (
 )
 from baldric_coding.tui.widgets.system_prompt import (
     SystemPromptSourcesWidget as SystemPromptSourcesWidget,
+)
+from baldric_coding.tui.widgets.system_prompt import (
+    _system_prompt_source_color as _system_prompt_source_color,
 )
 
 __all__ = [
