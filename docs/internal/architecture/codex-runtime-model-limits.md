@@ -1,57 +1,45 @@
-# Codex runtime model limits
+# Codex 运行时模型限制
 
 Issue: [#389](https://github.com/huggingface/tau/issues/389)
 
-## Production incident
+## 生产事故
 
-A long-running Baldric session used `gpt-5.6-sol` through the `openai-codex` OAuth
-provider. Its last successful request reported roughly 371,440 cached plus
-uncached input tokens. The next request failed with
-`context_length_exceeded`.
+一个长运行的 Baldric session 经 `openai-codex` OAuth
+provider 使用 `gpt-5.6-sol`。其最后一次成功请求报告约 371,440 cached 加
+uncached 输入 token。下一次请求失败于
+`context_length_exceeded`。
 
-Baldric had copied the direct OpenAI API's 1.05M context metadata into the Codex
-subscription catalog, so its default compaction threshold was 1,033,616 tokens.
-The request actually went to `https://chatgpt.com/backend-api/codex/responses`,
-where Codex subscription limits are independently configured. Reports from the
-server-delivered Codex catalog showed profiles around 372K and, in later
-rollouts, 272K. Baldric therefore never compacted before the real backend ceiling.
+Baldric 把直连 OpenAI API 的 1.05M context 元数据拷进了 Codex
+订阅目录，所以其默认 compaction 阈值是 1,033,616 token。
+请求实际发往 `https://chatgpt.com/backend-api/codex/responses`，那里 Codex 订阅限制是独立配置的。服务器下发的 Codex 目录报告显示约 372K 的 profile，后期 rollout 中为 272K。Baldric 因此从未在真实 backend 上限之前 compact。
 
-This is a serving-surface problem, not a contradiction in the public API model
-page: direct API access and ChatGPT/Codex OAuth can use different limits for the
-same model ID.
+这是服务面问题，不是公共 API 模型页的自相矛盾：直连 API 访问与 ChatGPT/Codex OAuth 对同一模型 ID 可以用不同限制。
 
-## Directions considered
+## 考虑过的方向
 
-### Hard-code a 500K Codex window
+### 硬编码 500K Codex 窗口
 
-This is deterministic and avoids another startup request, but 500K is a total
-budget often described as 372K input plus 128K output. Baldric's old compaction
-formula treated `context_window` as the usable input budget and subtracted only
-16,384 tokens. A 500K entry would therefore compact around 483K, after the
-reported 372K input ceiling, and would not fix the incident.
+确定性、避免又一次启动请求，但 500K 是总预算，常被描述为 372K 输入加 128K 输出。Baldric 旧的 compaction 公式把 `context_window` 当可用输入预算，只减
+16,384 token。500K 条目会在约 483K compact——已经超过报告的 372K 输入上限——修不了事故。
 
-A lower hard-coded value is useful as a safe fallback. This change uses 272K for
-GPT-5.6 Codex variants, matching the most conservative recently observed Codex
-catalog profile. Direct OpenAI API entries remain 1.05M. Static values alone are
-not the long-term answer because Codex has changed them during rollouts and can
-vary them by account.
+较低的硬编码值可作为安全回退有用。本变更对 GPT-5.6 Codex 变体用 272K，匹配最近观察到的最保守 Codex 目录 profile。直连 OpenAI API 条目保持 1.05M。静态值本身不是长期答案，因为 Codex 在 rollout 期间改过它们，且可按账户变化。
 
-### Discover the authenticated Codex catalog
+### 发现认证后的 Codex 目录
 
-The official Codex client requests:
+官方 Codex 客户端请求：
 
 ```text
 GET <codex-base>/models?client_version=<version>
 ```
 
-For Baldric's default base URL, that resolves to:
+对 Baldric 的默认 base URL，解析为：
 
 ```text
 https://chatgpt.com/backend-api/codex/models
 ```
 
-The request uses the same refreshed OAuth token, ChatGPT account ID, and
-originator headers as response requests. Model entries can include:
+请求使用与响应请求相同的刷新后 OAuth token、ChatGPT 账户 ID 与
+originator headers。模型条目可含：
 
 ```text
 slug
@@ -61,73 +49,52 @@ effective_context_window_percent
 auto_compact_token_limit
 ```
 
-Dynamic discovery reflects the actual serving surface and account. Its drawback
-is that this is a Codex product endpoint rather than the public OpenAI API model
-contract, so its schema or availability can change.
+动态发现反映真实服务面与账户。缺点是这是 Codex 产品端点而非公共 OpenAI API 模型契约，schema 或可用性可能变化。
 
-## Decision
+## 决策
 
-Use **dynamic discovery with a conservative static fallback**.
+用**动态发现加保守静态回退**。
 
-`baldric_ai` owns the authenticated request and defensive parsing. It implements the
-optional provider-neutral `ModelLimitsProvider` capability and returns a typed
-`RuntimeModelLimits` value. It ignores malformed entries and caches one catalog
-per provider instance.
+`baldric_ai` 拥有认证请求与防御性解析。它实现可选的 provider 中立 `ModelLimitsProvider` 能力，返回类型化的
+`RuntimeModelLimits` 值。忽略畸形条目，每个 provider 实例缓存一份目录。
 
-`baldric_coding` asks for limits when a session loads and again after a provider or
-model switch, before sending the next prompt. It applies the live raw context
-window and either the provider's explicit compaction limit or Codex's 90% raw
-window default. Discovery failures are non-fatal: the configured provider
-catalog remains active and `/session` reports the source and error.
+`baldric_coding` 在 session 加载时、以及 provider 或模型切换后、发送下一条 prompt 前请求限制。它应用实时原始 context
+window 与 provider 显式 compaction 限额或 Codex 的 90% 原始窗口默认。发现失败非致命：配置的 provider
+目录保持活动，`/session` 报告来源与错误。
 
-`baldric_agent` is unchanged. It receives a ready provider and remains independent
-of OAuth, model catalogs, Baldric home paths, and compaction policy.
+`baldric_agent` 不变。它收到就绪 provider，保持对 OAuth、模型目录、Baldric home 路径与 compaction 政策独立。
 
-This first implementation deliberately avoids a persistent live-catalog cache.
-An in-memory cache prevents duplicate requests within one runtime provider;
-every new session gets a fresh account-specific value. A disk cache would need
-an expiry policy, ETag handling, credential/account partitioning, atomic writes,
-and a clear rule for whether stale values are safer than conservative built-in
-fallbacks. Those concerns can be added later without changing the discovery
-protocol.
+首个实现刻意避免持久的活动目录缓存。内存缓存防止一个运行时 provider 内的重复请求；
+每个新 session 拿到新鲜的账户级值。磁盘缓存需要过期策略、ETag 处理、凭据/账户分区、原子写入，以及"过期值是否比保守内置回退更安全"的明确规则。这些顾虑可以日后加，而不改发现协议。
 
-## Limit semantics
+## 限制语义
 
-`RuntimeModelLimits` keeps four concepts separate:
+`RuntimeModelLimits` 把四个概念分开：
 
-- raw context window
-- maximum output tokens, when advertised
-- effective context percentage
-- explicit auto-compaction threshold, when advertised
+- 原始 context window
+- 宣传时的最大输出 token
+- 有效 context 百分比
+- 宣传时的显式自动 compaction 阈值
 
-When no threshold is returned, Baldric uses 90% of the raw context window and clamps
-it to the effective window. This mirrors the official Codex client's default and
-leaves headroom for provider framing, tools, instructions, and output.
+没有返回阈值时，Baldric 用原始 context window 的 90% 并钳到有效窗口。这镜像官方 Codex 客户端的默认，为 provider 组帧、工具、指令与输出留余量。
 
-Baldric's character-based usage estimator remains approximate. Earlier compaction
-is intentional near a hard remote limit.
+Baldric 按字符的用量估算器仍是近似值。在硬性远程限制附近提早 compaction 是有意的。
 
-## Failure behavior
+## 失败行为
 
-Catalog discovery cannot prevent every overflow: the backend can change between
-discovery and a response, or token estimation can undercount provider framing.
-Baldric's existing overflow path remains the second line of defense: recognize a
-context overflow, compact older messages, and retry once. Dynamic discovery
-makes the proactive path accurate enough that emergency recovery should be
-rare.
+目录发现无法阻止所有溢出：backend 可能在发现与响应之间变化，token 估算也可能低估 provider 组帧。Baldric 既有的溢出路径仍是第二道防线：识别 context 溢出、compact 较旧消息并重试一次。动态发现让主动路径足够准确，紧急恢复应当罕见。
 
-## Testing
+## 测试
 
-Deterministic tests use `httpx.MockTransport` and a fake model-limit provider.
-They cover:
+确定性测试用 `httpx.MockTransport` 与 fake 模型限制 provider。覆盖：
 
-- authenticated Codex model-catalog URL and headers
-- defensive parsing and in-memory caching
-- live context/compaction values in a coding session
-- non-fatal fallback when discovery fails
-- separation between direct API and Codex built-in metadata
+- 认证后的 Codex 模型目录 URL 与 headers
+- 防御性解析与内存缓存
+- coding session 中的实时 context/compaction 值
+- 发现失败时的非致命回退
+- 直连 API 与 Codex 内置元数据的分离
 
-Run:
+运行：
 
 ```bash
 uv run pytest tests/test_baldric_ai.py tests/test_coding_session.py \
@@ -136,18 +103,13 @@ uv run pytest
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy
-cd website && hugo --minify && npx --yes pagefind@latest --site public
 ```
 
-## Manual validation
+## 手动验证
 
-1. Log in with `/login openai-codex`.
-2. Select a GPT-5.6 model.
-3. Start or resume a session.
-4. Run `/session`.
-5. Confirm that `Context window source` is `provider live catalog` and that the
-   displayed limit/compaction threshold match `codex debug models` for the same
-   account.
-6. Block the models request or use invalid discovery data and confirm Baldric starts
-   with `configured catalog`, reports the non-fatal discovery failure, and can
-   still send a normal model request.
+1. 用 `/login openai-codex` 登录。
+2. 选一个 GPT-5.6 模型。
+3. 开始或恢复一个 session。
+4. 运行 `/session`。
+5. 确认 `Context window source` 为 `provider live catalog`，且显示的限制/compaction 阈值与同一账户的 `codex debug models` 一致。
+6. 阻断 models 请求或用非法发现数据，确认 Baldric 以 `configured catalog` 启动、报告非致命发现失败，且仍能发送正常模型请求。
