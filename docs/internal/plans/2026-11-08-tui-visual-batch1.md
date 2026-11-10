@@ -1,6 +1,6 @@
-# TUI 视觉系统重构 Implementation Plan（第一批：L1 + L2）
+# TUI 视觉系统重构实施计划（第一批：L1 + L2）
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **给执行 agent：** 必需子技能：使用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 按任务执行本计划。步骤用勾选框（`- [ ]`）语法跟踪。
 
 **Goal:** 建立分层主题 token 体系（opencode schema 数据层 + `TuiTheme` 双层投影），并把它用在消息卡片、工具行、diff 高亮、状态行上，让对话区从"黑底白字"变成"有层级、有卡片、有 diff 高亮的终端工作台"。
 
@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.12 / Textual 8.2.8 / Rich 15 / pytest / ruff / mypy
 
-**Spec:** `docs/superpowers/specs/2026-11-08-tui-visual-system-design.md`
+**规格：** `docs/superpowers/specs/2026-11-08-tui-visual-system-design.md`
 
 ---
 
@@ -28,7 +28,7 @@
 
 ---
 
-## Global Constraints（每个任务都隐含适用）
+## 全局约束（每个任务都隐含适用）
 
 - **不得改变 `TuiTheme` 的公开字段形状**：`dataclasses.fields(TuiTheme)` 的字段名集合必须与开工前**完全相同**（当前 35 个，其中 31 个 color 字段）。`TuiRoleStyle` 必须仍是 `border`/`body` 两个字段。
 - **不得改变 `theme_css_variables()` 的键集合**：当前 32 个（25 个 `baldric-*` + 7 个 `footer-*`）。可以新增，**不得删除或重命名**。
@@ -66,19 +66,19 @@
 
 ---
 
-## Task 1: 主题 schema 解析器（纯函数，无 UI 依赖）
+## 任务 1：主题 schema 解析器（纯函数，无 UI 依赖）
 
-**Files:**
-- Create: `src/baldric_coding/rendering/theme_schema.py`
-- Test: `tests/coding/rendering/test_theme_schema.py`
+**文件：**
+- 新建：`src/baldric_coding/rendering/theme_schema.py`
+- 测试：`tests/coding/rendering/test_theme_schema.py`
 
-**Interfaces:**
+**接口：**
 - Produces:
   - `resolve_references(data: object) -> dict[str, object]`：把 `"$hue.gray.200"` / `"$background.raised.base"` 解析成实际 hex。
   - `ThemeTokens`（frozen dataclass，字段见下）
   - `build_tokens(schema: dict[str, object]) -> ThemeTokens`
 
-- [ ] **Step 1: 先读现状，写下影响面与风险（不写代码）**
+- [ ] **步骤 1: 先读现状，写下影响面与风险（不写代码）**
 
 Run:
 ```bash
@@ -91,7 +91,7 @@ git grep -n "_substitute_vars" -- src
 - `_substitute_vars` 现在只做 `$var` 单级替换，本任务要扩成 `$a.b.c` 多级——**列出所有调用点**，确认扩展不破坏现有单级用法。
 - 三个可能 bug：① `$` 开头但路径不存在的引用（要报清晰错误，不能静默成空）；② 循环引用（`$a` → `$b` → `$a`，要检测并报错）；③ 非 ASCII 路径键。
 
-- [ ] **Step 2: 写失败测试**
+- [ ] **步骤 2: 写失败测试**
 
 ```python
 # tests/coding/rendering/test_theme_schema.py
@@ -152,12 +152,12 @@ def test_build_tokens_exposes_layering() -> None:
     assert tokens.diff_added_bg == "#20303b"
 ```
 
-- [ ] **Step 3: 跑测试确认失败**
+- [ ] **步骤 3: 跑测试确认失败**
 
-Run: `uv run pytest tests/coding/rendering/test_theme_schema.py -v`
-Expected: FAIL，`ModuleNotFoundError: baldric_coding.rendering.theme_schema`
+运行：`uv run pytest tests/coding/rendering/test_theme_schema.py -v`
+预期：FAIL，`ModuleNotFoundError: baldric_coding.rendering.theme_schema`
 
-- [ ] **Step 4: 写最小实现**
+- [ ] **步骤 4: 写最小实现**
 
 ```python
 # src/baldric_coding/rendering/theme_schema.py
@@ -299,12 +299,12 @@ def _optional(roles: Any, role: str, key: str) -> str | None:
     return value if isinstance(value, str) and value else None
 ```
 
-- [ ] **Step 5: 跑测试确认通过**
+- [ ] **步骤 5: 跑测试确认通过**
 
-Run: `uv run pytest tests/coding/rendering/test_theme_schema.py -v`
-Expected: 5 passed
+运行：`uv run pytest tests/coding/rendering/test_theme_schema.py -v`
+预期：5 passed
 
-- [ ] **Step 6: 静态检查并提交**
+- [ ] **步骤 6: 静态检查并提交**
 
 ```bash
 uv run ruff check . && uv run ruff format --check . && uv run python scripts/check_import_graph.py
@@ -314,20 +314,20 @@ git commit -m "feat(rendering): opencode-shaped theme schema parser and flat The
 
 ---
 
-## Task 2: 从 schema 投影出 TuiTheme（零破坏等价）
+## 任务 2：从 schema 投影出 TuiTheme（零破坏等价）
 
-**Files:**
-- Modify: `src/baldric_coding/rendering/theme_schema.py`
-- Test: `tests/coding/rendering/test_theme_schema.py`
+**文件：**
+- 修改：`src/baldric_coding/rendering/theme_schema.py`
+- 测试：`tests/coding/rendering/test_theme_schema.py`
 
-**Interfaces:**
-- Consumes: `resolve_references`（Task 1）
-- Produces: `project_to_tui_theme(schema: dict[str, object]) -> TuiTheme`
+**接口：**
+- 消费：`resolve_references`（Task 1）
+- 产出：`project_to_tui_theme(schema: dict[str, object]) -> TuiTheme`
 
 > **本任务是"参数照抄不发明"的机械保证。** 它必须能把现有 3 套主题的 JSON
 > 投影成与现状**逐字段相等**的 `TuiTheme`；不相等就是投影写错了，不是"可以接受的差异"。
 
-- [ ] **Step 1: 影响面与风险核实**
+- [ ] **步骤 1: 影响面与风险核实**
 
 ```bash
 sed -n '40,80p' src/baldric_coding/rendering/themes/__init__.py   # TuiTheme 全字段
@@ -335,7 +335,7 @@ uv run python -c "import dataclasses,sys; sys.path.insert(0,'.'); from baldric_c
 ```
 写下：投影必须覆盖 **31 个 color 字段 + 10 个 role**；可能 bug：① 某个 color 字段在 schema 里没有来源（要 fallback 到现主题该字段的值，不能瞎猜）；② role body 是 `"fg on bg"` 富样式串，投影时不能把 `on` 当路径解析；③ `syntax_theme` 不是颜色，要原样传。
 
-- [ ] **Step 2: 写失败测试（用真实现有主题做等价基准）**
+- [ ] **步骤 2: 写失败测试（用真实现有主题做等价基准）**
 
 ```python
 # 追加到 tests/coding/rendering/test_theme_schema.py
@@ -357,12 +357,12 @@ def test_projection_matches_the_current_dark_theme_field_by_field() -> None:
     assert projected.syntax_theme == BALDRIC_DARK_THEME.syntax_theme
 ```
 
-- [ ] **Step 3: 跑测试确认失败**
+- [ ] **步骤 3: 跑测试确认失败**
 
-Run: `uv run pytest tests/coding/rendering/test_theme_schema.py::test_projection_matches_the_current_dark_theme_field_by_field -v`
-Expected: FAIL（`project_to_tui_theme` 不存在）
+运行：`uv run pytest tests/coding/rendering/test_theme_schema.py::test_projection_matches_the_current_dark_theme_field_by_field -v`
+预期：FAIL（`project_to_tui_theme` 不存在）
 
-- [ ] **Step 4: 实现投影**
+- [ ] **步骤 4: 实现投影**
 
 在 `theme_schema.py` 追加：
 
@@ -407,12 +407,12 @@ def project_to_tui_theme(schema: dict[str, Any]) -> TuiTheme:
 
 同时定义 `_FLAT_FIELD_SOURCE`（31 个字段到 schema 路径的映射）。**注意：Step 1 会告诉你现有 3 套主题 JSON 是旧 flat 格式（有 `colors`/`roles`），所以 `colors` passthrough 分支就能让等价测试通过**；新 schema 分支用来服务第 4/5 套主题（Task 3）。这个双分支是**故意的**，注释里要写清。
 
-- [ ] **Step 5: 跑测试确认通过**
+- [ ] **步骤 5: 跑测试确认通过**
 
-Run: `uv run pytest tests/coding/rendering/test_theme_schema.py -v`
-Expected: 全 passed，且 `theme_css_variables(BALDRIC_DARK_THEME)` 与投影后主题的变量字典相等（补一条断言）。
+运行：`uv run pytest tests/coding/rendering/test_theme_schema.py -v`
+预期：全 passed，且 `theme_css_variables(BALDRIC_DARK_THEME)` 与投影后主题的变量字典相等（补一条断言）。
 
-- [ ] **Step 6: 提交**
+- [ ] **步骤 6: 提交**
 
 ```bash
 git add -u && git commit -m "feat(rendering): project a layered schema onto the flat TuiTheme contract"
@@ -420,19 +420,19 @@ git add -u && git commit -m "feat(rendering): project a layered schema onto the 
 
 ---
 
-## Task 3: 5 套主题落地（含两套致敬皮肤）
+## 任务 3：5 套主题落地（含两套致敬皮肤）
 
-**Files:**
-- Modify: `src/baldric_coding/rendering/themes/__init__.py`
-- Create: `src/baldric_coding/rendering/themes/opencode-dark.json`
-- Create: `src/baldric_coding/rendering/themes/pi-dark.json`
-- Test: `tests/coding/tui/test_tui_themes.py`
+**文件：**
+- 修改：`src/baldric_coding/rendering/themes/__init__.py`
+- 新建：`src/baldric_coding/rendering/themes/opencode-dark.json`
+- 新建：`src/baldric_coding/rendering/themes/pi-dark.json`
+- 测试：`tests/coding/tui/test_tui_themes.py`
 
-**Interfaces:**
-- Consumes: `project_to_tui_theme`（Task 2）
-- Produces: `BUILTIN_TUI_THEME_NAMES == ("baldric-dark", "baldric-light", "high-contrast", "opencode-dark", "pi-dark")`
+**接口：**
+- 消费：`project_to_tui_theme`（Task 2）
+- 产出：`BUILTIN_TUI_THEME_NAMES == ("baldric-dark", "baldric-light", "high-contrast", "opencode-dark", "pi-dark")`
 
-- [ ] **Step 1: 核实参数来源与风险**
+- [ ] **步骤 1: 核实参数来源与风险**
 
 ```bash
 # opencode 真实值（不改一个 hex）
@@ -442,7 +442,7 @@ cat pi-main/packages/coding-agent/src/modes/interactive/theme/dark.json
 ```
 写下：① pi 用 `okhsl(...)`，**必须转换**成 hex（opencode 的 `color.ts` 有 okhsl→rgb 实现，`pi-main/packages/tui/src/oklab.ts` 也有，抄公式）；② 转换函数要有单测，误差容忍 ±1/255；③ 风险：opencode 主题缺 `roles`（它按 design 命名，不按角色），要补一层 role 映射。
 
-- [ ] **Step 2: 写失败测试**
+- [ ] **步骤 2: 写失败测试**
 
 ```python
 # 追加到 tests/coding/tui/test_tui_themes.py
@@ -464,12 +464,12 @@ def test_each_builtin_theme_loads_and_has_all_fields() -> None:
         assert set(theme.role_styles) == set(TRANSCRIPT_ROLES), name
 ```
 
-- [ ] **Step 3: 跑测试确认失败**
+- [ ] **步骤 3: 跑测试确认失败**
 
-Run: `uv run pytest tests/coding/tui/test_tui_themes.py::test_five_builtin_themes_are_registered -v`
-Expected: FAIL（当前只有 3 套）
+运行：`uv run pytest tests/coding/tui/test_tui_themes.py::test_five_builtin_themes_are_registered -v`
+预期：FAIL（当前只有 3 套）
 
-- [ ] **Step 4: 落地两套新主题 + okhsl 转换**
+- [ ] **步骤 4: 落地两套新主题 + okhsl 转换**
 
 ```python
 # 追加到 theme_schema.py
@@ -487,12 +487,12 @@ def okhsl_to_hex(okhsl: str) -> str:
 `opencode-dark.json`：把 `opencode.json` 的 `base` 段整体搬过来（`hue`/`text`/`background`/`border`/`diff`/`syntax`/`markdown`），补一层 `roles`（映射规则写在文件里注释不了，所以写进 `dev-notes/`）。
 `pi-dark.json`：把 `pi dark.json` 的 `colors` 表转成我们的 schema，`okhsl` 全部转 hex。
 
-- [ ] **Step 5: 跑测试确认通过**
+- [ ] **步骤 5: 跑测试确认通过**
 
-Run: `uv run pytest tests/coding/tui/test_tui_themes.py -v`
-Expected: 全 passed（含原有 408 行的断言）
+运行：`uv run pytest tests/coding/tui/test_tui_themes.py -v`
+预期：全 passed（含原有 408 行的断言）
 
-- [ ] **Step 6: 提交**
+- [ ] **步骤 6: 提交**
 
 ```bash
 git add -u && git commit -m "feat(theme): add opencode-dark and pi-dark, five builtin themes total"
@@ -500,21 +500,21 @@ git add -u && git commit -m "feat(theme): add opencode-dark and pi-dark, five bu
 
 ---
 
-## Task 4: 工具行分级预览预算（按工具名分派）
+## 任务 4：工具行分级预览预算（按工具名分派）
 
-**Files:**
-- Create: `src/baldric_coding/rendering/tool_preview.py`
-- Modify: `src/baldric_coding/tui/state.py:44-49, 930, 937, 960, 981`
-- Test: `tests/coding/rendering/test_tool_preview.py`
+**文件：**
+- 新建：`src/baldric_coding/rendering/tool_preview.py`
+- 修改：`src/baldric_coding/tui/state.py:44-49, 930, 937, 960, 981`
+- 测试：`tests/coding/rendering/test_tool_preview.py`
 
-**Interfaces:**
-- Produces: `preview_budget(tool_name: str) -> int | None`（`None` 表示不截断）
+**接口：**
+- 产出：`preview_budget(tool_name: str) -> int | None`（`None` 表示不截断）
 
 > **这是用户 D2 的核心，也是"允许改烂代码"的第一处。** 现状是所有工具共用一个
 > `TOOL_RESULT_PREVIEW_LINES = 8`，`edit`/`write` 的 patch 用另一个 32。D2 要求
 > bash 5 / read 10 / edit·write 全量。**改法必须是"按工具名分派"，不是调数字。**
 
-- [ ] **Step 1: 影响面与风险核实（必做）**
+- [ ] **步骤 1: 影响面与风险核实（必做）**
 
 ```bash
 git grep -n "TOOL_RESULT_PREVIEW_LINES\|TOOL_PATCH_PREVIEW_LINES\|TERMINAL_COMMAND_OUTPUT_PREVIEW_LINES" -- src tests
@@ -526,7 +526,7 @@ git grep -n "format_tool_result_block" -- src tests
 - **三个具体 bug 场景**：① 现有测试断言了"8 行预览"，改分级后会红——要确认是**行为有意变更**还是**测试该改**；② `read` 结果第 11 行开始被截，`(N earlier lines)` 的 N 是否还在；③ `write` 新建文件没有 patch（`old_content=None` 时），分级分支会不会 KeyError。
 - **来源标注**：`pi: bash.ts BASH_PREVIEW_LINES = 5`、`pi: read.ts renderers maxLines = 10`（未展开时）、`pi: renderer.ts CODE_PREVIEW_LINES = 10`。三个都在 `pi-main/packages/coding-agent/src/core/tools/`。
 
-- [ ] **Step 2: 写失败测试**
+- [ ] **步骤 2: 写失败测试**
 
 ```python
 # tests/coding/rendering/test_tool_preview.py
@@ -555,12 +555,12 @@ def test_terminal_command_output_keeps_its_own_large_budget() -> None:
     assert preview_budget("__terminal__") == 120
 ```
 
-- [ ] **Step 3: 跑测试确认失败**
+- [ ] **步骤 3: 跑测试确认失败**
 
-Run: `uv run pytest tests/coding/rendering/test_tool_preview.py -v`
-Expected: FAIL（模块不存在）
+运行：`uv run pytest tests/coding/rendering/test_tool_preview.py -v`
+预期：FAIL（模块不存在）
 
-- [ ] **Step 4: 实现**
+- [ ] **步骤 4: 实现**
 
 ```python
 # src/baldric_coding/rendering/tool_preview.py
@@ -598,12 +598,12 @@ def preview_budget(tool_name: str) -> int | None:
 `full=True` 时仍返回全文（现有语义不变）。**注意** `_preview_text(max_lines=...)` 需要一个
 "不截断"表示——`None` 时直接返回全文，要在函数签名里加 `max_lines: int | None`。
 
-- [ ] **Step 5: 跑测试**
+- [ ] **步骤 5: 跑测试**
 
-Run: `uv run pytest tests/coding/rendering/test_tool_preview.py tests/coding/tui/test_tui_full_output.py tests/coding/tools -v`
-Expected: 全 passed。**如果有旧测试断言"8 行预览"，那是行为有意变更**——按仓库 Hard Rule，**改断言并在 commit message 里说明 "behavior intentionally changed: per-tool preview budgets"**，不许加 skip 或放宽。
+运行：`uv run pytest tests/coding/rendering/test_tool_preview.py tests/coding/tui/test_tui_full_output.py tests/coding/tools -v`
+预期：全 passed。**如果有旧测试断言"8 行预览"，那是行为有意变更**——按仓库 Hard Rule，**改断言并在 commit message 里说明 "behavior intentionally changed: per-tool preview budgets"**，不许加 skip 或放宽。
 
-- [ ] **Step 6: 提交**
+- [ ] **步骤 6: 提交**
 
 ```bash
 git add -u && git commit -m "feat(tool-preview): per-tool collapsed preview budgets (bash 5 / read 10 / edit-write full)
@@ -614,18 +614,18 @@ Behavior intentionally changed: tool result previews no longer share one
 
 ---
 
-## Task 5: 消息卡片底色（TranscriptMessageWidget）
+## 任务 5：消息卡片底色（TranscriptMessageWidget）
 
-**Files:**
-- Modify: `src/baldric_coding/tui/widgets/core.py:219-300`（`TranscriptMessageWidget`）、`_chat_item_role_style`
-- Modify: `src/baldric_coding/rendering/themes/baldric-dark.json`（新增 `roles.user.background` 等）
-- Test: `tests/coding/tui/test_tui_app.py`
+**文件：**
+- 修改：`src/baldric_coding/tui/widgets/core.py:219-300`（`TranscriptMessageWidget`）、`_chat_item_role_style`
+- 修改：`src/baldric_coding/rendering/themes/baldric-dark.json`（新增 `roles.user.background` 等）
+- 测试：`tests/coding/tui/test_tui_app.py`
 
-**Interfaces:**
-- Consumes: `ThemeTokens.role_user_bg / role_tool_pending_bg / role_tool_success_bg / role_tool_error_bg`（Task 1）
+**接口：**
+- 消费：`ThemeTokens.role_user_bg / role_tool_pending_bg / role_tool_success_bg / role_tool_error_bg`（Task 1）
 - Produces: 卡片底色；`TranscriptMessageWidget` 继续接受 `theme: TuiTheme`（**签名不变**）
 
-- [ ] **Step 1: 影响面与风险核实（必做）**
+- [ ] **步骤 1: 影响面与风险核实（必做）**
 
 ```bash
 sed -n '219,300p' src/baldric_coding/tui/widgets/core.py
@@ -637,7 +637,7 @@ git grep -n "styles.background" -- src/baldric_coding/tui/widgets/core.py
 - **三个 bug 场景**：① user 角色已有 `self.styles.padding = (1, 0)`（:284）叠背景会不会挤掉边距；② 灰度终端（`TERM=vt100`）下 `#1e1e1e` 与 `#0a0a0a` 可能同色，卡片不可见——需要**只用色相差**或加深；③ `role_styles` 字典里没有 `tool_success` 这个 key（当前没有），加字段要**同时**保证 `TRANSCRIPT_ROLES` 不变（它是 `ChatItemRole` 的单一真相），所以 tool 三态底色**不能**通过新增 role 名实现，要通过 `roles.tool` 的子键。
 - **接口决策**：`TranscriptMessageWidget` 拿的是 `TuiTheme`，拿不到 `ThemeTokens`。两条路：① 给 `TuiTheme` 加字段（违反"字段集合不变"）；② 让 `TuiTheme.role_styles["tool"]` 的 body 里带背景（现有机制已支持 `"fg on bg"`）。**选 ②**，因为它零接口变更。
 
-- [ ] **Step 2: 写失败测试**
+- [ ] **步骤 2: 写失败测试**
 
 ```python
 # 追加到 tests/coding/tui/test_tui_app.py
@@ -659,13 +659,13 @@ def test_assistant_message_has_no_card_background() -> None:
     assert widget.styles.background in (None, Color.parse("transparent"))
 ```
 
-- [ ] **Step 3-5: 红 → 实现 → 绿**
+- [ ] **步骤 3-5: 红 → 实现 → 绿**
 
 实现要点：在 `baldric-dark.json` 的 `roles.user.body` 从 `"#d8dee9 on #101419"` 改为更可见的
 `"#d8dee9 on #1e2430"`（**值抄 opencode `background.raised.base` 的亮度级**，注释标来源）；
 `roles.tool` 保持无背景（pending 用 `border` 表达状态）。**不要动 `_BORDERLESS_TRANSCRIPT_ROLES`。**
 
-- [ ] **Step 6: 提交**
+- [ ] **步骤 6: 提交**
 
 ```bash
 git add -u && git commit -m "feat(tui): give user messages a visible card surface"
@@ -673,18 +673,18 @@ git add -u && git commit -m "feat(tui): give user messages a visible card surfac
 
 ---
 
-## Task 6: diff 整行底色（"回复高亮"）
+## 任务 6：diff 整行底色（"回复高亮"）
 
-**Files:**
-- Modify: `src/baldric_coding/rendering/diffs.py:221-237`（`_line_text`）、`:210-218`（`_render_single_line`）
-- Modify: `src/baldric_coding/rendering/themes/baldric-dark.json`（新增 `diff` 段）
-- Test: `tests/coding/rendering/test_diffs.py`
+**文件：**
+- 修改：`src/baldric_coding/rendering/diffs.py:221-237`（`_line_text`）、`:210-218`（`_render_single_line`）
+- 修改：`src/baldric_coding/rendering/themes/baldric-dark.json`（新增 `diff` 段）
+- 测试：`tests/coding/rendering/test_diffs.py`
 
-**Interfaces:**
-- Consumes: `ThemeTokens.diff_added_bg / diff_removed_bg / ...`（Task 1）
-- Produces: `render_patch()` 返回的 `Text` 每行带背景；**签名不变**
+**接口：**
+- 消费：`ThemeTokens.diff_added_bg / diff_removed_bg / ...`（Task 1）
+- 产出：`render_patch()` 返回的 `Text` 每行带背景；**签名不变**
 
-- [ ] **Step 1: 影响面与风险核实**
+- [ ] **步骤 1: 影响面与风险核实**
 
 ```bash
 sed -n '150,240p' src/baldric_coding/rendering/diffs.py
@@ -700,7 +700,7 @@ PY
 ```
 写下：① `_GUTTER_OFFSET` 是手算的（`2*4+2`），加背景**不能**破坏词级高亮的偏移；② 三个 bug 场景：空 patch（`render_patch` 返回 None）、内容以 `--` 开头的行（Task 前已修过 hunk 计数判定，要确认底色不影响它）、超长行折行时背景断不断；③ **来源**：`opencode-dev/packages/tui/src/theme/assets/v2/opencode.json` 的 `base.diff`（added `#4fd6be`/removed `#c53b53`，bg `#20303b`/`#37222c`，lineNumber `#8f8f8f`）。
 
-- [ ] **Step 2: 写失败测试**
+- [ ] **步骤 2: 写失败测试**
 
 ```python
 def test_added_line_has_a_background() -> None:
@@ -716,13 +716,13 @@ def test_added_line_has_a_background() -> None:
     assert "48;2;32;48;59" in out or "on #20303b" in out  # added bg present
 ```
 
-- [ ] **Step 3-5: 红 → 实现 → 绿**
+- [ ] **步骤 3-5: 红 → 实现 → 绿**
 
 实现：`_line_text` 里给整行 `Text` 先 `stylize(f"on {bg}", 0, len(text))`，再叠加词级 `bold`
 （顺序很重要：**背景先铺，强调后加**，否则强调会覆盖背景）。`render_patch` 增加可选参数
 `tokens: ThemeTokens | None = None`，为 `None` 时保持现有行为（**向后兼容**）。
 
-- [ ] **Step 6: 提交**
+- [ ] **步骤 6: 提交**
 
 ```bash
 git add -u && git commit -m "feat(diff): row backgrounds for added/removed lines (opencode palette)"
@@ -730,13 +730,13 @@ git add -u && git commit -m "feat(diff): row backgrounds for added/removed lines
 
 ---
 
-## Task 7: 状态行合并 + prompt 边框随 thinking 等级
+## 任务 7：状态行合并 + prompt 边框随 thinking 等级
 
-**Files:**
-- Modify: `src/baldric_coding/tui/app.py`（`#compact-session-info`、`#prompt` CSS、`_refresh`）
-- Test: `tests/coding/tui/test_tui_app.py`
+**文件：**
+- 修改：`src/baldric_coding/tui/app.py`（`#compact-session-info`、`#prompt` CSS、`_refresh`）
+- 测试：`tests/coding/tui/test_tui_app.py`
 
-- [ ] **Step 1: 核实**
+- [ ] **步骤 1: 核实**
 
 ```bash
 git grep -n "compact-session-info\|render_compact_session_info" -- src
@@ -748,11 +748,11 @@ git grep -n "thinkingOff\|thinking_levels\|available_thinking_levels" -- src/bal
 `state.thinking_level` 从 `theme.role_styles["thinking"].border` 派生，或新增 token）；
 ③ 三个 bug：窄终端（<80 列）状态行会折行、`thinking` 等级未知时的 fallback、CJK 字符宽度。
 
-- [ ] **Step 2-5: 红 → 实现 → 绿**
+- [ ] **步骤 2-5: 红 → 实现 → 绿**
 
 测试断言：状态行包含 `cwd`、`model`、`context` 百分比、`cost` 四个字段（用 `Console.record`）。
 
-- [ ] **Step 6: 提交**
+- [ ] **步骤 6: 提交**
 
 ```bash
 git add -u && git commit -m "feat(tui): single-line status bar and thinking-tinted prompt border"
@@ -760,13 +760,13 @@ git add -u && git commit -m "feat(tui): single-line status bar and thinking-tint
 
 ---
 
-## Task 8: 侧栏默认收起 + Ctrl+B
+## 任务 8：侧栏默认收起 + Ctrl+B
 
-**Files:**
-- Modify: `src/baldric_coding/tui/app.py:360`（`SIDEBAR_MIN_WIDTH` 附近）、CSS、`BINDINGS`、`_update_responsive_layout:3790`
-- Test: `tests/coding/tui/test_tui_app.py`
+**文件：**
+- 修改：`src/baldric_coding/tui/app.py:360`（`SIDEBAR_MIN_WIDTH` 附近）、CSS、`BINDINGS`、`_update_responsive_layout:3790`
+- 测试：`tests/coding/tui/test_tui_app.py`
 
-- [ ] **Step 1: 核实**
+- [ ] **步骤 1: 核实**
 
 ```bash
 sed -n '355,370p' src/baldric_coding/tui/app.py
@@ -779,17 +779,17 @@ git grep -n "TOGGLE_SIDEBAR\|_toggle_sidebar_visibility\|ctrl+b" -- src
 ③ **注意 `extensions` 分区在 `sidebar.py` 出现两次（:211 和 :355）**——这是本计划标记的"烂代码"之一，
 本任务**只做默认收起，不顺手改**；要改单独开 task（见 Task 8b）。
 
-- [ ] **Step 2-5: 红 → 实现 → 绿**
+- [ ] **步骤 2-5: 红 → 实现 → 绿**
 
 测试：`app.run_test(size=(120,40))` 断言初始 `"-hide-sidebar"` 类存在；`pilot.press("ctrl+b")` 后消失。
 
-- [ ] **Step 6: 提交**
+- [ ] **步骤 6: 提交**
 
 ```bash
 git add -u && git commit -m "feat(tui): sidebar starts collapsed; Ctrl+B toggles it"
 ```
 
-### Task 8b（可选，必须先问）：澄清侧栏 `extensions` 分区重复
+### 任务 8b（可选，必须先问）：澄清侧栏 `extensions` 分区重复
 
 若 Task 8 的 Step 1 核实发现 `sidebar.py:211` 与 `:355` 确实渲染两次 `extensions`，
 **先单独提一个 issue / 问用户**，不要在本批顺手修——它属于"现有烂代码"，按开工前第 5 条要
@@ -797,24 +797,24 @@ git add -u && git commit -m "feat(tui): sidebar starts collapsed; Ctrl+B toggles
 
 ---
 
-## Task 9: 截图对比 + 人工验收（第一批收口）
+## 任务 9：截图对比 + 人工验收（第一批收口）
 
-**Files:**
-- Create: `dev-notes/architecture/tui-visual-batch1-acceptance.md`（记录截图与结论）
+**文件：**
+- 新建：`dev-notes/architecture/tui-visual-batch1-acceptance.md`（记录截图与结论）
 - 不改代码
 
-- [ ] **Step 1: 出图**
+- [ ] **步骤 1: 出图**
 
 用 headless `app.export_screenshot()`（现有 Textual API）出 4 张：
 ① 对话页（含 user 卡片、edit diff、bash 输出、thinking 折叠）② 会话选择器 ③ 模型选择器 ④ `baldric-light` 主题。
 **注意**：截图前 `del os.environ["NO_COLOR"]`（本项目 CI/某些 shell 带 `NO_COLOR=1`，会导致截图全灰，之前踩过）。
 
-- [ ] **Step 2: 与参照并排对比**
+- [ ] **步骤 2: 与参照并排对比**
 
 把 `opencode-dev/packages/tui/src/theme/assets/` 与 `pi-main/.../docs/images/interactive-mode.png` 作为参照，
 逐项打勾：卡片可见 / diff 有底色 / 工具行有耗时 / 状态行一行 / 侧栏默认收起。
 
-- [ ] **Step 3: 全量闸门**
+- [ ] **步骤 3: 全量闸门**
 
 ```bash
 uv run pytest -q --ignore=tests/coding/tui   # 快速套件
@@ -824,9 +824,9 @@ uv run python scripts/check_import_graph.py
 uv run python scripts/check_structure.py
 uv run python scripts/check_suppressions.py
 ```
-Expected: 全绿（mypy 只剩 14 个已知 fcntl 噪音）。
+预期：全绿（mypy 只剩 14 个已知 fcntl 噪音）。
 
-- [ ] **Step 4: 写验收记录并提交**
+- [ ] **步骤 4: 写验收记录并提交**
 
 ```bash
 git add dev-notes/architecture/tui-visual-batch1-acceptance.md
