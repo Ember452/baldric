@@ -41,6 +41,7 @@ from baldric.runtime.tui.app import BaldricTuiApp, _TuiExtensionUiBridge
 
 class FakeSessionState:
     thinking_level = "medium"
+    custom_entries: tuple = ()
 
 
 class FakeSession:
@@ -572,16 +573,28 @@ class _RenderCallRuntime:
     def render_custom_message(self, custom_type, content, details, expanded):  # noqa: ANN001
         return None
 
+    def render_custom_entry(self, namespace, data, expanded):  # noqa: ANN001
+        return None
+
+    def transform_markdown(self, markdown, *, message_type, is_streaming=False):  # noqa: ANN001
+        return markdown
+
     def render_tool_call(self, name, arguments):  # noqa: ANN001
         if name == "agent":
             return f"▸ agent · {arguments.get('description')}"
         return None
+
+    def render_tool_call_via_resolvers(self, name, arguments):  # noqa: ANN001
+        return self.render_tool_call(name, arguments)
 
     def render_tool_result(self, tool_name, result, expanded):  # noqa: ANN001
         if tool_name == "agent" and result.details:
             suffix = " · expanded" if expanded else ""
             return f"[green]✓[/green] {result.details.get('description')} completed{suffix}"
         return None
+
+    def render_tool_result_via_resolvers(self, tool_name, result, expanded):  # noqa: ANN001
+        return self.render_tool_result(tool_name, result, expanded)
 
 
 class _CustomMessageRuntime(_RenderCallRuntime):

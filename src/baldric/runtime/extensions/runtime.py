@@ -6,6 +6,7 @@ import asyncio
 import os
 from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
+from functools import partial
 from inspect import isawaitable
 from pathlib import Path
 from time import time_ns
@@ -61,7 +62,9 @@ from baldric.runtime.extensions.api import (
     EXTENSION_API_VERSION,
     LIFECYCLE_EVENT_TYPES,
     PROVIDER_EVENT_TYPES,
+    CustomEntryView,
     CustomMessageView,
+    EntryRenderer,
     ExtensionAPI,
     ExtensionCommandContext,
     ExtensionCommandHandler,
@@ -71,6 +74,8 @@ from baldric.runtime.extensions.api import (
     ExtensionHandler,
     InputEvent,
     InputHookResult,
+    MarkdownRenderContext,
+    MarkdownTransformer,
     MessageRenderer,
     MessageRenderOptions,
     NullUiBridge,
@@ -85,8 +90,10 @@ from baldric.runtime.extensions.api import (
     SessionStartEvent,
     ToolCallHookEvent,
     ToolCallHookResult,
+    ToolCallResolver,
     ToolResultHookEvent,
     ToolResultHookResult,
+    ToolResultResolver,
     TurnEndEvent,
     TurnStartEvent,
     UiBridge,
@@ -321,6 +328,10 @@ class ExtensionRuntime:
         self._prompt_guidelines: list[tuple[str, str, str]] = []
         self._prompt_sections: list[tuple[str, str, PromptSection]] = []
         self._message_renderers: dict[str, tuple[str, str, MessageRenderer]] = {}
+        self._entry_renderers: dict[str, tuple[str, str, EntryRenderer]] = {}
+        self._tool_call_resolvers: list[tuple[str, str, ToolCallResolver]] = []
+        self._tool_result_resolvers: list[tuple[str, str, ToolResultResolver]] = []
+        self._markdown_transformers: list[tuple[str, str, MarkdownTransformer, frozenset[str]]] = []
         self._renderer_failures_reported: set[str] = set()
         self._load_diagnostics: list[ResourceDiagnostic] = []
         self._runtime_diagnostics: list[ResourceDiagnostic] = []
@@ -433,6 +444,10 @@ class ExtensionRuntime:
         self._prompt_guidelines.clear()
         self._prompt_sections.clear()
         self._message_renderers.clear()
+        self._entry_renderers.clear()
+        self._tool_call_resolvers.clear()
+        self._tool_result_resolvers.clear()
+        self._markdown_transformers.clear()
         self._renderer_failures_reported.clear()
         self._live_tools = None
         self._live_allowed = None
@@ -562,6 +577,14 @@ class ExtensionRuntime:
             for custom_type, registration in self._message_renderers.items()
             if registration[0] != source_id
         }
+        self._entry_renderers = {
+            custom_type: registration
+            for custom_type, registration in self._entry_renderers.items()
+            if registration[0] != source_id
+        }
+        self._tool_call_resolvers = [r for r in self._tool_call_resolvers if r[0] != source_id]
+        self._tool_result_resolvers = [r for r in self._tool_result_resolvers if r[0] != source_id]
+        self._markdown_transformers = [t for t in self._markdown_transformers if t[0] != source_id]
         self._provider_registry.unregister_source(source_id)
         self._local_backend_registry.unregister_source(source_id)
 
@@ -696,6 +719,225 @@ class ExtensionRuntime:
             return
         self._message_renderers[normalized] = (source_id, extension_name, renderer)
 
+    def register_entry_renderer(
+        self,
+        source_id: str,
+        extension_name: str,
+        custom_type: str,
+        renderer: EntryRenderer,
+    ) -> None:
+        """Register a custom-entry renderer; first registration per namespace wins."""
+        normalized = custom_type.strip()
+        if not normalized:
+            self._load_diagnostics.append(
+                ResourceDiagnostic(
+                    kind="extension",
+                    name=extension_name,
+                    message="empty custom_type for entry renderer ignored",
+                )
+            )
+            return
+        existing = self._entry_renderers.get(normalized)
+        if existing is not None:
+            self._load_diagnostics.append(
+                ResourceDiagnostic(
+                    kind="extension",
+                    name=extension_name,
+                    message=(
+                        f"entry renderer for `{normalized}` already registered by"
+                        f" extension `{existing[1]}`; ignoring duplicate"
+                    ),
+                )
+            )
+            return
+        self._entry_renderers[normalized] = (source_id, extension_name, renderer)
+
+    def register_tool_renderer(
+        self,
+        source_id: str,
+        extension_name: str,
+        *,
+        render_call: ToolCallResolver | None,
+        render_result: ToolResultResolver | None,
+    ) -> None:
+        """Append tool render resolvers in extension load order (Pi's chain)."""
+        if render_call is not None:
+            self._tool_call_resolvers.append((source_id, extension_name, render_call))
+        if render_result is not None:
+            self._tool_result_resolvers.append((source_id, extension_name, render_result))
+
+    def register_markdown_transformer(
+        self,
+        source_id: str,
+        extension_name: str,
+        transformer: MarkdownTransformer,
+        *,
+        message_types: tuple[str, ...],
+    ) -> None:
+        """Append a chained markdown transformer; empty message_types = transcript default."""
+        surfaces = frozenset(message_types) or frozenset({"user", "assistant", "assistant-thinking"})
+        self._markdown_transformers.append((source_id, extension_name, transformer, surfaces))
+
+    def render_custom_entry(
+        self,
+        namespace: str,
+        data: Mapping[str, JSONValue],
+        expanded: bool,
+    ) -> str | None:
+        """Render a custom entry to markup, or ``None`` to fall back to generic text."""
+        registration = self._entry_renderers.get(namespace)
+        if registration is None:
+            return None
+        _, extension_name, renderer = registration
+        view = CustomEntryView(namespace=namespace, data=data)
+        options = MessageRenderOptions(expanded=expanded)
+        event_name = f"entry_renderer:{namespace}"
+        markup = self._render_isolated(
+            failure_key=namespace,
+            extension_label=extension_name,
+            event_name=event_name,
+            producer=lambda: renderer(view, options),
+        )
+        if not isinstance(markup, str):
+            if namespace not in self._renderer_failures_reported:
+                self._renderer_failures_reported.add(namespace)
+                self._record_bad_result(extension_name, event_name, markup)
+            return None
+        return markup
+
+    def render_tool_call_via_resolvers(
+        self,
+        name: str,
+        arguments: Mapping[str, JSONValue],
+    ) -> str | None:
+        """Resolve a tool-call line through the extension resolver chain.
+
+        Each resolver receives ``next``, which yields the next resolver's result
+        (and finally the tool's own ``render_call``). A raising resolver is
+        skipped (fail-open), matching the hook-composition contract.
+        """
+
+        def base() -> str | None:
+            return self.render_tool_call(name, arguments)
+
+        chain: Callable[[], str | None] = base
+        for _source_id, _extension_name, resolver in reversed(self._tool_call_resolvers):
+            next_call = chain
+            chain = self._chain_tool_resolver(resolver, name, next_call, arguments)
+        return chain()
+
+    def _chain_tool_resolver(
+        self,
+        resolver: ToolCallResolver,
+        name: str,
+        next_call: Callable[[], str | None],
+        arguments: Mapping[str, JSONValue],
+    ) -> Callable[[], str | None]:
+        def wrapped() -> str | None:
+            result = self._render_isolated(
+                failure_key=name,
+                extension_label=f"tool-renderer:{name}",
+                event_name=name,
+                producer=lambda: resolver(name, next_call),
+            )
+            return result if isinstance(result, str) else next_call()
+
+        return wrapped
+
+    def render_tool_result_via_resolvers(
+        self,
+        tool_name: str,
+        result: AgentToolResult,
+        expanded: bool,
+    ) -> str | None:
+        """Resolve a tool-result block through the extension resolver chain."""
+
+        def base() -> str | None:
+            return self.render_tool_result(tool_name, result, expanded)
+
+        chain: Callable[[], str | None] = base
+        for _source_id, _extension_name, resolver in reversed(self._tool_result_resolvers):
+            next_call = chain
+            chain = self._chain_tool_result_resolver(resolver, tool_name, next_call, result, expanded)
+        return chain()
+
+    def _chain_tool_result_resolver(
+        self,
+        resolver: ToolResultResolver,
+        tool_name: str,
+        next_call: Callable[[], str | None],
+        result: AgentToolResult,
+        expanded: bool,
+    ) -> Callable[[], str | None]:
+        def wrapped() -> str | None:
+            rendered = self._render_isolated(
+                failure_key=tool_name,
+                extension_label=f"tool-renderer:{tool_name}",
+                event_name=tool_name,
+                producer=lambda: resolver(tool_name, result, expanded, next_call),
+            )
+            return rendered if isinstance(rendered, str) else next_call()
+
+        return wrapped
+
+    def transform_markdown(
+        self,
+        markdown: str,
+        *,
+        message_type: str,
+        is_streaming: bool = False,
+        available_width: int | None = None,
+    ) -> str:
+        """Run the chained markdown transformers for one surface (display-only).
+
+        A raising transformer is skipped (fail-open); the markdown produced so
+        far continues down the chain. Returns the final markdown.
+        """
+        current = markdown
+        for source_id, extension_name, transformer, surfaces in self._markdown_transformers:
+            if message_type not in surfaces:
+                continue
+            context = MarkdownRenderContext(
+                message_type=message_type,
+                is_streaming=is_streaming,
+                available_width=available_width,
+            )
+            event_name = f"markdown_transformer:{message_type}"
+            transformed = self._render_isolated(
+                failure_key=f"markdown:{source_id}:{message_type}",
+                extension_label=extension_name,
+                event_name=event_name,
+                producer=partial(transformer, current, context),
+            )
+            if not isinstance(transformed, str):
+                if transformed is not None:
+                    self._record_bad_result(extension_name, event_name, transformed)
+                continue
+            current = transformed
+        return current
+
+    def _render_isolated(
+        self,
+        *,
+        failure_key: str,
+        extension_label: str,
+        event_name: str,
+        producer: Callable[[], object],
+    ) -> object | None:
+        """Run one registered renderer through the shared isolation boundary.
+
+        A renderer must never crash the frontend: a raise is recorded once per
+        ``failure_key`` (render paths re-run on every redraw) and yields ``None``
+        so the caller can fall back to its default.
+        """
+        try:
+            return producer()
+        except Exception as exc:  # noqa: BLE001 - a renderer must never crash the frontend
+            if failure_key not in self._renderer_failures_reported:
+                self._renderer_failures_reported.add(failure_key)
+                self._record_runtime_failure(extension_label, event_name, exc)
+            return None
+
     def render_custom_message(
         self,
         custom_type: str,
@@ -717,17 +959,17 @@ class ExtensionRuntime:
         _, extension_name, renderer = registration
         view = CustomMessageView(custom_type=custom_type, content=content, details=details)
         options = MessageRenderOptions(expanded=expanded)
-        try:
-            markup = renderer(view, options)
-        except Exception as exc:  # noqa: BLE001 - a renderer must never crash the frontend
-            if custom_type not in self._renderer_failures_reported:
-                self._renderer_failures_reported.add(custom_type)
-                self._record_runtime_failure(extension_name, f"message_renderer:{custom_type}", exc)
-            return None
+        event_name = f"message_renderer:{custom_type}"
+        markup = self._render_isolated(
+            failure_key=custom_type,
+            extension_label=extension_name,
+            event_name=event_name,
+            producer=lambda: renderer(view, options),
+        )
         if not isinstance(markup, str):
             if custom_type not in self._renderer_failures_reported:
                 self._renderer_failures_reported.add(custom_type)
-                self._record_bad_result(extension_name, f"message_renderer:{custom_type}", markup)
+                self._record_bad_result(extension_name, event_name, markup)
             return None
         return markup
 

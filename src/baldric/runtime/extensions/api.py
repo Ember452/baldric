@@ -183,6 +183,49 @@ ToolCallMarkup = Callable[[str, "Mapping[str, JSONValue]"], "str | None"]
 # are swallowed by the resolver, never raised into the frontend.
 ToolResultMarkup = Callable[[str, AgentToolResult, bool], "str | None"]
 
+# --- extension renderers (plan Task D) ---------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class CustomEntryView:
+    """Read-only view of a custom entry handed to an entry renderer.
+
+    Ports Pi's ``registerEntryRenderer``: the entry was created with
+    ``append_entry(namespace, data)``; ``namespace`` selects the renderer and
+    ``data`` is the stored payload. Rendered to Rich-markup text, never a Textual
+    widget (same deviation as message renderers — keeps extensions TUI-free).
+    """
+
+    namespace: str
+    data: Mapping[str, JSONValue]
+
+
+# An entry renderer returns Rich-markup (or plain) text for one custom entry.
+type EntryRenderer = Callable[[CustomEntryView, MessageRenderOptions], str]
+
+# A tool-call render resolver: Pi's ``registerToolRenderer`` shape. Receives the
+# tool name and ``next_call`` — which returns whatever lower-priority resolvers
+# and the tool's own ``render_call`` would produce (or None). Return None to
+# defer to ``next_call``; return a string to take over. Errors are swallowed.
+type ToolCallResolver = Callable[[str, "Callable[[], str | None]"], "str | None"]
+# A tool-result render resolver: same shape for the result end of the row.
+type ToolResultResolver = Callable[[str, AgentToolResult, bool, "Callable[[], str | None]"], "str | None"]
+
+# A markdown transformer: chained, display-only, runs on ``message_type`` surfaces.
+# Receives the markdown and the surface it is rendering for; returns the
+# (possibly rewritten) markdown. Pi's ``registerMarkdownTransformer``.
+type MarkdownTransformer = Callable[[str, "MarkdownRenderContext"], str]
+
+
+@dataclass(frozen=True, slots=True)
+class MarkdownRenderContext:
+    """Context handed to a markdown transformer (ports Pi's transformer context)."""
+
+    message_type: str
+    is_streaming: bool = False
+    available_width: int | None = None
+
+
 # --- component seam ---------------------------------------------------------
 # Widget-hosting capability that lets an extension mount its own Textual widgets
 # into host-owned slots and a main-area view, and intercept keys pre-dispatch
@@ -1373,6 +1416,57 @@ class ExtensionAPI:
         """
         self._generation.assert_active()
         self._runtime.register_message_renderer(self._source_id, self._extension_name, custom_type, renderer)
+
+    def register_entry_renderer(
+        self,
+        custom_type: str,
+        renderer: EntryRenderer,
+    ) -> None:
+        """Register a renderer for custom entries with this ``namespace``.
+
+        Ports Pi's ``registerEntryRenderer``: entries are created with
+        :meth:`append_entry` and render inside the transcript. The renderer
+        receives a :class:`CustomEntryView` and :class:`MessageRenderOptions` and
+        returns Rich-markup text (never a Textual widget). First registration per
+        ``custom_type`` wins.
+        """
+        self._generation.assert_active()
+        self._runtime.register_entry_renderer(self._source_id, self._extension_name, custom_type, renderer)
+
+    def register_tool_renderer(
+        self,
+        render_call: ToolCallResolver | None = None,
+        render_result: ToolResultResolver | None = None,
+    ) -> None:
+        """Register tool-call/result render resolvers covering any tool.
+
+        Ports Pi's ``registerToolRenderer``: each resolver receives the tool name
+        and a ``next`` callable yielding the lower-priority result (other
+        resolvers, then the tool's own renderer, then None). Return ``None`` to
+        defer, or a Rich-markup string to take over. At least one of
+        ``render_call``/``render_result`` must be given.
+        """
+        self._generation.assert_active()
+        self._runtime.register_tool_renderer(
+            self._source_id, self._extension_name, render_call=render_call, render_result=render_result
+        )
+
+    def register_markdown_transformer(
+        self,
+        transformer: MarkdownTransformer,
+        *,
+        message_types: Sequence[str] = (),
+    ) -> None:
+        """Register a display-only Markdown transformer (chained, applies in load order).
+
+        Ports Pi's ``registerMarkdownTransformer``. ``message_types`` selects the
+        surfaces it runs on (empty = user/assistant/assistant-thinking). The
+        transformer is display-only: the session and model context are unchanged.
+        """
+        self._generation.assert_active()
+        self._runtime.register_markdown_transformer(
+            self._source_id, self._extension_name, transformer, message_types=tuple(message_types)
+        )
 
     def send_custom_message(
         self,

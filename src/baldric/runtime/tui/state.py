@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -116,6 +116,9 @@ class ChatItem:
     allows_tool_continuation: bool = False
     custom_type: str | None = None
     details: dict[str, JSONValue] | None = None
+    # Set when this row renders a custom *entry* (append_entry) rather than a
+    # custom *message*: resolve_custom_markup routes to the entry renderer.
+    entry_namespace: str | None = None
     system_prompt: bool = False
     system_prompt_sources: tuple[SystemPromptSource, ...] | None = None
     highlight: Literal["alert", "update"] | None = None
@@ -159,6 +162,8 @@ class TuiState:
     # Working directory used to shorten absolute read paths in the transcript.
     cwd: Path | None = None
     custom_renderer: CustomMessageMarkup | None = None
+    entry_renderer: Callable[[str, Mapping[str, JSONValue], bool], str | None] | None = None
+    markdown_transformer: Callable[[str, str, bool], str] | None = None
     tool_call_renderer: ToolCallMarkup | None = None
     tool_result_renderer: ToolResultMarkup | None = None
     _tool_items_by_call_id: dict[str, ChatItem] = field(
@@ -197,6 +202,7 @@ class TuiState:
         always_show_tool_result: bool = False,
         custom_type: str | None = None,
         details: dict[str, JSONValue] | None = None,
+        entry_namespace: str | None = None,
         system_prompt: bool = False,
         system_prompt_sources: tuple[SystemPromptSource, ...] | None = None,
         highlight: Literal["alert", "update"] | None = None,
@@ -210,6 +216,7 @@ class TuiState:
             always_show_tool_result=always_show_tool_result,
             custom_type=custom_type,
             details=details,
+            entry_namespace=entry_namespace,
             system_prompt=system_prompt,
             system_prompt_sources=system_prompt_sources,
             highlight=highlight,
@@ -221,11 +228,18 @@ class TuiState:
     def resolve_custom_markup(self, item: ChatItem, *, expanded: bool) -> str | None:
         """Render a custom item's markup via the installed resolver, or ``None``.
 
-        Returns ``None`` when the item is not custom, no resolver is installed,
-        or the resolver declines/fails to render (the caller then falls back to
-        the raw ``item.text``).
+        Custom **entries** (``entry_namespace`` set) route to the entry
+        renderer; custom **messages** route to the message renderer. Returns
+        ``None`` when no resolver applies or it declines/fails (the caller then
+        falls back to the raw ``item.text``).
         """
-        if item.role != "custom" or item.custom_type is None or self.custom_renderer is None:
+        if item.role != "custom":
+            return None
+        if item.entry_namespace is not None:
+            if self.entry_renderer is None:
+                return None
+            return self.entry_renderer(item.entry_namespace, item.details or {}, expanded)
+        if item.custom_type is None or self.custom_renderer is None:
             return None
         return self.custom_renderer(item.custom_type, item.text, item.details, expanded)
 

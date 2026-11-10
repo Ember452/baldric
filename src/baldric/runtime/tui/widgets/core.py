@@ -153,12 +153,18 @@ class TranscriptMessageWidget(Horizontal):
         custom_markup: str | None = None,
         invocation: str | None = None,
         result_markup: str | None = None,
+        markdown_transformer: Callable[[str, str, bool], str] | None = None,
     ) -> None:
         self.item = item
         self._custom_markup = custom_markup if item.role == "custom" else None
         self._show_tool_results = show_tool_results
         self._invocation = invocation if item.role == "tool" else None
         self._result_markup = result_markup if item.role == "tool" else None
+        # Display-only extension transformer; applied to the markdown surfaces
+        # (user / assistant / assistant-thinking) before rendering.
+        self._markdown_transformer = (
+            markdown_transformer if item.role in {"user", "assistant", "thinking"} else None
+        )
         self.selection_text = transcript_item_selection_text(
             item,
             show_tool_results=show_tool_results,
@@ -166,10 +172,14 @@ class TranscriptMessageWidget(Horizontal):
             invocation=self._invocation,
             result_markup=self._result_markup,
         )
-        self._markdown_text = _transcript_item_markdown(
-            item,
-            show_tool_results=show_tool_results,
-            invocation=self._invocation,
+        self._markdown_text = _apply_markdown_transformer(
+            _transcript_item_markdown(
+                item,
+                show_tool_results=show_tool_results,
+                invocation=self._invocation,
+            ),
+            self._markdown_transformer,
+            item.role,
         )
         self._theme = theme
         self._role_style = _chat_item_role_style(item, theme)
@@ -287,10 +297,14 @@ class TranscriptMessageWidget(Horizontal):
         self.styles.border_left = ("tall", self._role_style.border)
         if background:
             self.styles.background = background
-        self._markdown_text = _transcript_item_markdown(
-            self.item,
-            show_tool_results=show_tool_results,
-            invocation=self._invocation,
+        self._markdown_text = _apply_markdown_transformer(
+            _transcript_item_markdown(
+                self.item,
+                show_tool_results=show_tool_results,
+                invocation=self._invocation,
+            ),
+            self._markdown_transformer,
+            self.item.role,
         )
         try:
             body = self.query_one(".transcript-plain-body", Static)
@@ -695,6 +709,7 @@ class TranscriptView(VerticalScroll):
                                 item,
                                 theme=theme,
                                 show_tool_results=state.show_tool_results,
+                                markdown_transformer=state.markdown_transformer,
                             ),
                         )
                     )
@@ -710,6 +725,7 @@ class TranscriptView(VerticalScroll):
                                 item,
                                 theme=theme,
                                 show_tool_results=state.show_tool_results,
+                                markdown_transformer=state.markdown_transformer,
                             ),
                         )
                     )
@@ -817,6 +833,7 @@ class TranscriptView(VerticalScroll):
                         item,
                         theme=theme,
                         show_tool_results=state.show_tool_results,
+                        markdown_transformer=state.markdown_transformer,
                     )
                     self._item_widgets[id(item)] = widget
                     widgets.append(widget)
@@ -1409,6 +1426,24 @@ def _render_transcript_tool_invocation(
         accent_style=accent_style,
         description_only=description_only,
     )
+
+
+def _apply_markdown_transformer(
+    markdown: str,
+    transformer: Callable[[str, str, bool], str] | None,
+    role: str,
+) -> str:
+    """Run the state-installed markdown transformer for this transcript surface.
+
+    ``role`` maps to the extension-facing ``message_type`` (pi's transformer
+    context). Display-only: the item's stored text is never rewritten.
+    """
+    if transformer is None or not markdown:
+        return markdown
+    message_type = {"user": "user", "assistant": "assistant", "thinking": "assistant-thinking"}.get(
+        role, role
+    )
+    return transformer(markdown, message_type, False)
 
 
 def _transcript_item_markdown(

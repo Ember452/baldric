@@ -2128,6 +2128,17 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
     def _load_session_messages_from_session(self) -> None:
         """Load visible session messages and reseed prompt history from them."""
         self.state.load_messages(self.session.messages)
+        # Custom entries (append_entry) render as their own transcript rows via
+        # registered entry renderers; a namespace with no renderer falls back
+        # to generic JSON text so persisted data is never invisible.
+        for entry in self.session.state.custom_entries:
+            self.state.add_item(
+                "custom",
+                f"custom entry `{entry.namespace}`",
+                custom_type=entry.namespace,
+                details=dict(entry.data),
+                entry_namespace=entry.namespace,
+            )
         self._prompt_history = tuple(
             message.text
             for message in self.session.messages
