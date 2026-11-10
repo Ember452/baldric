@@ -1,269 +1,168 @@
-# MCP Client Support Implementation Plan
+# MCP 客户端支持实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to
-> implement this plan task-by-task (inline execution; the project owner has
-> asked not to use subagents). Steps use checkbox (`- [ ]`) syntax for tracking.
-> This plan encodes verified hypotheses, not guarantees — the **Execution
-> Rules** section below is binding on every task and outranks convenience.
+> **给执行 agent：** 必需子技能：使用 superpowers:executing-plans 逐任务执行本计划（内联执行；项目所有者已要求不用子智能体）。步骤用勾选框（`- [ ]`）语法跟踪。本计划编码的是已验证的假设而非保证——下文**执行规则**一节约束每个任务，优先级高于方便性。
 
-**Goal:** Give Baldric an MCP client — configured servers' tools become ordinary
-agent tools — as `baldric_mcp` (new top-level package) plus a thin built-in
-extension, protocol delegated to the official `mcp` Python SDK.
+**目标：** 给 Baldric 一个 MCP 客户端——已配置服务器的工具成为普通 agent 工具——以 `baldric_mcp`（新顶层包）加一个薄的内置 extension 呈现，协议委托给官方 `mcp` Python SDK。
 
-**Architecture:** `baldric_coding/extensions/builtins/mcp → baldric_mcp →
-baldric_protocol`. The agent core never learns MCP exists; MCP tools enter
-through the extension API. Connection supervision follows pi's state machine
-(`connecting/connected/disconnected/needs-auth/failed/closed`, lazy reconnect on
-drop). Dynamic tool visibility rides two small verified seams: the harness reads
-`config.tools` per run, and the system prompt is rebuilt via
-`refresh_system_prompt()`.
+**架构：** `baldric_coding/extensions/builtins/mcp → baldric_mcp → baldric_protocol`。agent 内核永不得知 MCP 存在；MCP 工具经 extension API 进入。连接监护遵循 pi 的状态机（`connecting/connected/disconnected/needs-auth/failed/closed`，掉线惰性重连）。动态工具可见性骑在两条已验证的小接缝上：harness 每轮读 `config.tools`，system prompt 经 `refresh_system_prompt()` 重建。
 
-**Tech Stack:** Python 3.12, anyio, pydantic, official `mcp` SDK (stable 1.x),
-pytest + anyio plugin, ruff + mypy strict.
+**技术栈：** Python 3.12、anyio、pydantic、官方 `mcp` SDK（稳定 1.x）、pytest + anyio 插件、ruff + mypy strict。
 
-**Spec:** `dev-notes/design/mcp-client-support.md` (v2). This plan argues from
-the spec; executors read both. Where the spec and this plan disagree, stop and
-reconcile before coding.
+**规格：** `dev-notes/design/mcp-client-support.md`（v2）。本计划从规格出发展开论证；执行者两份都读。规格与本计划冲突时，停下来在写代码前先调和。
 
-## Global Constraints
+## 全局约束
 
-- Repo root for all commands: `D:\DEVELOP\Solis\baldric`. Run everything through
-  `uv run` (house rule).
-- Python `>=3.12`; mypy `strict`; ruff `line-length=110`, quotes double, rules
-  `E,F,I,UP,B,SIM`; coverage floor 80%.
-- Import direction: `baldric_coding → baldric_mcp → baldric_protocol`.
-  `baldric_mcp` must not import `baldric_agent`, `baldric_ai`,
-  `baldric_coding`, `textual`, or `rich`; `baldric_agent`/`baldric_ai` must not
-  import `baldric_mcp`. Enforced by `scripts/check_import_graph.py` and
-  `tests/guards/test_import_boundaries.py`.
-- No Textual/Rich imports anywhere under `src/baldric_mcp/`.
-- Tool names are frozen at 1.0: `mcp__<server>__<tool>`, sanitized to
-  `[A-Za-z0-9_]`, ≤ 64 chars, sha256-8 suffix on overflow/collision.
-- Config: top-level `mcpServers` key (pi/Claude Desktop compatible); project
-  file `.baldric/mcp.json` loads only when the project is trusted.
-- Truncation: model-facing text cap 20 KiB, keep start+end, full text saved to
-  a file whose path the note carries (pi's rule).
-- Known Windows limitations are not yours to fix: 14 mypy errors on
-  POSIX-only modules, ~121 skipped tests, flaky TUI tests. Do not add platform
-  shims elsewhere to "fix" them.
-- Ratchets: `# type: ignore`/`# noqa` counts may only shrink; structure-gate
-  growth is recorded with `--init`, never by weakening baselines.
-- Every task below starts with a **Verify** step. The Verify step is mandatory:
-  read the named code before writing anything. If a fact marked
-  **MUST-HOLD** does not hold, STOP, update the spec/plan, and re-review — do
-  not improvise (project owner's hard rule: 严禁没有想清楚就动手). This is the
-  floor, not the ceiling: the **Execution Rules** section below extends it to
-  every action.
-- Editing rule (house rule): use editor tools only; never bulk-rewrite files
-  with scripts/sed.
-- Quality gate per task: `uv run ruff check . && uv run ruff format --check .`
-  on touched files, `uv run mypy`, and the fast suite
-  `uv run pytest -q --ignore=tests/coding/tui` before each commit.
-- Async tests use the house pattern: module-level
-  `pytestmark = pytest.mark.anyio` plus an `anyio_backend()` fixture returning
-  `"asyncio"` (see `tests/coding/extensions/test_extensions.py:55-59`).
-- Commits are atomic per task with explicit paths (`git add <path>...`), no
-  `git add -A`.
+- 所有命令的仓库根：`D:\DEVELOP\Solis\baldric`。一切经 `uv run` 运行（自家规则）。
+- Python `>=3.12`；mypy `strict`；ruff `line-length=110`、双引号、规则 `E,F,I,UP,B,SIM`；覆盖率下限 80%。
+- 导入方向：`baldric_coding → baldric_mcp → baldric_protocol`。`baldric_mcp` 不得导入 `baldric_agent`、`baldric_ai`、`baldric_coding`、`textual`、`rich`；`baldric_agent`/`baldric_ai` 不得导入 `baldric_mcp`。由 `scripts/check_import_graph.py` 与 `tests/guards/test_import_boundaries.py` 强制。
+- `src/baldric_mcp/` 下任何地方不得出现 Textual/Rich 导入。
+- 工具名在 1.0 冻结：`mcp__<server>__<tool>`，净化为 `[A-Za-z0-9_]`，≤ 64 字符，溢出/冲突加 sha256-8 后缀。
+- 配置：顶层 `mcpServers` 键（pi/Claude Desktop 兼容）；项目文件 `.baldric/mcp.json` 仅在项目受信任时加载。
+- 截断：面向模型的文本上限 20 KiB，保留首尾，全文存文件且注记携带路径（pi 的规则）。
+- 已知 Windows 限制不由你修：POSIX-only 模块的 14 个 mypy 错误、约 121 个跳过测试、TUI 测试偶发 flaky。不要在其他地方加平台垫片去"修"它们。
+- 棘轮：`# type: ignore`/`# noqa` 计数只能缩小；结构门增长用 `--init` 记录，绝不弱化基线。
+- 下面每个任务都以**验证（Verify）**步骤开始。验证步骤是强制的：写任何东西之前先读指名的代码。若某个标了 **MUST-HOLD** 的事实不成立，停下，更新规格/计划并重新评审——不要即兴（项目所有者硬规则：严禁没有想清楚就动手）。这是下限不是上限：下面的**执行规则**一节把它扩展到每个动作。
+- 编辑规则（自家规则）：只用编辑器工具；绝不用脚本/sed 批量改写文件。
+- 每任务质量门：触碰的文件跑 `uv run ruff check . && uv run ruff format --check .`，跑 `uv run mypy`，每次提交前跑快速套件 `uv run pytest -q --ignore=tests/coding/tui`。
+- 异步测试用自家模式：模块级 `pytestmark = pytest.mark.anyio` 加返回 `"asyncio"` 的 `anyio_backend()` fixture（见 `tests/coding/extensions/test_extensions.py:55-59`）。
+- 提交按任务原子化并写显式路径（`git add <path>...`），不用 `git add -A`。
 
-## Execution Rules (owner mandate, binding)
+## 执行规则（所有者授权，约束性）
 
-The project owner set these rules on 2026-11-08. They apply to every task,
-step, fix, and deviation in this plan and outrank convenience.
+项目所有者于 2026-11-08 制定这些规则。它们适用于本计划的每个任务、步骤、修复与偏差，优先级高于方便性。
 
-### R1 — The plan is a hypothesis; re-verify before every action
+### R1 — 计划是假设；每个动作前重新验证
 
-Every path, line number, signature, and behavior claim in this plan was
-verified once, when the plan was written. It is not guaranteed to still hold:
-the working tree moves, and the plan itself can simply be wrong.
+本计划中的每条路径、行号、签名与行为声明都在计划撰写时验证过一次。不保证仍然成立：工作树在动，计划本身也可能就是错的。
 
-- Before starting each task — and again before any step that touches code —
-  re-open the named files and confirm the facts that step depends on. Grep the
-  surrounding area for drift (new callers, renamed symbols, changed
-  signatures) instead of navigating from the plan's line numbers or memory.
-- If reality disagrees with the plan, the plan loses. STOP, reconcile the
-  plan/spec first, then continue. 严禁没有想清楚就动手.
+- 每个任务开始前——以及任何触碰代码的步骤之前——重新打开指名的文件，确认该步骤依赖的事实。grep 周边区域找漂移（新调用者、改名符号、变更签名），而不是按计划的行号或记忆导航。
+- 现实与计划不一致时，计划让步。停下，先调和计划/规格，再继续。严禁没有想清楚就动手。
 
-### R2 — Full impact surface before touching anything (看全面)
+### R2 — 动手前列全影响面（看全面）
 
-Before modifying any existing file — even one line — enumerate its impact
-surface and record it in the task notes or commit message:
+修改任何既有文件——哪怕一行——之前，枚举其影响面并记录在任务笔记或 commit message 里：
 
-- Both directions: who calls/imports the symbol, and what it calls/imports —
-  grep across `src/`, `tests/`, `scripts/`, `website/`.
-- Which tests and guards (`tests/guards/`, ratchet baselines) pin the current
-  behavior and would catch a change.
-- Downstream consumers of the behavior: TUI, print mode, RPC, commands,
-  session files/resume, docs.
-- What the pi reference tree does at the same seam (see R3).
+- 两个方向：谁调用/导入该符号，以及它调用/导入什么——grep `src/`、`tests/`、`scripts/`、`website/`。
+- 哪些测试与守卫（`tests/guards/`、棘轮基线）钉住当前行为、会在变更时报警。
+- 行为的下游消费者：TUI、print mode、RPC、命令、session 文件/恢复、文档。
+- pi 参考树在同一条接缝处做什么（见 R3）。
 
-A change without an enumerated surface does not get made. If the surface turns
-out bigger than the plan assumed, that is a plan defect: go back to R1.
+没有枚举影响面的变更不做。若影响面比计划假设的大，那是计划缺陷：回到 R1。
 
-### R3 — Consult pi for important problems, bugs, and designs
+### R3 — 重要问题、bug 与设计先问 pi
 
-Whenever an important problem, a bug, or a design decision comes up — not only
-the ones this plan anticipates — check how pi solves the same thing before
-inventing a solution. The pi tree lives at `D:\DEVELOP\Solis\pi-main`; the MCP
-code is under `pi-main/packages/mcp/` and
-`pi-main/packages/coding-agent/src/extensions/mcp/`. Record what pi does and
-why, then adapt it to Baldric's architecture — port the judgment, not
-necessarily the code. If pi has no equivalent, say so in the notes and reason
-from first principles.
+每当出现重要问题、bug 或设计决策——不只是本计划预料的那些——先看 pi 怎么解决同一件事，再自己发明。pi 树在 `D:\DEVELOP\Solis\pi-main`；MCP 代码在 `pi-main/packages/mcp/` 与
+`pi-main/packages/coding-agent/src/extensions/mcp/`。记录 pi 做了什么、为什么，然后适配到 Baldric 的架构——移植判断，不必然移植代码。pi 没有等价物时，在笔记里说明并从第一性原理推理。
 
-### R4 — Deviations are allowed, but never silent
+### R4 — 允许偏差，但绝不静默
 
-Genuinely necessary work beyond this plan — including changes to existing code
-outside the spec's touchpoint table — is permitted. Every deviation must:
+超出本计划的真正必要的工作——包括改动规格触点表之外的既有代码——是允许的。每条偏差必须：
 
-1. State why the plan as written is wrong or insufficient — one concrete fact
-   from R1/R2, not a preference.
-2. Carry the full impact-surface analysis from R2.
-3. Meet the quality bar in R5; a deviation never licenses a looser design.
-4. Be appended to **Execution deviations log** at the end of this file and
-   flagged in the commit message with a `deviation:` note.
-5. If it changes the *design* (not just the implementation route), surface it
-   to the owner before continuing.
+1. 说明按原文执行的计划为何错误或不足——一条来自 R1/R2 的具体事实，不是偏好。
+2. 携带 R2 的完整影响面分析。
+3. 达到 R5 的质量线；偏差绝不许可更松的设计。
+4. 追加到本文件末尾的**执行偏差日志**，并在 commit message 里带 `deviation:` 注记。
+5. 若它改变*设计*（不只是实现路线），先向所有者报告再继续。
 
-### R5 — Quality bar: high cohesion, low coupling, maintainable
+### R5 — 质量线：高内聚、低耦合、可维护
 
-- `baldric_mcp` stays self-contained: config, connection, supervision, and
-  adaptation each live in their own module; the extension layer in
-  `baldric_coding` remains thin glue over them.
-- Every seam added to the agent core (`bind_live_tools`,
-  `refresh_system_prompt`, `unregister_tool`) must be a generic capability
-  with a generic name — no MCP-specific semantics leak into core. If a seam
-  cannot be stated generically, the design is wrong: back to R1.
-- Match the house style of each file touched; new modules follow existing
-  package conventions (pydantic models, explicit async boundaries, typed
-  dataclasses).
-- A senior engineer reading the final diff should find nothing overcomplicated
-  and nothing clever for its own sake.
+- `baldric_mcp` 保持自包含：config、connection、supervision 与 adaptation 各住自己的模块；`baldric_coding` 里的 extension 层保持为它们之上的薄胶水。
+- 加进 agent 内核的每条接缝（`bind_live_tools`、`refresh_system_prompt`、`unregister_tool`）必须是带通用名字的通用能力——没有 MCP 专属语义泄进内核。接缝无法通用陈述时，设计就是错的：回到 R1。
+- 触碰的每个文件匹配其自家风格；新模块遵循既有包约定（pydantic 模型、显式异步边界、类型化 dataclass）。
+- 高级工程师读最终 diff 应当觉得没有过度设计、没有炫技。
 
 ---
 
-### Task 0: Preflight impact-surface verification (read-only, no code)
+### 任务 0：飞行前影响面验证（只读，无代码）
 
-**Files:** none created. Findings are recorded as a short appended section in
-`dev-notes/design/mcp-client-support.md` ("Implementation preflight findings"),
-committed separately.
+**文件：** 不新建。发现以一小节追加进
+`dev-notes/design/mcp-client-support.md`（"Implementation preflight findings"），单独提交。
 
-**Interfaces:**
-- Produces: confirmed facts (or spec corrections) every later task depends on.
+**接口：**
+- 产出：后续每个任务依赖的已确认事实（或规格修正）。
 
-- [x] **Step 1: Verify the tool-materialization chain (MUST-HOLD)**
+- [x] **步骤 1：验证工具物化链（MUST-HOLD）**
 
-Read `src/baldric_coding/session/session.py:805-870` and
-`src/baldric_agent/harness.py:55-90, 336-370`. Confirm:
+读 `src/baldric_coding/session/session.py:805-870` 与
+`src/baldric_agent/harness.py:55-90, 336-370`。确认：
 
 1. `tools = _filter_tools(extension_runtime.compose_tools(base_tools), config.allowed_tool_names)`
-   materializes one list at session construction (`session.py:818`).
-2. The same list object is handed to `AgentHarnessConfig(tools=tools)` and to
-   `build_system_prompt(tools=tools)`.
-3. `AgentHarnessConfig` is `@dataclass(slots=True)` with
-   `tools: list[AgentTool]` (`harness.py:66-71`) — not frozen, so fields are
-   assignable.
-4. `run_agent_loop(..., tools=self._config.tools, ...)` reads the field per run
-   (`harness.py:356`), and `system=self._config.system` likewise (`:352`).
+   在 session 构造时物化一份列表（`session.py:818`）。
+2. 同一个列表对象交给 `AgentHarnessConfig(tools=tools)` 与
+   `build_system_prompt(tools=tools)`。
+3. `AgentHarnessConfig` 是 `@dataclass(slots=True)` 带
+   `tools: list[AgentTool]`（`harness.py:66-71`）——非冻结，字段可赋值。
+4. `run_agent_loop(..., tools=self._config.tools, ...)` 每轮读该字段
+   （`harness.py:356`），`system=self._config.system` 同理（`:352`）。
 
-If any point fails, STOP: the live-seam design is wrong and the spec must be
-revised before any code.
+任何一条不成立就停：live-seam 设计是错的，必须先修规格再写代码。
 
-- [x] **Step 2: Verify child sessions and the extension runtime (MUST-HOLD for Task 7's gate)**
+- [x] **步骤 2：验证子 session 与 extension runtime（Task 7 门的 MUST-HOLD）**
 
-Read `src/baldric_coding/extensions/runtime.py:1034-1080` (`compose_tools`),
-`src/baldric_coding/session/provider_helpers.py:252` (`_filter_tools`), and
-grep `src/baldric_coding/extensions/builtins/subagents/` for child-session
-construction (`CodingSession` / `CodingSessionConfig(` usage). Determine:
+读 `src/baldric_coding/extensions/runtime.py:1034-1080`（`compose_tools`）、
+`src/baldric_coding/session/provider_helpers.py:252`（`_filter_tools`），并 grep
+`src/baldric_coding/extensions/builtins/subagents/` 找子 session
+构造（`CodingSession` / `CodingSessionConfig(` 用法）。判定：
 
-- Do subagent child sessions run the same `CodingSession.load` path and load
-  built-in extensions?
-- If YES: Task 7's gate must be a real flag. Record the exact construction
-  site; Task 6 adds `CodingSessionConfig.mcp_enabled: bool = True` and the
-  subagents child construction passes `mcp_enabled=False`.
-- If NO: the gate is a documented function returning `True` (no flag — YAGNI),
-  and Task 6's config-field change is dropped.
+- subagent 子 session 是否走同一 `CodingSession.load` 路径并加载 built-in extension？
+- 若是：Task 7 的门必须是真实旗标。记录确切构造点；Task 6 增加 `CodingSessionConfig.mcp_enabled: bool = True`，subagents 子构造传 `mcp_enabled=False`。
+- 若否：门是文档化的恒真函数（无旗标——YAGNI），Task 6 的配置字段变更取消。
 
-Record the outcome and the exact file:line evidence.
+记录结论与确切 file:line 证据。
 
-- [x] **Step 2b: Verify the rebind lifecycle matrix (MUST-HOLD for Task 7's guard)**
+- [x] **步骤 2b：验证重绑生命周期矩阵（Task 7 守卫的 MUST-HOLD）**
 
-Read `src/baldric_coding/session/lifecycle.py:440-455` (reload: old runtime
-shuts down, a NEW staged runtime starts) and `lifecycle.py:700-764` +
-`lifecycle.py:925-940` (new/resume/branch: `type(session).load(...)` with
-`extension_runtime=session._extension_runtime` at `:740`, then
-`emit_session_shutdown(reason)` then `emit_session_start(reason)` on that SAME
-runtime). Record the matrix:
+读 `src/baldric_coding/session/lifecycle.py:440-455`（reload：旧 runtime 关闭、新的 staged runtime 启动）与 `lifecycle.py:700-764` +
+`lifecycle.py:925-940`（new/resume/branch：`type(session).load(...)` 带
+`extension_runtime=session._extension_runtime` 于 `:740`，随后在同一 runtime 上
+`emit_session_shutdown(reason)` 再 `emit_session_start(reason)`）。记录矩阵：
 
-| reason | runtime instance | shutdown fires | start fires |
+| 原因 | runtime 实例 | shutdown 触发 | start 触发 |
 | --- | --- | --- | --- |
-| startup | fresh | no | yes |
-| reload | fresh (staged) | yes (old) | yes (staged) |
-| new/resume/branch | SAME as before | yes | yes |
-| quit | same | yes | no |
+| startup | 全新 | 否 | 是 |
+| reload | 全新（staged） | 是（旧） | 是（staged） |
+| new/resume/branch | 与之前相同 | 是 | 是 |
+| quit | 相同 | 是 | 否 |
 
-**MUST-HOLD**: new/resume/branch reuse the runtime, so a naive
-`session_start` handler would build a second supervisor. Task 7's handler must
-be idempotent (existing live supervisor → re-sync only). Also verify and
-record (read `runtime.py:1034-1060`) that `compose_tools` re-merges registry
-tools into the rebuilt list on rebind — so the plan must NOT add any re-seed
-mechanism. Separately record the pre-existing observation that rebind with
-non-empty `config.tools` re-wraps already-wrapped tools (`lifecycle.py:716` +
-`runtime.py:1046`) — this affects all extensions, is NOT fixed on this
-branch; note it for a future issue.
+**MUST-HOLD**：new/resume/branch 复用 runtime，所以朴素的
+`session_start` handler 会构建第二个 supervisor。Task 7 的 handler 必须幂等（已有活动 supervisor → 仅重新同步）。另外验证并记录（读 `runtime.py:1034-1060`）`compose_tools` 在重绑时把 registry 工具重新合并进重建列表——计划绝不能加任何 re-seed 机制。单独记录既有观察：`config.tools` 非空的重绑会再次包裹已包裹的工具（`lifecycle.py:716` +
+`runtime.py:1046`）——影响所有 extension，本分支不修；记给未来 issue。
 
-- [x] **Step 2c: Verify the tool executor signature and the print/RPC input path**
+- [x] **步骤 2c：验证工具执行器签名与 print/RPC 输入路径**
 
-1. Read `src/baldric_protocol/tools.py:64-111`: confirm `ToolExecutor` is
-   `(tool_call_id, arguments, signal, on_update) -> Awaitable[AgentToolResult]`
-   and `AgentTool.execute` forwards all four (Task 5's `on_update` mapping
-   depends on this). **MUST-HOLD.**
-2. Read how print mode (`-p`) and RPC mode reach their first prompt (grep
-   `run_input_hooks` callers in `src/baldric_coding/`). Record whether the
-   first-turn admission wait applies in every mode. If a mode bypasses the
-   hook, record it as a known limitation in the docs task (the live seam
-   still delivers tools on subsequent turns).
+1. 读 `src/baldric_protocol/tools.py:64-111`：确认 `ToolExecutor` 是
+   `(tool_call_id, arguments, signal, on_update) -> Awaitable[AgentToolResult]` 且 `AgentTool.execute` 转发全部四个（Task 5 的 `on_update` 映射依赖于此）。**MUST-HOLD。**
+2. 读 print mode（`-p`）与 RPC mode 如何到达第一个 prompt（grep
+   `run_input_hooks` 调用者于 `src/baldric_coding/`）。记录第一轮准入等待是否适用于每种模式。若有模式绕过 hook，在文档任务里记为已知限制（live 接缝仍在后续轮次送达工具）。
 
-- [x] **Step 3: Verify the prompt-builder inputs (MUST-HOLD for `refresh_system_prompt`)**
+- [x] **步骤 3：验证 prompt 构建器输入（`refresh_system_prompt` 的 MUST-HOLD）**
 
-Read `src/baldric_coding/context/system_prompt.py:55-90`
-(`BuildSystemPromptOptions`, `build_system_prompt`) and
-`src/baldric_coding/session/lifecycle.py:420-480` (the reload path that
-re-stores `resources.*` fields). Confirm every `BuildSystemPromptOptions` input
-used at `session.py:819-846` is capturable in a zero-arg closure built in the
-same scope (`config.*`, `resources.*`, `extension_runtime.*`, local `tools`).
-List any input that is NOT stable in that scope; such an input must be stored
-on the session before Task 6 relies on the closure.
+读 `src/baldric_coding/context/system_prompt.py:55-90`
+（`BuildSystemPromptOptions`、`build_system_prompt`）与
+`src/baldric_coding/session/lifecycle.py:420-480`（重新存储 `resources.*` 字段的 reload 路径）。确认 `session.py:819-846` 使用的每个 `BuildSystemPromptOptions` 输入都能被同一作用域构建的零参闭包捕获（`config.*`、`resources.*`、`extension_runtime.*`、局部 `tools`）。
+列出该作用域内不稳定的输入；这类输入必须在 Task 6 依赖闭包之前存到 session 上。
 
-- [x] **Step 4: Verify the input-hook seam (MUST-HOLD for first-turn admission)**
+- [x] **步骤 4：验证输入 hook 接缝（第一轮准入的 MUST-HOLD）**
 
-Read `src/baldric_coding/session/runtime.py:320-345`. Confirm
-`run_input_hooks` is awaited before the run starts and that returning `None`
-continues unchanged. Confirm the `input` hook receives
-`InputEvent(source=...)` (`extensions/api.py:484-502`).
+读 `src/baldric_coding/session/runtime.py:320-345`。确认
+`run_input_hooks` 在运行开始前 await，返回 `None` 时照常继续。确认 `input` hook 收到
+`InputEvent(source=...)`（`extensions/api.py:484-502`）。
 
-- [x] **Step 5: Verify the resume/repair and unknown-tool behavior**
+- [x] **步骤 5：验证 resume/修复与未知工具行为**
 
-Read `src/baldric_agent/harness.py:336-356` (prelude
-`_append_interrupted_tool_results`) and `src/baldric_agent/tool_history.py`.
-Then read the tool resolution in `src/baldric_agent/loop.py` (grep
-`tool_calls`/lookup by name): record what happens when the model calls a name
-that is not in `tools` (expected: a synthesized error result reaches the model;
-note the exact mechanism). If unknown tools raise instead, record that — Task 9
-pins whichever behavior exists, and the spec's "tool unavailable" promise is
-implemented at the adapter layer (a withdrawn MCP tool stays registered with an
-error executor) rather than relying on loop behavior.
+读 `src/baldric_agent/harness.py:336-356`（前奏
+`_append_interrupted_tool_results`）与 `src/baldric_agent/tool_history.py`。
+再读 `src/baldric_agent/loop.py` 的工具解析（grep
+`tool_calls`/按名查找）：记录模型调用不在 `tools` 里的名字时发生什么（预期：合成错误结果到达模型；记下确切机制）。若未知工具改为抛异常，记录之——Task 9 钉住实际存在的行为，规格的"工具不可用"承诺在 adapter 层实现（被撤回的 MCP 工具保持注册、带错误执行器），而不依赖 loop 行为。
 
-- [x] **Step 6: Verify BoundSession protocol surface**
+- [x] **步骤 6：验证 BoundSession 协议面**
 
-Read `src/baldric_coding/extensions/runtime.py` for `class BoundSession` and
-`bind`. Confirm where to add `refresh_system_prompt() -> None` to the protocol
-and that `runtime._session` is the bound session (used by
-`request_system_prompt_refresh` in Task 6).
+读 `src/baldric_coding/extensions/runtime.py` 的 `class BoundSession` 与
+`bind`。确认往协议加 `refresh_system_prompt() -> None` 的位置，且 `runtime._session` 是被绑定的 session（Task 6 的 `request_system_prompt_refresh` 使用）。
 
-- [x] **Step 7: Commit the findings**
+- [x] **步骤 7：提交发现**
 
-Append a "## Implementation preflight findings" section to
-`dev-notes/design/mcp-client-support.md` with each fact and file:line. Commit:
+向 `dev-notes/design/mcp-client-support.md` 追加 "## Implementation preflight findings" 小节，写明每条事实与 file:line。提交：
 
 ```bash
 git add dev-notes/design/mcp-client-support.md
@@ -272,46 +171,40 @@ git commit -m "docs: record MCP implementation preflight findings"
 
 ---
 
-### Task 1: Dependency, package scaffold, import guards, SDK pin-down
+### 任务 1：依赖、包脚手架、导入守卫、SDK 钉死
 
-**Files:**
-- Modify: `pyproject.toml` (dependencies, wheel packages, mypy packages)
-- Modify: `scripts/check_import_graph.py` (RULES)
-- Modify: `tests/guards/test_import_boundaries.py` (same rules)
-- Create: `src/baldric_mcp/__init__.py`
-- Create: `tests/mcp/__init__.py`, `tests/mcp/test_import_direction.py`
+**文件：**
+- 修改：`pyproject.toml`（dependencies、wheel packages、mypy packages）
+- 修改：`scripts/check_import_graph.py`（RULES）
+- 修改：`tests/guards/test_import_boundaries.py`（相同规则）
+- 新建：`src/baldric_mcp/__init__.py`
+- 新建：`tests/mcp/__init__.py`、`tests/mcp/test_import_direction.py`
 
-**Interfaces:**
-- Produces: importable empty package `baldric_mcp`; CI guards that lock its
-  layer position; the pinned SDK API contract used by Tasks 3-5.
+**接口：**
+- 产出：可导入的空包 `baldric_mcp`；锁定其层位的 CI 守卫；Task 3-5 使用的已钉死 SDK API 契约。
 
-- [x] **Step 1: Add the dependency and package registrations**
+- [x] **步骤 1：加依赖与包注册**
 
-In `pyproject.toml`: add `"mcp>=1.0,<2"` to `dependencies` (the aliyun index
-serves it); extend
-`[tool.hatch.build.targets.wheel] packages = [..., "src/baldric_mcp"]` and
-`[tool.mypy] packages = [..., "baldric_mcp"]`. Then `uv sync` and record the
-installed version:
+在 `pyproject.toml`：`dependencies` 加 `"mcp>=1.0,<2"`（aliyun 索引有货）；扩展
+`[tool.hatch.build.targets.wheel] packages = [..., "src/baldric_mcp"]` 与
+`[tool.mypy] packages = [..., "baldric_mcp"]`。然后 `uv sync` 并记录安装版本：
 
 ```bash
 uv sync
 uv run python -c "import importlib.metadata as m; print(m.version('mcp'))"
 ```
 
-- [x] **Step 2: Lock the layer in the import graph**
+- [x] **步骤 2：把层锁进导入图**
 
-In `scripts/check_import_graph.py` RULES add:
-`("baldric_mcp", "baldric_agent")`, `("baldric_mcp", "baldric_ai")`,
-`("baldric_mcp", "baldric_coding")`, `("baldric_mcp", "textual")`,
-`("baldric_mcp", "rich")`, `("baldric_agent", "baldric_mcp")`,
-`("baldric_ai", "baldric_mcp")`. Mirror exactly the same seven entries in
-`tests/guards/test_import_boundaries.py` wherever it mirrors RULES (read the
-file first; it imports `scan_violations` and restates rules — keep the two in
-sync).
+`scripts/check_import_graph.py` 的 RULES 加：
+`("baldric_mcp", "baldric_agent")`、`("baldric_mcp", "baldric_ai")`、
+`("baldric_mcp", "baldric_coding")`、`("baldric_mcp", "textual")`、
+`("baldric_mcp", "rich")`、`("baldric_agent", "baldric_mcp")`、
+`("baldric_ai", "baldric_mcp")`。在 `tests/guards/test_import_boundaries.py` 镜像 RULES 的地方原样镜像这七条（先读文件；它导入 `scan_violations` 并复述规则——保持两者同步）。
 
-- [x] **Step 3: Create the package shell**
+- [x] **步骤 3：创建包壳**
 
-`src/baldric_mcp/__init__.py`:
+`src/baldric_mcp/__init__.py`：
 
 ```python
 """MCP client core: configuration, connection supervision, tool adaptation.
@@ -324,42 +217,26 @@ Baldric's product layer. It must not import `baldric_agent`, `baldric_ai`, or
 __all__: list[str] = []
 ```
 
-`tests/mcp/test_import_direction.py`: a test asserting
-`importlib.import_module("baldric_mcp")` succeeds. The import-graph guard
-(Task 1 Step 2) is the enforcement layer; no `__dict__` introspection here —
-it would be unreliable.
+`tests/mcp/test_import_direction.py`：断言 `importlib.import_module("baldric_mcp")` 成功的测试。导入图守卫（任务 1 步骤 2）是执行层；这里不做 `__dict__` 内省——不可靠。
 
-- [x] **Step 4: SDK API pin-down (MUST-HOLD before Tasks 3-5)**
+- [x] **步骤 4：SDK API 钉死（Task 3-5 之前的 MUST-HOLD）**
 
-Read the INSTALLED SDK source under
-`.venv/Lib/site-packages/mcp/` (read, don't guess) and record:
+读已安装 SDK 源码 `.venv/Lib/site-packages/mcp/`（读，不猜），记录：
 
-1. `mcp/client/stdio/__init__.py`: `stdio_client(server)` context-manager yield
-   shape; `StdioServerParameters` fields (`command`, `args`, `env`, `cwd` —
-   confirm whether `cwd` exists in the pinned version); env semantics — when
-   `env` is passed, is it used verbatim or merged with
-   `get_default_environment()`? Record the exact behavior; Tasks 3 passes the
-   merged snapshot+config env explicitly either way.
-2. `mcp/client/streamable_http/__init__.py`: `streamablehttp_client(url,
-   headers=...)` yield shape.
-3. `mcp/client/session/__init__.py`: `ClientSession` constructor params
-   (`message_handler`? `read_timeout_seconds`?), `initialize()` result fields
-   (`instructions`), `list_tools()`, `call_tool(name, arguments, ...)` signature
-   and `CallToolResult` fields (`content`, `isError`, `structuredContent`),
-   and how progress notifications surface (ServerNotification /
-   ProgressNotification fields `progress`, `total`, `message`).
-4. How an HTTP 401 surfaces during `initialize()` (exception type/attribute) —
-   Task 3 maps it to `needs-auth`.
-5. `mcp/shared/memory.py`: the in-memory connected client/server helper for
-   tests (name and yield shape).
-6. `mcp/server/fastmcp`: confirm `FastMCP(name)` + `@mcp.tool()` + `mcp.run()`
-   runs a stdio server (used by Task 9's fixture).
+1. `mcp/client/stdio/__init__.py`：`stdio_client(server)` 上下文管理器 yield 形状；`StdioServerParameters` 字段（`command`、`args`、`env`、`cwd`——确认钉住的版本是否有 `cwd`）；env 语义——传 `env` 时是原样使用还是与 `get_default_environment()` 合并？记录确切行为；无论哪种，Task 3 都显式传合并后的快照+配置 env。
+2. `mcp/client/streamable_http/__init__.py`：`streamablehttp_client(url,
+   headers=...)` yield 形状。
+3. `mcp/client/session/__init__.py`：`ClientSession` 构造参数
+   （`message_handler`？`read_timeout_seconds`？）、`initialize()` 结果字段（`instructions`）、`list_tools()`、`call_tool(name, arguments, ...)` 签名与 `CallToolResult` 字段（`content`、`isError`、`structuredContent`），以及进度通知如何呈现（ServerNotification /
+   ProgressNotification 字段 `progress`、`total`、`message`）。
+4. HTTP 401 在 `initialize()` 期间如何呈现（异常类型/属性）——Task 3 映射为 `needs-auth`。
+5. `mcp/shared/memory.py`：供测试的内存连接 client/server helper（名字与 yield 形状）。
+6. `mcp/server/fastmcp`：确认 `FastMCP(name)` + `@mcp.tool()` + `mcp.run()`
+   跑 stdio 服务器（Task 9 的 fixture 使用）。
 
-**STOP RULE:** if any of 1-6 differs materially from the signatures used in
-Tasks 3-5, adjust those tasks' code in this plan file first, commit the plan
-change, then continue. Never adapt silently while coding.
+**停止规则：** 1-6 任何一条与 Task 3-5 使用的签名有实质差异，先在本计划文件里调整那些任务的代码、提交计划变更，再继续。绝不边写代码边静默适配。
 
-- [x] **Step 5: Run gates and commit**
+- [x] **步骤 5：跑门并提交**
 
 ```bash
 uv run ruff check . && uv run ruff format --check . && uv run mypy
@@ -370,16 +247,16 @@ git commit -m "feat: add baldric_mcp package scaffold with mcp SDK dependency"
 
 ---
 
-### Task 2: `baldric_mcp.config` — parsing, merge, expansion, write-back
+### 任务 2：`baldric_mcp.config`——解析、合并、展开、写回
 
-**Files:**
-- Create: `src/baldric_mcp/config.py`
-- Modify: `src/baldric_coding/config/paths.py` (two properties)
-- Create: `tests/mcp/test_config.py`
-- Modify: `tests/mcp/test_import_direction.py` only if needed
+**文件：**
+- 新建：`src/baldric_mcp/config.py`
+- 修改：`src/baldric_coding/config/paths.py`（两个属性）
+- 新建：`tests/mcp/test_config.py`
+- 仅在需要时修改：`tests/mcp/test_import_direction.py`
 
-**Interfaces:**
-- Produces (consumed by Tasks 3/4/7/8):
+**接口：**
+- 产出（Task 3/4/7/8 消费）：
 
 ```python
 ServerType = Literal["stdio", "http"]
@@ -419,7 +296,7 @@ def load_mcp_config(
 def set_server_enabled(path: Path, name: str, enabled: bool) -> None: ...
 ```
 
-`paths.py` additions (follow the existing property style):
+`paths.py` 增项（跟随既有 property 风格）：
 
 ```python
 @property
@@ -432,71 +309,52 @@ def project_mcp_config_path(self, cwd: Path) -> Path:
     return self.project_baldric_dir(cwd) / "mcp.json"
 ```
 
-- [x] **Step 1: Write failing tests (see test list below)**
+- [x] **步骤 1：写失败测试（见下方测试清单）**
 
-Test cases in `tests/mcp/test_config.py` (each a small function; build JSON
-files under `tmp_path`):
+`tests/mcp/test_config.py` 的测试用例（每个一个小函数；在 `tmp_path` 下构建 JSON
+文件）：
 
-1. stdio entry parses: `command`/`args`/`env`/`cwd` → `server_type="stdio"`,
-   defaults `enabled=True`, `timeout=60.0`.
-2. http entry parses: `url`/`headers` → `server_type="http"`.
-3. explicit `type` must match fields: `{"type": "http", "command": "x"}` →
-   diagnostic, entry rejected; `{"type": "stdio", "command": "x"}` ok.
-4. both `command` and `url` → diagnostic; neither (and not an override) →
-   diagnostic.
-5. unknown fields produce a warning diagnostic and the entry still loads.
-6. `${VAR}` expansion in `env`/`headers`/`command` uses ONLY the injected
-   environment; unresolvable `${MISSING}` → diagnostic and the entry loads with
-   `enabled=False`.
-7. `~` and `~/x` (and `~\x` semantics via the same helper) expand in
-   `command`/`cwd`; plain paths untouched.
-8. project entry with the same name replaces the user entry; `source` points at
-   the project file.
-9. project override entry (`{"enabled": false}` only, no command/url/type)
-   merges onto the user entry, keeping its command/args; an override with any
-   other key → diagnostic; an override with no user base → diagnostic.
-10. namespace clash: user config defines `a-b` and `a_b` → both rejected with a
-    diagnostic (`_namespace` collision).
-11. malformed JSON / non-object file → file-level diagnostic, no raise.
-12. `set_server_enabled(path, "x", False)` writes `"enabled": false` preserving
-    existing indentation and unrelated top-level keys;
-    `set_server_enabled(path, "x", True)` removes the key when the entry is a
-    full entry, and writes `enabled: true` when the entry is an override.
-    Round-trip: after write, `load_mcp_config` reflects the change.
-13. disabled-in-file servers appear in `result.servers` with `enabled=False`
-    (so `/mcp on` can find them).
+1. stdio 条目解析：`command`/`args`/`env`/`cwd` → `server_type="stdio"`，默认 `enabled=True`、`timeout=60.0`。
+2. http 条目解析：`url`/`headers` → `server_type="http"`。
+3. 显式 `type` 必须与字段一致：`{"type": "http", "command": "x"}` → 诊断、条目被拒；`{"type": "stdio", "command": "x"}` 通过。
+4. 同时有 `command` 与 `url` → 诊断；两者皆无（且非覆盖条目）→ 诊断。
+5. 未知字段产生警告诊断，条目仍加载。
+6. `env`/`headers`/`command` 里的 `${VAR}` 展开只用注入的环境；无法解析的 `${MISSING}` → 诊断且条目以 `enabled=False` 加载。
+7. `~` 与 `~/x`（`~\x` 语义经同一 helper）在 `command`/`cwd` 中展开；普通路径不动。
+8. 同名项目条目替换用户条目；`source` 指向项目文件。
+9. 项目覆盖条目（仅 `{"enabled": false}`，无 command/url/type）合并到用户条目，保留其 command/args；带任何其他键的覆盖 → 诊断；没有用户基底的覆盖 → 诊断。
+10. 命名空间冲突：用户配置定义 `a-b` 与 `a_b` → 两者都被拒并诊断（`_namespace` 冲突）。
+11. 畸形 JSON / 非对象文件 → 文件级诊断，不抛异常。
+12. `set_server_enabled(path, "x", False)` 写 `"enabled": false`，保留既有缩进与无关顶层键；
+    完整条目上 `set_server_enabled(path, "x", True)` 移除该键，覆盖条目上写 `enabled: true`。
+    往返：写后 `load_mcp_config` 反映变更。
+13. 文件中禁用的服务器出现在 `result.servers` 且 `enabled=False`
+    （`/mcp on` 才能找到它们）。
 
-- [x] **Step 2: Run and see them fail**
+- [x] **步骤 2：运行并看它们失败**
 
-Run: `uv run pytest -q tests/mcp/test_config.py`
-Expected: FAIL — `ModuleNotFoundError: No module named 'baldric_mcp.config'`
-(or import error of the names).
+运行：`uv run pytest -q tests/mcp/test_config.py`
+预期：FAIL——`ModuleNotFoundError: No module named 'baldric_mcp.config'`
+（或那些名字的导入错误）。
 
-- [x] **Step 3: Implement `config.py`**
+- [x] **步骤 3：实现 `config.py`**
 
-Implement to the interface above. Rules ported from pi
-(`pi-main/packages/coding-agent/src/extensions/mcp/config.ts`,
-`pi-main/packages/mcp/src/naming.ts`):
+按上述接口实现。规则移植自 pi
+（`pi-main/packages/coding-agent/src/extensions/mcp/config.ts`、
+`pi-main/packages/mcp/src/naming.ts`）：
 
-- Read with `Path.read_text(encoding="utf-8-sig")` (BOM-safe, pi's `stripBom`).
-- Top level must be an object; `mcpServers` optional object; a top-level
-  unknown key → warning diagnostic (forward compatibility).
-- Namespace check: `f"mcp__{name.replace('-', '_')}"` — two servers sharing a
-  namespace are both rejected.
-- `${VAR}` expansion via regex `\$\{([A-Za-z_][A-Za-z0-9_]*)\}` against the
-  injected `environment`; unresolvable → diagnostic + `enabled=False`.
-- `~` expansion helper handles `~`, `~/…`, `~\…`.
-- Project override = entry with no `command`/`url`/`type`; only `enabled` may
-  appear; it merges via `dataclasses.replace(base, enabled=..., source=project_path)`.
-- `set_server_enabled`: read → parse → locate entry → mutate → write back with
-  the file's detected indent (`re.search(r"^([ \t]+)\S", text, re.M)` fallback
-  `"  "`), preserving unrelated content and trailing newline (port pi's
-  `editMcpServers`). `enabled=True` deletes the key for full entries, writes it
-  for override entries.
+- 用 `Path.read_text(encoding="utf-8-sig")` 读取（BOM 安全，pi 的 `stripBom`）。
+- 顶层必须是对象；`mcpServers` 可选对象；顶层未知键 → 警告诊断（向前兼容）。
+- 命名空间检查：`f"mcp__{name.replace('-', '_')}"` —— 共享命名空间的两个服务器都被拒。
+- `${VAR}` 展开用正则 `\$\{([A-Za-z_][A-Za-z0-9_]*)\}` 对照注入的 `environment`；无法解析 → 诊断 + `enabled=False`。
+- `~` 展开 helper 处理 `~`、`~/…`、`~\…`。
+- 项目覆盖 = 没有 `command`/`url`/`type` 的条目；只允许 `enabled`；经 `dataclasses.replace(base, enabled=..., source=project_path)` 合并。
+- `set_server_enabled`：读 → 解析 → 定位条目 → 改动 → 按检测到的缩进写回（`re.search(r"^([ \t]+)\S", text, re.M)` 回退 `"  "`），保留无关内容与尾部换行（移植 pi 的
+  `editMcpServers`）。完整条目 `enabled=True` 删除键，覆盖条目写入键。
 
-- [x] **Step 4: Add the two `paths.py` properties (code in Interfaces above)**
+- [x] **步骤 4：加两个 `paths.py` 属性（代码见上方接口）**
 
-- [x] **Step 5: Run tests, static gates, commit**
+- [x] **步骤 5：跑测试、静态门、提交**
 
 ```bash
 uv run pytest -q tests/mcp/test_config.py
@@ -508,15 +366,15 @@ git commit -m "feat: MCP server config parsing, merge, expansion, and write-back
 
 ---
 
-### Task 3: `baldric_mcp.client` — one supervised connection per server
+### 任务 3：`baldric_mcp.client`——每服务器一条受监护连接
 
-**Files:**
-- Create: `src/baldric_mcp/client.py`
-- Create: `tests/mcp/test_client.py`
+**文件：**
+- 新建：`src/baldric_mcp/client.py`
+- 新建：`tests/mcp/test_client.py`
 
-**Interfaces:**
-- Consumes: `McpServerConfig` (Task 2); the SDK API pinned in Task 1 Step 4.
-- Produces (consumed by Task 4/5/9):
+**接口：**
+- 消费：`McpServerConfig`（任务 2）；任务 1 步骤 4 钉死的 SDK API。
+- 产出（Task 4/5/9 消费）：
 
 ```python
 McpConnectionState = Literal[
@@ -576,71 +434,54 @@ class McpServerConnection:
     async def close(self) -> None
 ```
 
-- [x] **Step 1: Write failing tests**
+- [x] **步骤 1：写失败测试**
 
-`tests/mcp/test_client.py` (house anyio pattern). Use a scripted fake
-transport factory — an object with `__aenter__`/`__aexit__` yielding
-`(fake_read, fake_write)` where a fake `ClientSession` is additionally
-injectable: make the constructor accept
-`session_factory: Callable[[Any, Any], Any] = _sdk_session_factory` so tests
-inject a fake session with scripted `initialize()`, `list_tools()`,
-`call_tool()` outcomes without the SDK at all. Cases:
+`tests/mcp/test_client.py`（自家 anyio 模式）。用脚本化的 fake
+transport factory——一个带 `__aenter__`/`__aexit__` 的对象，yield
+`(fake_read, fake_write)`，且可额外注入 fake `ClientSession`：让构造器接受
+`session_factory: Callable[[Any, Any], Any] = _sdk_session_factory`，测试注入带脚本化 `initialize()`、`list_tools()`、
+`call_tool()` 结果的 fake session，完全不碰 SDK。用例：
 
-1. successful connect: state `connected`, `tools` populated from
-   `list_tools()`, `instructions` captured from `initialize()` result.
-2. transient failure then success: first `initialize()` raises
-   `TimeoutError`-ish → after retry delay the second attempt succeeds
-   (inject `clock` advancing instantly and tiny `retry_delays=(0.0, 0.0)`);
-   state `connected`; exactly 2 attempts made.
-3. budget exhausted: all attempts raise transient → state `failed`,
-   `connect()` returns False, `error` carries the last message.
-4. non-transient failure (e.g. `ValueError`) → `failed` immediately, 1 attempt.
-5. HTTP 401 → state `needs-auth`, no retry (fake raises the exception type
-   pinned in Task 1 Step 4 item 4; if the SDK carries no status, the fake
-   raises `McpNeedsAuthError` — define that sentinel in `client.py` and let
-   `default_transport`'s error path raise it; Task 1 findings decide).
-6. lazy reconnect: connected → drop (fake session's `call_tool` raises a
-   connection-type error once) → state `disconnected`; next `call_tool`
-   reconnects (session_factory records a second connect) and returns the
-   result.
-7. call while `failed`/`needs-auth`/`closed` → `McpToolUnavailable`.
-8. call timeout: fake `call_tool` sleeps; config `timeout=0.05`; watchdog
-   cancels; result is `McpToolUnavailable` with a timeout message; state stays
-   `connected` (timeout is per-call, not a connection fault).
-9. progress: fake session emits progress via the pinned mechanism →
-   `on_progress` receives text and the deadline resets (fake clock: first
-   progress moves the deadline; watchdog uses injected `clock`).
-10. result mapping: text block → `McpContentBlock(text=...)`; image block →
-    `image_data`/`image_mime`; empty content + `structuredContent` → one text
-    block of JSON; `isError=True` → `is_error=True`.
-11. `close()` → state `closed`; exits transport context (fake records exit).
-12. (dropped — the pinned SDK resolves Windows `.cmd`/`.bat`/`.exe` shims
-    itself via `get_windows_executable_command` inside `stdio_client`; the
-    planned `_resolve_windows_command` helper was redundant and is removed.
-    The stdio factory test instead asserts `config.command` reaches
-    `StdioServerParameters` verbatim.)
+1. 成功连接：状态 `connected`，`tools` 由 `list_tools()` 填充，`instructions` 从 `initialize()` 结果捕获。
+2. 瞬时失败后成功：第一次 `initialize()` 抛 `TimeoutError` 类 → 重试延迟后第二次成功（注入即时推进的 `clock` 与微小 `retry_delays=(0.0, 0.0)`）；状态 `connected`；恰好 2 次尝试。
+3. 预算耗尽：所有尝试都抛瞬时 → 状态 `failed`、`connect()` 返回 False、`error` 带最后一条消息。
+4. 非瞬时失败（如 `ValueError`）→ 立即 `failed`，1 次尝试。
+5. HTTP 401 → 状态 `needs-auth`，不重试（fake 抛任务 1 步骤 4 第 4 条钉死的异常类型；SDK 不带状态码时 fake 抛 `McpNeedsAuthError`——在 `client.py` 定义该哨兵并让
+   `default_transport` 的错误路径抛它；以任务 1 的发现为准）。
+6. 惰性重连：connected → 掉线（fake session 的 `call_tool` 抛一次连接类错误）→ 状态 `disconnected`；下一次 `call_tool`
+   重连（session_factory 记录第二次连接）并返回结果。
+7. `failed`/`needs-auth`/`closed` 时调用 → `McpToolUnavailable`。
+8. 调用超时：fake `call_tool` 睡眠；配置 `timeout=0.05`；看门狗取消；结果为带超时消息的 `McpToolUnavailable`；状态保持
+   `connected`（超时是单次调用的，不是连接故障）。
+9. 进度：fake session 经钉死的机制发出进度 →
+   `on_progress` 收到文本且期限重置（fake clock：第一次进度移动期限；看门狗用注入 `clock`）。
+10. 结果映射：文本块 → `McpContentBlock(text=...)`；图片块 →
+    `image_data`/`image_mime`；空内容 + `structuredContent` → 一条 JSON 文本块；`isError=True` → `is_error=True`。
+11. `close()` → 状态 `closed`；退出 transport 上下文（fake 记录退出）。
+12. （已删——钉住的 SDK 经 `stdio_client` 内的
+    `get_windows_executable_command` 自行解析 Windows `.cmd`/`.bat`/`.exe` shim；计划中的 `_resolve_windows_command` helper 冗余，已删除。
+    stdio 工厂测试改为断言 `config.command` 原样到达
+    `StdioServerParameters`。）
 
-- [x] **Step 2: Run and see them fail**
+- [x] **步骤 2：运行并看它们失败**
 
-Run: `uv run pytest -q tests/mcp/test_client.py`
-Expected: FAIL (module missing).
+运行：`uv run pytest -q tests/mcp/test_client.py`
+预期：FAIL（模块缺失）。
 
-- [x] **Step 3: Implement `client.py`**
+- [x] **步骤 3：实现 `client.py`**
 
-Key implementation decisions (port from pi's
-`packages/coding-agent/src/extensions/mcp/runtime.ts` where noted):
+关键实现决策（注明处移植自 pi 的
+`packages/coding-agent/src/extensions/mcp/runtime.ts`）：
 
-- Transport lifetime via `contextlib.AsyncExitStack`: on connect,
-  `stack.enter_async_context(transport_factory(...))` then
-  `stack.enter_async_context(ClientSession(read, write, ...))`, then
-  `await session.initialize()`. On `close()`/failure teardown:
-  `await stack.aclose()` (never raises into the caller).
-- Initial connect retries: attempts = `1 + len(retry_delays)`; retry ONLY
-  transient errors (pi's `isTransientError`: HTTP 408/429/5xx-except-501 and
-  connection-type exceptions — map to the SDK's actual exception types from
-  Task 1 findings; 401 → `needs-auth` with no retry). Between attempts
-  `await anyio.sleep(delay)`.
-- Per-call deadline watchdog (progress resets it):
+- transport 生命周期经 `contextlib.AsyncExitStack`：连接时
+  `stack.enter_async_context(transport_factory(...))`，然后
+  `stack.enter_async_context(ClientSession(read, write, ...))`，然后
+  `await session.initialize()`。`close()`/失败 teardown 时：
+  `await stack.aclose()`（绝不向调用者抛异常）。
+- 初始连接重试：次数 = `1 + len(retry_delays)`；只重试
+  瞬时错误（pi 的 `isTransientError`：HTTP 408/429/5xx-除-501 与连接类异常——按任务 1 的发现映射到 SDK 实际异常类型；401 → `needs-auth` 不重试）。尝试之间
+  `await anyio.sleep(delay)`。
+- 单调用期限看门狗（进度重置它）：
 
 ```python
 async def _call_with_deadline(self, coro_factory, on_progress):
@@ -664,43 +505,30 @@ async def _call_with_deadline(self, coro_factory, on_progress):
     return box["result"]
 ```
 
-Progress notifications arrive through `call_tool`'s `progress_callback`
-(SDK 1.30.0: `await callback(progress, total, message)`, matched by the
-request's progress token — `mcp/shared/session.py:409-420`): map it to
-`on_update` and push the deadline out — share the deadline via a small
-mutable holder both the callback and watchdog close over. Hardening notes:
-`box["result"]` needs an explicit `cast(object, ...)`-style narrowing under
-mypy strict; after a timeout the SDK may still deliver the late response — it
-is dropped by the request id and is benign; leave a one-line comment saying
-so at the cancel site so a future reader does not "fix" it. `call_tool` can
-also raise (output-schema validation, internal `list_tools` refresh): the
-executor catches exceptions per call and converts them to the error result
-(Task 5's fallback text).
+进度通知经 `call_tool` 的 `progress_callback` 到达
+（SDK 1.30.0：`await callback(progress, total, message)`，按请求的 progress token 匹配——`mcp/shared/session.py:409-420`）：映射到
+`on_update` 并推迟期限——用一个小的可变 holder 共享期限，回调与看门狗都闭包引用它。加固注记：mypy strict 下 `box["result"]`
+需要显式 `cast(object, ...)` 式收窄；超时后 SDK 仍可能送达迟到响应——按请求 id 丢弃，无害；在取消点留一行注释说明，避免未来读者"修"它。`call_tool`
+也可能抛（output-schema 校验、内部 `list_tools` 刷新）：executor 逐调用捕获异常并转成错误结果
+（任务 5 的回退文本）。
 
-- Lazy reconnect (pi's `disconnected` semantics): `call_tool` when
-  `self._state == "disconnected"` performs one `connect()`; on failure raises
-  `McpToolUnavailable(self._error or ...)`.
-- `default_transport`: http →
+- 惰性重连（pi 的 `disconnected` 语义）：`self._state == "disconnected"` 时
+  `call_tool` 执行一次 `connect()`；失败抛
+  `McpToolUnavailable(self._error or ...)`。
+- `default_transport`：http →
   `streamable_http_client(config.url, http_client=create_mcp_http_client(headers=dict(config.headers)))`
-  (SDK 1.30.0 renamed `streamablehttp_client` → `streamable_http_client` and
-  moved headers/timeouts onto the httpx client; the old name is deprecated —
-  use the new one; the yield is `(read_stream, write_stream, get_session_id)`);
-  stdio → pass `config.command` verbatim (the SDK resolves Windows shims
-  itself — see test 12), then
+  （SDK 1.30.0 把 `streamablehttp_client` 改名为 `streamable_http_client` 并把 headers/超时移到 httpx 客户端；旧名已弃用——用新名；yield 是 `(read_stream, write_stream, get_session_id)`）；
+  stdio → 原样传 `config.command`（SDK 自行解析 Windows shim——见测试 12），然后
   `stdio_client(StdioServerParameters(command=..., args=list(config.args),
-  env={**environment, **config.env}, cwd=config.cwd))` (`cwd` exists in the
-  pinned SDK; the SDK merges the passed env over `get_default_environment()`,
-  and the full snapshot supersedes those defaults; yield is
-  `(read_stream, write_stream)`).
-- Stderr capture: the SDK seam is `stdio_client(server, errlog=<TextIO>)` —
-  the constructor kwarg is `stderr_sink: TextIO | None = None` (Task 10 opens
-  the log file and passes it). HTTP transports have no stderr.
-- HTTP 401 during `initialize()` surfaces as `httpx.HTTPStatusError`
-  (`response.raise_for_status()` in the POST handler, `streamable_http.py:381`),
-  possibly wrapped in an anyio `ExceptionGroup`; `connect()` unwraps the group
-  and maps status 401 to `needs-auth`.
+  env={**environment, **config.env}, cwd=config.cwd))`（钉住的 SDK 有 `cwd`；SDK 把传入 env 合并在 `get_default_environment()` 之上，完整快照盖过那些默认；yield 是
+  `(read_stream, write_stream)`）。
+- stderr 捕获：SDK 接缝是 `stdio_client(server, errlog=<TextIO>)`——
+  构造 kwarg 是 `stderr_sink: TextIO | None = None`（任务 10 打开日志文件传入）。HTTP transport 没有 stderr。
+- `initialize()` 期间的 HTTP 401 表现为 `httpx.HTTPStatusError`
+  （POST handler 里的 `response.raise_for_status()`，`streamable_http.py:381`），
+  可能被包进 anyio `ExceptionGroup`；`connect()` 解包组并把状态 401 映射为 `needs-auth`。
 
-- [x] **Step 4: Run tests, gates, commit**
+- [x] **步骤 4：跑测试、门、提交**
 
 ```bash
 uv run pytest -q tests/mcp/test_client.py
@@ -711,15 +539,15 @@ git commit -m "feat: supervised MCP server connection with lazy reconnect"
 
 ---
 
-### Task 4: `baldric_mcp.supervisor` — ownership of all connections
+### 任务 4：`baldric_mcp.supervisor`——全部连接的所有权
 
-**Files:**
-- Create: `src/baldric_mcp/supervisor.py`
-- Create: `tests/mcp/test_supervisor.py`
+**文件：**
+- 新建：`src/baldric_mcp/supervisor.py`
+- 新建：`tests/mcp/test_supervisor.py`
 
-**Interfaces:**
-- Consumes: `McpServerConnection` (Task 3), `McpServerConfig` (Task 2).
-- Produces (consumed by Task 7/8):
+**接口：**
+- 消费：`McpServerConnection`（任务 3）、`McpServerConfig`（任务 2）。
+- 产出（Task 7/8 消费）：
 
 ```python
 @dataclass(frozen=True, slots=True)
@@ -752,30 +580,19 @@ class McpSupervisor:
     async def shutdown(self) -> None
 ```
 
-The supervisor never reads config files or paths (low coupling): `restart` and
-`set_enabled(..., config)` receive re-read configs from the extension layer.
+supervisor 从不读配置文件或路径（低耦合）：`restart` 与
+`set_enabled(..., config)` 从 extension 层接收重读的配置。
 
-- [x] **Step 1: Write failing tests** (`tests/mcp/test_supervisor.py`, fake
-  connections only — no SDK): start connects all enabled concurrently and
-  ignores disabled; `wait_ready` returns promptly when nothing is connecting
-  and caps at `wait_ready_cap` when a connection stays `connecting` (injected
-  clock); `on_change` fires on connect success/failure/set_enabled/restart;
-  `call_tool` routes to the right connection and raises `McpToolUnavailable`
-  for unknown server/tool or disabled server; `set_enabled(False)` closes the
-  connection and its tools vanish from `statuses()`; `set_enabled(True,
-  config)` connects with the provided config; `restart` replaces the
-  connection; `shutdown` closes all and further `call_tool` raises.
-- [x] **Step 2: Run and see them fail.**
-- [x] **Step 3: Implement.** Connections created through `connection_factory`
-  (default builds real `McpServerConnection` with the constructor's
-  environment). `start` uses `anyio.create_task_group` connecting each enabled
-  server concurrently; per-connection failures are recorded in the connection
-  itself (`failed`/`needs-auth` state), never raised out of `start`.
-  `wait_ready`: `deadline = min(timeout, self._wait_ready_cap)`; poll
-  `anyio.sleep(0.05)` until `not any_connecting()` or deadline passes — never
-  raises. `on_change` fires (synchronously) after any state-affecting
-  operation.
-- [x] **Step 4: Run tests, gates, commit**
+- [x] **步骤 1：写失败测试**（`tests/mcp/test_supervisor.py`，只用 fake
+  连接——无 SDK）：start 并发连接所有已启用服务器并忽略禁用的；`wait_ready` 在没有连接中时立即返回、有连接保持 `connecting` 时以注入 clock 封顶 `wait_ready_cap`；`on_change` 在连接成功/失败/set_enabled/restart 时触发；
+  `call_tool` 路由到正确连接，未知服务器/工具或禁用服务器抛 `McpToolUnavailable`；`set_enabled(False)` 关闭连接且其工具从 `statuses()` 消失；`set_enabled(True,
+  config)` 用提供的配置连接；`restart` 替换连接；`shutdown` 关闭全部且后续 `call_tool` 抛错。
+- [x] **步骤 2：运行并看它们失败。**
+- [x] **步骤 3：实现。** 连接经 `connection_factory` 创建（默认用构造器的 environment 构建真实 `McpServerConnection`）。`start` 用 `anyio.create_task_group` 并发连接每个启用的
+  server；单连接失败记录在连接自身（`failed`/`needs-auth` 状态），绝不从 `start` 抛出。
+  `wait_ready`：`deadline = min(timeout, self._wait_ready_cap)`；轮询
+  `anyio.sleep(0.05)` 直到 `not any_connecting()` 或期限过——永不抛。`on_change` 在任何影响状态的操作后（同步）触发。
+- [x] **步骤 4：跑测试、门、提交**
 
 ```bash
 uv run pytest -q tests/mcp/test_supervisor.py
@@ -786,17 +603,17 @@ git commit -m "feat: MCP connection supervisor with bounded first-turn wait"
 
 ---
 
-### Task 5: `baldric_mcp.adapter` — naming, schema, result conversion
+### 任务 5：`baldric_mcp.adapter`——命名、schema、结果转换
 
-**Files:**
-- Create: `src/baldric_mcp/adapter.py`
-- Create: `tests/mcp/test_adapter.py`
+**文件：**
+- 新建：`src/baldric_mcp/adapter.py`
+- 新建：`tests/mcp/test_adapter.py`
 
-**Interfaces:**
-- Consumes: `McpToolInfo`, `McpToolResultData` (Task 3), `AgentTool`/
-  `AgentToolResult`/`TextContent`/`ImageContent` (`baldric_protocol.tools`,
-  `baldric_protocol.messages`).
-- Produces (consumed by Task 7):
+**接口：**
+- 消费：`McpToolInfo`、`McpToolResultData`（任务 3）、`AgentTool`/
+  `AgentToolResult`/`TextContent`/`ImageContent`（`baldric_protocol.tools`、
+  `baldric_protocol.messages`）。
+- 产出（Task 7 消费）：
 
 ```python
 TOOL_NAME_MAX = 64
@@ -826,33 +643,28 @@ def convert_result(
 ) -> AgentToolResult: ...
 ```
 
-- [x] **Step 1: Write failing tests.** Naming table tests (port pi's
-  `naming.ts` exactly — `tests` assert: plain case `mcp__docs__search`;
-  sanitization `mcp__my_server__do_thing` for `my-server`/`do.thing`; 64-char
-  cap with `_` + 8-hex sha256 suffix over `server\0tool`; collision of
-  `a-b`/`a_b` tools within one server). Schema tests (missing/`{}`/non-object
-  schema → `{"type": "object", "properties": {}}`; object with properties kept;
-  non-dict schema → same empty-object fallback). Conversion tests: text join;
-  image → placeholder text `[image: image/png, N bytes]` (MVP — the loop's
-  provider serialization of tool-result images is unverified); `isError` →
-  `is_error=True`; empty error content gains `"MCP tool <server>/<tool>
-  returned an error"`; >20 KiB text with a fake saver → full text saved (path
-  in the note), kept start+end; >20 KiB without saver → cut with note, no
-  crash. `AgentTool` shape: `name` via `create_mcp_tool_name`, `label =
-  f"{server}/{info.name}"`, description fallback chain
+- [x] **步骤 1：写失败测试。** 命名表测（精确移植 pi 的
+  `naming.ts`——测试断言：普通用例 `mcp__docs__search`；
+  `my-server`/`do.thing` 净化为 `mcp__my_server__do_thing`；64 字符
+  上限加 `_` + 对 `server\0tool` 的 8 位 hex sha256 后缀；同一服务器内
+  `a-b`/`a_b` 工具冲突）。schema 测试（缺失/`{}`/非对象
+  schema → `{"type": "object", "properties": {}}`；带 properties 的对象保留；
+  非 dict schema → 同样的空对象回退）。转换测试：文本拼接；
+  图片 → 占位文本 `[image: image/png, N bytes]`（MVP——loop 的
+  provider 对工具结果图片的序列化未验证）；`isError` →
+  `is_error=True`；空错误内容补 `"MCP tool <server>/<tool>
+  returned an error"`；>20 KiB 文本配 fake saver → 全文保存（路径在注记里），保留首尾；>20 KiB 无 saver → 截断加注记，不崩溃。`AgentTool` 形状：`name` 经
+  `create_mcp_tool_name`，`label =
+  f"{server}/{info.name}"`，描述回退链
   `description.strip() or title or f"MCP tool {info.name} from server
-  {server}"`, `parameters=normalize_input_schema(...)`, executor maps
-  `on_progress` → `on_update(AgentToolResult(content=[TextContent(text=...)]))`
-  and accepts `signal` without using it (docstring: per-call timeout lives in
-  the connection).
-- [x] **Step 2: Run and see them fail.**
-- [x] **Step 3: Implement** — `create_mcp_tool_name` is a line-by-line port of
-  `pi-main/packages/mcp/src/naming.ts` (`str.replace` → `re.sub(r"[^A-Za-z0-9_]",
-  "_", name)`, `hashlib.sha256(f"{server}\0{tool}".encode()).hexdigest()[:8]`).
-  `convert_result` joins text blocks, replaces image blocks with placeholders,
-  applies the 20 KiB cut (keep start and end halves) and calls `output_saver`
-  when provided.
-- [x] **Step 4: Run tests, gates, commit**
+  {server}"`，`parameters=normalize_input_schema(...)`，executor 把
+  `on_progress` 映射为 `on_update(AgentToolResult(content=[TextContent(text=...)]))` 并接受 `signal` 而不使用它（docstring：单调用超时住在连接里）。
+- [x] **步骤 2：运行并看它们失败。**
+- [x] **步骤 3：实现** —— `create_mcp_tool_name` 是
+  `pi-main/packages/mcp/src/naming.ts` 的逐行移植（`str.replace` → `re.sub(r"[^A-Za-z0-9_]",
+  "_", name)`、`hashlib.sha256(f"{server}\0{tool}".encode()).hexdigest()[:8]`）。
+  `convert_result` 拼接文本块、以占位符替换图片块、应用 20 KiB 截断（保留首尾两半）并在提供时调用 `output_saver`。
+- [x] **步骤 4：跑测试、门、提交**
 
 ```bash
 uv run pytest -q tests/mcp/test_adapter.py
@@ -863,26 +675,24 @@ git commit -m "feat: MCP tool adapter with ecosystem tool naming and result conv
 
 ---
 
-### Task 6: Agent seams — live tool list, unregister, prompt refresh
+### 任务 6：agent 接缝——活动工具列表、注销、prompt 刷新
 
-**Files:**
-- Modify: `src/baldric_agent/harness.py` (`update_system_prompt`)
-- Modify: `src/baldric_coding/extensions/runtime.py` (`bind_live_tools`,
-  `unregister_tool`, `request_system_prompt_refresh`)
-- Modify: `src/baldric_coding/extensions/api.py` (`unregister_tool`,
-  `refresh_system_prompt`)
-- Modify: `src/baldric_coding/session/session.py` (bind + builder closure +
-  `refresh_system_prompt`)
-- Modify: `src/baldric_coding/session/lifecycle.py` only if Task 0 Step 3 found
-  a prompt input not retained across reload
-- Create: `tests/agent/test_harness_system_prompt.py`
-- Create: `tests/coding/extensions/test_live_tools.py`
-- Create: `tests/coding/session/test_refresh_system_prompt.py` (place beside
-  existing session tests — verify the directory first, adjust the path)
+**文件：**
+- 修改：`src/baldric_agent/harness.py`（`update_system_prompt`）
+- 修改：`src/baldric_coding/extensions/runtime.py`（`bind_live_tools`、
+  `unregister_tool`、`request_system_prompt_refresh`）
+- 修改：`src/baldric_coding/extensions/api.py`（`unregister_tool`、
+  `refresh_system_prompt`）
+- 修改：`src/baldric_coding/session/session.py`（bind + builder 闭包 +
+  `refresh_system_prompt`）
+- 仅当任务 0 步骤 3 发现有 prompt 输入不能跨 reload 保留时修改：`src/baldric_coding/session/lifecycle.py`
+- 新建：`tests/agent/test_harness_system_prompt.py`
+- 新建：`tests/coding/extensions/test_live_tools.py`
+- 新建：`tests/coding/session/test_refresh_system_prompt.py`（放在既有 session 测试旁——先核实目录，调整路径）
 
-**Interfaces:**
-- Consumes: verified chain from Task 0 Steps 1/3/6.
-- Produces (consumed by Task 7/8):
+**接口：**
+- 消费：任务 0 步骤 1/3/6 验证的链条。
+- 产出（Task 7/8 消费）：
 
 ```python
 # harness.py
@@ -906,39 +716,29 @@ class CodingSession:
     def refresh_system_prompt(self) -> None: ...
 ```
 
-- [x] **Step 1: Verify (from Task 0 findings) and restate the touchpoints**
+- [x] **步骤 1：验证（依任务 0 发现）并复述触点**
 
-Read the exact regions again with the editor open: `session.py:805-870`,
-`runtime.py:1034-1080` + `register_tool` (`:544-563`) + `BoundSession`,
-`api.py:1172-1180` (`register_tool`). Confirm the Task 0 preflight findings
-still hold on this branch (they were verified on `main`; a merge may have
-moved lines). **MUST-HOLD**: same list object flows to harness and
-`build_system_prompt`.
+编辑器开着重读确切区域：`session.py:805-870`、
+`runtime.py:1034-1080` + `register_tool`（`:544-563`）+ `BoundSession`、
+`api.py:1172-1180`（`register_tool`）。确认任务 0 的飞行前发现在本分支仍成立（它们在 `main` 上验证过；一次合并可能移动了行）。**MUST-HOLD**：同一列表对象同时流向 harness 与
+`build_system_prompt`。
 
-- [x] **Step 2: Write failing tests**
+- [x] **步骤 2：写失败测试**
 
-1. `tests/agent/test_harness_system_prompt.py`: with the existing fake
-   provider helpers in `tests/agent/` (read them first), assert that a run
-   after `harness.update_system_prompt("NEW")` sends `NEW` as the system
-   prompt, and the previous prompt before.
-2. `tests/coding/extensions/test_live_tools.py`: build a runtime (pattern from
-   `tests/coding/extensions/test_extensions.py`), bind a list, register a tool
-   via `ExtensionAPI.register_tool` → the bound list grows by that object;
-   `unregister_tool` removes it; registering a name outside `allowed`
-   (when `allowed` is not None) is ignored with a diagnostic; registering a
-   duplicate name does not double-add.
-3. `tests/coding/session/test_refresh_system_prompt.py`: construct a session
-   (pattern from existing session tests — fake provider), capture the system
-   prompt the fake provider received; register a prompt section via the
-   extension API, call `session.refresh_system_prompt()`; next run's system
-   prompt contains the section. Also: a session built with an explicit
-   `config.system` has `refresh_system_prompt()` as a no-op.
+1. `tests/agent/test_harness_system_prompt.py`：用 `tests/agent/` 里既有的 fake
+   provider helper（先读它们），断言 `harness.update_system_prompt("NEW")` 之后的运行发送 `NEW` 作为 system prompt，之前是旧 prompt。
+2. `tests/coding/extensions/test_live_tools.py`：构建 runtime（模式照
+   `tests/coding/extensions/test_extensions.py`），绑定一个列表，经 `ExtensionAPI.register_tool` 注册工具 → 绑定列表多出该对象；
+   `unregister_tool` 移除它；注册 `allowed` 之外的名字（`allowed` 非 None 时）被忽略并诊断；注册重名不重复添加。
+3. `tests/coding/session/test_refresh_system_prompt.py`：构建 session（模式照既有 session 测试——fake provider），捕获 fake provider 收到的 system
+   prompt；经 extension API 注册一个 prompt 区块，调用 `session.refresh_system_prompt()`；下一次运行的 system prompt 含该区块。另外：带显式
+   `config.system` 构建的 session 中 `refresh_system_prompt()` 是 no-op。
 
-- [x] **Step 3: Run and see them fail.**
+- [x] **步骤 3：运行并看它们失败。**
 
-- [x] **Step 4: Implement.**
+- [x] **步骤 4：实现。**
 
-`harness.py`:
+`harness.py`：
 
 ```python
 def update_system_prompt(self, system: str) -> None:
@@ -952,8 +752,8 @@ def update_system_prompt(self, system: str) -> None:
     self._config.system = system
 ```
 
-`runtime.py` — fields `self._live_tools: list[AgentTool] | None = None` and
-`self._live_allowed: frozenset[str] | None = None`:
+`runtime.py` —— 字段 `self._live_tools: list[AgentTool] | None = None` 与
+`self._live_allowed: frozenset[str] | None = None`：
 
 ```python
 def bind_live_tools(self, tools: list[AgentTool], allowed: frozenset[str] | None) -> None:
@@ -968,7 +768,7 @@ def bind_live_tools(self, tools: list[AgentTool], allowed: frozenset[str] | None
     self._live_allowed = allowed
 ```
 
-`register_tool` gains, after the duplicate check and before insertion:
+`register_tool` 在重复检查之后、插入之前增加：
 
 ```python
 if self._live_tools is not None and self._live_allowed is not None and tool.name not in self._live_allowed:
@@ -982,27 +782,24 @@ if self._live_tools is not None:
     self._live_tools.append(tool)
 ```
 
-`unregister_tool(source_id, extension_name, name)`: remove the registry entry
-only when `registered.source_id == source_id` (silent no-op otherwise) and
-remove the same object from the live list by identity. `bind` (session rebind)
-keeps the live binding coherent: on `retire`/`_remove_registrations` also drop
-removed tools from the live list. Extend the `BoundSession` protocol with
-`refresh_system_prompt() -> None`; `request_system_prompt_refresh()` calls it
-on the bound session when present.
+`unregister_tool(source_id, extension_name, name)`：仅当
+`registered.source_id == source_id` 时移除 registry 条目（否则静默 no-op），并按身份从活动列表移除同一对象。`bind`（session 重绑）
+保持活动绑定连贯：`retire`/`_remove_registrations` 时同样把被移除的工具从活动列表丢弃。扩展 `BoundSession` 协议加
+`refresh_system_prompt() -> None`；`request_system_prompt_refresh()` 在被绑定 session 存在时调用它。
 
-`api.py`: `unregister_tool(name)` asserts generation then delegates
-`self._runtime.unregister_tool(self._source_id, self._extension_name, name)`;
-`refresh_system_prompt()` asserts generation then
-`self._runtime.request_system_prompt_refresh()`.
+`api.py`：`unregister_tool(name)` 先断言世代再委托
+`self._runtime.unregister_tool(self._source_id, self._extension_name, name)`；
+`refresh_system_prompt()` 先断言世代再
+`self._runtime.request_system_prompt_refresh()`。
 
-`session.py`: after `tools = _filter_tools(...)` (line ~818) insert
-`extension_runtime.bind_live_tools(tools, config.allowed_tool_names)`. Wrap the
-existing `build_system_prompt(...)` call into a zero-arg closure
+`session.py`：在 `tools = _filter_tools(...)`（约 818 行）之后插入
+`extension_runtime.bind_live_tools(tools, config.allowed_tool_names)`。把既有
+`build_system_prompt(...)` 调用包进零参闭包
 `def _build_system_prompt() -> str: return build_system_prompt(BuildSystemPromptOptions(...))`
-with the IDENTICAL arguments (Task 0 Step 3's list), call it once for
-`system`, and store the builder on the session:
+，参数完全一致（任务 0 步骤 3 的清单），先调用一次得
+`system`，并把 builder 存到 session：
 `system_builder=None if config.system is not None else _build_system_prompt`
-passed into `cls(...)` and kept as `self._system_prompt_builder`. Add:
+传入 `cls(...)` 并保存为 `self._system_prompt_builder`。增加：
 
 ```python
 def refresh_system_prompt(self) -> None:
@@ -1012,7 +809,7 @@ def refresh_system_prompt(self) -> None:
     self._harness.update_system_prompt(self._system_prompt_builder())
 ```
 
-- [x] **Step 5: Run the full fast suite (cross-cutting change), gates, commit**
+- [x] **步骤 5：跑完整快速套件（横切变更）、门、提交**
 
 ```bash
 uv run pytest -q --ignore=tests/coding/tui
@@ -1023,21 +820,19 @@ git commit -m "feat: live tool registration and system-prompt refresh seams"
 
 ---
 
-### Task 7: Built-in extension A — boot, trust gate, dynamic registration
+### 任务 7：内置 extension A——启动、信任门、动态注册
 
-**Files:**
-- Create: `src/baldric_coding/extensions/builtins/mcp/__init__.py`
-- Create: `src/baldric_coding/extensions/builtins/mcp/extension.py`
-- Modify: `src/baldric_coding/extensions/builtin_registry.py`
-- Modify: `src/baldric_coding/session/session.py` ONLY if Task 0 Step 2
-  decided the `mcp_enabled` flag is needed (children load built-ins): add the
-  field and pass `mcp_enabled=False` at the subagents child construction site
-- Create: `tests/coding/extensions/test_mcp_extension.py`
+**文件：**
+- 新建：`src/baldric_coding/extensions/builtins/mcp/__init__.py`
+- 新建：`src/baldric_coding/extensions/builtins/mcp/extension.py`
+- 修改：`src/baldric_coding/extensions/builtin_registry.py`
+- 仅当任务 0 步骤 2 判定需要 `mcp_enabled` 旗标时修改：`src/baldric_coding/session/session.py`（child 会加载 built-in）：加字段并在 subagents 子构造点传 `mcp_enabled=False`
+- 新建：`tests/coding/extensions/test_mcp_extension.py`
 
-**Interfaces:**
-- Consumes: Tasks 2/4/5 outputs; `BuiltInExtensionContext` (paths,
-  environment); `ExtensionAPI`.
-- Produces: registered built-in `mcp`; module-level factory hooks for tests:
+**接口：**
+- 消费：任务 2/4/5 产出；`BuiltInExtensionContext`（paths、
+  environment）；`ExtensionAPI`。
+- 产出：注册的内置 `mcp`；供测试的模块级 factory hook：
 
 ```python
 # extension.py
@@ -1053,60 +848,38 @@ _supervisor_factory: Callable[[Sequence[McpServerConfig], Mapping[str, str]], Mc
 # module-level, monkeypatched by tests; default builds McpSupervisor
 ```
 
-- [x] **Step 1: Verify (MUST-HOLD)** — re-read `builtin_registry.py` (sync
-  setup contract, `setup_with_context`), confirm Task 0 Step 2's child
-  session decision, and confirm Task 0 Step 2b's lifecycle matrix still holds
-  on this branch. **CORRECTED MATRIX (Task 6 execution finding)**: `load`
-  ALWAYS stages a fresh runtime (`session.py:643-670`: "never reuse
-  source-project code across replacement trust boundaries";
-  `config.extension_runtime` only carries credentials into the new runtime).
-  On new/resume/branch the OLD runtime gets `session_shutdown`, the NEW
-  runtime's fresh extension instances get `session_start`, then the old
-  runtime retires. Each extension instance therefore boots at most once per
-  generation; the guard below stays as defense (a host may re-emit
-  `session_start` on one runtime) and the registry re-populates naturally in
-  the fresh generation — do NOT re-seed. If the flag branch was chosen, also
-  verify `CodingSessionConfig` field placement and the child construction
-  site from Task 0's recorded file:line.
+- [x] **步骤 1：验证（MUST-HOLD）**——重读 `builtin_registry.py`（同步
+  setup 契约、`setup_with_context`），确认任务 0 步骤 2 的子
+  session 决定，确认任务 0 步骤 2b 的生命周期矩阵在本分支仍成立。**修正后的矩阵（任务 6 执行发现）**：`load`
+  总是 stage 全新 runtime（`session.py:643-670`："never reuse
+  source-project code across replacement trust boundaries"；
+  `config.extension_runtime` 只把凭据带进新 runtime）。
+  new/resume/branch 时旧 runtime 收到 `session_shutdown`，新
+  runtime 的全新 extension 实例收到 `session_start`，然后旧
+  runtime 退役。每个 extension 实例因此每世代至多启动一次；下面的守卫作为纵深防御保留（宿主可能在同一 runtime 上重发
+  `session_start`），registry 在新世代自然重新填充——不要 re-seed。若选择了旗标分支，还要按任务 0 记录的 file:line 核对
+  `CodingSessionConfig` 字段位置与 child 构造点。
 
-- [x] **Step 2: Write failing tests** (`tests/coding/extensions/test_mcp_extension.py`,
-  house anyio pattern, fake supervisor injected via `monkeypatch.setattr` on
-  the module-level factory):
+- [x] **步骤 2：写失败测试**（`tests/coding/extensions/test_mcp_extension.py`，
+  自家 anyio 模式，fake supervisor 经 `monkeypatch.setattr` 注入模块级工厂）：
 
-1. no config files → no supervisor built, no tools, no diagnostics.
-2. user config with one stdio server, project untrusted + project file
-   present → project servers ignored, exactly one diagnostic mentioning
-   "not trusted"; user server boots (fake supervisor started).
-3. trusted project → both servers boot; after the fake supervisor reports a
-   connected server with two `McpToolInfo`s, the extension has registered two
-   tools whose names follow `mcp__<server>__<tool>`; the live list (bound via
-   Task 6, asserted through a real runtime + session built with a fake
-   provider) contains them.
-4. server transitions to `failed` → its tools are withdrawn from the live
-   list (via `unregister_tool`).
-5. `session_shutdown(<any reason>)` → fake supervisor's `shutdown` awaited
-   (corrected matrix: every shutdown reason precedes that generation's
-   retirement, so the supervisor is always closed; keeping connections on
-   new/resume/branch would orphan server processes).
-6. **Child gate (corrected mechanism, deviation D3)**: the gate is
-   composition level — `CodingSessionConfig.disabled_built_in_extensions`
-   filters the built-in registry in `load`, and the subagents child
-   construction passes `frozenset({"mcp"})`, so the extension never loads in
-   a child (no supervisor, no tools, no `/mcp` command).
-7. **Boot guard (defense-in-depth)**: fire `session_start` twice on the same
-   runtime → the fake supervisor's `start` was called exactly once (no second
-   supervisor), the supervisor identity is unchanged, tools registered before
-   the second start are still present, and no duplicate-registration
-   diagnostics were emitted. (The per-generation fresh runtime already makes
-   double-boot impossible across rebind; this pins the in-generation guard.)
-8. **No `tools/list_changed` handling**: a server that adds tools after
-   connect keeps its connect-time tool set (spec non-goal) — the extension
-   registers no handler for the notification and the behavior is asserted as
-   "tool count unchanged".
+1. 无配置文件 → 不建 supervisor、无工具、无诊断。
+2. 用户配置带一个 stdio 服务器、项目不受信任 + 项目文件
+   存在 → 项目服务器被忽略，恰好一条提到 "not trusted" 的诊断；用户服务器启动（fake supervisor 启动）。
+3. 项目受信任 → 两个服务器都启动；fake supervisor 报告一台已连接服务器带两条 `McpToolInfo` 后，extension 注册了两个名字遵循 `mcp__<server>__<tool>` 的工具；活动列表（经任务 6 绑定，用真实 runtime + fake provider 构建的 session 断言）包含它们。
+4. 服务器转为 `failed` → 其工具从活动列表撤回（经 `unregister_tool`）。
+5. `session_shutdown(<任何原因>)` → fake supervisor 的 `shutdown` 被 await
+   （修正矩阵：每个关闭原因都先于该世代退役，所以 supervisor 总是被关闭；在 new/resume/branch 上保留连接会让服务器进程变孤儿）。
+6. **子代理门（修正机制，偏差 D3）**：门在组合层——
+   `CodingSessionConfig.disabled_built_in_extensions`
+   在 `load` 里过滤内置 registry，subagents 子构造传
+   `frozenset({"mcp"})`，extension 在 child 里根本不加载（无 supervisor、无工具、无 `/mcp` 命令）。
+7. **启动守卫（纵深防御）**：同一 runtime 上触发两次 `session_start` → fake supervisor 的 `start` 恰好被调一次（没有第二个 supervisor），supervisor 身份不变，第二次 start 前注册的工具仍在，且没有重复注册诊断。（每世代全新 runtime 已让重绑时的双重启动不可能；这里钉住世代内守卫。）
+8. **不处理 `tools/list_changed`**：连接后加工具的服务器保持连接时的工具集（规格非目标）——extension 不为该通知注册 handler，行为被断言为"工具数不变"。
 
-- [x] **Step 3: Run and see them fail.**
+- [x] **步骤 3：运行并看它们失败。**
 
-- [x] **Step 4: Implement `extension.py`.** Sync `setup` stores context, then:
+- [x] **步骤 4：实现 `extension.py`。** 同步 `setup` 存 context，然后：
 
 ```python
 baldric.on("session_start")(self._on_session_start)     # async handler
@@ -1115,33 +888,23 @@ baldric.on("input")(self._on_input)                     # Task 8 wires the body
 baldric.register_command("mcp", self._mcp_command, ...) # Task 8 wires the body
 ```
 
-`_on_session_start`: **idempotent boot guard first** (defense against a
-repeated `session_start` on one runtime; the corrected Task 0 Step 2b matrix
-stages a fresh runtime per generation, so each instance normally boots once):
-if
-`self._supervisor is not None` and it is not shut down → call `self._sync()`
-and return (the registry already holds the tools and `compose_tools` re-merges
-them — do NOT re-seed and do NOT re-register blindly; the `_registered` map
-dedupes). Otherwise:
-gate → `load_mcp_config(user_path=context.paths.user_mcp_config_path, project_path=context.paths.project_mcp_config_path(api.context.cwd) if api.context.project_trusted else None, environment=context.environment)` → diagnostics via `api.notify(..., "warning")` → build enabled list → if any, `_supervisor = _supervisor_factory(enabled, context.environment)`, `on_change(self._sync)`, then
-`asyncio.get_running_loop().create_task(self._supervisor.start())` (house
-pattern, `subagents/extension.py:387`). `_sync` registers connected servers'
-tools: for each connected connection, skip names already in
-`self._registered`; build the caller closure
+`_on_session_start`：**先做幂等启动守卫**（防同一 runtime 上重复的
+`session_start`；修正后的任务 0 步骤 2b 矩阵每世代 stage 全新 runtime，所以每个实例通常只启动一次）：
+若
+`self._supervisor is not None` 且未关闭 → 调 `self._sync()` 并返回（registry 已持有工具且 `compose_tools` 会重新合并——不要 re-seed、不要盲目重新注册；`_registered` map 去重）。否则：
+门 → `load_mcp_config(user_path=context.paths.user_mcp_config_path, project_path=context.paths.project_mcp_config_path(api.context.cwd) if api.context.project_trusted else None, environment=context.environment)` → 诊断经 `api.notify(..., "warning")` → 构建启用列表 → 若有，`_supervisor = _supervisor_factory(enabled, context.environment)`，`on_change(self._sync)`，然后
+`asyncio.get_running_loop().create_task(self._supervisor.start())`（自家模式，
+`subagents/extension.py:387`）。`_sync` 注册已连接服务器的工具：对每条已连接连接，跳过 `self._registered` 里已有的名字；构建调用闭包
 `async def call(arguments, *, on_progress=None): return await self._supervisor.call_tool(server, info.name, arguments, on_progress=on_progress)`
-and register `api.register_tool(mcp_tool_to_agent_tool(server, info, call))`;
-withdraw on `failed`/`needs-auth` via `api.unregister_tool(name)`. If nothing
-visible changed (same tool-name set and same section body), `_sync` is a
-no-op — every real change rebuilds the system prompt and invalidates the
-provider prefix cache, so churn must be avoided by design.
-`_on_session_shutdown`: `await supervisor.shutdown()` for every reason —
-the corrected Task 0 Step 2b matrix retires the generation after every
-shutdown, so keeping connections would orphan server processes.
-Register `builtin_registry.py` entry: `BuiltInExtension(name="mcp",
+并注册 `api.register_tool(mcp_tool_to_agent_tool(server, info, call))`；
+`failed`/`needs-auth` 时经 `api.unregister_tool(name)` 撤回。若可见状态没变（同一工具名集合与同一区块正文），`_sync` 是 no-op——每次真实变化都重建 system prompt 并使 provider 前缀缓存失效，所以设计上必须避免无谓抖动。
+`_on_session_shutdown`：无论原因都 `await supervisor.shutdown()`——
+修正后的任务 0 步骤 2b 矩阵在每次 shutdown 后退役该世代，保留连接会让服务器进程变孤儿。
+注册 `builtin_registry.py` 条目：`BuiltInExtension(name="mcp",
 setup=_mcp_setup, hidden=True, setup_with_context=_mcp_setup_with_context)`
-with lazy imports mirroring the llama.cpp pattern.
+，懒导入镜像 llama.cpp 模式。
 
-- [x] **Step 5: Run tests, gates, commit**
+- [x] **步骤 5：跑测试、门、提交**
 
 ```bash
 uv run pytest -q tests/coding/extensions/test_mcp_extension.py
@@ -1152,51 +915,46 @@ git commit -m "feat: MCP built-in extension with trust gating and live registrat
 
 ---
 
-### Task 8: Built-in extension B — first-turn wait, prompt section, `/mcp`
+### 任务 8：内置 extension B——第一轮等待、prompt 区块、`/mcp`
 
-**Files:**
-- Modify: `src/baldric_coding/extensions/builtins/mcp/extension.py`
-- Modify: `tests/coding/extensions/test_mcp_extension.py`
+**文件：**
+- 修改：`src/baldric_coding/extensions/builtins/mcp/extension.py`
+- 修改：`tests/coding/extensions/test_mcp_extension.py`
 
-**Interfaces:**
-- Consumes: `supervisor.wait_ready/any_connecting/statuses/restart/set_enabled`
-  (Task 4), `set_server_enabled`/`load_mcp_config` (Task 2),
-  `api.refresh_system_prompt`/`add_prompt_section` (Task 6).
+**接口：**
+- 消费：`supervisor.wait_ready/any_connecting/statuses/restart/set_enabled`
+  （任务 4）、`set_server_enabled`/`load_mcp_config`（任务 2）、
+  `api.refresh_system_prompt`/`add_prompt_section`（任务 6）。
 
-- [x] **Step 1: Write failing tests** (fake supervisor + real runtime):
+- [x] **步骤 1：写失败测试**（fake supervisor + 真实 runtime）：
 
-1. first `input` while a server is `connecting` → handler awaits
-   `wait_ready(timeout=10.0)` exactly once (fake records); second input does
-   not wait again; no wait when nothing is connecting.
-2. after tools settle, exactly one prompt section titled "MCP servers" is
-   registered (`add_prompt_section`) and `refresh_system_prompt` was called;
-   the section body lists `- name (stdio, 2 tools): first line of
-   description-or-instructions`, per-server cap 200 chars, total 1200; servers
-   without description/instructions render `name (stdio, N tools)` only.
-3. `/mcp` no args returns a listing line per server
-   `name  state  transport  N tools` (plus `: first error line` when failed).
-4. `/mcp off <name>`: calls `set_server_enabled(source_path, name, False)`
-   (tmp_path config asserted) and `supervisor.set_enabled(name, False, None)`;
-   unknown name → message; `/mcp on <name>` re-reads config and calls
-   `set_enabled(name, True, fresh_config)`; `/mcp restart <name>` calls
-   `supervisor.restart(name, fresh_config)`.
-5. async work from the sync command handler is scheduled onto the running
-   loop (assert via recorded fake calls after `await`-ing a tick).
+1. 服务器 `connecting` 时的第一次 `input` → handler 恰好一次 await
+   `wait_ready(timeout=10.0)`（fake 记录）；第二次 input 不再等待；没有连接中服务器时不等待。
+2. 工具落定后，恰好注册一个标题为 "MCP servers" 的 prompt 区块
+   （`add_prompt_section`）且调用过 `refresh_system_prompt`；
+   区块正文逐服务器列 `- name (stdio, 2 tools): description-or-instructions 首行`，单服务器上限 200 字符、总量 1200；没有 description/instructions 的服务器只渲染 `name (stdio, N tools)`。
+3. `/mcp` 无参数按服务器各返回一行
+   `name  state  transport  N tools`（failed 时加 `: first error line`）。
+4. `/mcp off <name>`：调 `set_server_enabled(source_path, name, False)`
+   （断言 tmp_path 配置）与 `supervisor.set_enabled(name, False, None)`；
+   未知名字 → 消息；`/mcp on <name>` 重读配置并调
+   `set_enabled(name, True, fresh_config)`；`/mcp restart <name>` 调
+   `supervisor.restart(name, fresh_config)`。
+5. 同步命令 handler 的异步工作被调度到运行中的循环（在 await 一个 tick 后经记录的 fake 调用断言）。
 
-- [x] **Step 2: Run and see them fail.**
+- [x] **步骤 2：运行并看它们失败。**
 
-- [x] **Step 3: Implement.** `_on_input` (async): if `self._admitted` or
-  supervisor is None or `not any_connecting()` → return `None`; set
-  `self._admitted = True`; `await wait_ready(timeout=10.0)`; return `None`.
-  `_sync` (already invoked by `on_change`): recompute the section body and call
-  `add_prompt_section` + `api.refresh_system_prompt()` (only when at least one
-  enabled server is configured). `_mcp_command` (sync): parse args; for
-  restart/on/off schedule
-  `asyncio.get_running_loop().create_task(self._apply_toggle(...))`; the
-  toggle re-reads config with the same trust rule as boot and persists via
-  `set_server_enabled` (port of pi's `/mcp` persistence semantics).
+- [x] **步骤 3：实现。** `_on_input`（async）：若 `self._admitted` 或
+  supervisor 为 None 或 `not any_connecting()` → 返回 `None`；置
+  `self._admitted = True`；`await wait_ready(timeout=10.0)`；返回 `None`。
+  `_sync`（已由 `on_change` 调用）：重算区块正文并调
+  `add_prompt_section` + `api.refresh_system_prompt()`（仅当至少配置了一个启用服务器）。`_mcp_command`（同步）：解析参数；restart/on/off
+  都调度
+  `asyncio.get_running_loop().create_task(self._apply_toggle(...))`；
+  toggle 按与启动相同的信任规则重读配置，经
+  `set_server_enabled` 持久化（pi 的 `/mcp` 持久化语义移植）。
 
-- [x] **Step 4: Run tests, gates, commit**
+- [x] **步骤 4：跑测试、门、提交**
 
 ```bash
 uv run pytest -q tests/coding/extensions/test_mcp_extension.py
@@ -1207,20 +965,20 @@ git commit -m "feat: MCP first-turn admission, servers prompt section, /mcp comm
 
 ---
 
-### Task 9: Real-process integration test + resume regression
+### 任务 9：真实进程集成测试 + resume 回归
 
-**Files:**
-- Create: `tests/helpers/mcp_stdio_fixture.py`
-- Create: `tests/mcp/test_integration_stdio.py`
-- Create: `tests/coding/session/test_mcp_resume_repair.py` (path verified in
-  Task 6 Step 2)
+**文件：**
+- 新建：`tests/helpers/mcp_stdio_fixture.py`
+- 新建：`tests/mcp/test_integration_stdio.py`
+- 新建：`tests/coding/session/test_mcp_resume_repair.py`（路径在
+  任务 6 步骤 2 验证）
 
-**Interfaces:**
-- Consumes: everything above; existing fake-provider session test helpers.
+**接口：**
+- 消费：以上全部；既有的 fake-provider session 测试 helper。
 
-- [x] **Step 1: Write the fixture server**
+- [x] **步骤 1：写 fixture 服务器**
 
-`tests/helpers/mcp_stdio_fixture.py`:
+`tests/helpers/mcp_stdio_fixture.py`：
 
 ```python
 """A tiny stdio MCP server used by integration tests: one `echo` tool."""
@@ -1238,33 +996,30 @@ if __name__ == "__main__":
     mcp.run()
 ```
 
-(Confirm against Task 1 Step 4 item 6; adjust import path to the pinned SDK.)
+（对照任务 1 步骤 4 第 6 条确认；按钉住的 SDK 调整导入路径。）
 
-- [x] **Step 2: Write the integration test** (`tests/mcp/test_integration_stdio.py`,
-  anyio, generous margins — the suite-wide `--timeout=120` is the backstop):
+- [x] **步骤 2：写集成测试**（`tests/mcp/test_integration_stdio.py`，
+  anyio，余量放宽——套件级 `--timeout=120` 是兜底）：
 
-Build a `McpServerConfig(name="fixture", server_type="stdio",
-command=sys.executable, args=(str(HELPER_PATH),), timeout=30.0)`; construct a
-real `McpSupervisor` with `environment=os.environ` snapshot; `await
-supervisor.start()`; assert one `connected` status with exactly one tool;
-`call_tool("fixture", "echo", {"text": "hi"})` returns text `"hi"`;
-`await supervisor.shutdown()` leaves no lingering subprocess (assert via
-`statuses()` state `closed`). Mark it so it can be excluded on POSIX CI if
-process-spawning is flaky there? No — subprocess spawning is cross-platform;
-do NOT add skips (house rule against weakening).
+构建 `McpServerConfig(name="fixture", server_type="stdio",
+command=sys.executable, args=(str(HELPER_PATH),), timeout=30.0)`；用 `environment=os.environ` 快照构建真实
+`McpSupervisor`；`await
+supervisor.start()`；断言一条 `connected` 状态带恰好一个工具；
+`call_tool("fixture", "echo", {"text": "hi"})` 返回文本 `"hi"`；
+`await supervisor.shutdown()` 不留残留子进程（经
+`statuses()` 状态 `closed` 断言）。标记它以便 POSIX CI 在进程启动 flaky 时排除？不——子进程启动是跨平台的；
+不加 skip（自家规则禁止弱化）。
 
-- [x] **Step 3: Write the resume regression test**
+- [x] **步骤 3：写 resume 回归测试**
 
-Using the session test helpers (fake provider): craft initial messages
-containing an assistant `ToolCall` named `mcp__gone__server__tool` with no
-result, run one prompt, and assert the provider's request contains a synthetic
-tool result for that call (mechanism: harness prelude
-`_append_interrupted_tool_results` — Task 0 Step 5's recorded behavior; if the
-loop path handles unknown-name calls differently, pin THAT observed
-behavior with a comment naming the mechanism — never assert something the code
-does not do).
+用 session 测试 helper（fake provider）：构造含 assistant `ToolCall`
+（名为 `mcp__gone__server__tool`、无结果）的初始消息，跑一条 prompt，断言 provider 的请求含该调用的合成
+工具结果（机制：harness 前奏
+`_append_interrupted_tool_results`——任务 0 步骤 5 的记录行为；若
+loop 路径对未知名调用的处理不同，用注释点名机制钉住那个观察到的
+行为——绝不断言代码没有做的事）。
 
-- [x] **Step 4: Run, gates, commit**
+- [x] **步骤 4：运行、门、提交**
 
 ```bash
 uv run pytest -q tests/mcp/test_integration_stdio.py tests/coding/session/test_mcp_resume_repair.py
@@ -1275,33 +1030,26 @@ git commit -m "test: MCP stdio integration and resume repair regression"
 
 ---
 
-### Task 10: Polish — stderr logs, output saver, watchdog clock tests
+### 任务 10：打磨——stderr 日志、输出保存器、看门狗时钟测试
 
-**Files:**
-- Modify: `src/baldric_coding/extensions/builtins/mcp/extension.py`
-- Modify: `src/baldric_mcp/client.py` only if Task 1's stderr findings allow
-  wiring
-- Modify: `tests/coding/extensions/test_mcp_extension.py`
+**文件：**
+- 修改：`src/baldric_coding/extensions/builtins/mcp/extension.py`
+- 仅当任务 1 的 stderr 发现允许接线时修改：`src/baldric_mcp/client.py`
+- 修改：`tests/coding/extensions/test_mcp_extension.py`
 
-- [x] **Step 1: Verify** — read `src/baldric_coding/tools/truncate.py` and
-  `src/baldric_coding/tools/output_accumulator.py` (and the bash tool's
-  output-file path convention) to find the house helper for saving full tool
-  output and its destination directory convention. Reuse it; do not invent a
-  parallel convention.
+- [x] **步骤 1：验证**——读 `src/baldric_coding/tools/truncate.py` 与
+  `src/baldric_coding/tools/output_accumulator.py`（以及 bash 工具的
+  输出文件路径约定），找到保存完整工具输出的自家 helper 及其目标目录约定。复用它；不发明平行约定。
 
-- [x] **Step 2: Write failing tests**: the extension passes an
-  `output_saver` into `mcp_tool_to_agent_tool` that writes under the house
-  output location and returns the path (tmp_path-based, asserting the file
-  content); truncated notes carry that path. If Task 1's SDK findings exposed
-  a stderr pipe: client test asserts the tail lands in the sink.
+- [x] **步骤 2：写失败测试**：extension 向 `mcp_tool_to_agent_tool` 传一个
+  `output_saver`，写到自家输出位置之下并返回路径（基于 tmp_path，断言文件内容）；截断注记携带该路径。若任务 1 的 SDK 发现暴露了 stderr 管道：client 测试断言尾部落入 sink。
 
-- [x] **Step 3: Implement** — wire `output_saver` in the extension's
-  `mcp_tool_to_agent_tool(...)` call; wire `stderr_sink` by opening
-  `paths.logs_dir / "mcp" / f"{server}.log"` (append mode, create parents) and
-  passing it as `stdio_client(server, errlog=...)`; http servers get `None`
-  (no stderr); document the seam inline.
+- [x] **步骤 3：实现**——在 extension 的
+  `mcp_tool_to_agent_tool(...)` 调用接上 `output_saver`；接上 `stderr_sink`：打开
+  `paths.logs_dir / "mcp" / f"{server}.log"`（追加模式，创建父目录）并作为 `stdio_client(server, errlog=...)` 传入；http 服务器给 `None`
+  （无 stderr）；接缝就地文档化。
 
-- [x] **Step 4: Run, gates, commit**
+- [x] **步骤 4：运行、门、提交**
 
 ```bash
 uv run pytest -q tests/coding/extensions/test_mcp_extension.py tests/mcp
@@ -1310,33 +1058,27 @@ git add -u
 git commit -m "feat: MCP output saving and stdio stderr logging"
 ```
 
-(`git add -u` only if the file set is exactly the four above — otherwise list
-paths explicitly.)
+（仅当文件集恰为上述四个时才用 `git add -u`——否则显式列路径。）
 
 ---
 
-### Task 11: Docs and full gates
+### 任务 11：文档与全量门
 
-**Files:**
-- Create: `website/content/guides/mcp.md` (verify the guides directory and
-  frontmatter conventions from an existing guide, e.g. the providers guide)
-- Modify: the docs nav/index file that registers guides (find it via
-  `website/` config; verify before editing)
-- Create: `dev-notes/journal/` entry if that is the house journal location —
-  verify where existing build journals live (`dev-notes/`) and follow it
+**文件：**
+- 新建：`website/content/guides/mcp.md`（从既有指南核实 guides 目录与
+  frontmatter 约定，例如 providers 指南）
+- 修改：注册指南的文档导航/索引文件（经
+  `website/` 配置找；编辑前核实）
+- 新建：`dev-notes/journal/` 条目——若那是自家日志位置；核实既有构建日志的位置（`dev-notes/`）并遵循
 
-- [x] **Step 1: Write the user guide**: what MCP is, `mcp.json` (user +
-  project, trust gating), `/mcp` usage, `enabled`/`timeout`/`description`/`type`
-  fields, `${ENV}` expansion, tool naming `mcp__<server>__<tool>`, states and
-  lazy reconnect, and the known costs/limits: tool churn rebuilds the system
-  prompt (provider prefix-cache invalidation — accepted, minimized by the
-  `_sync` no-op rule), no OAuth, no resources/prompts, no `list_changed`,
-  modes that bypass the `input` hook get tools from turn two (mirror the
-  spec's non-goals and Task 0 Step 2c findings).
-- [x] **Step 2: Write the dev-notes journal entry** (what was added, why, how
-  it maps to pi's design, how to test) per the repo's documentation
-  expectations.
-- [x] **Step 3: Run every gate (cross-package change ⇒ full suite):**
+- [x] **步骤 1：写用户指南**：MCP 是什么、`mcp.json`（用户 +
+  项目、信任门）、`/mcp` 用法、`enabled`/`timeout`/`description`/`type`
+  字段、`${ENV}` 展开、工具命名 `mcp__<server>__<tool>`、状态与
+  惰性重连，以及已知代价/限制：工具抖动重建 system prompt（provider 前缀缓存失效——接受，用
+  `_sync` no-op 规则最小化）、无 OAuth、无 resources/prompts、无 `list_changed`、绕过 `input` hook 的模式从第二轮起拿到工具（镜像
+  规格非目标与任务 0 步骤 2c 发现）。
+- [x] **步骤 2：写 dev-notes 日志条目**（加了什么、为什么、如何对应 pi 的设计、怎么测试），遵循仓库文档期望。
+- [x] **步骤 3：跑每个门（横切变更 ⇒ 全量套件）：**
 
 ```bash
 uv run pytest -q
@@ -1349,11 +1091,9 @@ uv run python scripts/check_suppressions.py
 uv run python scripts/check_agent_guidance.py
 ```
 
-If `check_structure.py` flags `session.py` growth, record it with `--init`
-(house rule) in a separate commit `chore: record structure growth for mcp seams`.
-Coverage must stay ≥ 80%.
+若 `check_structure.py` 标记 `session.py` 增长，按自家规则用 `--init` 记录在单独提交 `chore: record structure growth for mcp seams` 里。覆盖率必须保持 ≥ 80%。
 
-- [x] **Step 4: Commit docs**
+- [x] **步骤 4：提交文档**
 
 ```bash
 git add website/content/guides/mcp.md <nav-file> <journal-entry>
@@ -1362,116 +1102,61 @@ git commit -m "docs: MCP servers guide and build journal"
 
 ---
 
-## Final verification checklist (before declaring done)
+## 最终验证清单（宣布完成之前）
 
-- [x] All tasks' checkboxes ticked; every MUST-HOLD verification recorded in
-  the preflight findings section.
-- [x] `uv run pytest -q` fully green locally (2884 passed, 126 skipped;
-  Windows skips are expected and documented).
-- [x] All nine gates green (Task 11 Step 3; the one TUI flake passed on
-  re-run per AGENTS.md).
-- [x] Manual smoke (optional but recommended): covered by the real-process
-  stdio integration test (supervisor boots a FastMCP server, calls its tool,
-  shuts down cleanly).
-- [x] The branch diff contains nothing outside the touchpoint table in the
-  spec (plus preflight findings and docs) — every exception is logged in
-  **Execution deviations log** with its impact analysis and a `deviation:`
-  commit note.
-- [x] Spec and plan still describe what was actually built (any drift found
-  via Execution Rules R1 was reconciled, not worked around).
+- [x] 所有任务的勾选框已勾；每条 MUST-HOLD 验证记录在飞行前发现小节。
+- [x] `uv run pytest -q` 本地全绿（2884 通过、126 跳过；
+  Windows 跳过是预期且有文档）。
+- [x] 九个门全绿（任务 11 步骤 3；一个 TUI 偶发按 AGENTS.md 重跑通过）。
+- [x] 手动冒烟（可选但推荐）：由真实进程 stdio 集成测试覆盖（supervisor 启动 FastMCP 服务器、调用其工具、干净关闭）。
+- [x] 分支 diff 不含规格触点表之外的任何东西（飞行前发现与文档除外）——每条例外都记入**执行偏差日志**，附影响分析与 `deviation:`
+  提交注记。
+- [x] 规格与计划仍描述实际构建的东西（执行规则 R1 发现的任何漂移都被调和，而不是绕过）。
 
-## Execution deviations log
+## 执行偏差日志
 
-Appended during execution per Execution Rules R4. One entry per deviation;
-an empty section means the plan was followed as written. Entry format:
+执行期按执行规则 R4 追加。每条偏差一项；空小节表示计划按原文执行。条目格式：
 
-- **D1 — adoption must transfer the prompt builder** (Task 6, 2026-11-08):
-  `lifecycle.py` `_adopt_replacement` was outside the plan's touchpoint
-  table, but it copies `session._harness` from the replacement without the
-  new `_system_prompt_builder`; a resume/new would then rebuild the prompt
-  through the pre-adoption closure. Fixed inside session.py
-  (`_adopt_system_prompt_builder`) to respect the session-state write
-  ratchet; lifecycle only calls the method. Impact surface checked: the
-  three adoption callers (new/resume/reload adoption), the write ratchet
-  (tests/guards), and the session tests pinning adoption field copying.
-  Design change? no (the seam behaves as designed; this closes a transfer
-  gap). Commit: Task 6's feat commit.
-- **D2 — structure-baseline growth recorded with --init** (Task 6,
-  2026-11-08): the five files the seams touch were already above the 400
-  line limit with recorded exceptions (`harness.py` 467→477, `api.py`
-  1340→1350, `runtime.py` 1393→1454, `lifecycle.py` 1187→1191,
-  `session.py` 2011→2031; `load`'s longest function 54→56 statements). The
-  growth is exactly the plan-mandated seam lines plus the corrected
-  `_connect_quietly`/`unregister_tool` additions. Reviewing the diff line by
-  line, every added line traces to the touchpoint table or deviation D1.
-  Commit: Task 6's feat commit.
-- **D3 — child gate moved to composition level** (Task 7, 2026-11-08): the
-  plan's `CodingSessionConfig.mcp_enabled: bool = True` + `_session_wants_mcp`
-  had no reading mechanism: `ExtensionContext` exposes no session config, and
-  adding an MCP-named member to the `BoundSession` protocol would leak MCP
-  semantics into the core (R5). Replaced with
-  `disabled_built_in_extensions: frozenset[str]` on the session config plus a
-  built-in-registry filter in `load` (`_eligible_built_in_extensions`),
-  mirroring the existing `extensions_enabled` precedent; the subagents child
-  construction passes `frozenset({"mcp"})`. The extension never loads in a
-  child, so no supervisor, tools, or `/mcp` command exist there. Design
-  change? no (same product decision, different seam). Commits: Task 7's.
-- **D4 — session_shutdown always closes the supervisor** (Task 7,
-  2026-11-08): the plan kept connections open on new/resume/branch, which
-  followed from the incorrect shared-runtime matrix. With the corrected
-  fresh-runtime-per-generation matrix, every shutdown reason precedes that
-  generation's retirement, so keeping connections would orphan server
-  processes. Impact surface: `runtime._emit_lifecycle` (shutdown fires on the
-  outgoing runtime for every reason), `retire()` semantics. Design change?
-  yes at the matrix level — covered by the committed matrix correction
-  (674e3fc) and the spec update.
-- **D5 — structure-baseline growth recorded with --init** (Task 7,
-  2026-11-08): `session.py` 2037→2064 (config field + registry-filter
-  helper) and `subagents/extension.py` 1620→1624 (child gate argument). Every
-  added line traces to D3. Commit: Task 7's feat commit.
-- **D8 — "house output location" is the temp-file convention** (Task 10,
-  2026-11-08): the plan assumed a managed output directory; the house
-  convention (bash tool) is `tempfile.NamedTemporaryFile(delete=False)` with
-  a tool-specific prefix. The helper moved to
+- **D1 — 采纳必须转移 prompt builder**（任务 6，2026-11-08）：
+  `lifecycle.py` 的 `_adopt_replacement` 在计划触点表之外，但它从替换中拷贝 `session._harness` 时没有带新的
+  `_system_prompt_builder`；resume/new 会用采纳前的闭包重建 prompt。在 session.py 内修复
+  （`_adopt_system_prompt_builder`）以尊重 session-state 写
+  棘轮；lifecycle 只调用方法。影响面已核：三个采纳调用者（new/resume/reload 采纳）、写棘轮
+  （tests/guards）、钉住采纳字段拷贝的 session 测试。
+  设计变更？否（接缝按设计工作；这是补一个转移缺口）。提交：任务 6 的 feat 提交。
+- **D2 — 结构基线增长用 --init 记录**（任务 6，2026-11-08）：接缝触碰的五个文件本就超过 400
+  行限且有登记例外（`harness.py` 467→477、`api.py`
+  1340→1350、`runtime.py` 1393→1454、`lifecycle.py` 1187→1191、
+  `session.py` 2011→2031；`load` 的最长函数 54→56 语句）。增长恰好是计划要求的接缝行加修正后的
+  `_connect_quietly`/`unregister_tool`。逐行评审 diff，每条新增行都可追溯到触点表或偏差 D1。
+  提交：任务 6 的 feat 提交。
+- **D3 — 子代理门移到组合层**（任务 7，2026-11-08）：计划中的
+  `CodingSessionConfig.mcp_enabled: bool = True` + `_session_wants_mcp`
+  没有读取机制：`ExtensionContext` 不暴露 session 配置，往 `BoundSession` 协议加 MCP 命名成员会把 MCP
+  语义泄进内核（R5）。替换为 session config 上的
+  `disabled_built_in_extensions: frozenset[str]` 加 `load` 中的内置 registry 过滤
+  （`_eligible_built_in_extensions`），镜像既有 `extensions_enabled` 先例；subagents 子构造传 `frozenset({"mcp"})`。extension 在 child 里永不加载，因此无 supervisor、无工具、无 `/mcp` 命令。设计变更？否（同一产品决策，不同接缝）。提交：任务 7 的。
+- **D4 — session_shutdown 总是关闭 supervisor**（任务 7，2026-11-08）：计划在 new/resume/branch 上保留连接，这源于错误的共享 runtime 矩阵。修正为每世代全新 runtime 的矩阵后，每个关闭原因都先于该世代退役，保留连接会让服务器进程变孤儿。影响面：`runtime._emit_lifecycle`（每个原因都在退场 runtime 上触发关闭）、`retire()` 语义。设计变更？矩阵层面是——由已提交的矩阵修正
+  （674e3fc）与规格更新覆盖。
+- **D5 — 结构基线增长用 --init 记录**（任务 7，2026-11-08）：`session.py` 2037→2064（config 字段 + registry 过滤
+  helper）、`subagents/extension.py` 1620→1624（child 门参数）。每条新增行都可追溯到 D3。提交：任务 7 的 feat 提交。
+- **D8 — "自家输出位置"就是临时文件约定**（任务 10，2026-11-08）：计划假设有托管输出目录；自家约定（bash 工具）是带工具专属前缀的 `tempfile.NamedTemporaryFile(delete=False)`。helper 移到
   `tools.output_accumulator.write_temp_output(output, *, prefix, suffix)`
-  (bash delegates unchanged) and the MCP saver uses prefix
-  `baldric-mcp-`. Impact surface: bash tool output paths (unchanged), its
-  tests (pass). Design change? no.
-- **D6 — titled prompt sections upsert per source** (Task 8, 2026-11-08):
-  `register_prompt_section` appended unconditionally, but the MCP section
-  body changes with server states and would stack duplicates. Titled
-  sections from the same source now replace the same-title entry; untitled
-  sections keep append semantics. Impact surface: all existing
-  `add_prompt_section` users register distinct titles once (grep across
-  src/tests/examples/website — no pinned duplicate-append behavior). Design
-  change? no (enables the planned section refresh).
-- **D7 — the supervisor receives disabled servers too** (Task 8,
-  2026-11-08): the plan booted only enabled servers, which left `/mcp on`
-  with no supervisor when every server started disabled. Grounded in the
-  spec's own rule (pi: disabled servers are listed "so they can be enabled
-  again") and Task 4's semantics (start connects enabled only). The prompt
-  section lists enabled servers only. Design change? no (completes the
-  planned /mcp on flow).
-- **D9 — dynamically registered tools are hook-wrapped** (post-review,
-  2026-11-08): the live seam appended the raw tool, so `tool_call`/
-  `tool_result` hooks (and blocking gates) never covered MCP tools, unlike
-  `compose_tools` output. `register_tool` now wraps via `_wrap_tool` and
-  tracks the wrapper in `_live_wrapped`; unregister/source-removal drop the
-  wrapper by identity. This changes Task 6's pinned "raw append" semantics
-  — the tests now pin the pipeline-consistent behavior. Design change? no
-  (pi's pipeline promise made explicit; the plan never promised raw). No
-  suppression added.
-- **D10 — stderr sink opened per connect attempt** (post-review,
-  2026-11-08): the connection captured a sink INSTANCE at construction and
-  `_teardown` closed it, so lazy reconnect handed the SDK a closed file and
-  the real reconnect path was broken (testing gap: only close() was
-  covered). The connection now takes a sink factory, opens a fresh handle
-  per connect attempt, closes the current one on teardown; regression test
-  covers drop→reconnect.
-- **D11 — adapter accepts a collision-resolved tool name** (post-review,
-  2026-11-08): passing `is_taken` at the extension alone was insufficient —
-  `mcp_tool_to_agent_tool` recomputed the name internally without the
-  taken-set, so a sanitized-name collision still landed on the first name
-  and was dropped by the registry's duplicate check. The adapter now takes
-  `name=`, and the extension passes the resolved name; a regression test
-  covers two tools sanitizing to the same base name.
+  （bash 委托不变），MCP saver 用前缀
+  `baldric-mcp-`。影响面：bash 工具输出路径（不变）、其测试（通过）。设计变更？否。
+- **D6 — 带标题 prompt 区块按来源 upsert**（任务 8，2026-11-08）：
+  `register_prompt_section` 原来无条件追加，但 MCP 区块正文随服务器状态变化会堆叠重复。同一来源的带标题区块现在替换同标题条目；无标题区块保持追加语义。影响面：所有既有
+  `add_prompt_section` 用户只注册一次不同标题（grep
+  src/tests/examples/website——没有钉住重复追加行为）。设计
+  变更？否（使计划中的区块刷新成为可能）。
+- **D7 — supervisor 也接收禁用服务器**（任务 8，2026-11-08）：计划只启动启用服务器，当所有服务器以禁用状态启动时 `/mcp on`
+  没有 supervisor 可用。依据规格自己的规则（pi：禁用服务器要列出"以便可以再次启用"）与任务 4 的语义（start 只连接启用的）。prompt
+  区块只列启用服务器。设计变更？否（补全计划中的 /mcp on 流程）。
+- **D9 — 动态注册工具经 hook 包装**（评审后，2026-11-08）：活动接缝追加的是裸工具，`tool_call`/
+  `tool_result` hook（与拦截门）从未覆盖 MCP 工具，不像
+  `compose_tools` 的输出。`register_tool` 现在经 `_wrap_tool` 包装并在 `_live_wrapped` 跟踪包装；注销/来源移除按身份丢弃包装。这改变了任务 6 钉住的"裸追加"语义——测试现在钉管线一致的行为。设计变更？否
+  （pi 的管线承诺被显式化；计划从未承诺裸）。未加豁免。
+- **D10 — stderr sink 每次连接尝试打开**（评审后，2026-11-08）：连接在构造时捕获了一个 sink 实例且
+  `_teardown` 会关闭它，惰性重连把已关闭文件交给 SDK，真实重连路径是坏的（测试缺口：只覆盖了 close()）。连接改为接收 sink 工厂，每次连接尝试开新句柄，teardown 关当前；回归测试覆盖掉线→重连。
+- **D11 — adapter 接受冲突解析后的工具名**（评审后，2026-11-08）：只在 extension 传 `is_taken` 不够——
+  `mcp_tool_to_agent_tool` 内部重算名字时不知道 taken 集，净化名冲突仍落在第一个名字上并被 registry 的重复检查丢弃。adapter 现在接收 `name=`，extension 传解析后的名字；回归测试覆盖两个工具净化到同一基名的情况。
