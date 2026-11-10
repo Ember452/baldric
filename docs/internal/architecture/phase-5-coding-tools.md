@@ -1,32 +1,32 @@
 ---
-title: "Phase 5: Built-in Coding Tools"
+title: "Phase 5：内置编码工具"
 ---
 
-Phase 5 adds Baldric's first built-in coding tools in `baldric_coding`.
+Phase 5 在 `baldric_coding` 加了 Baldric 最早的内置编码工具。
 
-The tools live in:
+工具住在：
 
 ```text
 src/baldric_coding/tools.py
 ```
 
-## What was added
+## 加了什么
 
-Baldric now provides factory functions for these initial tools:
+Baldric 现在为这些初始工具提供工厂函数：
 
 - `create_read_tool()`
 - `create_write_tool()`
 - `create_edit_tool()`
 - `create_bash_tool()`
-- `create_coding_tools()` for the default tool set
+- 默认工具集的 `create_coding_tools()`
 
-Each factory has a Pi-like `ToolDefinition` counterpart with a description, prompt snippet, prompt guidelines, JSON schema, and executor. The public factory returns a provider-neutral `AgentTool` from `baldric_agent.tools`.
+每个工厂有一个 Pi 风格的 `ToolDefinition` 对应物：描述、prompt snippet、prompt guideline、JSON schema 与执行器。公开工厂返回来自 `baldric_agent.tools` 的 provider 中立 `AgentTool`。
 
-## Why the tools live in `baldric_coding`
+## 工具为什么住在 `baldric_coding`
 
-`baldric_agent` owns the portable agent brain: messages, events, tools as an abstraction, the loop, and the harness.
+`baldric_agent` 拥有可移植的 agent 大脑：消息、事件、作为抽象的工具、循环与 harness。
 
-Filesystem and shell access are coding-agent environment features, so the concrete implementations live in `baldric_coding`.
+文件系统与 shell 访问是编码 agent 环境特性，所以具体实现住在 `baldric_coding`。
 
 ```text
 baldric_agent:
@@ -36,63 +36,63 @@ baldric_coding:
   provides read/write/edit/bash tools for local coding work
 ```
 
-This keeps the core loop reusable and independent of local machine behavior.
+这保持内核循环可复用、独立于本机行为。
 
-## Tool behavior
+## 工具行为
 
 ### `read`
 
-Reads a UTF-8 text file.
+读取 UTF-8 文本文件。
 
-Arguments:
+参数：
 
-- `path`: file path
-- `offset`: optional 1-indexed starting line; `0` is accepted as an alias for the start of the file
-- `limit`: optional number of lines to return
+- `path`：文件路径
+- `offset`：可选的 1 起始起始行；`0` 作为文件开头的别名被接受
+- `limit`：可选的返回行数
 
-Large output is truncated with Pi-style truncation metadata and continuation hints. Supported image files (`jpg`, `png`, `gif`, `webp`) are detected and returned as base64 metadata for later UI/provider integration.
+大输出按 Pi 风格截断元数据与续读提示截断。受支持的图片文件（`jpg`、`png`、`gif`、`webp`）被识别并以 base64 元数据返回，供后续 UI/provider 集成使用。
 
 ### `write`
 
-Writes a complete UTF-8 text file and creates parent directories when needed. Writes are serialized per path with a file mutation queue so concurrent mutations to the same file do not interleave.
+写入完整的 UTF-8 文本文件，需要时创建父目录。写入按路径经文件变更队列串行化，同一文件的并发变更不会交错。
 
-Arguments:
+参数：
 
-- `path`: file path
-- `content`: complete file content
+- `path`：文件路径
+- `content`：完整文件内容
 
 ### `edit`
 
-Applies exact text replacements to a UTF-8 file.
+对 UTF-8 文件应用精确的文本替换。
 
-Arguments:
+参数：
 
-- `path`: file path
-- `edits`: array of `{ oldText, newText }` objects
+- `path`：文件路径
+- `edits`：`{ oldText, newText }` 对象数组
 
-Important Pi-inspired behavior:
+重要的 Pi 式行为：
 
-- every `oldText` must match exactly once
-- edits must not overlap
-- validation happens before writing
-- if any edit fails, the file is left unchanged
-- UTF-8 BOMs are preserved
-- existing line endings are preserved
-- results include diff, unified patch, and first-changed-line metadata
-- legacy `oldText`/`newText` arguments and JSON-string `edits` are normalized
+- 每条 `oldText` 必须恰好匹配一次
+- 编辑不得重叠
+- 校验发生在写入之前
+- 任一编辑失败，文件保持不变
+- UTF-8 BOM 保留
+- 既有行尾保留
+- 结果包含 diff、unified patch 与首个变更行元数据
+- legacy `oldText`/`newText` 参数与 JSON 字符串 `edits` 被归一化
 
 ### `bash`
 
-Executes a shell command in the configured working directory.
+在配置的工作目录里执行 shell 命令。
 
-Arguments:
+参数：
 
-- `command`: command string
-- `timeout`: optional timeout in seconds, with no default timeout
+- `command`：命令字符串
+- `timeout`：可选的秒数超时，无默认超时
 
-The result includes combined stdout/stderr output, exit code, timeout state, duration, truncation metadata, and a full-output temp file path when output is truncated.
+结果包括合并的 stdout/stderr 输出、退出码、超时状态、时长、截断元数据，以及输出被截断时的完整输出临时文件路径。
 
-## How to use the tools
+## 怎么使用这些工具
 
 ```python
 from baldric_coding import create_coding_tools
@@ -100,27 +100,27 @@ from baldric_coding import create_coding_tools
 tools = create_coding_tools(cwd="/path/to/project")
 ```
 
-Pass those tools into `AgentHarnessConfig` or directly into `run_agent_loop()`.
+把这些工具传给 `AgentHarnessConfig` 或直接传给 `run_agent_loop()`。
 
-## Tests
+## 测试
 
-The phase is covered by:
+本阶段覆盖于：
 
 ```text
 tests/test_coding_tools.py
 ```
 
-The tests verify:
+测试验证：
 
-- default tool registration
-- file reading with line slicing
-- parent directory creation for writes
-- multi-edit exact replacement
-- rollback on failed edits
-- unique-match validation
-- bash stdout capture
-- bash timeout reporting
+- 默认工具注册
+- 带行切片的文件读取
+- 写入时的父目录创建
+- 多编辑精确替换
+- 编辑失败回滚
+- 唯一匹配校验
+- bash stdout 捕获
+- bash 超时报告
 
-## Next phase
+## 下一阶段
 
-The next phase can wire these tools into a non-interactive print-mode CLI so a user can run Baldric against a real project from the terminal.
+下一阶段可以把这些工具接进非交互 print-mode CLI，让用户从终端对真实项目运行 Baldric。

@@ -1,90 +1,72 @@
-# Large-file decomposition: what was split, and what was deliberately not
+# 大文件拆解：拆了什么，刻意没拆什么
 
-**Status:** TUI and session decompositions complete (2026-11-06).
+**状态：** TUI 与 session 拆解完成（2026-11-06）。
 
-This note records where the big modules' logic lives now, the constraints that
-shaped the split, and the units left whole on purpose — so a future change starts
-from a reasoned position instead of re-discovering the same edges.
+本笔记记录大模块的逻辑现在住在哪里、塑造拆分的约束，以及刻意保持完整的单元——让未来变更从有依据的立场出发，而不是重新发现同样的边界。
 
-## The pattern: typed facade over module functions
+## 模式：模块函数之上的类型化门面
 
-`CodingSession` and `BaldricTuiApp` are wide by design. The project's existing
-convention (`session/runtime.py`, `session/tree_helpers.py`, …) is:
+`CodingSession` 与 `BaldricTuiApp` 按设计就很宽。项目既有约定
+（`session/runtime.py`、`session/tree_helpers.py`……）是：
 
-- **real logic lives in module-level functions**, fully typed;
-- **the class keeps thin members** with the original signature and docstring, so
-  call sites never change.
+- **真正的逻辑住在模块级函数里**，全类型化；
+- **类保留薄成员**，签名与 docstring 不变，调用点永不改。
 
-This matters for type safety. Typing `self` as the concrete class inside a mixin
-is rejected by mypy:
+这对类型安全很重要。在 mixin 里把 `self` 类型化为具体类会被 mypy 拒绝：
 
 ```text
 The erased type of self "…CodingSession" is not a supertype of its class "…Mixin"
 ```
 
-The only mixin-compatible option is `self: Any`, which silently disables
-`--strict` on exactly the code that needs it. So:
+唯一 mixin 兼容的选项是 `self: Any`——恰好在最需要 `--strict` 的代码上静默关闭它。所以：
 
-- **core logic → module functions** taking `session: CodingSession` (full checking);
-- **presentation glue → mixins with `Any`** (TUI pickers/reconcile; the bodies are
-  screen orchestration, not algorithms).
+- **核心逻辑 → 接收 `session: CodingSession` 的模块函数**（完整检查）；
+- **呈现胶水 → 带 `Any` 的 mixin**（TUI picker/reconcile；函数体是 screen 编排，不是算法）。
 
-## What was extracted
+## 抽出了什么
 
-| Area | Before | After | New home |
+| 区域 | 之前 | 之后 | 新家 |
 | --- | --- | --- | --- |
-| `tui/app.py` | 5782 | **4472** | `tui/pickers.py` (model/theme), `tui/session_pickers.py` (session/tree/skill/login), `tui/extension_components.py` (slot/sidebar/main-view reconcile + its handle/bridge classes), plus neutral `tui/session_records.py`, `tui/text_utils.py`, `tui/login_providers.py` |
-| `session/session.py` | 2232 | **1931** | `session/model_runtime.py` (HF route failover, header-driven routing, runtime provider build/activate/refresh, model limits, cost pricing), `session/branching.py` (branch/tree/labels + `TREE_RUNNING_MESSAGE` and the two tree dataclasses, re-exported) |
+| `tui/app.py` | 5782 | **4472** | `tui/pickers.py`（model/theme）、`tui/session_pickers.py`（session/tree/skill/login）、`tui/extension_components.py`（slot/侧栏/主视图 reconcile 及其 handle/桥类），加中立的 `tui/session_records.py`、`tui/text_utils.py`、`tui/login_providers.py` |
+| `session/session.py` | 2232 | **1931** | `session/model_runtime.py`（HF 路由 failover、header 驱动路由、运行时 provider 构建/激活/刷新、模型限制、成本计价）、`session/branching.py`（分支/树/标签 + `TREE_RUNNING_MESSAGE` 与两个树 dataclass，再导出） |
 
-(Baseline line counts from `structure-baseline.json`.)
+（基线行数来自 `structure-baseline.json`。）
 
-## Constraints discovered while splitting
+## 拆分中发现的约束
 
-1. **Textual registers `@on(...)` handlers from the concrete class `__dict__`
-   only.** A decorated handler moved into a mixin never fires — the sidebar tests
-   catch it. `on_sidebar_file_open_requested` therefore stays on `BaldricTuiApp`.
-2. **`tui/screens/login.py` resolves OAuth through `_app_module().get_oauth_provider(name)`**
-   (and `screens/sidebar.py` likewise for its write helpers). Those names must
-   stay importable from `baldric_coding.tui.app`, or every OAuth login without an
-   explicit login closure raises `AttributeError` **inside a worker** — invisible
-   to the user, only the missing screen gives it away.
-3. **`monkeypatch` targets move with the code.** Tests patching
-   `tui_app.<name>` broke when the consumer moved; each patch now points at the
-   module that actually calls the name.
-4. **Name collisions.** `session/compaction/` is already a package; a new
-   `session/compaction.py` would be shadowed by it. New session modules live
-   beside it, not at the package's name.
+1. **Textual 只从具体类的 `__dict__` 注册 `@on(...)` handler。** 挪进 mixin 的装饰 handler 永不触发——侧栏测试抓到了它。`on_sidebar_file_open_requested` 因此留在 `BaldricTuiApp`。
+2. **`tui/screens/login.py` 经 `_app_module().get_oauth_provider(name)` 解析 OAuth**
+   （`screens/sidebar.py` 对其写 helper 同理）。那些名字必须保持可从 `baldric_coding.tui.app` 导入，否则每个没有显式登录闭包的 OAuth 登录会在**worker 内部**抛 `AttributeError`——用户看不见，只有缺失的 screen 暴露它。
+3. **`monkeypatch` 目标随代码移动。** patch `tui_app.<name>` 的测试在消费者移动后失效；每个 patch 现在指向真正调用该名字的模块。
+4. **名字冲突。** `session/compaction/` 已是包；新的 `session/compaction.py` 会被它遮蔽。新 session 模块住在它旁边，不占包名。
 
-## Left whole on purpose
+## 刻意保持完整
 
-Each item below was evaluated and kept as-is. Revisit only on the stated trigger.
+以下每项都评估过并保持原样。只在陈述的触发条件出现时重访。
 
-| Unit | Size | Why not split |
+| 单元 | 大小 | 为什么不拆 |
 | --- | --- | --- |
-| `CodingSession.load()` | 297 lines, 47 top-level statements | One linear constructor flow whose stages share ~12 locals (`config`, `state`, `entries`, `pending_initial_entries`, `extension_runtime`, `resource_paths`, `resources`, `summary`, `trust_resolution`, …). Splitting means either 8 functions with 10+ parameters each or a new mutable context object — both add indirection around trust/persistence ordering, which is where a mistake is most expensive. **Trigger:** a change that needs one stage tested or reused in isolation. |
-| `CodingSession.__init__()` | 80 lines, 51 statements | Pure field assignment (60+ state fields). There is no logic to extract; moving the assignments only relocates them and risks dropping one silently. **Trigger:** fields become grouped enough to justify a second state object. |
-| `session/lifecycle.reload()` | 216 lines | Already a module function; the same shared-locals argument as `load()`. **Trigger:** the reload steps diverge enough to be independently tested. |
-| rest of `tui/app.py` | 4472 lines, 61-stmt hot spot | Remaining members are the app lifecycle, prompt/run path, event handlers and rendering glue — the part that *is* the app. The extracted families were the ones with a clean seam. **Trigger:** a new cohesive family appears, or the Textual adapter boundary moves. |
-| `session/export/html.render_session_html()` | 1005 lines, but 24 statements | Measured rather than assumed: 59% of the file is string literals and this function is one 11,316-character HTML/CSS/JS template with interpolations. It is a template artifact, not logic; the structure ratchet already scores it low. **Trigger:** the template grows sections that belong in separate documents. |
+| `CodingSession.load()` | 297 行、47 条顶层语句 | 一条线性构造流程，各阶段共享约 12 个局部变量（`config`、`state`、`entries`、`pending_initial_entries`、`extension_runtime`、`resource_paths`、`resources`、`summary`、`trust_resolution`…）。拆分意味着 8 个各带 10+ 参数的函数，或一个新的可变 context 对象——都在信任/持久化顺序（最易出错处）周围加间接层。**触发：** 某个变更需要单独测试或复用一个阶段。 |
+| `CodingSession.__init__()` | 80 行、51 条语句 | 纯字段赋值（60+ 状态字段）。没有逻辑可抽；移动赋值只是搬家，还有静默丢一条的风险。**触发：** 字段分组到足以有第二个状态对象。 |
+| `session/lifecycle.reload()` | 216 行 | 已是模块函数；与 `load()` 相同的共享局部变量论证。**触发：** reload 各步骤分歧到可独立测试。 |
+| `tui/app.py` 其余 | 4472 行、61 语句热点 | 剩余成员是应用生命周期、prompt/运行路径、事件 handler 与渲染胶水——正是"应用本身"的部分。被抽出的家族是有干净接缝的那些。**触发：** 出现新的内聚家族，或 Textual 适配器边界移动。 |
+| `session/export/html.render_session_html()` | 1005 行但只有 24 条语句 | 实测而非假设：文件 59% 是字符串字面量，该函数是一个带插值的 11,316 字符 HTML/CSS/JS 模板。它是模板产物不是逻辑；结构棘轮已经给它打了低分。**触发：** 模板长出属于独立文档的区块。 |
 
-`compaction` was prototyped and **reverted**: those methods are already pure
-delegations into `session/runtime.py`, so extracting them added a module and a
-layer without removing any logic.
+`compaction` 原型化后**被回退**：那些方法已经是对
+`session/runtime.py` 的纯委托，抽取只是加了一个模块和一层，没移走任何逻辑。
 
-## Guards
+## 守卫
 
-- `scripts/check_structure.py` — file size, function statements, fan-out; records
-  reviewed growth with `--init`.
-- `scripts/check_suppressions.py` — `# type: ignore` / `# noqa` may only shrink.
-- `scripts/check_agent_guidance.py` — instruction files (`AGENTS.md`/`CLAUDE.md`)
-  may only shrink; **architecture notes belong in `dev-notes/`, not there.**
-- `tests/coding/tui/test_picker_extraction.py` — picker/reconcile methods come
-  from the mixins and are never redefined on the app.
-- `tests/coding/session/test_session_module_layout.py` — the session class stays a
-  plain facade (no mixin bases), the tree types are single-sourced and
-  re-exported, and the module functions back the class members.
+- `scripts/check_structure.py` —— 文件大小、函数语句、扇出；经 `--init` 记录已评审的增长。
+- `scripts/check_suppressions.py` —— `# type: ignore` / `# noqa` 只能缩小。
+- `scripts/check_agent_guidance.py` —— 指令文件（`AGENTS.md`/`CLAUDE.md`）
+  只能缩小；**架构笔记属于 `dev-notes/`，不属于那里。**
+- `tests/coding/tui/test_picker_extraction.py` —— picker/reconcile 方法来自
+  mixin，绝不在应用上重定义。
+- `tests/coding/session/test_session_module_layout.py` —— session 类保持
+  纯门面（无 mixin 基类），树类型单源并再导出，模块函数支撑类成员。
 
-## Verifying a future change here
+## 验证此处的未来变更
 
 ```bash
 uv run ruff check . && uv run ruff format --check . && uv run mypy
@@ -95,6 +77,4 @@ uv run python scripts/check_import_graph.py
 uv run pytest -q tests/coding/tui/test_picker_extraction.py tests/coding/session/test_session_module_layout.py
 ```
 
-Full TUI suite is flaky on Windows (asyncio backend); run it on Linux CI, and on
-Windows run `tests/coding/tui/test_tui_app.py` plus the other modules
-individually.
+完整 TUI 套件在 Windows 上偶发 flaky（asyncio 后端）；在 Linux CI 上跑，Windows 上单独运行 `tests/coding/tui/test_tui_app.py` 及其他模块。

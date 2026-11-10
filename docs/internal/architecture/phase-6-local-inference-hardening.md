@@ -1,93 +1,64 @@
 ---
-title: "Phase 6: Local inference hardening and second-backend validation"
+title: "Phase 6：本地推理加固与第二 backend 验证"
 ---
 
-Phase 6 closes the generic local-provider validation loop from issue #602. It
-keeps the shipped implementation intentionally small: llama.cpp remains the
-only built-in local backend, while a deterministic second fake and a test-only
-Ollama adapter exercise the public seams.
+Phase 6 关闭 issue #602 的通用本地 provider 验证闭环。它
+刻意保持交付实现很小：llama.cpp 仍是唯一的内置本地 backend，而一个确定性的第二 fake 与一个仅测试的
+Ollama 适配器锻炼公开接缝。
 
-## What changed
+## 变更了什么
 
-- A permanent fake second backend covers different normal, secret, and choice
-  configuration fields, source-bound provider/backend layers, atomic failed
-  configuration, cancellation, stale-result rejection, progress redaction, and
-  optional capabilities.
-- The Ollama adapter spike lives under `tests/fixtures/`; it is not imported by
-  Baldric production code and does not register an Ollama backend. It uses the
-  official OpenAI-compatible `/v1/models` shape for provider discovery and the
-  native `/api/tags` and `/api/ps` shapes for installed/running status.
-- Refresh/reload stress tests cover coalescing, generation retirement, hostile
-  cancellation, bounded cleanup, and late-result containment. Credential tests
-  cover generation references, offline setup, state-file redaction, and
-  cleanup-orphan behavior.
-- A missing llama.cpp selection remains a stable reference rather than being
-  overwritten by a newly discovered model. Status and model selection mark that
-  snapshot stale. Explicit Doctor may probe a sole currently reported model for
-  diagnostics, but it never changes the active selection.
+- 一个常驻的 fake 第二 backend 覆盖不同的 normal、secret、choice
+  配置字段、来源绑定的 provider/backend 层、原子的失败配置、取消、过期结果拒绝、进度脱敏与可选能力。
+- Ollama 适配器 spike 位于 `tests/fixtures/`；它不被
+  Baldric 生产代码导入、不注册 Ollama backend。provider 发现用官方 OpenAI 兼容 `/v1/models` 形状，已安装/运行状态用原生 `/api/tags` 与 `/api/ps` 形状。
+- 刷新/reload 压力测试覆盖合并、世代退役、敌意取消、有界清理与迟到结果包容。凭据测试覆盖世代引用、离线 setup、状态文件脱敏与清理孤儿行为。
+- 缺失的 llama.cpp 选择保持为稳定引用，而不被新发现的模型覆盖。状态与模型选择把该快照标为过期。显式 Doctor 可以为诊断探测当前唯一上报的模型，但绝不改变活动选择。
 
-## Contract pressure from Ollama
+## 来自 Ollama 的契约压力
 
-The spike did not require llama.cpp vocabulary in the generic APIs. It did
-confirm three useful boundaries:
+spike 不需要在通用 API 里出现 llama.cpp 词汇。它确实确认了三条有用的边界：
 
-1. Provider discovery and local status can use different protocol endpoints.
-   `DynamicProvider.refresh_models` returns one complete provider snapshot,
-   while `LocalBackend.status` returns installed/running state through the
-   open-ended `LocalModel.state` field.
-2. `NoAuth` is a real use case. Ollama's local OpenAI-compatible endpoint does
-   not need a synthetic key or an `Authorization` header.
-3. Backend capability operations remain optional and host-renderable. The host
-   owns fields, confirmation, cancellation, and rendering; protocol adapters
-   return structured values and never construct Textual widgets.
+1. provider 发现与本地状态可以使用不同协议端点。
+   `DynamicProvider.refresh_models` 返回一份完整的 provider 快照，而 `LocalBackend.status` 经开放的 `LocalModel.state` 字段返回已安装/运行状态。
+2. `NoAuth` 是真实用例。Ollama 的本地 OpenAI 兼容端点不需要合成 key 或 `Authorization` header。
+3. backend 能力操作保持可选且可由宿主渲染。宿主拥有字段、确认、取消与渲染；协议适配器返回结构化值，绝不构建 Textual 组件。
 
-The observed official API references are:
+观察到的官方 API 引用：
 
 - <https://docs.ollama.com/api/openai-compatibility>
 - <https://docs.ollama.com/api/tags>
 - <https://docs.ollama.com/api/ps>
 
-The spike deliberately does not promise native Ollama model management. It
-only validates that an adapter with separate discovery/status endpoints fits the
-provider-neutral contracts.
+spike 刻意不承诺原生 Ollama 模型管理。它只验证一个发现/状态端点分离的适配器符合
+provider 中立契约。
 
-## Lifecycle and security decisions
+## 生命周期与安全决策
 
-Registries remain generation-local. Retirement invalidates source/layer tokens,
-cancels owned work once, waits only through the documented bounded cancellation
-window, and keeps a still-running callback supervised until it finishes. A late
-callback cannot publish into a replacement generation. A prepared runtime owns
-its provider and backend resources; a failed candidate closes only its own
-resources, and final close is idempotent.
+registry 保持世代局部。退役使来源/层 token 失效、恰好取消一次自有工作、只在文档化的有界取消窗口内等待，并让仍在运行的回调被监护到结束。迟到回调不能向替换世代发布。准备好的 runtime 拥有
+其 provider 与 backend 资源；失败的候选只关闭自己的资源，最终关闭幂等。
 
-Built-in llama.cpp state is user-level, versioned, locked, private, and
-atomically replaced. It stores only normalized endpoints, exact model IDs,
-allowlisted metadata, a selected reference, and a timestamp. API keys remain in
-the credential store or environment. The old `llama-cpp` catalog provider is
-not migrated or overwritten, and Ollama remains a documented custom-provider
-option rather than a shipped backend.
+内置 llama.cpp 状态是用户级、带版本、加锁、私有且
+原子替换的。它只存归一化端点、确切模型 ID、
+允许列表元数据、一个选定引用与时间戳。API key 留在凭据库或环境。旧 `llama-cpp` 目录 provider
+不被迁移或覆盖，Ollama 保持为文档化的自定义 provider 选项而非交付的 backend。
 
-No Phase 7 router mutations are included. There is no production Ollama
-backend, Hugging Face search/download, llama.cpp load/unload implementation, or
-implicit model-file operation in this phase.
+本阶段不含 Phase 7 路由变更。没有生产 Ollama
+backend、没有 Hugging Face 搜索/下载、没有 llama.cpp 加载/卸载实现、也没有隐式模型文件操作。
 
-## Migration guidance
+## 迁移指引
 
-Existing manually configured OpenAI-compatible local providers continue to
-work. To move a llama.cpp setup to the built-in integration:
+既有手工配置的 OpenAI 兼容本地 provider 继续工作。把 llama.cpp 设置迁到内置集成：
 
-1. Start the server independently.
-2. Open `/local`, choose and confirm the recommended llama.cpp backend, and
-   enter the endpoint and optional key.
-3. Use the exact model ID returned by `/v1/models` in `/model` or with
-   `--provider llama.cpp --model <id>`.
-4. Remove an old `llama-cpp` catalog entry only after the new session works.
+1. 独立启动服务器。
+2. 打开 `/local`，选择并确认推荐的 llama.cpp backend，输入端点与可选 key。
+3. 在 `/model` 或 `--provider llama.cpp --model <id>` 中使用 `/v1/models` 返回的确切模型 ID。
+4. 新 session 验证可用后再移除旧的 `llama-cpp` 目录条目。
 
-Baldric does not copy old fake keys, fake model IDs, catalog definitions, project
-settings, or environment endpoints into the built-in state. Reset removes only
-built-in settings; server processes and model files are never touched.
+Baldric 不把旧的假 key、假模型 ID、目录定义、项目
+设置或环境端点拷进内置状态。reset 只移除内置设置；服务器进程与模型文件绝不被触碰。
 
-## Verification
+## 验证
 
 ```bash
 uv run pytest tests/test_local_backends.py tests/test_extension_providers.py \
