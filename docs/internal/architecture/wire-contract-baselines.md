@@ -1,63 +1,53 @@
-# Wire contract baselines
+# wire 契约基线
 
-**Status:** accepted — 2026-11-06 (branch `chore/p0-contract-baselines`)
+**状态：** 已接受 —— 2026-11-06（分支 `chore/p0-contract-baselines`）
 
-This note records the first slice of the reliability programme: before changing
-behavior, pin the shapes that other things already depend on. It also records
-what that slice deliberately did **not** do, so the next change does not
-re-litigate it.
+本笔记记录可靠性计划的第一片：改行为之前，先钉住已有依赖者的形状。它也记录这一片刻意**没做**什么，让下一次变更不必重新争论。
 
-## Why
+## 为什么
 
-Three consumers read these shapes:
+三个消费者读这些形状：
 
-- the persisted JSONL transcript (user data; older and newer Baldric must read it);
-- the JSON event stream (`--print` / JSON mode, and the RPC wire);
-- the built-in message/event union that every frontend and extension renders.
+- 持久化的 JSONL transcript（用户数据；新旧 Baldric 都必须能读）；
+- JSON 事件流（`--print` / JSON mode，与 RPC wire）；
+- 每个 frontend 与 extension 渲染的内置消息/事件联合。
 
-Before this change only two message shapes were locked
-(`assistant_message.json`, `tool_result_message.json`). The unions themselves,
-the provider-stream events, the loop events, and every session entry type were
-unpinned: adding a field, renaming an alias, or reordering a union branch could
-change the protocol with a green suite.
+本变更前只有两个消息形状被锁定
+（`assistant_message.json`、`tool_result_message.json`）。联合本身、
+provider 流事件、loop 事件与每种 session entry 类型都没钉：加一个字段、改一个别名或重排联合分支，都能在绿色套件下改变协议。
 
-## What is pinned
+## 钉住了什么
 
-| Snapshot (`tests/expected/`) | Covers | Written by |
+| 快照（`tests/expected/`） | 覆盖 | 写入者 |
 | --- | --- | --- |
-| `agent_message_union.jsonl` | 8 `AgentMessage` branches (text, image, assistant, tool result, bash, custom, branch summary, compaction summary) | `tests/agent/test_wire_contract.py` |
-| `provider_events.jsonl` | 12 `AssistantMessageEvent` branches | same |
-| `agent_events.jsonl` | 10 `AgentEvent` branches | same |
-| `session_entries.jsonl` | 10 `SessionEntry` types in canonical persisted JSONL | `tests/agent/test_session_entry_contract.py` |
+| `agent_message_union.jsonl` | 8 个 `AgentMessage` 分支（text、image、assistant、tool result、bash、custom、branch summary、compaction summary） | `tests/agent/test_wire_contract.py` |
+| `provider_events.jsonl` | 12 个 `AssistantMessageEvent` 分支 | 同上 |
+| `agent_events.jsonl` | 10 个 `AgentEvent` 分支 | 同上 |
+| `session_entries.jsonl` | 规范持久 JSONL 中的 10 种 `SessionEntry` 类型 | `tests/agent/test_session_entry_contract.py` |
 
-Each file is the production serialization output (aliases on, `None` omitted),
-one object per line, so a diff points at the branch that changed rather than at
-one long line.
+每个文件都是生产序列化输出（别名开、`None` 省略），
+一行一个对象，diff 因此指向变化的分支而不是一条长行。
 
-Two guards keep the snapshots honest:
+两个守卫让快照诚实：
 
-- **coverage** — the fixture sets are compared against the union's declared
-  branches, so a new message/event/entry type fails the test instead of silently
-  missing from the snapshot;
-- **round-trip** — every fixture is serialized, parsed back, and compared whole.
+- **覆盖** —— fixture 集与联合声明的分支对照，新的消息/事件/entry 类型会让测试失败，而不是悄悄缺席快照；
+- **往返** —— 每个 fixture 被序列化、解析回来、整体比对。
 
-The session snapshot also pins the mixed convention that already exists:
-entries are snake_case while the messages and usage they embed are camelCase.
+session 快照还钉住既有的混合约定：
+entry 是 snake_case，而其内嵌的消息与用量是 camelCase。
 
-## Changing a snapshot
+## 修改快照
 
-A snapshot change is a protocol change. Update it only with an explicit flag and
-review the diff:
+改快照就是改协议。只在显式旗标下更新并评审 diff：
 
 ```bash
 UPDATE_EXPECTED=1 uv run pytest tests/agent/test_wire_contract.py tests/agent/test_session_entry_contract.py
 git diff tests/expected/
 ```
 
-## Provider-layer import surface
+## provider 层导入面
 
-`baldric_ai` may import the harness's provider-neutral wire contract and nothing
-else:
+`baldric_ai` 可以导入 harness 的 provider 中立 wire 契约，仅此而已：
 
 ```
 baldric_agent.messages
@@ -67,49 +57,32 @@ baldric_agent.tools
 baldric_agent.types
 ```
 
-`scripts/check_import_graph.py` now reports any other `baldric_agent…` import,
-including `from baldric_agent import X` (the package root runs `__init__`, which
-pulls session storage and JSONL). The scanner has its own synthetic-violation
-tests, and one test proves the allowlist still points at modules that exist.
+`scripts/check_import_graph.py` 现在报告任何其他 `baldric_agent…` 导入，
+包括 `from baldric_agent import X`（包根会运行 `__init__`，拉起 session 存储与 JSONL）。扫描器有自己的植入违规测试，还有一个测试证明允许列表仍指向存在的模块。
 
-**What this guard does not claim.** It does not say the two packages have the
-direction their documentation describes. `baldric_ai/AGENTS.md` still calls the
-provider layer "the lowest layer" and forbids importing `baldric_agent`, while
-the code is the reverse: adapters depend on the harness's domain contract. That
-is a normal adapter → contract direction; the declaration is what is wrong.
-Fixing the declaration, and adding the missing `rendering → tui` direction, is
-deferred to the frontend/extension hygiene phase. A blanket
-`("baldric_ai", "baldric_agent")` rule is **not** added because it would be
-false today.
+**该守卫不声称的事。** 它不说两个包拥有其文档描述的方向。`baldric_ai/AGENTS.md` 仍称 provider 层为"最底层"并禁止导入 `baldric_agent`，而代码恰好相反：适配器依赖 harness 的领域契约。那是正常的适配器 → 契约方向；错的是声明。修复声明、补上缺失的 `rendering → tui` 方向，推迟到 frontend/extension 卫生阶段。没有加一刀切的
+`("baldric_ai", "baldric_agent")` 规则，因为今天它是假的。
 
-## Session format evolution (decision now, code later)
+## session 格式演化（现在决策，以后写代码）
 
-When the first real session-format change lands, it follows this policy:
+第一个真实的 session 格式变更落地时，遵循此政策：
 
-1. every entry carries an integer `v`, defaulting to `1`, omitted from the
-   serialized line while it equals the current format version;
-2. readers reject a `v` greater than the supported version with a clear
-   `SessionJsonlError`, instead of a generic validation error;
-3. migration stays confined to `session/jsonl.py` (the existing shape-sniffing
-   migration keeps working for v1);
-4. the unknown-field policy (reject / preserve) is decided when a v2 actually
-   exists, not before.
+1. 每条 entry 带整数 `v`，默认 `1`，等于当前格式版本时从序列化行省略；
+2. 读取者以清晰的 `SessionJsonlError` 拒绝大于支持版本的 `v`，而不是笼统的校验错误；
+3. 迁移限于 `session/jsonl.py`（既有的形状嗅探迁移对 v1 继续有效）；
+4. 未知字段政策（拒绝/保留）等 v2 真正存在时再定，不提前。
 
-**Why it is not implemented in this slice:** every file that exists today is v1
-by definition, so the field has no behavior to exercise, and `src/` is covered by
-the structure ratchet — a field with no consumer would either grow a ratcheted
-file or force an unrelated refactor. The first format change (prompt/tool-set
-version entries, a compaction checkpoint, usage entries) carries it.
+**为什么本片不实现：** 今天存在的每个文件按定义都是 v1，字段没有任何行为可锻炼，且 `src/` 受结构棘轮覆盖——没有消费者的字段要么撑大被棘轮的文件，要么逼一次无关重构。第一个格式变更（prompt/工具集版本 entry、compaction 检查点、usage entry）携带它。
 
-## Deliberately deferred from this slice
+## 本片刻意推迟的
 
-| Item | Deferred until | Reason |
+| 项 | 推迟到 | 理由 |
 | --- | --- | --- |
-| Provider record/replay fixtures | a regression needs pinning (reliability phase) | adapter tests already drive fake transports and recorded payloads; a VCR layer without a consumer is speculative |
-| Fault-injection harness | the first storage/cancel fix | the harness is only useful once a fix needs it; building it first risks an unused abstraction |
-| Generic risk-switch framework | the first risky behavior changes | add a switch per behavior on the existing config path; do not build a flag system up front |
+| provider 记录/回放 fixture | 有回归需要钉住（可靠性阶段） | 适配器测试已驱动 fake transport 与录制载荷；没有消费者的 VCR 层是投机 |
+| 故障注入 harness | 第一个存储/取消修复 | harness 只在有修复需要它时有用；先建有未用抽象的风险 |
+| 通用风险开关框架 | 第一个风险行为变更 | 在既有配置路径上按行为加开关；不要预建旗标系统 |
 
-## Verification
+## 验证
 
 ```bash
 uv run ruff check . && uv run ruff format --check . && uv run mypy

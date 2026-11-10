@@ -1,51 +1,40 @@
 ---
-title: "Pre-extension Hardening Summary"
+title: "extension 化之前的加固摘要"
 ---
 
-This note summarizes the production hardening work completed before Phase 21
-extensions. Phase 21 remains intentionally deferred.
+本笔记总结 Phase 21 extension 之前完成的生产加固。Phase 21 仍被有意推迟。
 
-## Agent And Provider Runtime
+## agent 与 provider 运行时
 
-Baldric now has provider-neutral progress events for retries, thinking/reasoning
-deltas, and queued prompt state:
+Baldric 现在有 provider 中立的进展事件：重试、thinking/reasoning
+delta、排队 prompt 状态：
 
-- `RetryEvent` reports provider retry attempts without exposing provider-specific
-  HTTP details to frontends.
-- `ThinkingDeltaEvent` carries optional streamed provider reasoning text without
-  recording it as a durable assistant message.
-- `QueueUpdateEvent` carries pending steering and follow-up prompt text for
-  frontend status displays.
+- `RetryEvent` 报告 provider 重试尝试，不向 frontend 暴露 provider 特定的
+  HTTP 细节。
+- `ThinkingDeltaEvent` 携带可选的流式 provider 推理文本，不把它记录为持久的 assistant 消息。
+- `QueueUpdateEvent` 为 frontend 状态显示携带待处理的 steering 与 follow-up prompt 文本。
 
-OpenAI-compatible, Anthropic, and OpenAI Codex subscription providers retry
-transient transport failures before emitting a final provider error. The retry
-policy is configurable through provider settings and environment variables.
+OpenAI 兼容、Anthropic 与 OpenAI Codex 订阅 provider 对瞬时 transport 失败重试，然后才发出最终 provider 错误。重试策略经 provider 设置与环境变量可配置。
 
-Credential resolution is explicit: stored Baldric credentials from
-`~/.baldric/credentials.json` take precedence over environment-variable fallbacks for
-providers with a `credential_name`.
+凭据解析是显式的：对带 `credential_name` 的 provider，`~/.baldric/credentials.json` 的 Baldric 已存凭据
+优先于环境变量回退。
 
-## Context, Skills, And Sessions
+## context、skill 与 session
 
-Context accounting now returns a structured `ContextUsageEstimate` with total,
-system, message, and tool token estimates. The TUI refreshes from the event
-stream, so sidebar and compact-session context numbers update after user
-messages, assistant responses, tool results, compaction, and resume/new-session
-flows.
+context 计量现在返回结构化 `ContextUsageEstimate`，含总量、
+system、消息与工具 token 估算。TUI 从事件流刷新，侧栏与紧凑 session 的 context 数字因此在用户消息、assistant 响应、工具结果、compaction 及 resume/new-session 流程后更新。
 
-Loaded skills are available through two paths:
+已加载 skill 经两条路径可用：
 
-- the system prompt lists skill names, descriptions, and file locations so the
-  model can read relevant skill files with the normal `read` tool
-- `/skill:<name> [request]` expands the full skill markdown into the next prompt
+- system prompt 列出 skill 名、描述与文件位置，模型可用普通 `read` 工具读相关 skill 文件
+- `/skill:<name> [request]` 把完整 skill markdown 展开进下一条 prompt
 
-Session export is available through `baldric export`. It writes a self-contained
-HTML view for an indexed session id or JSONL session path and preserves both the
-session tree structure and storage-order transcript.
+session 导出经 `baldric export` 可用。它为已索引 session id 或 JSONL session 路径写一个自包含 HTML 视图，同时保留
+session 树结构与存储顺序 transcript。
 
-## TUI Behavior
+## TUI 行为
 
-The Textual frontend remains behind the adapter boundary:
+Textual frontend 留在适配器边界之后：
 
 ```text
 CodingSession emits AgentEvent values
@@ -55,42 +44,39 @@ TuiEventAdapter updates TuiState
 Textual widgets render transcript, status, and controls
 ```
 
-Recent TUI hardening added:
+近期 TUI 加固增加了：
 
-- responsive sidebar behavior with provider/model, thinking mode, tools, skills,
-  prompt templates, and context files
-- context-size refresh after streamed user, assistant, tool, compaction, and
-  resume events
-- Textual transcript text selection for visible transcript output
-- message selection with `Alt-Up` / `Alt-Down`
-- selected-message copy with `Ctrl-C`
-- inline tool result expansion with `Ctrl-O`
-- animated activity status while an agent run is active
-- thinking-mode cycling with `Shift-Tab`
-- optional thinking-token display with `Ctrl-T`, hidden by default
-- queued steering with `Enter` while running
-- queued follow-ups with `Alt-Enter` while running
+- 响应式侧栏，含 provider/model、thinking mode、tools、skills、
+  prompt templates 与 context 文件
+- 流式用户、assistant、工具、compaction 与 resume 事件后的 context 大小刷新
+- 可见 transcript 输出的 Textual 文本选择
+- `Alt-Up` / `Alt-Down` 选择消息
+- `Ctrl-C` 复制选中消息
+- `Ctrl-O` 内联展开工具结果
+- agent 运行活动时的动画活动状态
+- `Shift-Tab` 轮换 thinking mode
+- `Ctrl-T` 可选 thinking token 显示（默认隐藏）
+- 运行中 `Enter` 排队 steering
+- 运行中 `Alt-Enter` 排队 follow-up
 
-Queued prompts are not persisted when first queued. They become durable session
-messages only when `AgentHarness` injects them into the active run and emits the
-normal user-message events.
+排队 prompt 首次入队时不持久化。只有当 `AgentHarness` 把它们注入活动运行并发出正常用户消息事件时，才成为持久 session 消息。
 
-## Architecture Boundary
+## 架构边界
 
-The added behavior preserves Baldric's package split:
+新增行为保持 Baldric 的包切分：
 
-- `baldric_ai` owns provider-specific retry, token, and stream parsing.
-- `baldric_agent` owns portable messages, events, loop coordination, harness state,
-  queue semantics, tools, and session primitives.
-- `baldric_coding` owns provider configuration, credentials, resources, commands,
-  persistence workflows, docs, and Textual UI policy.
+- `baldric_ai` 拥有 provider 特定的重试、token 与流解析。
+- `baldric_agent` 拥有可移植消息、事件、循环协调、harness 状态、
+  队列语义、工具与 session 原语。
+- `baldric_coding` 拥有 provider 配置、凭据、资源、命令、
+  持久化流程、文档与 Textual UI 政策。
 
-The reusable agent package still does not import Textual, Rich rendering, Typer,
-local config paths, slash-command registries, or project resource loading.
+可复用 agent 包仍不导入 Textual、Rich 渲染、Typer、
+本地配置路径、slash 命令注册表或项目资源加载。
 
-## Verification
+## 验证
 
-The hardening slices are covered by focused tests across:
+加固片由跨下列文件的聚焦测试覆盖：
 
 ```text
 tests/test_agent_harness.py
@@ -107,7 +93,7 @@ tests/test_tui_app.py
 tests/test_tui_config.py
 ```
 
-Before merging the final pre-extension changes, the full gate passed:
+合并最后的 extension 化之前变更前，全量门通过：
 
 ```bash
 uv run pytest

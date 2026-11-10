@@ -1,21 +1,19 @@
 ---
-title: "Phase 6: Non-interactive Print-mode CLI"
+title: "Phase 6：非交互 print-mode CLI"
 ---
 
-Phase 6 wired Baldric's provider layer, agent harness, and built-in coding tools into
-a usable non-interactive CLI. Later phases moved print mode onto the
-`CodingSession` wrapper so it shares the same coding-agent environment as the
-TUI.
+Phase 6 把 Baldric 的 provider 层、agent harness 与内置编码工具接成一个可用的非交互 CLI。后续阶段把 print mode 移到
+`CodingSession` 包装之上，与 TUI 共享同一编码 agent 环境。
 
-The CLI entry point lives in:
+CLI 入口位于：
 
 ```text
 src/baldric_coding/cli.py
 ```
 
-## What was added
+## 加了什么
 
-The `baldric` command can run a single prompt in print mode with `-p`/`--prompt`:
+`baldric` 命令可以用 `-p`/`--prompt` 在 print mode 跑单条 prompt：
 
 ```bash
 baldric -p "write tests for main.py"
@@ -23,105 +21,101 @@ baldric --prompt "explain this repo"
 baldric --model gpt-5.5 -p "summarize README.md"
 ```
 
-Without `-p`/`--prompt`, Baldric starts the interactive TUI. A positional prompt is
-treated as the initial TUI prompt:
+不带 `-p`/`--prompt` 时，Baldric 启动交互式 TUI。位置 prompt 被当作
+TUI 的初始 prompt：
 
 ```bash
 baldric
 baldric "explain this repo"
 ```
 
-The original Phase 6 command:
+最初的 Phase 6 命令：
 
-1. loads OpenAI-compatible provider settings from the environment
-2. creates Baldric's built-in coding tools
-3. builds a minimal default system prompt
-4. creates an `AgentHarness`
-5. streams assistant text to stdout
-6. prints tool execution summaries to stderr
+1. 从环境加载 OpenAI 兼容 provider 设置
+2. 创建 Baldric 的内置编码工具
+3. 构建最小默认 system prompt
+4. 创建 `AgentHarness`
+5. 把 assistant 文本流式输出到 stdout
+6. 把工具执行摘要打印到 stderr
 
-## Provider configuration
+## provider 配置
 
-Print mode uses Baldric's configured provider settings.
+print mode 使用 Baldric 已配置的 provider 设置。
 
-If no provider login has been saved, the default OpenAI-compatible provider
-expects:
+没有保存过 provider 登录时，默认 OpenAI 兼容 provider 期望：
 
 ```bash
 export OPENAI_API_KEY="..."
 ```
 
-Optional environment:
+可选环境：
 
 ```bash
 export OPENAI_BASE_URL="https://api.openai.com/v1"
 ```
 
-The default model is currently:
+默认模型目前是：
 
 ```text
 gpt-5.5
 ```
 
-Use `--model` to choose another model supported by the configured endpoint.
+用 `--model` 选择配置端点支持的另一个模型。
 
-## Working directory
+## 工作目录
 
-Tools are rooted at the current working directory by default.
+工具默认以当前工作目录为根。
 
-Use `--cwd` to run tools somewhere else:
+用 `--cwd` 让工具在别处运行：
 
 ```bash
 baldric --cwd /path/to/project -p "inspect the tests"
 ```
 
-## Current behavior
+## 当前行为
 
-Print mode now composes the higher-level `CodingSession` environment. A one-shot
-run still remains non-interactive and script-friendly, but it now shares:
+print mode 现在组合更高层的 `CodingSession` 环境。一次性运行
+仍保持非交互且脚本友好，但现在共享：
 
-- full Baldric system prompt assembly
-- discovered project instructions
-- loaded skills and prompt templates
-- built-in coding tools
-- append-only session persistence under `~/.baldric/sessions/`
-- the same provider/model resolution used by the TUI
-- configured provider timeout and retry settings
-- Rich-backed transcript rendering for tool activity
+- 完整的 Baldric system prompt 组装
+- 发现的项目指令
+- 已加载 skill 与 prompt template
+- 内置编码工具
+- `~/.baldric/sessions/` 下的 append-only session 持久化
+- 与 TUI 相同的 provider/model 解析
+- 配置的 provider 超时与重试设置
+- Rich 支撑的工具活动 transcript 渲染
 
-This keeps the user-facing command simple while reducing drift between print
-mode and interactive mode.
+这让面向用户的命令保持简单，同时减少 print mode 与交互模式之间的漂移。
 
-## Historical minimal system prompt
+## 历史上的最小 system prompt
 
-Phase 6 originally built a small prompt containing:
+Phase 6 最初构建的小 prompt 包含：
 
-- Baldric's identity
-- the list of available tools
-- each tool's `prompt_snippet`
-- each tool's `prompt_guidelines`
+- Baldric 的身份
+- 可用工具清单
+- 每个工具的 `prompt_snippet`
+- 每个工具的 `prompt_guidelines`
 
-That was enough for the first CLI slice. The current implementation uses the
-shared system prompt builder instead.
+对第一个 CLI 片这够用了。当前实现改用共享的 system prompt 构建器。
 
-## Boundary
+## 边界
 
-The CLI lives in `baldric_coding`. It depends on provider settings,
-`CodingSession`, and renderers, but the reusable `baldric_agent` package still has
-no CLI, Rich, Textual, config-file, or session-storage dependency.
+CLI 住在 `baldric_coding`。它依赖 provider 设置、
+`CodingSession` 与渲染器，但可复用的 `baldric_agent` 包仍无 CLI、Rich、Textual、配置文件或 session 存储依赖。
 
-## Tests
+## 测试
 
-The phase is covered by `tests/test_cli.py`, including:
+本阶段覆盖于 `tests/test_cli.py`，包括：
 
 - `baldric --version`
-- default TUI launch when no print-mode prompt is provided
-- positional prompts launching the TUI as initial prompts
-- shared system prompt contents
-- print-mode streaming with a fake provider
-- print-mode session persistence
-- print-mode skill expansion
+- 未提供 print-mode prompt 时默认启动 TUI
+- 位置 prompt 作为 TUI 初始 prompt 启动
+- 共享 system prompt 内容
+- fake provider 的 print-mode 流式
+- print-mode session 持久化
+- print-mode skill 展开
 
-## Next phase
+## 下一阶段
 
-The next roadmap phase is append-only session tree persistence.
+路线图下一阶段是 append-only session 树持久化。
