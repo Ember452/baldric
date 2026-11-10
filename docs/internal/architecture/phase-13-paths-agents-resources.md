@@ -1,10 +1,10 @@
 ---
-title: "Phase 13: Baldric Home, Paths, and `.agents` Resources"
+title: "Phase 13：Baldric home、路径与 `.agents` 资源"
 ---
 
-Phase 13 makes Baldric's user/project filesystem locations explicit and starts loading `.agents` resources automatically for every normal Baldric session.
+Phase 13 把 Baldric 的用户/项目文件系统位置显式化，并开始为每个正常 Baldric session 自动加载 `.agents` 资源。
 
-The implementation lives in:
+实现位于：
 
 ```text
 src/baldric_coding/paths.py
@@ -13,15 +13,15 @@ src/baldric_coding/skills.py
 src/baldric_coding/prompt_templates.py
 ```
 
-## What was added
+## 加了什么
 
-Baldric now has a canonical path helper:
+Baldric 现在有一个规范的路径 helper：
 
 ```python
 BaldricPaths
 ```
 
-It defines user-level locations such as:
+它定义用户级位置，如：
 
 ```text
 ~/.baldric/
@@ -33,7 +33,7 @@ It defines user-level locations such as:
 ~/.agents/prompts/
 ```
 
-and project-level locations such as:
+与项目级位置，如：
 
 ```text
 <project>/.baldric/skills/
@@ -43,27 +43,27 @@ and project-level locations such as:
 <project>/.agents/prompts/
 ```
 
-## Session location
+## session 位置
 
-The early TUI default session path moved from project-local storage:
+早期 TUI 默认 session 路径从项目本地存储：
 
 ```text
 <project>/.baldric/sessions/default.jsonl
 ```
 
-to user-home storage keyed by project path:
+移到按项目路径为键的用户 home 存储：
 
 ```text
 ~/.baldric/sessions/<project-hash>/default.jsonl
 ```
 
-This keeps JSONL transcripts in a consistent user-owned location while still separating sessions by project.
+这让 JSONL transcript 留在一致的用户自有位置，同时仍按项目分离 session。
 
-## Automatic `.agents` resources
+## 自动 `.agents` 资源
 
-BaldricResourcePaths now includes `.agents` directories by default.
+BaldricResourcePaths 现在默认包含 `.agents` 目录。
 
-When no cwd is supplied, Baldric loads user resources from:
+未提供 cwd 时，Baldric 从这些位置加载用户资源：
 
 ```text
 ~/.baldric/skills/
@@ -73,7 +73,7 @@ When no cwd is supplied, Baldric loads user resources from:
 ~/.agents/prompts/
 ```
 
-When a cwd is supplied, Baldric also loads project resources from:
+提供 cwd 时，Baldric 还从这些位置加载项目资源：
 
 ```text
 <project>/.baldric/skills/
@@ -83,38 +83,38 @@ When a cwd is supplied, Baldric also loads project resources from:
 <project>/.agents/prompts/
 ```
 
-This makes `.agents` part of the normal Baldric session environment, not an optional extension mechanism.
+这使 `.agents` 成为正常 Baldric session 环境的一部分，而不是可选的扩展机制。
 
-## Precedence
+## 优先级
 
-Resource directories are loaded in increasing precedence order:
+资源目录按优先级递增加载：
 
-1. user Baldric resources
-2. user `.agents` resources
-3. project Baldric resources
-4. project `.agents` resources
+1. 用户 Baldric 资源
+2. 用户 `.agents` 资源
+3. 项目 Baldric 资源
+4. 项目 `.agents` 资源
 
-If two directories define the same skill or prompt template name, the later/higher-precedence resource wins. This lets project resources override user defaults.
+两个目录定义同名 skill 或 prompt template 时，靠后/更高优先级的资源获胜。项目资源因此可以覆盖用户默认。
 
-Duplicate names within the same directory remain invalid and raise `ResourceError`.
+同一目录内的重名仍然非法并抛 `ResourceError`。
 
-`AGENTS.md` files found directly inside `.agents` directories are not treated as skills. Project instruction discovery is reserved for a later context-discovery phase.
+直接位于 `.agents` 目录内的 `AGENTS.md` 不当作 skill。项目指令发现留给后续的 context 发现阶段。
 
-## CodingSession integration
+## CodingSession 集成
 
-`CodingSession.load()` now builds default resource paths with the session cwd:
+`CodingSession.load()` 现在用 session cwd 构建默认资源路径：
 
 ```python
 BaldricResourcePaths(cwd=config.cwd)
 ```
 
-That means normal coding sessions automatically see both user and project `.agents` resources.
+这意味着正常 coding session 自动看到用户与项目两侧的 `.agents` 资源。
 
-Print mode also passes cwd-aware resource paths when loading skills for system prompt assembly.
+print mode 在为 system prompt 组装加载 skill 时也传 cwd 感知的资源路径。
 
-## Tests
+## 测试
 
-The phase is covered by:
+本阶段覆盖于：
 
 ```text
 tests/test_paths.py
@@ -125,16 +125,16 @@ tests/test_cli.py
 tests/test_coding_session.py
 ```
 
-The tests verify:
+测试验证：
 
-- canonical Baldric path construction
-- user-home project session paths
-- `.agents` skill discovery
-- `.agents` prompt discovery
-- project resources overriding user resources
-- `AGENTS.md` not being loaded as a skill
-- isolated resource paths for deterministic tests
+- 规范 Baldric 路径构建
+- 用户 home 的项目 session 路径
+- `.agents` skill 发现
+- `.agents` prompt 发现
+- 项目资源覆盖用户资源
+- `AGENTS.md` 不被当作 skill 加载
+- 隔离的资源路径保证测试确定性
 
-## Next phase
+## 下一阶段
 
-The next phase should add a real session manager and resume flow on top of these stable user-home session locations.
+下一阶段应在这稳定的用户 home session 位置之上加真正的 session 管理器与 resume 流程。

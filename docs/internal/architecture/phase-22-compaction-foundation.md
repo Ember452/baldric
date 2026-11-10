@@ -1,12 +1,11 @@
 ---
-title: "Phase 22: Compaction Replay Foundation"
+title: "Phase 22：compaction 回放基础"
 ---
 
-This phase started Baldric's compaction and context-management work. It now includes
-model-driven Pi-style summaries, recent-context retention for automatic
-compaction, and overflow-triggered retry behavior.
+本阶段启动 Baldric 的 compaction 与 context 管理工作。现已包含
+模型驱动的 Pi 式摘要、自动 compaction 的近期 context 保留，以及溢出触发的重试行为。
 
-The implementation lives in:
+实现位于：
 
 ```text
 src/baldric_agent/session/entries.py
@@ -16,46 +15,44 @@ src/baldric_coding/session.py
 src/baldric_coding/commands.py
 ```
 
-## What was added
+## 加了什么
 
-`CompactionEntry` is now meaningful during session replay.
+`CompactionEntry` 现在在 session 回放中有意义。
 
-When `SessionState.from_entries()` sees a modern compaction entry, it:
+`SessionState.from_entries()` 遇到现代 compaction entry 时：
 
-1. inserts one provider-neutral summary message
-2. finds `first_kept_entry_id` on the complete active root-to-leaf entry path
-3. keeps context-producing entries at that boundary and later in path order
-4. keeps the original append-only entries intact
+1. 插入一条 provider 中立的摘要消息
+2. 在完整的活动根到叶 entry 路径上找到 `first_kept_entry_id`
+3. 按路径顺序保留该边界及其后的产生 context 的 entry
+4. 原始 append-only entry 保持完好
 
-This matches Pi's inclusive first-kept semantics. If the boundary is missing or cannot
-be found, replay keeps no pre-compaction message and still includes later successors.
-Baldric sessions written before this encoding used `replaces_entry_ids`; a non-empty legacy
-list takes precedence and retains the original arbitrary-set replay behavior.
+这匹配 Pi 的含首保留语义。边界缺失或找不到时，回放不保留
+compaction 前的消息，但仍包含后续后继者。此编码之前写入的 Baldric session 用 `replaces_entry_ids`；非空 legacy
+清单优先，保留原本的任意集合回放行为。
 
-The summary message currently uses this stable form:
+摘要消息目前使用这个稳定形式：
 
 ```text
 Previous conversation summary:
 <summary>
 ```
 
-## Why It Exists
+## 为什么存在
 
-Baldric needs compaction to reduce the active provider context while preserving the
-full session file. This keeps Pi's append-only session property:
+Baldric 需要 compaction 来缩减活动的 provider context，同时保留
+完整 session 文件。这保持 Pi 的 append-only session 性质：
 
 ```text
 session file = durable history
 SessionState.messages = reconstructed active context
 ```
 
-Manual `/compact` work can append `CompactionEntry` values without editing or
-deleting old entries. New records persist one first-kept boundary rather than a list of
-all summarized entry ids.
+手动 `/compact` 可以追加 `CompactionEntry` 而不编辑或
+删除旧 entry。新记录持久化一条 first-kept 边界，而不是所有被总结 entry id 的清单。
 
-## Context Size Estimation
+## context 大小估算
 
-Baldric now has deterministic approximate context-size helpers in `baldric_coding`:
+Baldric 现在在 `baldric_coding` 有确定性的近似 context 大小 helper：
 
 ```python
 estimate_text_tokens(...)
@@ -64,65 +61,58 @@ estimate_tool_tokens(...)
 estimate_context_tokens(...)
 ```
 
-These helpers intentionally use a rough character-based estimate instead of a
-provider-specific tokenizer. `/status` surfaces the current estimate as:
+这些 helper 有意用粗略的按字符估算而不是 provider 专属分词器。`/status` 以如下形式呈现当前估算：
 
 ```text
 Estimated context tokens: <count>
 ```
 
-This gives automatic compaction thresholds a stable application-layer primitive
-without adding tokenizer policy to `baldric_agent`.
+这给自动 compaction 阈值一个稳定的应用层原语，而不把分词器政策加进 `baldric_agent`。
 
-Baldric enables Pi-style automatic compaction by default using:
+Baldric 默认启用 Pi 式自动 compaction，用：
 
 ```text
 model context window - 16384 reserve tokens
 ```
 
-Built-in models carry configured context-window metadata, and unknown/custom
-models fall back to a `128000` token window. You can override the threshold for a
-run with:
+内置模型带配置的 context window 元数据，未知/自定义
+模型回退到 `128000` token 窗口。可以为一次运行覆盖阈值：
 
 ```bash
 baldric --auto-compact-threshold 100000
 ```
 
-When the active context estimate exceeds the effective threshold before a new prompt or
-after a model response, Baldric asks the active provider for a structured summary,
-appends a `CompactionEntry`, and rebuilds the in-memory transcript. Baldric also
-attempts one compact-and-retry cycle after provider errors that look like
-context overflow.
+新 prompt 之前或模型响应之后，活动 context 估算超过生效阈值时，Baldric 请活动 provider 做结构化摘要、
+追加 `CompactionEntry` 并重建内存 transcript。看起来像
+context 溢出的 provider 错误之后，Baldric 还会尝试一轮 compact-and-retry。
 
-## Manual Compaction
+## 手动 compaction
 
-Baldric now supports model-generated manual compaction in the TUI:
+Baldric 现在在 TUI 支持模型生成的手动 compaction：
 
 ```text
 /compact [instructions]
 ```
 
-The command uses Baldric's built-in Pi-style compaction prompt. Optional
-instructions are appended to that prompt as extra focus. The generated summary is
-stored in a `CompactionEntry`, which becomes the active file-order tip. Baldric then
-replays the session and replaces the in-memory harness transcript for future
-turns.
+命令使用 Baldric 内置的 Pi 风格 compaction prompt。可选
+指令作为额外焦点追加到该 prompt。生成的摘要存进
+`CompactionEntry`，它成为活动的文件顺序尖。Baldric 随后
+回放 session 并为后续轮次替换内存 harness transcript。
 
-See [Context Compaction](../context-compaction.md) for the current prompt,
-trigger conditions, and known limitations.
+当前 prompt、触发条件与已知限制见 [Context Compaction](../context-compaction.md)。
 
-## Boundary
+## 边界
 
-This foundation is in `baldric_agent` because replaying session entries is a
-portable harness concern. It does not know about slash commands, Textual, Rich,
-Baldric home paths, token thresholds, or which model creates a summary.
+这块基础在 `baldric_agent`，因为回放 session entry 是可移植
+harness 的事务。它不知道 slash 命令、Textual、Rich、
+Baldric home 路径、token 阈值或哪个模型创建摘要。
 
-Token estimation, summary generation, overflow classification, and command UX
-live in `baldric_coding`.
+token 估算、摘要生成、溢出分类与命令 UX
+住在 `baldric_coding`。
 
-## Tests
+## 测试
 
-The phase is covered by:
+本阶段覆盖于：
 
 ```text
 tests/test_session.py
@@ -132,16 +122,15 @@ tests/test_coding_session.py
 tests/test_tui_app.py
 ```
 
-The tests verify:
+测试验证：
 
-- compaction entries round-trip through JSONL without writing an empty legacy id list
-- linear replay keeps the first boundary entry inclusively and handles every boundary depth
-- branch replay applies compaction only on the active branch path
-- fixture-based legacy replay preserves replacement-list precedence
-- context-size estimation is deterministic
-- `/status` includes an estimated context token count
-- `/compact [instructions]` requests model-generated compaction
-- manual compaction persists entries and rebuilds future-turn context
-- opt-in automatic compaction runs before prompts and after responses when the
-  threshold is exceeded
-- overflow-triggered compaction retries the provider call once when possible
+- compaction entry 经 JSONL 往返而不写空的 legacy id 清单
+- 线性回放含首保留第一个边界 entry 并处理每种边界深度
+- 分支回放只在活动分支路径应用 compaction
+- 基于 fixture 的 legacy 回放保留替换清单优先级
+- context 大小估算确定性
+- `/status` 含估算的 context token 数
+- `/compact [instructions]` 请求模型生成的 compaction
+- 手动 compaction 持久化 entry 并重建后续轮次 context
+- 选择加入的自动 compaction 在超阈值时于 prompt 前与响应后运行
+- 溢出触发的 compaction 在可能时重试一次 provider 调用
