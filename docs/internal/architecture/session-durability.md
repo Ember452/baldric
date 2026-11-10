@@ -1,87 +1,59 @@
-# Session durability: torn lines and atomic writes
+# session 持久性：撕裂行与原子写入
 
-**Status:** accepted — 2026-11-06 (branch `chore/p0-contract-baselines`)
+**状态：** 已接受 —— 2026-11-06（分支 `chore/p0-contract-baselines`）
 
-Session files are user data. Three writes could previously destroy data instead of
-losing the last action:
+session 文件是用户数据。此前三种写入可能摧毁数据而不是只丢最后一步：
 
-| Write | Failure |
+| 写入 | 失败 |
 | --- | --- |
-| transcript append | a process killed mid-append leaves a partial last line; the strict reader then refuses to open the session forever |
-| session index | `write_text` truncates first, so an interrupted write leaves a partial line; the strict reader then fails the scan, hiding every session in that project |
-| HTML/JSONL export | same non-atomic write, so an interrupted export destroys the previous good file |
+| transcript 追加 | 进程在追加中途被杀留下残缺的最后一行；严格读取器从此永远拒绝打开该 session |
+| session 索引 | `write_text` 先截断，被打断的写入留下残缺行；严格读取器扫描失败，该项目里所有 session 被藏起来 |
+| HTML/JSONL 导出 | 同样的非原子写入，被打断的导出摧毁之前的好文件 |
 
-## Policy: readers tolerate, writers repair
+## 策略：读取者容忍，写入者修复
 
-A partial **final** line is the only thing a crash can legitimately leave behind,
-so it is the only thing tolerated:
+残缺的**最后**一行是崩溃唯一可能合理留下的东西，所以它是唯一被容忍的：
 
-- `entries_from_transcript(text)` returns the entries plus a flag when it had to
-  drop the last line. Corruption anywhere else still raises `SessionJsonlError`,
-  and `test_jsonl_storage_still_rejects_corruption_before_the_final_line` pins
-  that.
-- Reading never rewrites the file. `JsonlSessionStorage` logs one warning and
-  keeps the parsed prefix.
-- Writing repairs first, because appending onto an unterminated line would glue
-  the new record onto the old fragment and turn one damaged line into a damaged
-  transcript. The repair drops an unparsable tail, and terminates a complete
-  record that merely lost its newline.
-- The repair runs under the existing exclusive lock and goes through the existing
-  atomic replace, so a crash during the repair leaves the previous file intact.
+- `entries_from_transcript(text)` 在不得不丢弃最后一行时返回 entry 加一个标志。其他任何位置的损坏仍抛 `SessionJsonlError`，
+  `test_jsonl_storage_still_rejects_corruption_before_the_final_line` 钉住这一点。
+- 读取从不改写文件。`JsonlSessionStorage` 记一条警告并保留解析出的前缀。
+- 写入先修复，因为往未终止的行上追加会把新记录粘到旧片段上，把一行损坏变成整份损坏的 transcript。修复丢弃不可解析的尾部，并给只是丢了换行的完整记录补上终止符。
+- 修复在既有排他锁下、走既有原子替换运行，修复期间崩溃让先前文件保持完好。
 
-## The index rebuilds itself
+## 索引自我重建
 
-`SessionManager._read_index` now skips a damaged line, logs the count, and
-rewrites the index from the surviving records. A failed rewrite is logged and the
-parsed records are still returned, so a read-only or full disk cannot turn a
-damaged index into a read loop.
+`SessionManager._read_index` 现在跳过损坏行、记录数量、
+从幸存记录重写索引。重写失败被记录且仍返回解析出的记录，只读盘或满盘不会把损坏索引变成读循环。
 
-Writes go through `baldric_coding/utils/atomic.py` (same-directory temp file,
-fsync, replace). An interrupted write keeps the previous file byte-identical,
-which the manager and export tests assert by failing `os.replace`.
+写入经 `baldric_coding/utils/atomic.py`（同目录临时文件、
+fsync、替换）。被打断的写入让先前文件字节不变——管理器与导出测试通过让 `os.replace` 失败来断言这一点。
 
-The helper deliberately does not fsync the directory: a crash immediately after
-the replace may bring back the previous file, which is a reverted update rather
-than a partial one. Transcript batch writes already pay for directory fsync where
-they need it, and the encoding invariant (`tests/invariants/`) counts raw
-`os.open` calls, so a second copy of that helper would be recorded debt.
+helper 刻意不 fsync 目录：替换后立即崩溃可能找回先前文件——那是被回退的更新，不是部分更新。transcript 批次写
+在需要处已为目录 fsync 付费，encoding 不变量
+（`tests/invariants/`）统计裸 `os.open` 调用，第二份该 helper 会被记为债务。
 
-## Comparison with Pi
+## 与 Pi 对比
 
-Pi's JSONL storage repairs a torn append at open time: `JsonlStorage.recover()`
-runs before the storage is handed out, and its commit markers let it find "a
-shorter complete prefix" (`packages/durable/src/storage/jsonl/storage.ts`), so
-every append afterwards starts from a clean file.
+Pi 的 JSONL 存储在打开时修复撕裂的追加：`JsonlStorage.recover()`
+在存储交付前运行，其提交标记让它找到"更短的完整前缀"（`packages/durable/src/storage/jsonl/storage.ts`），之后的每次追加都从干净文件开始。
 
-Baldric has no commit markers and no open-time transaction layer, so this change
-splits the same guarantee differently:
+Baldric 没有提交标记、没有打开时事务层，所以本变更以不同方式拆分同一保证：
 
-- reads tolerate a torn final line instead of a reader mutating the file;
-- the writer repairs the tail under the existing exclusive lock before appending,
-  which is the moment a glued record would otherwise be created.
+- 读取容忍撕裂的最后行，而不是让读取者改写文件；
+- 写入者在追加前于既有排他锁下修复尾部——那正是粘记录本会产生的时刻。
 
-The safety property is the same (a torn record is dropped, never merged into the
-next one); the difference is that a file stays torn until its next append. Pi's
-open-time repair would also work here, but it would make `read_all` mutate the
-transcript, and export/viewer paths should not write user data.
+安全性质相同（撕裂记录被丢弃，绝不并进下一条）；差别是文件在下一次追加前保持撕裂。Pi 的打开时修复在这里也可行，但它会让 `read_all` 改写 transcript，导出/查看器路径不应写用户数据。
 
-## What this does not cover
+## 不覆盖的范围
 
-- A damaged line in the middle of a transcript is still corruption: repair would
-  have to guess which record was lost.
-- Cross-process append ordering is unchanged; the existing per-session lock still
-  serializes writers.
-- The session format itself is unchanged, so `tests/expected/session_entries.jsonl`
-  does not move.
+- transcript 中间的损坏行仍是损坏：修复就得猜丢了哪条记录。
+- 跨进程追加顺序不变；既有的每 session 锁仍串行化写者。
+- session 格式本身不变，`tests/expected/session_entries.jsonl` 不动。
 
-## Tests
+## 测试
 
-- `tests/coding/session/test_session.py`: torn final line reads and logs;
-  appending and batching repair the tail first; a complete final line without a
-  newline is kept; middle corruption still raises; a file containing only a torn
-  line reads as empty.
-- `tests/coding/session/test_session_manager.py`: a damaged index line drops that
-  record, keeps the rest, and rewrites the file; a failed replace keeps the
-  previous index and leaves no temp file.
-- `tests/coding/session/test_session_export.py`: a failed replace keeps the
-  previous export.
+- `tests/coding/session/test_session.py`：撕裂最后行被读取并记录；
+  追加与批处理先修复尾部；丢了换行的完整最后行被保留；中间损坏仍抛异常；只含撕裂行的文件读作空。
+- `tests/coding/session/test_session_manager.py`：损坏的索引行丢弃该
+  记录、保留其余并重写文件；替换失败保留先前索引且不留临时文件。
+- `tests/coding/session/test_session_export.py`：替换失败保留先前导出。
