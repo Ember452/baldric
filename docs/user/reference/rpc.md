@@ -75,5 +75,5 @@ spelling.
 Baldric mirrors Pi where its public `CodingSession` has equivalent behavior. Direct `bash` is
 supported, but `abort_bash` requires a future cancellable session API. Queue delivery modes,
 retry controls, cloning, image prompts, and the extension UI request/response subprotocol remain
-staged compatibility work. See `dev-notes/design/rpc-runtime-interchangeability-plan.md` for the
+staged compatibility work. See `docs/internal/design/rpc-runtime-interchangeability-plan.md` for the
 contract, completed frontend-critical phase, and remaining production phases.

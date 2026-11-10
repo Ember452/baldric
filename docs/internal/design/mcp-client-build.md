@@ -4,7 +4,7 @@ What was built, why it looks the way it does, how it maps to pi's design, and
 how to test it. The full product spec lives in
 [mcp-client-support.md](mcp-client-support.md); the implementation plan (with
 its binding execution rules and the deviations log D1–D8) is
-[plans/mcp-client-implementation.md](../../plans/mcp-client-implementation.md).
+[plans/mcp-client-implementation.md](../plans/mcp-client-implementation.md).
 
 ## What was added
 

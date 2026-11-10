@@ -10,12 +10,12 @@ so the codebase reads as a teaching example of how a coding agent is assembled.
 ## The build journals
 
 The detailed, phase-by-phase implementation notes, design docs, and architecture
-decision records live **in the repository**, under `dev-notes/`:
+decision records live **in the repository**, under `docs/internal/`:
 
-- `dev-notes/design/` — the high-level design docs (`00-roadmap`, `01-architecture`, …).
-- `dev-notes/architecture/` — per-phase build notes (`phase-1` … `phase-24`), each
+- `docs/internal/design/` — the high-level design docs (`00-roadmap`, `01-architecture`, …).
+- `docs/internal/architecture/` — per-phase build notes (`phase-1` … `phase-24`), each
   answering: what was added, why it exists, how later phases use it.
-- `dev-notes/adr/` — architecture decision records.
+- `docs/internal/adr/` — architecture decision records.
 
 These are intentionally **not** published on this site — they're contributor
 material. The published docs distill the result; see
@@ -64,8 +64,8 @@ npm run preview      # preview the built site, including search
 Search requires the built Pagefind index: use `build` followed by `preview`,
 not the development server, to validate search.
 
-User-facing docs live in `website/content/`; the landing page is
-`website/content/_index.md`, rendered by Astro components in
+User-facing docs live in `docs/user/`; the landing page is
+`docs/user/_index.md`, rendered by Astro components in
 `website/src/components/`. Content collections validate page
 metadata and preserve the existing trailing-slash URLs. Internal links use normal
 Markdown paths; callouts use blockquotes beginning with `[!NOTE]`, `[!TIP]`, or
@@ -76,7 +76,7 @@ announced to assistive technology.
 
 ## Documentation expectations
 
-Each substantial phase should leave beginner-friendly notes in `dev-notes/`
+Each substantial phase should leave beginner-friendly notes in `docs/internal/`
 explaining what was added, why it exists, how it maps to [Pi](https://pi.dev)'s
 design, and how to test or use it. When a feature is user-facing, also update or
-add the relevant page under `website/content/`.
+add the relevant page under `docs/user/`.

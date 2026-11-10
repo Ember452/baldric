@@ -107,4 +107,4 @@ primitives.
 
 > [!NOTE]
 > The full per-phase build journals for these systems live in the repo under
-> `dev-notes/` (see [Contributing](/contributing/)).
+> `docs/internal/` (see [Contributing](/contributing/)).

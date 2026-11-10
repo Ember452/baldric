@@ -7,7 +7,7 @@ Tools let the assistant inspect and modify the user's environment through struct
 This page is the user-facing source of truth for built-in tool behavior. The
 Python factory functions also have docstrings for contributors, but generated
 API reference docs are intentionally deferred; see
-[ADR 0002](./adr/0002-keep-tool-docs-hand-written.md).
+[ADR 0002](../adr/0002-keep-tool-docs-hand-written.md).
 
 Baldric separates the idea of a tool from any specific frontend:
 

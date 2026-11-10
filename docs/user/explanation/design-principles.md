@@ -51,5 +51,5 @@ agent-loop behavior.
 ## Documentation follows implementation
 
 Baldric was built in small, documented phases so a reader can trace how the system
-grew. Those phase notes live in the repo under `dev-notes/` (see
+grew. Those phase notes live in the repo under `docs/internal/` (see
 [Contributing](/contributing/)); these pages distill the result.

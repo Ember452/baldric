@@ -29,4 +29,4 @@ Templates load from user and project `.baldric/prompts/` and `.agents/prompts/` 
 
 Use a skill for reference know-how and a template for a frequently repeated prompt. Run `/reload` after changing resources in an active TUI session.
 
-When modifying Baldric's resource system, read `src/baldric/runtime/skills.py`, `src/baldric/runtime/resources.py`, and `website/content/guides/skills-and-prompts.md`, then test discovery, precedence, diagnostics, prompt formatting, and reload behavior.
+When modifying Baldric's resource system, read `src/baldric/runtime/skills.py`, `src/baldric/runtime/resources.py`, and `docs/user/how-to/skills-and-prompts.md`, then test discovery, precedence, diagnostics, prompt formatting, and reload behavior.

@@ -178,6 +178,6 @@ cached data falls back silently to `catalog.toml`. User `~/.baldric/catalog.toml
 overlays are applied last. When withdrawing one provider's model, add it to that
 provider's `removed_models` list so stale user overlays cannot restore it.
 
-Update `website/content/guides/providers-and-models.md` and a development note
+Update `docs/user/how-to/providers-and-models.md` and a development note
 for substantial changes. Run focused provider tests, full pytest, Ruff,
 formatting, mypy, and the website build when published docs change.

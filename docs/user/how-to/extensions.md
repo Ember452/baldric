@@ -925,5 +925,5 @@ package-update commands), declarative keyboard-shortcut registration, CLI flag
 registration, or system-prompt replacement. Custom entry/tool/markdown renderers,
 provider request seams, context rewriting, `user_bash` interception, and the
 dynamic tool handles are supported as of API v2 (see above). The architecture
-document (`dev-notes/architecture/phase-21-extensions.md`) tracks the extension
+document (`docs/internal/architecture/phase-21-extensions.md`) tracks the extension
 design.

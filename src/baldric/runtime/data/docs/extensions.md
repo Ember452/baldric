@@ -22,8 +22,8 @@ than mutating history.
 
 For complete API documentation, read the repository's published guide when working in a Baldric checkout:
 
-- `website/content/guides/extensions.md`
-- `dev-notes/architecture/phase-21-extensions.md`
+- `docs/user/how-to/extensions.md`
+- `docs/internal/architecture/phase-21-extensions.md`
 
 Installed examples are under `examples/extensions/` next to these docs. Read the relevant example completely before implementing an extension. `ask_user_question.py` demonstrates an agent tool that waits for a multiple-choice UI selection.
 
@@ -261,11 +261,11 @@ handlers fall back to the built-in summarizer.
 ## Development checklist
 
 1. Read this document and the closest installed example under `examples/extensions/` completely before implementing.
-2. In a Baldric checkout, also read `website/content/guides/extensions.md` and the relevant public extension API implementation.
+2. In a Baldric checkout, also read `docs/user/how-to/extensions.md` and the relevant public extension API implementation.
 3. Confirm the requested capability exists in the extension API before inventing a workaround.
 4. Define `setup(baldric)` and use documented registration APIs; do not reach into private session or Textual internals. For sidebar status, feature-detect `context.ui.sidebar`, check `sidebar.supported`, and call `set_section(...)` from `session_start` or another runtime event.
 5. Keep extension behavior out of `baldric.agent`; extensions belong to `baldric.runtime`. Use `baldric.agent` types for portable messages and tools, and keep Textual behind Baldric's UI adapter APIs.
 6. Put user extensions in `~/.baldric/extensions/`. Project extensions require explicit trust through `--project-extensions`; never enable one from an untrusted repository. Use `baldric -e PATH` for isolated testing.
 7. Test through the real extension runtime so discovery, imports, and `setup` registration are exercised. For Baldric core changes, add deterministic tests with fake providers/tools and cover reload and lifecycle behavior when applicable.
 8. Run focused tests followed by the repository's full pytest, Ruff, formatting, and mypy checks.
-9. Update `website/content/guides/extensions.md` and add a development note for user-facing architectural changes.
+9. Update `docs/user/how-to/extensions.md` and add a development note for user-facing architectural changes.

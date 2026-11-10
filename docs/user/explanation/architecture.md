@@ -92,4 +92,4 @@ study it without untangling the others.
 
 > [!NOTE] Going deeper
 > The phase-by-phase build journals, design docs, and ADRs live in the repo under
-> `dev-notes/` (not on this site). See [Contributing](/contributing/).
+> `docs/internal/` (not on this site). See [Contributing](/contributing/).
