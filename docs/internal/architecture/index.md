@@ -20,7 +20,7 @@ baldric_coding   CLI app, resources, skills, extensions, commands, UI integratio
 
 最重要的边界是 `baldric_agent` 保持可移植。它可以定义可复用的 agent 大脑，但不该知道 VS Code、Textual、Rich 渲染、本地配置目录、slash 命令或项目专属 prompt。
 
-实用 frontend 契约见 [Building a Custom TUI](../custom-tui.md)。
+实用 frontend 契约见 [构建你自己的 frontend](../../user/explanation/custom-frontend.md)。
 
 项目增长时新代码应去哪里，见
 [Target project layout](./target-project-layout.md)。那份笔记是蓝图，不是

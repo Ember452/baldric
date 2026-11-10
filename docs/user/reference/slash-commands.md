@@ -10,6 +10,7 @@ description: Baldric TUI 中的全部会话内 slash 命令。
 | `/quit` | 退出会话 |
 | `/new` | 开始新 session |
 | `/session` | 显示 session 信息与统计（model、cwd、tools、skills、context） |
+| `/context` | 显示本 session 已加载的项目 context 文件 |
 | `/diagnostics` | 检视资源加载的警告与错误，包括其来源路径 |
 | `/system` | 按来源分组显示活动 system prompt，不加入 context 或 session 历史 |
 | `/compact [instructions]` | 总结并压缩活动 context |
@@ -29,6 +30,7 @@ description: Baldric TUI 中的全部会话内 slash 命令。
 | `/mcp [on\|off\|restart] [name]` | 列出已配置的 MCP 服务器，或启用/禁用/重启其中一个；`on`/`off` 会记住在 `mcp.json` 里 |
 | `/reload` | 重新加载本地 skill、prompt、extension 与项目 context |
 | `/prompts` | 搜索已加载的 prompt template；按 Enter 插入调用，Ctrl+E 编辑文件 |
+| `/help` | 列出可用的 slash 命令 |
 | `/hotkeys` | 显示键盘快捷键 |
 | `/skills` | 打开已加载 skill 的可搜索 picker，并把选中项插入 prompt |
 | `/skill:<name> [request]` | 把已加载的 skill 展开进你的 prompt |

@@ -79,7 +79,7 @@ Textual CSS 变量加 Rich 渲染器，UI 政策不泄漏进可移植 harness。
 session 现在可以从 TUI 用 `/name <new name>` 重命名。命令更新
 `/resume`、resume 补全与 session picker 使用的已索引 session 元数据；底层的 append-only transcript 仍是对话事件的持久来源。
 
-frontend 边界已文档化于 [Building a Custom TUI](../custom-tui.md)。
+frontend 边界已文档化于 [构建你自己的 frontend](../../user/explanation/custom-frontend.md)。
 该指南描述另一个终端 UI 如何消费 `CodingSession`、
 `AgentEvent`、`TuiState` 与 `TuiEventAdapter` 而不耦合 Textual 内部。
 
