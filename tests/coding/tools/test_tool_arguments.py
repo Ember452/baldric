@@ -1,16 +1,16 @@
-"""baldric_agent checks tool-call arguments against the tool's declared schema."""
+"""baldric.agent checks tool-call arguments against the tool's declared schema."""
 
 from collections.abc import Mapping
 from typing import Any
 
 import pytest
 
-from baldric_agent.events import MessageEndEvent
-from baldric_agent.tool_arguments import argument_problems, invalid_arguments_message
-from baldric_agent.tool_calls import execute_tool_call
-from baldric_protocol.messages import TextContent, ToolCall, ToolResultMessage
-from baldric_protocol.tools import AgentTool, AgentToolResult
-from baldric_protocol.types import JSONValue
+from baldric.agent.events import MessageEndEvent
+from baldric.agent.tool_arguments import argument_problems, invalid_arguments_message
+from baldric.agent.tool_calls import execute_tool_call
+from baldric.protocol.messages import TextContent, ToolCall, ToolResultMessage
+from baldric.protocol.tools import AgentTool, AgentToolResult
+from baldric.protocol.types import JSONValue
 
 READ_SCHEMA: dict[str, JSONValue] = {
     "type": "object",

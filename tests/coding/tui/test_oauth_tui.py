@@ -5,10 +5,10 @@ from textual.app import App
 from textual.geometry import Region
 from textual.widgets import Input, Static
 
-from baldric_coding.auth.types import OAuthAuthInfo, OAuthDeviceCodeInfo, OAuthPrompt
-from baldric_coding.providers.catalog import builtin_provider_entry
-from baldric_coding.tui.app import BaldricTuiApp, OAuthLoginScreen
-from baldric_coding.tui.config import BALDRIC_DARK_THEME
+from baldric.coding.auth.types import OAuthAuthInfo, OAuthDeviceCodeInfo, OAuthPrompt
+from baldric.coding.providers.catalog import builtin_provider_entry
+from baldric.coding.tui.app import BaldricTuiApp, OAuthLoginScreen
+from baldric.coding.tui.config import BALDRIC_DARK_THEME
 
 LONG_URL = "https://claude.ai/oauth/authorize?" + "&".join(f"p{index}=value" for index in range(40))
 
@@ -27,7 +27,7 @@ def _login_screen(url: str = LONG_URL) -> OAuthLoginScreen:
 
 def _themed_app(screen: OAuthLoginScreen) -> App[None]:
     """An app carrying Baldric's real CSS, so dialog geometry matches production."""
-    from baldric_coding.tui.app import _textual_theme_for_baldric_theme
+    from baldric.coding.tui.app import _textual_theme_for_baldric_theme
 
     class TestApp(App[None]):
         CSS = BaldricTuiApp.CSS

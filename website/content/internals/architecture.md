@@ -10,10 +10,10 @@ paths, or rendering. Everything app-specific wraps around it.
 ## Four packages
 
 ```text
-baldric_coding  →  { baldric_agent, baldric_ai }  →  baldric_protocol
+baldric.coding  →  { baldric.agent, baldric.ai }  →  baldric.protocol
 ```
 
-### `baldric_protocol` — the shared wire contract
+### `baldric.protocol` — the shared wire contract
 
 Owns the provider-neutral shapes every other layer speaks: message and content
 models, the tool contract, provider-stream events, and the persisted session
@@ -21,21 +21,21 @@ wire (entry shape, tree traversal, JSONL format). Its only dependency is
 pydantic — no I/O, no platform code, nothing above it. Third parties (provider
 adapters, frontends, session tooling) can build against this package alone.
 
-### `baldric_ai` — talking to models
+### `baldric.ai` — talking to models
 
 Owns provider-specific model streaming. It translates each provider's API
 (OpenAI, Anthropic, …) into Baldric's **provider-neutral event stream**, so nothing
 above it has to care which model vendor is in use.
 
-### `baldric_agent` — the portable brain
+### `baldric.agent` — the portable brain
 
 Owns the reusable agent core: the [agent loop](/internals/agent-loop/), the
 harness, event emission, and tool-call orchestration, all built on the
-`baldric_protocol` contract. This package
+`baldric.protocol` contract. This package
 must **not** import CLI, Rich, Textual, or resource-loading code. That's what
 keeps it portable.
 
-### `baldric_coding` — the coding application
+### `baldric.coding` — the coding application
 
 Owns everything that makes Baldric a *coding agent you run*: the CLI, the built-in
 [tools](/reference/tools/), [project instructions](/guides/project-instructions/),
@@ -45,7 +45,7 @@ Textual TUI.
 
 ### Local-backend boundary
 
-Local inference belongs to `baldric_coding`, not the portable agent core. A staged
+Local inference belongs to `baldric.coding`, not the portable agent core. A staged
 extension runtime owns a source- and generation-aware local-backend registry
 beside its provider registry. Backends return typed configuration, status,
 progress, diagnostics, and capability values; the Textual adapter renders them
@@ -69,8 +69,8 @@ downtime without making the local backend an implicit fallback.
 
 ## Dependency direction
 
-Dependencies only point one way: `baldric_coding → {baldric_agent, baldric_ai} → baldric_protocol`,
-and `baldric_protocol` depends on nothing but pydantic. UI code
+Dependencies only point one way: `baldric.coding → {baldric.agent, baldric.ai} → baldric.protocol`,
+and `baldric.protocol` depends on nothing but pydantic. UI code
 *consumes* events; the core never reaches up to render anything. In one line:
 
 ```text

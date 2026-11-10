@@ -13,8 +13,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from baldric_coding.extensions.builtins.subagents import group_join as group_join_module
-from baldric_coding.extensions.builtins.subagents.group_join import (
+from baldric.coding.extensions.builtins.subagents import group_join as group_join_module
+from baldric.coding.extensions.builtins.subagents.group_join import (
     DEFAULT_TIMEOUT,
     STRAGGLER_TIMEOUT,
     GroupJoinManager,

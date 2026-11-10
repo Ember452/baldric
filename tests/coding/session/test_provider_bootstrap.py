@@ -16,9 +16,9 @@ from pathlib import Path
 
 import pytest
 
-from baldric_ai import FakeProvider
-from baldric_coding.session import JsonlSessionStorage
-from baldric_coding.session.session import CodingSession, CodingSessionConfig
+from baldric.ai import FakeProvider
+from baldric.coding.session import JsonlSessionStorage
+from baldric.coding.session.session import CodingSession, CodingSessionConfig
 
 
 class _ClosableFakeProvider(FakeProvider):

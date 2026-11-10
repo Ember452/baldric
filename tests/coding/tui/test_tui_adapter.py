@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from baldric_agent import (
+from baldric.agent import (
     AgentEndEvent,
     AgentStartEvent,
     AgentToolResult,
@@ -19,8 +19,8 @@ from baldric_agent import (
     ToolResultMessage,
     UserMessage,
 )
-from baldric_coding.context.skills.skills import Skill, format_skill_invocation
-from baldric_coding.events import (
+from baldric.coding.context.skills.skills import Skill, format_skill_invocation
+from baldric.coding.events import (
     AgentSettledEvent,
     AutoRetryEndEvent,
     AutoRetryStartEvent,
@@ -29,13 +29,13 @@ from baldric_coding.events import (
     QueueUpdateEvent,
     SessionAgentEndEvent,
 )
-from baldric_coding.tui import TuiEventAdapter, TuiState
-from baldric_coding.tui.state import (
+from baldric.coding.tui import TuiEventAdapter, TuiState
+from baldric.coding.tui.state import (
     format_tool_call_block,
     format_tool_call_invocation,
     format_tool_result_block,
 )
-from baldric_protocol.provider_events import TextDeltaEvent, ThinkingDeltaEvent
+from baldric.protocol.provider_events import TextDeltaEvent, ThinkingDeltaEvent
 
 
 def _update(event) -> MessageUpdateEvent:  # noqa: ANN001
@@ -701,7 +701,7 @@ def test_tui_state_groups_reads_from_tool_only_messages() -> None:
 def test_nested_file_groups_count_toward_tool_run_limit(
     monkeypatch: pytest.MonkeyPatch, tool_name: str, streaming: bool
 ) -> None:
-    monkeypatch.setattr("baldric_coding.tui.state.TOOL_RUN_ROW_LIMIT", 5)
+    monkeypatch.setattr("baldric.coding.tui.state.TOOL_RUN_ROW_LIMIT", 5)
     prefix_tool = "edit" if tool_name == "write" else "write"
     rounds = [
         AssistantMessage(
@@ -814,7 +814,7 @@ def test_tui_adapter_renders_skill_file_reads_with_skill_style() -> None:
 def test_restoring_many_reads_resolves_each_skill_path_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from baldric_coding.tui import state as state_module
+    from baldric.coding.tui import state as state_module
 
     skills = tuple(
         Skill(
@@ -981,7 +981,7 @@ def test_tui_state_restores_partial_assistant_response_and_error() -> None:
 
 
 def test_tool_formatters_keep_human_readable_output() -> None:
-    from baldric_agent import ToolCall
+    from baldric.agent import ToolCall
 
     assert (
         format_tool_call_block(

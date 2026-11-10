@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from baldric_coding.rendering.tool_preview import preview_budget
+from baldric.coding.rendering.tool_preview import preview_budget
 
 
 def test_bash_shows_five_lines() -> None:

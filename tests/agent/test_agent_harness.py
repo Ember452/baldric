@@ -3,7 +3,7 @@ from collections.abc import Mapping
 
 import pytest
 
-from baldric_agent import (
+from baldric.agent import (
     AgentEvent,
     AgentHarness,
     AgentHarnessConfig,
@@ -18,8 +18,8 @@ from baldric_agent import (
     ToolResultMessage,
     TurnStartEvent,
 )
-from baldric_ai import FakeProvider
-from baldric_protocol.types import JSONValue
+from baldric.ai import FakeProvider
+from baldric.protocol.types import JSONValue
 from tests.helpers.pi_event_helpers import (
     assistant_done,
     assistant_error,

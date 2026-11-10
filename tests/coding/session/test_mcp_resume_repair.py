@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from baldric_agent import AgentHarness, AgentHarnessConfig, AssistantMessage, ToolCall, ToolResultMessage
-from baldric_ai import FakeProvider
+from baldric.agent import AgentHarness, AgentHarnessConfig, AssistantMessage, ToolCall, ToolResultMessage
+from baldric.ai import FakeProvider
 from tests.helpers.pi_event_helpers import assistant_done, assistant_start
 
 pytestmark = pytest.mark.anyio

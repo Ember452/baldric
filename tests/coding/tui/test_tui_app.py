@@ -36,7 +36,7 @@ from textual.widgets import (
 )
 from textual.widgets import Markdown as TextualMarkdown
 
-from baldric_agent import (
+from baldric.agent import (
     AgentEndEvent,
     AgentEvent,
     AgentStartEvent,
@@ -55,25 +55,25 @@ from baldric_agent import (
     ToolResultMessage,
     UserMessage,
 )
-from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
-from baldric_coding.commands.base import CommandKind, CommandOutcome, MessageDisplay
-from baldric_coding.commands.registry import CommandResult
-from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.context.prompts import PromptTemplate
-from baldric_coding.context.resources import ResourceDiagnostic
-from baldric_coding.context.skills.skills import Skill, format_skill_invocation
-from baldric_coding.context.system_prompt import (
+from baldric.coding.auth.credentials import FileCredentialStore, OAuthCredential
+from baldric.coding.commands.base import CommandKind, CommandOutcome, MessageDisplay
+from baldric.coding.commands.registry import CommandResult
+from baldric.coding.config.paths import BaldricPaths
+from baldric.coding.context.prompts import PromptTemplate
+from baldric.coding.context.resources import ResourceDiagnostic
+from baldric.coding.context.skills.skills import Skill, format_skill_invocation
+from baldric.coding.context.system_prompt import (
     ProjectContextFile,
     SystemPromptSource,
 )
-from baldric_coding.events import (
+from baldric.coding.events import (
     AgentSettledEvent,
     CodingSessionEvent,
     CompactionEndEvent,
     CompactionStartEvent,
     SessionAgentEndEvent,
 )
-from baldric_coding.extensions import (
+from baldric.coding.extensions import (
     DynamicProvider,
     DynamicProviderRegistry,
     LocalBackend,
@@ -86,7 +86,7 @@ from baldric_coding.extensions import (
     OpenAICompatibleTransport,
     ProviderModel,
 )
-from baldric_coding.providers.config import (
+from baldric.coding.providers.config import (
     OpenAICodexProviderConfig,
     OpenAICompatibleProviderConfig,
     ProviderSelection,
@@ -94,20 +94,20 @@ from baldric_coding.providers.config import (
     ScopedModelConfig,
     save_provider_settings,
 )
-from baldric_coding.providers.loader import user_catalog_path
-from baldric_coding.rendering.activity import THINKING_LEVEL_COLORS
-from baldric_coding.rendering.diffs import DiffPalette
-from baldric_coding.session.manager import CodingSessionRecord
-from baldric_coding.session.session import (
+from baldric.coding.providers.loader import user_catalog_path
+from baldric.coding.rendering.activity import THINKING_LEVEL_COLORS
+from baldric.coding.rendering.diffs import DiffPalette
+from baldric.coding.session.manager import CodingSessionRecord
+from baldric.coding.session.session import (
     ModelChoice,
     SessionTreeBranchResult,
     TerminalCommandResult,
 )
-from baldric_coding.session.stats import SessionStats
-from baldric_coding.tui import app as tui_app
-from baldric_coding.tui import session_pickers
-from baldric_coding.tui.adapter import TuiEventAdapter
-from baldric_coding.tui.app import (
+from baldric.coding.session.stats import SessionStats
+from baldric.coding.tui import app as tui_app
+from baldric.coding.tui import session_pickers
+from baldric.coding.tui.adapter import TuiEventAdapter
+from baldric.coding.tui.app import (
     COMPLETION_MAX_VISIBLE_LINES,
     PASTE_DISPLAY_THRESHOLD,
     BaldricTuiApp,
@@ -145,13 +145,13 @@ from baldric_coding.tui.app import (
     _TuiExtensionUiBridge,
     _visible_completion_state,
 )
-from baldric_coding.tui.autocomplete import (
+from baldric.coding.tui.autocomplete import (
     CompletionItem,
     CompletionKind,
     CompletionState,
 )
-from baldric_coding.tui.backends import LocalBackendScreen, LocalConfirmScreen
-from baldric_coding.tui.config import (
+from baldric.coding.tui.backends import LocalBackendScreen, LocalConfirmScreen
+from baldric.coding.tui.config import (
     BALDRIC_DARK_THEME,
     BALDRIC_LIGHT_THEME,
     HIGH_CONTRAST_THEME,
@@ -160,13 +160,13 @@ from baldric_coding.tui.config import (
     TuiTheme,
     tui_settings_path,
 )
-from baldric_coding.tui.state import ChatItem, TuiState
-from baldric_coding.tui.terminal_notification import TerminalNotificationController
-from baldric_coding.tui.terminal_title import (
+from baldric.coding.tui.state import ChatItem, TuiState
+from baldric.coding.tui.terminal_notification import TerminalNotificationController
+from baldric.coding.tui.terminal_title import (
     RUNNING_TITLE_FRAMES,
     TerminalTitleController,
 )
-from baldric_coding.tui.widgets import (
+from baldric.coding.tui.widgets import (
     TRANSCRIPT_WINDOW_ITEMS,
     TRANSCRIPT_WINDOW_OVERSCAN_ITEMS,
     BaldricMarkdownBlock,
@@ -196,9 +196,9 @@ from baldric_coding.tui.widgets import (
     render_session_sidebar,
     transcript_item_selection_text,
 )
-from baldric_coding.version import current_version
-from baldric_protocol.messages import assistant_content
-from baldric_protocol.provider_events import (
+from baldric.coding.version import current_version
+from baldric.protocol.messages import assistant_content
+from baldric.protocol.provider_events import (
     TextDeltaEvent,
     ThinkingDeltaEvent,
     ThinkingEndEvent,
@@ -700,7 +700,7 @@ def test_compact_session_info_renders_sidebar_facts() -> None:
 
 
 def test_compact_session_info_omits_cost_speed_and_latency_without_data() -> None:
-    from baldric_coding.session.stats import SessionStats
+    from baldric.coding.session.stats import SessionStats
 
     session = FakeSession()
     session.session_stats = SessionStats()
@@ -792,8 +792,8 @@ def test_git_branch_refreshes_in_background_after_head_changes(
 ) -> None:
     from subprocess import CompletedProcess
 
-    from baldric_coding.tui import widgets as tui_widgets
-    from baldric_coding.tui.widgets import sidebar as tui_sidebar
+    from baldric.coding.tui import widgets as tui_widgets
+    from baldric.coding.tui.widgets import sidebar as tui_sidebar
 
     head = tmp_path / ".git" / "HEAD"
     head.parent.mkdir()
@@ -1872,7 +1872,7 @@ async def test_tool_run_stops_at_the_row_limit(
     arguments: dict[str, str],
 ) -> None:
     """A long run starts a fresh block, for file groups as well as batches."""
-    monkeypatch.setattr("baldric_coding.tui.state.TOOL_RUN_ROW_LIMIT", 2)
+    monkeypatch.setattr("baldric.coding.tui.state.TOOL_RUN_ROW_LIMIT", 2)
     messages: list[AssistantMessage | ToolResultMessage] = []
     for index in range(3):
         call_arguments = {
@@ -2833,7 +2833,7 @@ async def test_assistant_message_renders_without_role_block() -> None:
 async def test_long_transcript_mounts_bounded_latest_window_and_pages_earlier(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from baldric_coding.tui import widgets as tui_widgets
+    from baldric.coding.tui import widgets as tui_widgets
 
     monkeypatch.setattr(tui_widgets, "TRANSCRIPT_WINDOW_ITEMS", 6)
     monkeypatch.setattr(tui_widgets, "TRANSCRIPT_WINDOW_PAGE_ITEMS", 2)
@@ -2872,7 +2872,7 @@ async def test_tool_only_message_keeps_a_paged_back_window(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Ending a tool-only message must not remount the window under the user."""
-    from baldric_coding.tui import widgets as tui_widgets
+    from baldric.coding.tui import widgets as tui_widgets
 
     monkeypatch.setattr(tui_widgets, "TRANSCRIPT_WINDOW_ITEMS", 6)
     monkeypatch.setattr(tui_widgets, "TRANSCRIPT_WINDOW_PAGE_ITEMS", 2)
@@ -5021,7 +5021,7 @@ def test_tui_app_uses_configured_theme_css_variables() -> None:
 
 
 def test_tui_app_registers_and_applies_custom_theme() -> None:
-    from baldric_coding.rendering.themes import (
+    from baldric.coding.rendering.themes import (
         THEME_COLOR_FIELDS,
         TRANSCRIPT_ROLES,
         parse_tui_theme_json,
@@ -5047,7 +5047,7 @@ def test_tui_app_registers_and_applies_custom_theme() -> None:
 async def test_tui_app_removes_source_project_themes_after_resume(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from baldric_coding.rendering.themes import (
+    from baldric.coding.rendering.themes import (
         THEME_COLOR_FIELDS,
         TRANSCRIPT_ROLES,
         available_tui_theme_names,
@@ -6649,7 +6649,7 @@ async def test_tui_app_refuses_session_resume_while_busy() -> None:
 async def test_wait_for_open_session_picker_gives_up_after_deadline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from baldric_coding.tui import session_pickers
+    from baldric.coding.tui import session_pickers
 
     app = BaldricTuiApp(FakeSession())
 
@@ -9324,7 +9324,7 @@ async def test_tui_app_system_appends_markdown_command_output_to_transcript() ->
         SystemPromptSource(
             kind="default",
             label="Baldric default prompt",
-            source="baldric_coding.system_prompt",
+            source="baldric.coding.system_prompt",
             content=base_prompt,
         ),
         SystemPromptSource(
@@ -9349,7 +9349,7 @@ async def test_tui_app_system_appends_markdown_command_output_to_transcript() ->
         assert item.system_prompt is True
         assert item.text.startswith(
             "### /system\n\n#### 01 · Baldric default prompt\n\n"
-            "**Source:** `baldric_coding.system_prompt`\n\nYou are Baldric."
+            "**Source:** `baldric.coding.system_prompt`\n\nYou are Baldric."
         )
         transcript = app.query_one("#transcript", TranscriptView)
         message = transcript.query_one(TranscriptMessageWidget)

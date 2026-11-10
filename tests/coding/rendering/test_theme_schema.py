@@ -14,11 +14,11 @@ from pathlib import Path
 
 import pytest
 
-from baldric_coding.rendering.theme_schema import (
+from baldric.coding.rendering.theme_schema import (
     project_to_tui_theme,
     resolve_references,
 )
-from baldric_coding.rendering.themes import (
+from baldric.coding.rendering.themes import (
     BALDRIC_DARK_THEME,
     BALDRIC_LIGHT_THEME,
     HIGH_CONTRAST_THEME,
@@ -27,7 +27,7 @@ from baldric_coding.rendering.themes import (
     theme_css_variables,
 )
 
-THEMES_DIR = Path(__file__).resolve().parents[3] / "src" / "baldric_coding" / "rendering" / "themes"
+THEMES_DIR = Path(__file__).resolve().parents[3] / "src" / "baldric" / "coding" / "rendering" / "themes"
 
 
 def test_resolve_single_level_hue_reference() -> None:

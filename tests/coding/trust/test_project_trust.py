@@ -14,18 +14,18 @@ from textual.containers import Vertical
 from textual.widgets import Label, ListItem, ListView, Static
 from typer.testing import CliRunner
 
-from baldric_coding import SessionManager, jsonl_session_storage
-from baldric_coding.cli import app
-from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.context.resources import (
+from baldric.coding import SessionManager, jsonl_session_storage
+from baldric.coding.cli import app
+from baldric.coding.config.paths import BaldricPaths
+from baldric.coding.context.resources import (
     BaldricResourcePaths,
     resource_paths_with_cwd,
     resource_paths_with_project_trust,
 )
-from baldric_coding.rendering.themes import BALDRIC_DARK_THEME, textual_theme_for_tui_theme
-from baldric_coding.session.session import CodingSession, CodingSessionConfig
-from baldric_coding.trust import policy as project_trust_module
-from baldric_coding.trust.policy import (
+from baldric.coding.rendering.themes import BALDRIC_DARK_THEME, textual_theme_for_tui_theme
+from baldric.coding.session.session import CodingSession, CodingSessionConfig
+from baldric.coding.trust import policy as project_trust_module
+from baldric.coding.trust.policy import (
     ExtensionTrustResult,
     ProjectTrustCoordinator,
     ProjectTrustError,
@@ -35,9 +35,9 @@ from baldric_coding.trust.policy import (
     canonicalize_project_path,
     format_trust_diagnostic,
 )
-from baldric_coding.tui.trust import ProjectTrustScreen, _ProjectTrustApp
-from baldric_protocol.provider import ModelProvider
-from baldric_protocol.session import SessionEntry
+from baldric.coding.tui.trust import ProjectTrustScreen, _ProjectTrustApp
+from baldric.protocol.provider import ModelProvider
+from baldric.protocol.session import SessionEntry
 
 
 def _paths(tmp_path: Path) -> BaldricPaths:
@@ -926,7 +926,7 @@ async def test_failed_reload_does_not_commit_run_choice_cache(
     )
     (project / "AGENTS.md").write_text("NEW-CONTEXT", encoding="utf-8")
 
-    from baldric_coding.session import session as session_module
+    from baldric.coding.session import session as session_module
 
     real_load = session_module._load_session_resources
     attempts = 0
@@ -983,7 +983,7 @@ async def test_failed_project_extension_reload_re_resolves_trust(
         "def setup(baldric):\n    baldric.add_prompt_guideline('DESTINATION-EXTENSION')\n",
         encoding="utf-8",
     )
-    from baldric_coding.extensions.runtime import ExtensionRuntime
+    from baldric.coding.extensions.runtime import ExtensionRuntime
 
     real_load = ExtensionRuntime.load
 
@@ -1161,7 +1161,7 @@ async def test_reload_cancellation_during_shutdown_preserves_snapshot_and_re_res
 async def test_reload_cancellation_during_staged_start_preserves_snapshot_and_re_resolves(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric_coding.extensions.runtime import ExtensionRuntime
+    from baldric.coding.extensions.runtime import ExtensionRuntime
 
     project = tmp_path / "project"
     project.mkdir()
@@ -1217,7 +1217,7 @@ async def test_reload_cancellation_during_staged_start_preserves_snapshot_and_re
 async def test_destination_adoption_cancellation_keeps_source_and_retry_resolves_again(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric_coding.extensions.runtime import ExtensionRuntime
+    from baldric.coding.extensions.runtime import ExtensionRuntime
 
     source = tmp_path / "source"
     destination = tmp_path / "destination"

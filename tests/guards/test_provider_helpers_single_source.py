@@ -2,7 +2,7 @@
 
 It used to be copy-pasted into six adapters (anthropic, google, mistral,
 openai_codex, openai_compatible, http_errors) and had already drifted in return
-types and exception handling. It now lives in ``baldric_ai._sse`` and is imported
+types and exception handling. It now lives in ``baldric.ai._sse`` and is imported
 by each adapter. Fail if a local definition reappears.
 """
 
@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-AI_DIR = REPO_ROOT / "src" / "baldric_ai"
+AI_DIR = REPO_ROOT / "src" / "baldric" / "ai"
 
 # The single allowed definition site.
 OWNER = AI_DIR / "_sse.py"
@@ -28,7 +28,7 @@ def test_loads_object_is_defined_only_in_shared_module() -> None:
         if re.search(r"^def _loads_object\b", source, re.MULTILINE):
             offenders.append(f"{path.name} (def _loads_object)")
     assert offenders == [], (
-        f"loads_object must be defined only in baldric_ai/_sse.py; local copies found in: {offenders}"
+        f"loads_object must be defined only in baldric/ai/_sse.py; local copies found in: {offenders}"
     )
 
 

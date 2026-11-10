@@ -14,14 +14,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from baldric_ai import (
+from baldric.ai import (
     AssistantDoneEvent,
     AssistantErrorEvent,
     AssistantStartEvent,
     FakeProvider,
 )
-from baldric_coding.extensions import ExtensionRuntime
-from baldric_protocol.messages import AssistantMessage, TextContent, ToolCall, Usage, UserMessage
+from baldric.coding.extensions import ExtensionRuntime
+from baldric.protocol.messages import AssistantMessage, TextContent, ToolCall, Usage, UserMessage
 from tests.helpers.subagents_shared import (
     EXTENSION_DIR,
     BlockingProvider,
@@ -373,7 +373,7 @@ async def test_max_turns_grace_abort(tmp_path: Path) -> None:
     assert "turns=3" in result.text
     # Two real provider calls. A third turn is counted because the loop
     # synthesises the aborted message itself once the signal is cancelled
-    # (baldric_agent/loop.py:125-133, identical in the 0.4.9 base), so it never
+    # (baldric/agent/loop.py:125-133, identical in the 0.4.9 base), so it never
     # reaches the provider again - still far below the 6 turns offered.
     assert len(provider.calls) == 2
 
@@ -870,8 +870,8 @@ async def test_recovered_error_does_not_mark_run_failed() -> None:
     # overflow error via compaction + auto-retry INSIDE one prompt() stream.
     # The verdict must therefore be taken only at stream end: a later
     # successful assistant message clears the pending error.
-    from baldric_agent.events import MessageEndEvent
-    from baldric_coding.extensions.builtins.subagents.extension import AgentRun, SubagentManager
+    from baldric.agent.events import MessageEndEvent
+    from baldric.coding.extensions.builtins.subagents.extension import AgentRun, SubagentManager
 
     manager = SubagentManager(api=SimpleNamespace())
     run = AgentRun(
@@ -975,7 +975,7 @@ def test_sweep_transcripts_deletes_old_and_prunes(tmp_path: Path) -> None:
     import os
     import time
 
-    from baldric_coding.extensions.builtins.subagents.output_file import sweep_transcripts, transcripts_root
+    from baldric.coding.extensions.builtins.subagents.output_file import sweep_transcripts, transcripts_root
 
     root = transcripts_root()  # redirected to tmp_path by the conftest fixture
     assert str(root).startswith(str(tmp_path))
@@ -1440,7 +1440,7 @@ def test_task_notification_is_fit_or_fetch() -> None:
     # entirely with a get_subagent_result pointer — never truncated, so the
     # parent is never tempted to act on partial output. Turns/usage/type are
     # omitted too: get_subagent_result repeats them in its header.
-    from baldric_coding.extensions.builtins.subagents.extension import AgentRun, format_task_notification
+    from baldric.coding.extensions.builtins.subagents.extension import AgentRun, format_task_notification
 
     def _run(text: str) -> AgentRun:
         return AgentRun(
@@ -2431,7 +2431,7 @@ def test_loads_as_a_bundled_extension(tmp_path: Path) -> None:
     half: the declaration in the shipped list registers the surfaces, reports no
     load error, and stays out of the listing the user sees while doing so.
     """
-    from baldric_coding.extensions.builtin_registry import BUILT_IN_EXTENSIONS
+    from baldric.coding.extensions.builtin_registry import BUILT_IN_EXTENSIONS
 
     declaration = next(item for item in BUILT_IN_EXTENSIONS if item.name == "subagents")
     assert declaration.hidden is True

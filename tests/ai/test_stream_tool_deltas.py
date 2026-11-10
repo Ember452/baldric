@@ -6,8 +6,8 @@ from collections.abc import AsyncIterator
 
 import pytest
 
-from baldric_agent import AssistantMessage, ToolCall, Usage
-from baldric_ai._provider_events import (
+from baldric.agent import AssistantMessage, ToolCall, Usage
+from baldric.ai._provider_events import (
     ProviderEvent,
     ProviderResponseEndEvent,
     ProviderResponseStartEvent,
@@ -15,8 +15,8 @@ from baldric_ai._provider_events import (
     ProviderToolCallEvent,
     ProviderToolCallStartEvent,
 )
-from baldric_ai.events import ToolCallDeltaEvent, ToolCallEndEvent, ToolCallStartEvent
-from baldric_ai.stream import canonicalize_provider_stream
+from baldric.ai.events import ToolCallDeltaEvent, ToolCallEndEvent, ToolCallStartEvent
+from baldric.ai.stream import canonicalize_provider_stream
 
 
 async def _source(events: list[ProviderEvent]) -> AsyncIterator[ProviderEvent]:

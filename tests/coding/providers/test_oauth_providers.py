@@ -4,29 +4,29 @@ from typing import cast
 import httpx
 import pytest
 
-from baldric_coding.auth.credentials import FileCredentialStore, OAuthCredential
-from baldric_coding.auth.flows.anthropic import (
+from baldric.coding.auth.credentials import FileCredentialStore, OAuthCredential
+from baldric.coding.auth.flows.anthropic import (
     ANTHROPIC_CLIENT_ID,
     ANTHROPIC_TOKEN_URL,
     refresh_anthropic_token,
 )
-from baldric_coding.auth.flows.device import DevicePollResult, poll_oauth_device_code
-from baldric_coding.auth.flows.github_copilot import (
+from baldric.coding.auth.flows.device import DevicePollResult, poll_oauth_device_code
+from baldric.coding.auth.flows.github_copilot import (
     GITHUB_COPILOT_CLIENT_ID,
     github_copilot_base_url,
     login_github_copilot,
     normalize_github_domain,
     refresh_github_copilot_token,
 )
-from baldric_coding.auth.oauth import OAuthError, oauth_credential_is_expired
-from baldric_coding.auth.registry import (
+from baldric.coding.auth.oauth import OAuthError, oauth_credential_is_expired
+from baldric.coding.auth.registry import (
     get_oauth_provider,
     oauth_provider_ids,
     register_oauth_provider,
     reset_oauth_providers,
     unregister_oauth_provider,
 )
-from baldric_coding.auth.types import (
+from baldric.coding.auth.types import (
     OAuthDeviceCodeInfo,
     OAuthLoginCallbacks,
     OAuthPrompt,
@@ -34,8 +34,8 @@ from baldric_coding.auth.types import (
     OAuthRuntimeAuth,
     OAuthSelectPrompt,
 )
-from baldric_coding.providers.config import provider_config_from_catalog_entry
-from baldric_coding.providers.runtime import OAuthRuntimeCredentialResolver, _refresh_lock
+from baldric.coding.providers.config import provider_config_from_catalog_entry
+from baldric.coding.providers.runtime import OAuthRuntimeCredentialResolver, _refresh_lock
 
 
 def _callbacks(

@@ -5,7 +5,7 @@ import io
 import pytest
 from rich.console import Console
 
-from baldric_coding.observability import doctor
+from baldric.coding.observability import doctor
 
 
 def _render_report(env: dict[str, str]) -> str:

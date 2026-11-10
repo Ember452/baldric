@@ -3,12 +3,12 @@ from pathlib import Path
 import pytest
 from rich.console import Console
 
-from baldric_coding.commands.registry import create_default_command_registry
-from baldric_coding.context.prompts import PromptTemplate
-from baldric_coding.context.skills.skills import Skill
-from baldric_coding.tui import autocomplete as autocomplete_module
-from baldric_coding.tui.autocomplete import CompletionOption, build_completion_state
-from baldric_coding.tui.widgets import render_completion_suggestions
+from baldric.coding.commands.registry import create_default_command_registry
+from baldric.coding.context.prompts import PromptTemplate
+from baldric.coding.context.skills.skills import Skill
+from baldric.coding.tui import autocomplete as autocomplete_module
+from baldric.coding.tui.autocomplete import CompletionOption, build_completion_state
+from baldric.coding.tui.widgets import render_completion_suggestions
 
 
 def test_command_completion_for_slash_lists_every_registered_command() -> None:

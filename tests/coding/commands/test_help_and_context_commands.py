@@ -7,8 +7,8 @@ them, and `test_non_pi_commands_are_not_registered` pins the remaining ones.
 
 from __future__ import annotations
 
-from baldric_coding.commands.base import CommandContext, CommandKind, CommandRegistry
-from baldric_coding.commands.registry import create_default_command_registry
+from baldric.coding.commands.base import CommandContext, CommandKind, CommandRegistry
+from baldric.coding.commands.registry import create_default_command_registry
 
 
 class _Session:

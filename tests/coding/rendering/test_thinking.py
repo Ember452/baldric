@@ -1,10 +1,10 @@
 """Tests for the collapsed-thinking summary line."""
 
-from baldric_coding.rendering.thinking import (
+from baldric.coding.rendering.thinking import (
     HIDDEN_THINKING_HINT,
     format_hidden_thinking_summary,
 )
-from baldric_coding.session.compaction.context_window import estimate_text_tokens
+from baldric.coding.session.compaction.context_window import estimate_text_tokens
 
 
 def test_single_block_reports_estimated_tokens_without_leaking_content() -> None:

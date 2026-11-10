@@ -12,8 +12,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from baldric_ai import FakeProvider
-from baldric_coding.config.paths import BaldricPaths
+from baldric.ai import FakeProvider
+from baldric.coding.config.paths import BaldricPaths
 
 # Reuse the runtime/provider fakes and helpers from the main test module.
 from tests.helpers.subagents_shared import (

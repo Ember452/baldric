@@ -7,14 +7,14 @@ from textual.widgets import (
     Static,
 )
 
-from baldric_coding.tui.app import (
+from baldric.coding.tui.app import (
     RESERVED_EXTENSION_INTERCEPTOR_KEYS,
     BaldricTuiApp,
     ExtensionConfirmScreen,
     LoginMethodPickerScreen,
     PromptInput,
 )
-from baldric_coding.tui.widgets import (
+from baldric.coding.tui.widgets import (
     TranscriptView,
 )
 from tests.helpers.tui_helpers import (

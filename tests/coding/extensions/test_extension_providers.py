@@ -10,10 +10,10 @@ from typing import cast
 import httpx
 import pytest
 
-from baldric_agent import UserMessage
-from baldric_ai import OpenAICompatibleProvider
-from baldric_coding import BaldricResourcePaths
-from baldric_coding.extensions import (
+from baldric.agent import UserMessage
+from baldric.ai import OpenAICompatibleProvider
+from baldric.coding import BaldricResourcePaths
+from baldric.coding.extensions import (
     DynamicProvider,
     DynamicProviderError,
     DynamicProviderRegistry,
@@ -30,17 +30,17 @@ from baldric_coding.extensions import (
     ScopedCredentialReader,
     resolve_provider_auth,
 )
-from baldric_coding.extensions.provider_registry import (
+from baldric.coding.extensions.provider_registry import (
     _SUPERVISED_DISCOVERY_TASKS,
     MAX_PROVIDER_REFRESH_DIAGNOSTICS,
     PROVIDER_DISCOVERY_CANCELLATION_TIMEOUT_SECONDS,
 )
-from baldric_coding.observability.diagnostics import AgentCallDiagnosticContext, AgentCallDiagnosticLogger
-from baldric_coding.providers.config import (
+from baldric.coding.observability.diagnostics import AgentCallDiagnosticContext, AgentCallDiagnosticLogger
+from baldric.coding.providers.config import (
     OpenAICompatibleProviderConfig,
     ProviderConfigError,
 )
-from baldric_coding.providers.runtime import create_dynamic_model_provider
+from baldric.coding.providers.runtime import create_dynamic_model_provider
 
 pytestmark = pytest.mark.anyio
 
@@ -127,7 +127,7 @@ def provider(
 def _provider_extension_body(model_id: str, *, fail_setup: bool = False) -> str:
     failure = "\n    raise RuntimeError('setup exploded')" if fail_setup else ""
     return f"""
-from baldric_coding.extensions import (
+from baldric.coding.extensions import (
     DynamicProvider,
     NoAuth,
     OpenAICompatibleTransport,
@@ -1328,7 +1328,7 @@ async def test_setup_failure_removes_provider_layers(tmp_path: Path) -> None:
     extension = tmp_path / "broken_provider.py"
     extension.write_text(
         """
-from baldric_coding.extensions import DynamicProvider, OpenAICompatibleTransport
+from baldric.coding.extensions import DynamicProvider, OpenAICompatibleTransport
 
 
 def setup(baldric):
@@ -1458,7 +1458,7 @@ async def test_extension_api_registers_provider_and_reload_retires_generation(
     extension = tmp_path / "dynamic_provider.py"
     extension.write_text(
         """
-from baldric_coding.extensions import DynamicProvider, OpenAICompatibleTransport
+from baldric.coding.extensions import DynamicProvider, OpenAICompatibleTransport
 
 
 def setup(baldric):
@@ -1518,8 +1518,8 @@ async def test_dynamic_provider_operations_never_call_durable_write_paths(
     def reject_write(*args, **kwargs):
         raise AssertionError(f"durable provider write attempted: {args!r} {kwargs!r}")
 
-    monkeypatch.setattr("baldric_coding.providers.config._write_provider_settings", reject_write)
-    monkeypatch.setattr("baldric_coding.providers.config.save_user_catalog_entries", reject_write)
+    monkeypatch.setattr("baldric.coding.providers.config._write_provider_settings", reject_write)
+    monkeypatch.setattr("baldric.coding.providers.config.save_user_catalog_entries", reject_write)
 
     async def refresh(context):
         return ProviderModelSnapshot((ProviderModel("fresh"),), "fresh")

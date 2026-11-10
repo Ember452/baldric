@@ -8,8 +8,8 @@ all unrelated fields.
 
 from __future__ import annotations
 
-from baldric_coding.tui.app import BaldricTuiApp
-from baldric_coding.tui.config import TuiSettings
+from baldric.coding.tui.app import BaldricTuiApp
+from baldric.coding.tui.config import TuiSettings
 from tests.helpers.tui_helpers import FakeSession
 
 

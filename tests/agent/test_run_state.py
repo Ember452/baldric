@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from baldric_agent.events import (
+from baldric.agent.events import (
     AgentEndEvent,
     MessageEndEvent,
     MessageStartEvent,
@@ -11,10 +11,10 @@ from baldric_agent.events import (
     ToolExecutionStartEvent,
     TurnEndEvent,
 )
-from baldric_agent.run_state import RunState
-from baldric_protocol.messages import AssistantMessage, UserMessage
-from baldric_protocol.provider_events import TextDeltaEvent
-from baldric_protocol.tools import AgentToolResult
+from baldric.agent.run_state import RunState
+from baldric.protocol.messages import AssistantMessage, UserMessage
+from baldric.protocol.provider_events import TextDeltaEvent
+from baldric.protocol.tools import AgentToolResult
 
 
 def test_streaming_message_follows_the_message_lifecycle() -> None:

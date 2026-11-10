@@ -136,7 +136,7 @@ def _module_fanout(trees: dict[str, ast.AST], project_roots: set[str]) -> tuple[
             elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
                 targets = [node.module]
             for target in targets:
-                if target.split(".")[0] in project_roots:
+                if any(target == root or target.startswith(root + ".") for root in project_roots):
                     imported.add(target)
         if len(imported) > widest_count:
             widest, widest_count = module, len(imported)
@@ -156,7 +156,7 @@ def build_report() -> Report:
         report.files[_relative(path)] = _file_metrics(path)
     report.inheritance_depth, report.deepest_chain = _inheritance_depth(trees)
     report.module_fanout, report.widest_module = _module_fanout(
-        trees, {"baldric_agent", "baldric_ai", "baldric_coding"}
+        trees, {"baldric.agent", "baldric.ai", "baldric.coding"}
     )
     return report
 

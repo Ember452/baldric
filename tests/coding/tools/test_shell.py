@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-import baldric_coding.tools.shell as shell_module
-from baldric_coding.tools.shell import (
+import baldric.coding.tools.shell as shell_module
+from baldric.coding.tools.shell import (
     POWERSHELL_ARGS,
     POWERSHELL_UTF8_PREFIX,
     ShellSpec,
@@ -109,7 +109,7 @@ def test_posix_kill_signals_the_process_group(monkeypatch: pytest.MonkeyPatch) -
 @pytest.mark.skipif(os.name != "nt", reason="Windows shell integration")
 @pytest.mark.anyio
 async def test_windows_auto_shell_runs_a_command(tmp_path: Path) -> None:
-    from baldric_coding.tools.bash import create_bash_tool
+    from baldric.coding.tools.bash import create_bash_tool
 
     spec = resolve_shell()
     command = "echo hello" if spec.name == "cmd" else 'Write-Output "hello"'
@@ -131,7 +131,7 @@ def test_windows_auto_prefers_powershell_or_cmd() -> None:
 
 @pytest.mark.anyio
 async def test_explicit_shell_preference_is_used_by_the_tool(tmp_path: Path) -> None:
-    from baldric_coding.tools.bash import create_bash_tool
+    from baldric.coding.tools.bash import create_bash_tool
 
     preference = "cmd" if os.name == "nt" else "bash"
     expected = resolve_shell(preference)
@@ -145,7 +145,7 @@ async def test_explicit_shell_preference_is_used_by_the_tool(tmp_path: Path) -> 
 
 
 def test_unknown_shell_preference_fails_at_tool_creation() -> None:
-    from baldric_coding.tools.bash import create_bash_tool
+    from baldric.coding.tools.bash import create_bash_tool
 
     with pytest.raises(ShellUnavailable, match="Unknown shell preference"):
         create_bash_tool(cwd=".", shell="zsh")

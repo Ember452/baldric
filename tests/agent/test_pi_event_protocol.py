@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from baldric_agent import (
+from baldric.agent import (
     AgentEndEvent,
     AgentHarness,
     AgentHarnessConfig,
@@ -17,8 +17,8 @@ from baldric_agent import (
     ToolExecutionStartEvent,
     ToolResultMessage,
 )
-from baldric_ai import FakeProvider
-from baldric_protocol.provider_events import (
+from baldric.ai import FakeProvider
+from baldric.protocol.provider_events import (
     AssistantDoneEvent,
     AssistantStartEvent,
     TextDeltaEvent,
@@ -30,14 +30,14 @@ from baldric_protocol.provider_events import (
 
 
 def test_baldric_agent_does_not_import_baldric_ai() -> None:
-    for path in Path("src/baldric_agent").rglob("*.py"):
+    for path in Path("src/baldric/agent").rglob("*.py"):
         source = path.read_text(encoding="utf-8")
-        assert "from baldric_ai" not in source, path
-        assert "import baldric_ai" not in source, path
+        assert "from baldric.ai" not in source, path
+        assert "import baldric.ai" not in source, path
 
 
 def test_baldric_ai_reexports_canonical_event_classes() -> None:
-    from baldric_ai.events import TextDeltaEvent as public
+    from baldric.ai.events import TextDeltaEvent as public
 
     assert public is TextDeltaEvent
 

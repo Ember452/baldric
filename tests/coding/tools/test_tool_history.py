@@ -1,5 +1,5 @@
-from baldric_agent import AssistantMessage, TextContent, ToolCall, ToolResultMessage, UserMessage
-from baldric_agent.tool_history import repair_tool_history
+from baldric.agent import AssistantMessage, TextContent, ToolCall, ToolResultMessage, UserMessage
+from baldric.agent.tool_history import repair_tool_history
 
 
 def _call(call_id: str = "call-1", name: str = "read") -> ToolCall:

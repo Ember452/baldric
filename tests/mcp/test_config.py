@@ -1,11 +1,11 @@
-"""Tests for ``baldric_mcp.config``: parsing, merge, expansion, write-back."""
+"""Tests for ``baldric.mcp.config``: parsing, merge, expansion, write-back."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-from baldric_mcp.config import load_mcp_config, set_server_enabled
+from baldric.mcp.config import load_mcp_config, set_server_enabled
 
 ENV = {"CMD": "run", "TOKEN": "secret", "DIR": "/tmp/d"}
 

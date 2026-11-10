@@ -4,8 +4,8 @@ from itertools import chain, repeat
 
 import pytest
 
-import baldric_agent.assistant_stream as assistant_stream_module
-from baldric_agent import (
+import baldric.agent.assistant_stream as assistant_stream_module
+from baldric.agent import (
     AgentEvent,
     AgentMessage,
     AgentTool,
@@ -30,16 +30,16 @@ from baldric_agent import (
     TurnUpdate,
     UserMessage,
 )
-from baldric_agent.loop import run_agent_loop
-from baldric_agent.tool_calls import execute_tool_call
-from baldric_ai import CancellationToken, FakeProvider
-from baldric_protocol.provider_events import (
+from baldric.agent.loop import run_agent_loop
+from baldric.agent.tool_calls import execute_tool_call
+from baldric.ai import CancellationToken, FakeProvider
+from baldric.protocol.provider_events import (
     AssistantDoneEvent,
     AssistantErrorEvent,
     AssistantRetryEvent,
     ThinkingDeltaEvent,
 )
-from baldric_protocol.types import JSONValue
+from baldric.protocol.types import JSONValue
 from tests.helpers.pi_event_helpers import (
     assistant_done,
     assistant_error,

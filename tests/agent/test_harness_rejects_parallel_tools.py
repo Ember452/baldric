@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from baldric_agent import AgentHarness, AgentHarnessConfig, AgentTool
-from baldric_ai import FakeProvider
+from baldric.agent import AgentHarness, AgentHarnessConfig, AgentTool
+from baldric.ai import FakeProvider
 
 
 def _tool(name: str, mode: str) -> AgentTool:

@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.providers.config import (
+from baldric.coding.config.paths import BaldricPaths
+from baldric.coding.providers.config import (
     DEFAULT_HUGGINGFACE_INFERENCE_PROVIDER,
     OpenAICompatibleProviderConfig,
     ProviderConfigError,
@@ -17,7 +17,7 @@ from baldric_coding.providers.config import (
     provider_settings_from_json,
     save_provider_settings,
 )
-from baldric_coding.session.provider_helpers import _configured_inference_provider
+from baldric.coding.session.provider_helpers import _configured_inference_provider
 
 
 def _hf_provider(**overrides: object) -> OpenAICompatibleProviderConfig:

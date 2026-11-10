@@ -8,19 +8,19 @@ import pytest
 from rich.console import Console
 from textual.widgets import Static
 
-from baldric_coding.events import (
+from baldric.coding.events import (
     AutoRetryEndEvent,
     AutoRetryStartEvent,
     CodingSessionEvent,
     SessionInfoChangedEvent,
     ThinkingLevelChangedEvent,
 )
-from baldric_coding.events_dispatch import EventDispatcher
-from baldric_coding.tui.adapter import INTENTIONAL_NOOP, TuiEventAdapter
-from baldric_coding.tui.app import BaldricTuiApp
-from baldric_coding.tui.state import TuiState
-from baldric_coding.tui.terminal_title import TerminalTitleController
-from baldric_coding.tui.widgets import TranscriptMessageWidget
+from baldric.coding.events_dispatch import EventDispatcher
+from baldric.coding.tui.adapter import INTENTIONAL_NOOP, TuiEventAdapter
+from baldric.coding.tui.app import BaldricTuiApp
+from baldric.coding.tui.state import TuiState
+from baldric.coding.tui.terminal_title import TerminalTitleController
+from baldric.coding.tui.widgets import TranscriptMessageWidget
 from tests.guards.event_union import coding_session_event_types
 from tests.helpers.tui_helpers import FakeSession
 

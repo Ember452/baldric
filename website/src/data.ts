@@ -57,7 +57,7 @@ export const groups = yaml(readFileSync("data/roadmap.yaml", "utf8")).groups as 
   phases: Phase[];
 }[];
 export const releases = JSON.parse(
-  readFileSync("../src/baldric_coding/data/release-notes/releases.json", "utf8"),
+  readFileSync("../src/baldric/coding/data/release-notes/releases.json", "utf8"),
 ) as { version: string; date: string; sections: Record<string, string[]> }[];
 export function pagePath(id: string) {
   return id === "_index" ? "/" : `/${id.replace(/\/_index$/, "")}/`;

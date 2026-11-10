@@ -1,5 +1,5 @@
-from baldric_coding.session.usage import USAGE_SCRIPT, collect_session_usage, render_usage_dashboard
-from baldric_protocol.messages import (
+from baldric.coding.session.usage import USAGE_SCRIPT, collect_session_usage, render_usage_dashboard
+from baldric.protocol.messages import (
     AssistantMessage,
     ToolCall,
     Usage,
@@ -7,7 +7,7 @@ from baldric_protocol.messages import (
     UserMessage,
     assistant_content,
 )
-from baldric_protocol.session import (
+from baldric.protocol.session import (
     BranchSummaryEntry,
     CompactionEntry,
     MessageEntry,

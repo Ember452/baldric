@@ -10,8 +10,8 @@ from subprocess import CompletedProcess
 
 import pytest
 
-from baldric_coding.update import updater
-from baldric_coding.update.updater import detect_install_method, update_baldric
+from baldric.coding.update import updater
+from baldric.coding.update.updater import detect_install_method, update_baldric
 
 
 def _success(command: tuple[str, ...], **kwargs: object) -> CompletedProcess[str]:

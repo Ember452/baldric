@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from baldric_agent import (
+from baldric.agent import (
     AgentToolResult,
     AssistantMessage,
     CustomMessage,
@@ -15,9 +15,9 @@ from baldric_agent import (
     ToolExecutionStartEvent,
     ToolExecutionUpdateEvent,
 )
-from baldric_coding.events import AutoRetryEndEvent, AutoRetryStartEvent, QueueUpdateEvent
-from baldric_coding.rendering import FinalTextRenderer, JsonEventRenderer, TranscriptRenderer
-from baldric_protocol.provider_events import TextDeltaEvent, ThinkingDeltaEvent
+from baldric.coding.events import AutoRetryEndEvent, AutoRetryStartEvent, QueueUpdateEvent
+from baldric.coding.rendering import FinalTextRenderer, JsonEventRenderer, TranscriptRenderer
+from baldric.protocol.provider_events import TextDeltaEvent, ThinkingDeltaEvent
 
 
 def _assistant_update(event) -> MessageUpdateEvent:  # noqa: ANN001

@@ -1,7 +1,7 @@
 """Canonical Pi event constructors used by the test suite."""
 
-from baldric_protocol.messages import AssistantMessage, ThinkingContent, ToolCall
-from baldric_protocol.provider_events import (
+from baldric.protocol.messages import AssistantMessage, ThinkingContent, ToolCall
+from baldric.protocol.provider_events import (
     AssistantDoneEvent,
     AssistantErrorEvent,
     AssistantStartEvent,

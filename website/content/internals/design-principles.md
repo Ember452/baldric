@@ -8,8 +8,8 @@ approachable as it grows.
 
 ## Small layers beat magic
 
-Each package has one job: `baldric_ai` streams models, `baldric_agent` runs the loop,
-`baldric_coding` is the application. You can read and test any layer on its own
+Each package has one job: `baldric.ai` streams models, `baldric.agent` runs the loop,
+`baldric.coding` is the application. You can read and test any layer on its own
 without understanding the others. → [Architecture](/internals/architecture/)
 
 ## Events are the contract
@@ -21,8 +21,8 @@ frontends share one core. → [The agent loop & events](/internals/agent-loop/)
 
 ## The core stays portable
 
-`baldric_agent` must not depend on Textual, Rich, the CLI, config directories, slash
-commands, or app-specific resources. Those live in `baldric_coding` and wrap the
+`baldric.agent` must not depend on Textual, Rich, the CLI, config directories, slash
+commands, or app-specific resources. Those live in `baldric.coding` and wrap the
 core from outside. The reusable brain never reaches up into a UI.
 
 ## Tools are ordinary typed functions
@@ -44,8 +44,8 @@ Baldric mostly follows [Pi](https://pi.dev)'s minimalist separation of agent bra
 coding session, and frontend. A few user-facing conveniences intentionally
 diverge from that baseline. One example is automatic session naming: Baldric asks the active
 provider/model for a short title after the first user message is persisted, then
-stores that title as session metadata. This remains in `baldric_coding`, not the
-portable `baldric_agent` harness, because it is application workflow rather than
+stores that title as session metadata. This remains in `baldric.coding`, not the
+portable `baldric.agent` harness, because it is application workflow rather than
 agent-loop behavior.
 
 ## Documentation follows implementation

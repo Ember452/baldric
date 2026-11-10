@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from baldric_coding.commands.base import (
+from baldric.coding.commands.base import (
     CommandKind,
     CommandOutcome,
     MessageDisplay,
@@ -8,19 +8,19 @@ from baldric_coding.commands.base import (
     message_outcome,
     not_handled,
 )
-from baldric_coding.commands.registry import (
+from baldric.coding.commands.registry import (
     CommandRegistry,
     SlashCommand,
     create_default_command_registry,
 )
-from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.context.resources import ResourceDiagnostic
-from baldric_coding.context.skills.skills import Skill
-from baldric_coding.context.system_prompt import ProjectContextFile
-from baldric_coding.session.manager import SessionManager
-from baldric_coding.session.session import ModelChoice
-from baldric_coding.tools.registry import create_coding_tools
-from baldric_coding.update.reload import CodingReloadSummary, ReloadCategorySummary
+from baldric.coding.config.paths import BaldricPaths
+from baldric.coding.context.resources import ResourceDiagnostic
+from baldric.coding.context.skills.skills import Skill
+from baldric.coding.context.system_prompt import ProjectContextFile
+from baldric.coding.session.manager import SessionManager
+from baldric.coding.session.session import ModelChoice
+from baldric.coding.tools.registry import create_coding_tools
+from baldric.coding.update.reload import CodingReloadSummary, ReloadCategorySummary
 
 
 class FakeSession:
@@ -509,7 +509,7 @@ def test_theme_command_requests_picker_and_sets_theme(tmp_path: Path) -> None:
 
 
 def test_theme_command_accepts_registered_custom_theme(tmp_path: Path) -> None:
-    from baldric_coding.rendering.themes import (
+    from baldric.coding.rendering.themes import (
         THEME_COLOR_FIELDS,
         TRANSCRIPT_ROLES,
         parse_tui_theme_json,

@@ -7,7 +7,7 @@ from email.utils import format_datetime
 
 import pytest
 
-from baldric_ai.retry import (
+from baldric.ai.retry import (
     classify_http_failure,
     failure_code,
     retry_after_delay_seconds,

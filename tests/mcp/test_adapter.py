@@ -1,4 +1,4 @@
-"""Tests for ``baldric_mcp.adapter``: naming, schema, result conversion."""
+"""Tests for ``baldric.mcp.adapter``: naming, schema, result conversion."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Any
 
 import pytest
 
-from baldric_mcp.adapter import (
+from baldric.mcp.adapter import (
     TEXT_LIMIT,
     TOOL_NAME_MAX,
     convert_result,
@@ -17,7 +17,7 @@ from baldric_mcp.adapter import (
     mcp_tool_to_agent_tool,
     normalize_input_schema,
 )
-from baldric_mcp.client import McpContentBlock, McpToolInfo, McpToolResultData
+from baldric.mcp.client import McpContentBlock, McpToolInfo, McpToolResultData
 
 pytestmark = pytest.mark.anyio
 

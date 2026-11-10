@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import baldric_protocol
+import baldric.protocol
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -19,7 +19,7 @@ EXPECTED_PROTOCOL_VERSION = 1
 
 
 def test_protocol_version_is_pinned() -> None:
-    assert baldric_protocol.PROTOCOL_VERSION == EXPECTED_PROTOCOL_VERSION
+    assert baldric.protocol.PROTOCOL_VERSION == EXPECTED_PROTOCOL_VERSION
 
 
 def test_wire_snapshot_goldens_exist() -> None:

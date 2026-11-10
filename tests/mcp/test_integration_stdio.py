@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from baldric_mcp.client import McpContentBlock
-from baldric_mcp.config import McpServerConfig
-from baldric_mcp.supervisor import McpSupervisor
+from baldric.mcp.client import McpContentBlock
+from baldric.mcp.config import McpServerConfig
+from baldric.mcp.supervisor import McpSupervisor
 
 pytestmark = pytest.mark.anyio
 

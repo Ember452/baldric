@@ -13,8 +13,8 @@ from collections.abc import AsyncIterator
 
 import pytest
 
-from baldric_agent import SimpleCancellationToken
-from baldric_ai.http import iter_sse_lines
+from baldric.agent import SimpleCancellationToken
+from baldric.ai.http import iter_sse_lines
 
 
 class _StalledResponse:

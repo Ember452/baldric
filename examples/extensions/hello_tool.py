@@ -5,9 +5,9 @@ Install by copying into `~/.baldric/extensions/`, or run:
     baldric -e examples/extensions/hello_tool.py
 """
 
-from baldric_coding.extensions import ExtensionAPI
-from baldric_protocol.messages import TextContent
-from baldric_protocol.tools import AgentTool, AgentToolResult
+from baldric.coding.extensions import ExtensionAPI
+from baldric.protocol.messages import TextContent
+from baldric.protocol.tools import AgentTool, AgentToolResult
 
 
 async def _run_hello(tool_call_id, arguments, signal=None, on_update=None):  # noqa: ANN001, ANN202

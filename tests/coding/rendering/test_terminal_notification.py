@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from io import StringIO
 
-from baldric_coding.tui.terminal_notification import (
+from baldric.coding.tui.terminal_notification import (
     TerminalNotificationController,
     desktop_notification_protocol,
     desktop_notification_sequence,

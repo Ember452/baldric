@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from baldric_coding import (
+from baldric.coding import (
     BaldricPaths,
     ShellConfigError,
     ShellSettings,

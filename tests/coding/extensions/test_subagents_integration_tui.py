@@ -2,9 +2,9 @@
 
 Every other UI test in this repo drives the widgets against a
 ``FakeComponentBridge`` and runtime stubs. This test closes that gap: it builds
-the actual :class:`baldric_coding.tui.app.BaldricTuiApp` around a minimal fake session,
-hands it a REAL :class:`~baldric_coding.extensions.ExtensionRuntime` that has loaded
-the REAL ``baldric_coding.extensions.builtins.subagents`` extension, runs it under ``run_test()``, and asserts
+the actual :class:`baldric.coding.tui.app.BaldricTuiApp` around a minimal fake session,
+hands it a REAL :class:`~baldric.coding.extensions.ExtensionRuntime` that has loaded
+the REAL ``baldric.coding.extensions.builtins.subagents`` extension, runs it under ``run_test()``, and asserts
 the extension's strip and conversation viewer actually mount into baldric's
 host-owned component slots.
 
@@ -22,23 +22,23 @@ from types import SimpleNamespace
 import pytest
 from textual.containers import Container
 
-from baldric_agent import (
+from baldric.agent import (
     ToolExecutionEndEvent,
     ToolExecutionStartEvent,
 )
-from baldric_ai import AssistantDoneEvent, AssistantStartEvent, FakeProvider
-from baldric_coding.context.skills.skills import Skill
-from baldric_coding.context.system_prompt import ProjectContextFile
-from baldric_coding.events import QueueUpdateEvent
-from baldric_coding.extensions.builtins.subagents.ui.strip import AgentStripWidget
-from baldric_coding.extensions.builtins.subagents.ui.viewer import ConversationViewer
-from baldric_coding.session.session import ModelChoice, TerminalCommandResult
-from baldric_coding.session.stats import SessionStats
-from baldric_coding.tools.registry import create_coding_tools
-from baldric_coding.trust.policy import ProjectTrustResolution
-from baldric_coding.tui.app import BaldricTuiApp, PromptInput
-from baldric_coding.tui.widgets import TranscriptMessageWidget, TranscriptView
-from baldric_protocol.messages import AssistantMessage
+from baldric.ai import AssistantDoneEvent, AssistantStartEvent, FakeProvider
+from baldric.coding.context.skills.skills import Skill
+from baldric.coding.context.system_prompt import ProjectContextFile
+from baldric.coding.events import QueueUpdateEvent
+from baldric.coding.extensions.builtins.subagents.ui.strip import AgentStripWidget
+from baldric.coding.extensions.builtins.subagents.ui.viewer import ConversationViewer
+from baldric.coding.session.session import ModelChoice, TerminalCommandResult
+from baldric.coding.session.stats import SessionStats
+from baldric.coding.tools.registry import create_coding_tools
+from baldric.coding.trust.policy import ProjectTrustResolution
+from baldric.coding.tui.app import BaldricTuiApp, PromptInput
+from baldric.coding.tui.widgets import TranscriptMessageWidget, TranscriptView
+from baldric.protocol.messages import AssistantMessage
 
 # Sibling test modules (pytest prepend import mode puts tests/ on sys.path).
 from tests.helpers.subagents_shared import (

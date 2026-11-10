@@ -9,9 +9,9 @@ the layout and the re-export surface in place.
 
 from __future__ import annotations
 
-from baldric_coding.session import branching, model_runtime
-from baldric_coding.session import session as session_module
-from baldric_coding.session.session import (
+from baldric.coding.session import branching, model_runtime
+from baldric.coding.session import session as session_module
+from baldric.coding.session.session import (
     TREE_RUNNING_MESSAGE,
     CodingSession,
     SessionTreeBranchResult,
@@ -27,7 +27,7 @@ def test_session_is_a_plain_facade_not_a_mixin_stack() -> None:
 
 def test_branching_types_are_single_sourced_and_reexported() -> None:
     # Defined once in session.branching; re-exported so existing importers of
-    # `baldric_coding.session.session` keep working.
+    # `baldric.coding.session.session` keep working.
     assert session_module.TREE_RUNNING_MESSAGE is branching.TREE_RUNNING_MESSAGE
     assert TREE_RUNNING_MESSAGE == branching.TREE_RUNNING_MESSAGE
     assert SessionTreeChoice is branching.SessionTreeChoice

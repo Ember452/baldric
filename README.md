@@ -36,13 +36,13 @@ shape of a coding-agent system without starting from a giant production
 codebase.
 
 ```text
-baldric_coding  →  baldric_agent  →  baldric_ai
+baldric.coding  →  baldric.agent  →  baldric.ai
 ```
 
-- `baldric_ai` translates model providers into Baldric's provider-neutral stream.
-- `baldric_agent` owns the portable brain: messages, tools, events, loop, harness,
+- `baldric.ai` translates model providers into Baldric's provider-neutral stream.
+- `baldric.agent` owns the portable brain: messages, tools, events, loop, harness,
   and session primitives.
-- `baldric_coding` wraps the brain as a real coding app: CLI, TUI, file/shell tools,
+- `baldric.coding` wraps the brain as a real coding app: CLI, TUI, file/shell tools,
   provider config, project instructions, skills, and on-disk sessions.
 
 The important boundary is:
@@ -167,7 +167,7 @@ Baldric ships with support for OpenAI, Anthropic, OpenAI Codex subscription auth
 OpenRouter, Hugging Face, and custom OpenAI-compatible endpoints, including local
 models. See the [providers guide](https://ember452.github.io/baldric/guides/providers-and-models/).
 
-The built-in catalog lives in `src/baldric_coding/data/catalog.toml`; add your own
+The built-in catalog lives in `src/baldric/coding/data/catalog.toml`; add your own
 providers and models by dropping a `~/.baldric/catalog.toml` with the same schema —
 no code changes required.
 
@@ -203,7 +203,7 @@ Baldric follows a few rules:
 ## Use Baldric as a library
 
 ```python
-from baldric_agent import AgentHarness, AgentHarnessConfig
+from baldric.agent import AgentHarness, AgentHarnessConfig
 
 harness = AgentHarness(
     AgentHarnessConfig(

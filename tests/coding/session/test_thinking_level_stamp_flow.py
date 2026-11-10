@@ -17,10 +17,10 @@ from pathlib import Path
 import httpx
 import pytest
 
-import baldric_ai.openai_compatible as openai_compatible_module
-from baldric_agent import AssistantMessage, MessageEndEvent, UserMessage
-from baldric_ai import FakeProvider
-from baldric_coding import (
+import baldric.ai.openai_compatible as openai_compatible_module
+from baldric.agent import AssistantMessage, MessageEndEvent, UserMessage
+from baldric.ai import FakeProvider
+from baldric.coding import (
     BaldricPaths,
     BaldricResourcePaths,
     CodingSession,
@@ -28,8 +28,8 @@ from baldric_coding import (
     OpenAICompatibleProviderConfig,
     ProviderSettings,
 )
-from baldric_coding.session import JsonlSessionStorage
-from baldric_protocol.session import MessageEntry
+from baldric.coding.session import JsonlSessionStorage
+from baldric.protocol.session import MessageEntry
 
 _MODEL = "test-reasoner"
 

@@ -15,8 +15,8 @@ from collections.abc import AsyncIterator
 import httpx
 import pytest
 
-from baldric_agent import UserMessage
-from baldric_ai import (
+from baldric.agent import UserMessage
+from baldric.ai import (
     AnthropicConfig,
     AnthropicProvider,
     AssistantDoneEvent,
@@ -28,7 +28,7 @@ from baldric_ai import (
     OpenAICompatibleConfig,
     OpenAICompatibleProvider,
 )
-from baldric_ai._sse import SSEEvent, iter_sse_events
+from baldric.ai._sse import SSEEvent, iter_sse_events
 
 
 async def _lines(*lines: str) -> AsyncIterator[str]:

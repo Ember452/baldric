@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from baldric_agent import (
+from baldric.agent import (
     AgentMessage,
     AgentTool,
     AgentToolResult,
@@ -23,7 +23,7 @@ from baldric_agent import (
     Usage,
     UserMessage,
 )
-from baldric_ai import (
+from baldric.ai import (
     CancellationToken,
     FakeProvider,
     ModelProvider,
@@ -31,8 +31,8 @@ from baldric_ai import (
     RuntimeModelCatalog,
     RuntimeModelLimits,
 )
-from baldric_ai.events import AssistantMessageEvent
-from baldric_coding import (
+from baldric.ai.events import AssistantMessageEvent
+from baldric.coding import (
     BaldricPaths,
     BaldricResourcePaths,
     CodingSession,
@@ -51,33 +51,33 @@ from baldric_coding import (
     load_provider_settings,
     save_provider_settings,
 )
-from baldric_coding.commands.base import CommandKind, CommandOutcome, PickerKind
-from baldric_coding.context.prompts import PromptTemplate
-from baldric_coding.events import (
+from baldric.coding.commands.base import CommandKind, CommandOutcome, PickerKind
+from baldric.coding.context.prompts import PromptTemplate
+from baldric.coding.events import (
     AgentSettledEvent,
     CompactionEndEvent,
     CompactionStartEvent,
     QueueUpdateEvent,
     SessionAgentEndEvent,
 )
-from baldric_coding.extensions import (
+from baldric.coding.extensions import (
     DynamicProvider,
     OpenAICompatibleTransport,
     ProviderModel,
 )
-from baldric_coding.extensions.runtime import InputHookOutcome
-from baldric_coding.providers.config import (
+from baldric.coding.extensions.runtime import InputHookOutcome
+from baldric.coding.providers.config import (
     ProviderModelMetadata,
     provider_thinking_levels,
 )
-from baldric_coding.providers.stores.codex_model_store import (
+from baldric.coding.providers.stores.codex_model_store import (
     cached_codex_model_catalog,
     save_codex_model_catalog,
 )
-from baldric_coding.session import JsonlSessionStorage
-from baldric_coding.session import session as coding_session_module
-from baldric_coding.session.compaction.context_window import estimate_message_tokens
-from baldric_coding.session.session import (
+from baldric.coding.session import JsonlSessionStorage
+from baldric.coding.session import session as coding_session_module
+from baldric.coding.session.compaction.context_window import estimate_message_tokens
+from baldric.coding.session.session import (
     SESSION_NAME_SYSTEM_PROMPT,
     _first_recent_context_index,
     _ordered_tree_entries,
@@ -85,13 +85,13 @@ from baldric_coding.session.session import (
     is_retryable_huggingface_route_error,
     parse_terminal_command,
 )
-from baldric_protocol.messages import (
+from baldric.protocol.messages import (
     AssistantMessageDiagnostic,
     BashExecutionMessage,
     assistant_content,
 )
-from baldric_protocol.provider_events import AssistantErrorEvent
-from baldric_protocol.session import (
+from baldric.protocol.provider_events import AssistantErrorEvent
+from baldric.protocol.session import (
     CompactionEntry,
     CustomEntry,
     CustomMessageEntry,
@@ -5952,7 +5952,7 @@ async def test_aborted_replacement_closes_only_candidate_provider_once(
 ) -> None:
     from dataclasses import replace as dataclass_replace
 
-    from baldric_coding.extensions.runtime import ExtensionRuntime
+    from baldric.coding.extensions.runtime import ExtensionRuntime
 
     monkeypatch.setenv("LOCAL_API_KEY", "test-key")
     baldric_paths = BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents")
@@ -7584,7 +7584,7 @@ def _dynamic_thinking_override_config(
     extension = tmp_path / "dynamic_provider.py"
     extension.write_text(
         """
-from baldric_coding.extensions import DynamicProvider, OpenAICompatibleTransport, ProviderModel
+from baldric.coding.extensions import DynamicProvider, OpenAICompatibleTransport, ProviderModel
 
 
 def setup(baldric):

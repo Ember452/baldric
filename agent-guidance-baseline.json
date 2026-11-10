@@ -1,11 +1,11 @@
 {
-  "chain_bytes": 12493,
+  "chain_bytes": 12492,
   "files": {
-    "AGENTS.md": 10491,
+    "AGENTS.md": 10490,
     "CLAUDE.md": 162,
-    "src/baldric_agent/AGENTS.md": 1644,
-    "src/baldric_ai/AGENTS.md": 1377,
-    "src/baldric_coding/AGENTS.md": 2002
+    "src/baldric/agent/AGENTS.md": 1373,
+    "src/baldric/ai/AGENTS.md": 1332,
+    "src/baldric/coding/AGENTS.md": 2002
   },
   "shims": [
     "CLAUDE.md"

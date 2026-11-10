@@ -9,16 +9,16 @@ from __future__ import annotations
 
 import time
 
-from baldric_coding.rendering.themes import BALDRIC_DARK_THEME
-from baldric_coding.rendering.tool_state import tool_state_background
-from baldric_coding.tui.state import ChatItem, TuiState
-from baldric_coding.tui.widgets.core import (
+from baldric.coding.rendering.themes import BALDRIC_DARK_THEME
+from baldric.coding.rendering.tool_state import tool_state_background
+from baldric.coding.tui.state import ChatItem, TuiState
+from baldric.coding.tui.widgets.core import (
     TranscriptMessageWidget,
     _chat_item_role_style,
     _tool_batch_row_invocation,
 )
-from baldric_protocol.messages import TextContent
-from baldric_protocol.tools import AgentToolResult
+from baldric.protocol.messages import TextContent
+from baldric.protocol.tools import AgentToolResult
 
 
 def _result(text: str = "ok") -> AgentToolResult:
@@ -194,8 +194,8 @@ def test_grouped_members_stamp_outcome_and_duration() -> None:
 def test_tool_row_style_without_body_foreground_omits_none() -> None:
     # The layered schema allows omitting roles.tool.body (empty string); the
     # state style must then be the bare background, never "None on <bg>".
-    from baldric_coding.rendering.themes import TuiRoleStyle
-    from baldric_coding.rendering.tool_state import tool_row_role_style
+    from baldric.coding.rendering.themes import TuiRoleStyle
+    from baldric.coding.rendering.tool_state import tool_row_role_style
 
     base = TuiRoleStyle(border="#8a7a52", body="")
     style = tool_row_role_style(

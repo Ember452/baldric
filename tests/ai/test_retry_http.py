@@ -7,8 +7,8 @@ from collections.abc import AsyncIterator
 import httpx
 import pytest
 
-from baldric_agent import UserMessage
-from baldric_ai import (
+from baldric.agent import UserMessage
+from baldric.ai import (
     AssistantErrorEvent,
     AssistantMessageEvent,
     OpenAICompatibleConfig,

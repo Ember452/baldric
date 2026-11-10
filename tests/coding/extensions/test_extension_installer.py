@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from baldric_coding.context.resources import BaldricResourcePaths
-from baldric_coding.extensions import discover_extensions
-from baldric_coding.extensions.installer import (
+from baldric.coding.context.resources import BaldricResourcePaths
+from baldric.coding.extensions import discover_extensions
+from baldric.coding.extensions.installer import (
     EXTENSION_REGISTRY_CORRUPT_SUFFIX,
     ExtensionInstallError,
     install_extension,
@@ -250,7 +250,7 @@ def test_registry_write_failure_keeps_previous_registry_readable(
     registry = registry_path(extensions_dir)
     before = registry.read_text(encoding="utf-8")
 
-    import baldric_coding.utils.atomic as atomic_utils
+    import baldric.coding.utils.atomic as atomic_utils
 
     def failing_fsync(descriptor: int) -> None:
         del descriptor

@@ -3,7 +3,7 @@ import os
 import httpx
 import pytest
 
-from baldric_ai.http import create_async_client, normalize_proxy_url, normalized_proxy_environment
+from baldric.ai.http import create_async_client, normalize_proxy_url, normalized_proxy_environment
 
 
 def test_normalize_proxy_url_converts_generic_socks_scheme() -> None:

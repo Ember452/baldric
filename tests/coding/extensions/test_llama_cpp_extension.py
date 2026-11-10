@@ -10,22 +10,22 @@ from pathlib import Path
 import httpx
 import pytest
 
-from baldric_agent.harness import SimpleCancellationToken
-from baldric_ai.env import DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS
-from baldric_coding.auth.credentials import FileCredentialStore
-from baldric_coding.backends.contracts import LocalOperationContext, LocalProgress
-from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.context.resources import BaldricResourcePaths
-from baldric_coding.extensions import ExtensionRuntime
-from baldric_coding.extensions.builtins.llama_cpp import service as llama_service
-from baldric_coding.extensions.builtins.llama_cpp.huggingface import discover_hf_token
-from baldric_coding.extensions.builtins.llama_cpp.router import (
+from baldric.agent.harness import SimpleCancellationToken
+from baldric.ai.env import DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS
+from baldric.coding.auth.credentials import FileCredentialStore
+from baldric.coding.backends.contracts import LocalOperationContext, LocalProgress
+from baldric.coding.config.paths import BaldricPaths
+from baldric.coding.context.resources import BaldricResourcePaths
+from baldric.coding.extensions import ExtensionRuntime
+from baldric.coding.extensions.builtins.llama_cpp import service as llama_service
+from baldric.coding.extensions.builtins.llama_cpp.huggingface import discover_hf_token
+from baldric.coding.extensions.builtins.llama_cpp.router import (
     RouterCapability,
     props_input_modalities,
     reported_input_modalities,
     watch_router_download_progress,
 )
-from baldric_coding.extensions.builtins.llama_cpp.service import (
+from baldric.coding.extensions.builtins.llama_cpp.service import (
     LLAMA_CPP_API_KEY_ENV,
     LLAMA_CPP_DEFAULT_ENDPOINT,
     LLAMA_CPP_ENDPOINT_ENV,
@@ -33,15 +33,15 @@ from baldric_coding.extensions.builtins.llama_cpp.service import (
     LlamaCppService,
     normalize_llama_cpp_endpoint,
 )
-from baldric_coding.extensions.builtins.llama_cpp.state import (
+from baldric.coding.extensions.builtins.llama_cpp.state import (
     LLAMA_CPP_CREDENTIAL_PREFIX,
     LlamaCppIntegrationState,
     LlamaCppStateError,
     LlamaCppStateStore,
     LlamaCppStoredModel,
 )
-from baldric_coding.extensions.providers import ProviderRefreshContext, ResolvedProviderAuth
-from baldric_coding.providers.runtime import create_dynamic_model_provider
+from baldric.coding.extensions.providers import ProviderRefreshContext, ResolvedProviderAuth
+from baldric.coding.providers.runtime import create_dynamic_model_provider
 from tests.helpers.conftest_utils import isolate_home
 
 pytestmark = pytest.mark.anyio
@@ -675,7 +675,7 @@ def test_state_schema_validation_and_legacy_recovery(tmp_path: Path) -> None:
 
 
 def test_state_replace_is_atomic_on_write_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import baldric_coding.extensions.builtins.llama_cpp.state as state_module
+    import baldric.coding.extensions.builtins.llama_cpp.state as state_module
 
     store = LlamaCppStateStore(tmp_path / "state.json")
     store.save(_state())
@@ -855,8 +855,8 @@ async def test_credential_cleanup_failure_is_reported_and_reset_is_recoverable(
 async def test_print_mode_explicit_dynamic_startup_uses_cached_state(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    from baldric_coding.cli import run_print_mode
-    from baldric_coding.rendering import PrintOutputMode
+    from baldric.coding.cli import run_print_mode
+    from baldric.coding.rendering import PrintOutputMode
 
     paths = BaldricPaths(home=tmp_path / "baldric", agents_home=tmp_path / "agents")
     LlamaCppStateStore(paths=paths).save(_state())
@@ -880,7 +880,7 @@ async def test_print_mode_explicit_dynamic_startup_uses_cached_state(
         return httpx.AsyncClient(transport=httpx.MockTransport(handler), timeout=timeout)
 
     monkeypatch.setattr(llama_service, "create_async_client", fake_client)
-    import baldric_ai.openai_compatible as compatible
+    import baldric.ai.openai_compatible as compatible
 
     monkeypatch.setattr(compatible, "create_async_client", fake_client)
     ok = await run_print_mode(
@@ -904,8 +904,8 @@ async def test_print_mode_explicit_dynamic_startup_uses_cached_state(
 async def test_tui_explicit_dynamic_startup_uses_cached_state_during_downtime(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric_coding import SessionManager
-    from baldric_coding.tui import app as tui_app
+    from baldric.coding import SessionManager
+    from baldric.coding.tui import app as tui_app
 
     isolate_home(monkeypatch, tmp_path)
     paths = BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents")
@@ -1507,12 +1507,12 @@ async def test_llama_scoped_reference_persists_pair_and_stays_inert_when_unloade
 ) -> None:
     from dataclasses import replace
 
-    from baldric_coding.providers.config import (
+    from baldric.coding.providers.config import (
         OpenAICompatibleProviderConfig,
         ProviderSettings,
         load_provider_settings,
     )
-    from baldric_coding.session.session import CodingSession, ModelChoice
+    from baldric.coding.session.session import CodingSession, ModelChoice
 
     paths = BaldricPaths(home=tmp_path / "baldric", agents_home=tmp_path / "agents")
     LlamaCppStateStore(paths=paths).save(_state())

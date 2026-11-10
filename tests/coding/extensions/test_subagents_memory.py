@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from baldric_coding.extensions.builtins.subagents.memory import (
+from baldric.coding.extensions.builtins.subagents.memory import (
     is_valid_agent_name,
 )
 

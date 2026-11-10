@@ -13,8 +13,8 @@ follows Pi's extension system, adapted to Python.
 Create `~/.baldric/extensions/greet.py`:
 
 ```python
-from baldric_protocol.messages import TextContent
-from baldric_protocol.tools import AgentTool, AgentToolResult
+from baldric.protocol.messages import TextContent
+from baldric.protocol.tools import AgentTool, AgentToolResult
 
 
 async def run_greet(tool_call_id, arguments, signal=None, on_update=None):
@@ -185,7 +185,7 @@ manually placed files.
 ```python
 def setup(baldric):
     # registration
-    baldric.register_tool(agent_tool)            # baldric_protocol.tools.AgentTool
+    baldric.register_tool(agent_tool)            # baldric.protocol.tools.AgentTool
     baldric.register_provider(dynamic_provider)  # process-local
     baldric.register_command("name", handler, description="...")
     baldric.add_prompt_guideline("Never commit directly to main")
@@ -391,7 +391,7 @@ management and Hugging Face model mutations remain outside this phase.
 
 ### Tools
 
-`register_tool` takes a plain `baldric_protocol.tools.AgentTool`: a name, label,
+`register_tool` takes a plain `baldric.protocol.tools.AgentTool`: a name, label,
 description, a hand-written JSON-schema `parameters` mapping, and an async
 `execute_fn(tool_call_id, arguments, signal=None, on_update=None)`. Give the tool a
 `prompt_snippet` to list it in the system prompt's "Available tools"
@@ -703,7 +703,7 @@ carries a Unix-millisecond `timestamp`. The runtime increments the index after
 `turn_end` and resets it on the next `agent_start`:
 
 ```python
-from baldric_coding.extensions import TurnEndEvent, TurnStartEvent
+from baldric.coding.extensions import TurnEndEvent, TurnStartEvent
 
 
 def setup(baldric):
@@ -718,8 +718,8 @@ def setup(baldric):
         assert event.turn_index >= 0
 ```
 
-These enriched payloads are defined in `baldric_coding.extensions`. The portable
-`baldric_agent.events.TurnStartEvent` and `TurnEndEvent` intentionally omit session
+These enriched payloads are defined in `baldric.coding.extensions`. The portable
+`baldric.agent.events.TurnStartEvent` and `TurnEndEvent` intentionally omit session
 metadata, so reusable agent code stays independent of session policy.
 
 Lifecycle and intercepting hooks:
@@ -766,7 +766,7 @@ To format an injected message instead of showing it as raw text, register a
 renderer in `setup` and send with `send_custom_message`:
 
 ```python
-from baldric_coding.extensions import CustomMessageView, MessageRenderOptions
+from baldric.coding.extensions import CustomMessageView, MessageRenderOptions
 
 def render_status(view: CustomMessageView, options: MessageRenderOptions) -> str:
     icon = "[green]✓[/green]" if view.details and view.details.get("ok") else "[red]✗[/red]"
@@ -838,8 +838,8 @@ importing your modules directly — that exercises discovery, the synthetic
 package import, and `setup` registration exactly as a session does:
 
 ```python
-from baldric_coding import BaldricResourcePaths
-from baldric_coding.extensions import ExtensionRuntime
+from baldric.coding import BaldricResourcePaths
+from baldric.coding.extensions import ExtensionRuntime
 
 def test_loads(tmp_path):
     paths = BaldricResourcePaths(

@@ -10,8 +10,8 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 from types import SimpleNamespace
 
-from baldric_agent import AgentEvent, UserMessage
-from baldric_coding.commands.base import (
+from baldric.agent import AgentEvent, UserMessage
+from baldric.coding.commands.base import (
     CommandKind,
     CommandOutcome,
     MessageDisplay,
@@ -19,24 +19,24 @@ from baldric_coding.commands.base import (
     message_outcome,
     not_handled,
 )
-from baldric_coding.commands.registry import CommandResult, format_resource_diagnostics
-from baldric_coding.context.skills.skills import Skill
-from baldric_coding.context.system_prompt import (
+from baldric.coding.commands.registry import CommandResult, format_resource_diagnostics
+from baldric.coding.context.skills.skills import Skill
+from baldric.coding.context.system_prompt import (
     ProjectContextFile,
     SystemPromptInspection,
     SystemPromptSource,
     format_system_prompt_inspection,
 )
-from baldric_coding.events import QueueUpdateEvent
-from baldric_coding.session.manager import CodingSessionRecord
-from baldric_coding.session.session import (
+from baldric.coding.events import QueueUpdateEvent
+from baldric.coding.session.manager import CodingSessionRecord
+from baldric.coding.session.session import (
     ModelChoice,
     SessionTreeChoice,
     TerminalCommandResult,
 )
-from baldric_coding.session.stats import SessionStats
-from baldric_coding.tools.registry import create_coding_tools
-from baldric_coding.tui.app import BaldricTuiApp, _TuiExtensionUiBridge
+from baldric.coding.session.stats import SessionStats
+from baldric.coding.tools.registry import create_coding_tools
+from baldric.coding.tui.app import BaldricTuiApp, _TuiExtensionUiBridge
 
 
 class FakeSessionState:
