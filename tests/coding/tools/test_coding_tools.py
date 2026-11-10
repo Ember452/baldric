@@ -8,8 +8,8 @@ from time import monotonic
 import pytest
 from PIL import Image
 
-from baldric_agent import ImageContent
-from baldric_coding import (
+from baldric.agent import ImageContent
+from baldric.coding import (
     ImageSupportState,
     ReadOperations,
     create_bash_tool,
@@ -21,8 +21,8 @@ from baldric_coding import (
     create_read_tool_definition,
     create_write_tool,
 )
-from baldric_coding.tools.image_processing import DEFAULT_MAX_SOURCE_IMAGE_BYTES
-from baldric_coding.tools.registry import ToolInputError
+from baldric.coding.tools.image_processing import DEFAULT_MAX_SOURCE_IMAGE_BYTES
+from baldric.coding.tools.registry import ToolInputError
 
 
 def image_bytes(format_name: str = "PNG", *, size: tuple[int, int] = (8, 6)) -> bytes:
@@ -61,7 +61,7 @@ async def test_create_coding_tools_returns_initial_tool_set(tmp_path: Path) -> N
 
 
 def test_bash_tool_schema_offers_optional_display_description(tmp_path: Path) -> None:
-    from baldric_agent.tool_arguments import argument_problems
+    from baldric.agent.tool_arguments import argument_problems
 
     definition = create_bash_tool_definition(cwd=tmp_path)
     properties = definition.input_schema["properties"]
@@ -74,7 +74,7 @@ def test_bash_tool_schema_offers_optional_display_description(tmp_path: Path) ->
 
 
 def test_edit_tool_prepares_legacy_arguments_to_fit_its_schema(tmp_path: Path) -> None:
-    from baldric_agent.tool_arguments import argument_problems
+    from baldric.agent.tool_arguments import argument_problems
 
     definition = create_edit_tool_definition(cwd=tmp_path)
     prepare = definition.prepare_arguments
@@ -113,8 +113,8 @@ async def test_file_tools_offload_blocking_io_to_threads(
     # froze the TUI); they run the bytes/text calls on a worker thread.
     import asyncio
 
-    import baldric_coding.tools.registry as tools_module
-    from baldric_coding.tools.registry import create_read_tool, create_write_tool
+    import baldric.coding.tools.registry as tools_module
+    from baldric.coding.tools.registry import create_read_tool, create_write_tool
 
     real = asyncio.to_thread
     seen: list[str] = []

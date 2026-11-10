@@ -14,16 +14,16 @@ from pathlib import Path
 
 import pytest
 
-import baldric_coding.session.session as coding_session_module
-from baldric_agent.events import MessageEndEvent
-from baldric_ai import FakeProvider
-from baldric_coding.cli import run_print_mode
-from baldric_coding.context.resources import BaldricResourcePaths
-from baldric_coding.providers.config import OpenAICompatibleProviderConfig, ProviderSettings
-from baldric_coding.rendering.json import JsonEventRenderer
-from baldric_coding.rendering.plain import FinalTextRenderer
-from baldric_coding.rendering.transcript import TranscriptRenderer
-from baldric_protocol.messages import AssistantMessage
+import baldric.coding.session.session as coding_session_module
+from baldric.agent.events import MessageEndEvent
+from baldric.ai import FakeProvider
+from baldric.coding.cli import run_print_mode
+from baldric.coding.context.resources import BaldricResourcePaths
+from baldric.coding.providers.config import OpenAICompatibleProviderConfig, ProviderSettings
+from baldric.coding.rendering.json import JsonEventRenderer
+from baldric.coding.rendering.plain import FinalTextRenderer
+from baldric.coding.rendering.transcript import TranscriptRenderer
+from baldric.protocol.messages import AssistantMessage
 
 
 def _settings() -> ProviderSettings:

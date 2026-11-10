@@ -1,0 +1,590 @@
+"""Google Generative AI provider."""
+
+from __future__ import annotations
+
+from collections.abc import AsyncIterator, Mapping
+
+import httpx
+
+from baldric.ai._provider_events import (
+    ProviderErrorEvent,
+    ProviderEvent,
+    ProviderResponseEndEvent,
+    ProviderResponseStartEvent,
+    ProviderTextDeltaEvent,
+    ProviderThinkingDeltaEvent,
+    ProviderToolCallEvent,
+)
+from baldric.ai._sse import iter_sse_events
+from baldric.ai._sse import loads_object as _loads_object
+from baldric.ai.content import (
+    NON_VISION_TOOL_IMAGE_PLACEHOLDER,
+    NON_VISION_USER_IMAGE_PLACEHOLDER,
+    text_and_images,
+)
+from baldric.ai.env import OpenAICompatibleConfig, thinking_level_from_effort
+from baldric.ai.events import AssistantMessageEvent
+from baldric.ai.http import create_async_client, iter_sse_lines
+from baldric.ai.http_errors import provider_http_error_message
+from baldric.ai.provider import CancellationToken
+from baldric.ai.retry import (
+    RETRYABLE_TRANSPORT_ERRORS,
+    classify_response_failure,
+    provider_retry_event,
+    retry_delay_seconds,
+    wait_for_retry,
+)
+from baldric.ai.stream import canonicalize_provider_stream
+from baldric.ai.tool_call_ids import portable_tool_call_id
+from baldric.protocol.messages import (
+    AgentMessage,
+    AssistantMessage,
+    ImageContent,
+    TextContent,
+    ThinkingContent,
+    ToolResultMessage,
+    Usage,
+    UserMessage,
+    assistant_content,
+    message_to_user,
+)
+from baldric.protocol.tools import AgentTool, ToolCall
+from baldric.protocol.types import JSONValue
+
+
+class GoogleGenerativeAIProvider:
+    """Provider adapter for Google's Generative Language streaming API."""
+
+    def __init__(
+        self,
+        config: OpenAICompatibleConfig,
+        *,
+        client: httpx.AsyncClient | None = None,
+    ) -> None:
+        self._config = config
+        self._client = client
+        self._owns_client = client is None
+
+    async def aclose(self) -> None:
+        """Close the underlying HTTP client if this provider created it."""
+        if self._client is not None and self._owns_client:
+            await self._client.aclose()
+            self._client = None
+
+    def stream_response(
+        self,
+        *,
+        model: str,
+        system: str,
+        messages: list[AgentMessage],
+        tools: list[AgentTool],
+        signal: CancellationToken | None = None,
+        session_id: str | None = None,
+    ) -> AsyncIterator[AssistantMessageEvent]:
+        """Stream one response as Pi-compatible assistant message events."""
+        del session_id
+        raw = self._stream_provider_events(
+            model=model, system=system, messages=messages, tools=tools, signal=signal
+        )
+        return canonicalize_provider_stream(
+            raw,
+            api="google-generative-ai",
+            provider="google",
+            model=model,
+            thinking_level=thinking_level_from_effort(self._config.reasoning_effort),
+        )
+
+    def _stream_provider_events(
+        self,
+        *,
+        model: str,
+        system: str,
+        messages: list[AgentMessage],
+        tools: list[AgentTool],
+        signal: CancellationToken | None = None,
+    ) -> AsyncIterator[ProviderEvent]:
+        """Stream one Gemini response as provider-neutral events."""
+
+        async def iterator() -> AsyncIterator[ProviderEvent]:
+            client = self._get_client()
+            payload = _build_google_payload(
+                model=model,
+                system=system,
+                messages=messages,
+                tools=tools,
+                reasoning_effort=self._config.reasoning_effort,
+                max_tokens=self._config.max_tokens,
+                supports_images=self._config.supports_images,
+            )
+            url = (
+                f"{self._config.base_url.rstrip('/')}/models/"
+                f"{model}:streamGenerateContent?alt=sse&key={self._config.api_key}"
+            )
+            headers = {
+                **dict(self._config.headers or {}),
+                "content-type": "application/json",
+            }
+
+            attempt = 0
+            parser = _GoogleStreamParser()
+            while True:
+                parser = _GoogleStreamParser()
+                try:
+                    async with client.stream("POST", url, json=payload, headers=headers) as response:
+                        if response.status_code >= 400:
+                            body = await response.aread()
+                            body_text = body.decode(errors="replace")
+                            decision = classify_response_failure(
+                                response, body_text, attempt=attempt, config=self._config
+                            )
+                            if decision.retryable:
+                                yield provider_retry_event(
+                                    attempt=attempt,
+                                    max_retries=self._config.max_retries,
+                                    delay_seconds=decision.delay_seconds,
+                                    reason=f"HTTP {response.status_code}",
+                                    data={
+                                        "status_code": response.status_code,
+                                        "body": body_text,
+                                        "code": decision.code,
+                                    },
+                                )
+                                attempt += 1
+                                if not await wait_for_retry(decision.delay_seconds, signal=signal):
+                                    return
+                                continue
+                            yield ProviderErrorEvent(
+                                message=provider_http_error_message(
+                                    provider_name=self._config.provider_name,
+                                    status_code=response.status_code,
+                                    body=body_text,
+                                    model=model,
+                                )
+                                + decision.note,
+                                data={
+                                    "status_code": response.status_code,
+                                    "body": body_text,
+                                    "code": decision.code,
+                                },
+                            )
+                            return
+
+                        yield ProviderResponseStartEvent(model=model)
+                        async for sse_event in iter_sse_events(iter_sse_lines(response, signal)):
+                            for parser_event in parser.feed(sse_event.data):
+                                yield parser_event
+                            if parser.fatal:
+                                return
+                        if signal is not None and signal.is_cancelled():
+                            return
+                        if (
+                            not parser.has_finish_reason
+                            and not parser.emitted_content
+                            and attempt < self._config.max_retries
+                        ):
+                            delay = retry_delay_seconds(
+                                attempt,
+                                max_delay_seconds=self._config.max_retry_delay_seconds,
+                            )
+                            yield provider_retry_event(
+                                attempt=attempt,
+                                max_retries=self._config.max_retries,
+                                delay_seconds=delay,
+                                reason="stream ended without finishReason",
+                            )
+                            attempt += 1
+                            if not await wait_for_retry(delay, signal=signal):
+                                return
+                            continue
+                        for parser_event in parser.finalize():
+                            yield parser_event
+                        return
+                except RETRYABLE_TRANSPORT_ERRORS as exc:
+                    if not parser.emitted_content and attempt < self._config.max_retries:
+                        delay = retry_delay_seconds(
+                            attempt,
+                            max_delay_seconds=self._config.max_retry_delay_seconds,
+                        )
+                        yield provider_retry_event(
+                            attempt=attempt,
+                            max_retries=self._config.max_retries,
+                            delay_seconds=delay,
+                            reason="network error",
+                            data={"error": str(exc), "error_type": type(exc).__name__},
+                        )
+                        attempt += 1
+                        if not await wait_for_retry(delay, signal=signal):
+                            return
+                        continue
+                    yield ProviderErrorEvent(message=str(exc), data={"attempts": attempt + 1})
+                    return
+
+        return iterator()
+
+    def _get_client(self) -> httpx.AsyncClient:
+        if self._client is None:
+            self._client = create_async_client(timeout=self._config.timeout_seconds)
+        return self._client
+
+
+class _GoogleStreamParser:
+    def __init__(self) -> None:
+        self.emitted_content = False
+        self.fatal = False
+        self._content_parts: list[str] = []
+        self._thinking_parts: list[str] = []
+        self._tool_calls: list[ToolCall] = []
+        self._finish_reason: str | None = None
+        self._usage: Usage | None = None
+
+    @property
+    def has_finish_reason(self) -> bool:
+        return self._finish_reason is not None
+
+    def feed(self, event: str) -> list[ProviderEvent]:
+        chunk = _loads_object(event)
+        if chunk is None:
+            self.fatal = True
+            return [ProviderErrorEvent(message="Google returned an invalid JSON stream chunk")]
+        events: list[ProviderEvent] = []
+        # Usage is cumulative and can arrive on a chunk that carries no
+        # candidates (the final metadata-only chunk), so read it first.
+        usage_metadata = chunk.get("usageMetadata")
+        if isinstance(usage_metadata, Mapping):
+            self._usage = _parse_google_usage(usage_metadata)
+        candidates = chunk.get("candidates")
+        if not isinstance(candidates, list) or not candidates:
+            return []
+        candidate = candidates[0]
+        if not isinstance(candidate, Mapping):
+            return []
+        finish_reason = candidate.get("finishReason")
+        if isinstance(finish_reason, str):
+            self._finish_reason = finish_reason
+        content = candidate.get("content")
+        if not isinstance(content, Mapping):
+            return events
+        parts = content.get("parts")
+        if not isinstance(parts, list):
+            return events
+        for part in parts:
+            if not isinstance(part, Mapping):
+                continue
+            text = part.get("text")
+            if isinstance(text, str) and text:
+                self.emitted_content = True
+                if part.get("thought") is True:
+                    self._thinking_parts.append(text)
+                    events.append(ProviderThinkingDeltaEvent(delta=text))
+                else:
+                    self._content_parts.append(text)
+                    events.append(ProviderTextDeltaEvent(delta=text))
+            function_call = part.get("functionCall")
+            if isinstance(function_call, Mapping):
+                self.emitted_content = True
+                default_id = f"tool-call-{len(self._tool_calls)}"
+                thought_signature = part.get("thoughtSignature")
+                tool_call = ToolCall(
+                    id=_string_or_default(function_call.get("id"), default_id),
+                    name=_string_or_default(function_call.get("name"), ""),
+                    arguments=_object_or_empty(function_call.get("args")),
+                    thought_signature=thought_signature if isinstance(thought_signature, str) else None,
+                )
+                self._tool_calls.append(tool_call)
+                events.append(ProviderToolCallEvent(tool_call=tool_call))
+        return events
+
+    def finalize(self) -> list[ProviderEvent]:
+        if self._finish_reason is None:
+            return [ProviderErrorEvent(message="Google stream ended without finishReason")]
+        content = assistant_content("".join(self._content_parts), self._tool_calls)
+        if self._thinking_parts:
+            content.insert(0, ThinkingContent(thinking="".join(self._thinking_parts)))
+        return [
+            ProviderResponseEndEvent(
+                message=AssistantMessage(content=content, usage=self._usage or Usage()),
+                finish_reason=_normalize_finish_reason(
+                    self._finish_reason, has_tool_calls=bool(self._tool_calls)
+                ),
+            )
+        ]
+
+
+def _build_google_payload(
+    *,
+    model: str,
+    system: str,
+    messages: list[AgentMessage],
+    tools: list[AgentTool],
+    reasoning_effort: str | None,
+    max_tokens: int | None,
+    supports_images: bool = False,
+) -> dict[str, JSONValue]:
+    config: dict[str, JSONValue] = {}
+    payload: dict[str, JSONValue] = {
+        "contents": _google_contents(messages, model=model, supports_images=supports_images),
+    }
+    if system:
+        payload["systemInstruction"] = {"parts": [{"text": system}]}
+    if max_tokens is not None:
+        config["maxOutputTokens"] = max_tokens
+    thinking_config = _google_thinking_config(model, reasoning_effort)
+    if thinking_config is not None:
+        config["thinkingConfig"] = thinking_config
+    if config:
+        payload["generationConfig"] = config
+    if tools:
+        payload["tools"] = [{"functionDeclarations": [_tool_to_google(tool) for tool in tools]}]
+    return payload
+
+
+def _google_thinking_config(model: str, reasoning_effort: str | None) -> dict[str, JSONValue] | None:
+    if reasoning_effort is None:
+        return None
+    if reasoning_effort == "none":
+        if _is_gemini3_pro_model(model):
+            return {"thinkingLevel": "LOW"}
+        if _is_gemini3_flash_model(model) or _is_gemma4_model(model):
+            return {"thinkingLevel": "MINIMAL"}
+        return {"thinkingBudget": 0}
+    if reasoning_effort in {"MINIMAL", "LOW", "MEDIUM", "HIGH"}:
+        return {"includeThoughts": True, "thinkingLevel": reasoning_effort}
+    budget = _google_budget(model, reasoning_effort)
+    if budget is None:
+        return {"includeThoughts": True, "thinkingLevel": _google_level(model, reasoning_effort)}
+    return {"includeThoughts": True, "thinkingBudget": budget}
+
+
+def _google_budget(model: str, effort: str) -> int | None:
+    normalized = effort.lower()
+    if normalized == "xhigh":
+        normalized = "high"
+    if normalized not in {"minimal", "low", "medium", "high"}:
+        return None
+    if _is_gemini3_pro_model(model) or _is_gemini3_flash_model(model) or _is_gemma4_model(model):
+        return None
+    if "2.5-pro" in model:
+        return {"minimal": 128, "low": 2048, "medium": 8192, "high": 32768}[normalized]
+    if "2.5-flash-lite" in model:
+        return {"minimal": 512, "low": 2048, "medium": 8192, "high": 24576}[normalized]
+    if "2.5-flash" in model:
+        return {"minimal": 128, "low": 2048, "medium": 8192, "high": 24576}[normalized]
+    return -1
+
+
+def _google_level(model: str, effort: str) -> str:
+    normalized = effort.lower()
+    if normalized == "xhigh":
+        normalized = "high"
+    if _is_gemini3_pro_model(model):
+        return "LOW" if normalized in {"minimal", "low"} else "HIGH"
+    if _is_gemma4_model(model):
+        return "MINIMAL" if normalized in {"minimal", "low"} else "HIGH"
+    return {
+        "minimal": "MINIMAL",
+        "low": "LOW",
+        "medium": "MEDIUM",
+        "high": "HIGH",
+    }.get(normalized, "HIGH")
+
+
+def _is_gemini3_pro_model(model: str) -> bool:
+    return "gemini-3" in model.lower() and "pro" in model.lower()
+
+
+def _is_gemini3_flash_model(model: str) -> bool:
+    return "gemini-3" in model.lower() and "flash" in model.lower()
+
+
+def _is_gemma4_model(model: str) -> bool:
+    return "gemma-4" in model.lower() or "gemma4" in model.lower()
+
+
+def _google_contents(messages: list[AgentMessage], *, model: str, supports_images: bool) -> list[JSONValue]:
+    """Convert agent messages, keeping one parallel tool round in one user turn.
+
+    Gemini rejects a follow-up unless every ``functionResponse`` for a model
+    turn shares a single ``Content``. Image turns for models that cannot embed
+    images inside ``functionResponse`` stay after that merged turn.
+    """
+    contents: list[JSONValue] = []
+    index = 0
+    while index < len(messages):
+        message = messages[index]
+        if isinstance(message, ToolResultMessage):
+            run: list[dict[str, JSONValue]] = []
+            while index < len(messages) and isinstance(messages[index], ToolResultMessage):
+                run.extend(_messages_to_google(messages[index], model=model, supports_images=supports_images))
+                index += 1
+            contents.extend(_merge_parallel_function_responses(run))
+            continue
+        contents.extend(_messages_to_google(message, model=model, supports_images=supports_images))
+        index += 1
+    return contents
+
+
+def _merge_parallel_function_responses(
+    contents: list[dict[str, JSONValue]],
+) -> list[JSONValue]:
+    response_parts: list[JSONValue] = []
+    followups: list[dict[str, JSONValue]] = []
+    for content in contents:
+        parts = _function_response_parts(content)
+        if parts is None:
+            followups.append(content)
+            continue
+        response_parts.extend(parts)
+    if not response_parts:
+        return list(contents)
+    merged: list[JSONValue] = [{"role": "user", "parts": response_parts}]
+    merged.extend(followups)
+    return merged
+
+
+def _function_response_parts(content: dict[str, JSONValue]) -> list[JSONValue] | None:
+    if content.get("role") != "user":
+        return None
+    parts = content.get("parts")
+    if not isinstance(parts, list) or not parts:
+        return None
+    if not all(isinstance(part, dict) and set(part) == {"functionResponse"} for part in parts):
+        return None
+    return parts
+
+
+def _messages_to_google(
+    message: AgentMessage, *, model: str, supports_images: bool
+) -> list[dict[str, JSONValue]]:
+    if isinstance(message, UserMessage):
+        text, images = text_and_images(
+            message.content,
+            supports_images=supports_images,
+            image_placeholder=NON_VISION_USER_IMAGE_PLACEHOLDER,
+        )
+        user_parts: list[JSONValue] = []
+        if text:
+            user_parts.append({"text": text})
+        user_parts.extend(_google_image(image) for image in images)
+        return [{"role": "user", "parts": user_parts}]
+    if isinstance(message, AssistantMessage):
+        parts: list[JSONValue] = []
+        for block in message.content:
+            if isinstance(block, TextContent):
+                parts.append({"text": block.text})
+            elif isinstance(block, ThinkingContent):
+                part: dict[str, JSONValue] = {"text": block.thinking, "thought": True}
+                if block.thinking_signature is not None:
+                    part["thoughtSignature"] = block.thinking_signature
+                parts.append(part)
+            elif isinstance(block, ToolCall):
+                part = {
+                    "functionCall": {
+                        "id": portable_tool_call_id(block.id),
+                        "name": block.name,
+                        "args": dict(block.arguments),
+                    }
+                }
+                if block.thought_signature is not None:
+                    part["thoughtSignature"] = block.thought_signature
+                parts.append(part)
+        return [{"role": "model", "parts": parts or [{"text": ""}]}]
+    if isinstance(message, ToolResultMessage):
+        text, images = text_and_images(
+            message.content,
+            supports_images=supports_images,
+            image_placeholder=NON_VISION_TOOL_IMAGE_PLACEHOLDER,
+        )
+        response: dict[str, JSONValue] = {
+            "name": message.tool_name,
+            "response": {"output" if not message.is_error else "error": text},
+        }
+        if message.tool_call_id:
+            response["id"] = portable_tool_call_id(message.tool_call_id)
+        image_parts: list[JSONValue] = [_google_image(image) for image in images]
+        if image_parts and _supports_multimodal_function_response(model):
+            response["parts"] = image_parts
+        converted: list[dict[str, JSONValue]] = [{"role": "user", "parts": [{"functionResponse": response}]}]
+        if image_parts and not _supports_multimodal_function_response(model):
+            separate_image_parts: list[JSONValue] = [
+                {"text": "Tool result image:"},
+                *image_parts,
+            ]
+            converted.append({"role": "user", "parts": separate_image_parts})
+        return converted
+    return _messages_to_google(message_to_user(message), model=model, supports_images=supports_images)
+
+
+def _google_image(image: ImageContent) -> dict[str, JSONValue]:
+    return {"inlineData": {"mimeType": image.mime_type, "data": image.data}}
+
+
+def _supports_multimodal_function_response(model: str) -> bool:
+    normalized = model.lower()
+    return not normalized.startswith("gemini-") or normalized.startswith("gemini-3")
+
+
+def _tool_to_google(tool: AgentTool) -> dict[str, JSONValue]:
+    return {
+        "name": tool.name,
+        "description": tool.description,
+        "parameters": _sanitize_google_schema(dict(tool.input_schema)),
+    }
+
+
+_UNSUPPORTED_GOOGLE_SCHEMA_KEYS = frozenset({"additionalProperties", "$schema"})
+
+
+def _sanitize_google_schema(value: JSONValue) -> JSONValue:
+    """Strip JSON Schema keywords Gemini's OpenAPI-subset parser rejects."""
+    if isinstance(value, dict):
+        return {
+            key: _sanitize_google_schema(subvalue)
+            for key, subvalue in value.items()
+            if key not in _UNSUPPORTED_GOOGLE_SCHEMA_KEYS
+        }
+    if isinstance(value, list):
+        return [_sanitize_google_schema(item) for item in value]
+    return value
+
+
+def _parse_google_usage(raw: Mapping[str, object]) -> Usage:
+    """Parse Gemini's cumulative ``usageMetadata`` into a Usage.
+
+    Mirrors Pi's ``google-generative-ai.ts`` mapping: cached prompt tokens are a
+    cache read and are removed from the fresh input, thinking tokens are billed
+    as output and reported separately as reasoning, and the total is the sum of
+    the normalised parts (matching the Anthropic and OpenAI-compatible adapters).
+    """
+    prompt_tokens = _nonnegative_int(raw.get("promptTokenCount")) or 0
+    cached_tokens = _nonnegative_int(raw.get("cachedContentTokenCount")) or 0
+    thoughts = _nonnegative_int(raw.get("thoughtsTokenCount"))
+    output_tokens = (_nonnegative_int(raw.get("candidatesTokenCount")) or 0) + (thoughts or 0)
+    input_tokens = max(0, prompt_tokens - cached_tokens)
+    return Usage(
+        input=input_tokens,
+        output=output_tokens,
+        cache_read=cached_tokens,
+        cache_write=0,
+        reasoning=thoughts,
+        total_tokens=input_tokens + output_tokens + cached_tokens,
+    )
+
+
+def _nonnegative_int(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+
+
+def _string_or_default(value: object, default: str) -> str:
+    return value if isinstance(value, str) and value else default
+
+
+def _object_or_empty(value: object) -> dict[str, JSONValue]:
+    return value if isinstance(value, dict) else {}
+
+
+def _normalize_finish_reason(reason: str | None, *, has_tool_calls: bool) -> str:
+    if has_tool_calls:
+        return "tool_calls"
+    if reason in {"MAX_TOKENS", "MODEL_ARMOR", "RECITATION"}:
+        return "length"
+    return "stop"

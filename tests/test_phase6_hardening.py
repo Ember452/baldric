@@ -9,14 +9,14 @@ from pathlib import Path
 import httpx
 import pytest
 
-from baldric_agent.harness import SimpleCancellationToken
-from baldric_coding.auth.credentials import FileCredentialStore
-from baldric_coding.backends.contracts import (
+from baldric.agent.harness import SimpleCancellationToken
+from baldric.coding.auth.credentials import FileCredentialStore
+from baldric.coding.backends.contracts import (
     LOCAL_OPERATION_CANCELLATION_TIMEOUT_SECONDS,
     LocalOperationResult,
 )
-from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.extensions import (
+from baldric.coding.config.paths import BaldricPaths
+from baldric.coding.extensions import (
     DynamicProvider,
     DynamicProviderRegistry,
     ExtensionRuntime,
@@ -32,10 +32,10 @@ from baldric_coding.extensions import (
     ProviderModel,
     ProviderModelSnapshot,
 )
-from baldric_coding.extensions.builtins.llama_cpp.service import (
+from baldric.coding.extensions.builtins.llama_cpp.service import (
     LlamaCppService,
 )
-from baldric_coding.extensions.builtins.llama_cpp.state import (
+from baldric.coding.extensions.builtins.llama_cpp.state import (
     LLAMA_CPP_CREDENTIAL_PREFIX,
     LlamaCppIntegrationState,
     LlamaCppStateError,

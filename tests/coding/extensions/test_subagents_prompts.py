@@ -9,10 +9,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.extensions.builtins.subagents import prompts as prompts_module
-from baldric_coding.extensions.builtins.subagents.agents import AgentDefinition
-from baldric_coding.extensions.builtins.subagents.prompts import (
+from baldric.coding.config.paths import BaldricPaths
+from baldric.coding.extensions.builtins.subagents import prompts as prompts_module
+from baldric.coding.extensions.builtins.subagents.agents import AgentDefinition
+from baldric.coding.extensions.builtins.subagents.prompts import (
     PARENT_CONTEXT_FOOTER,
     PARENT_CONTEXT_HEADER,
     SUB_AGENT_BRIDGE,
@@ -22,7 +22,7 @@ from baldric_coding.extensions.builtins.subagents.prompts import (
     inherited_resource_paths,
     resolve_skill_blocks,
 )
-from baldric_protocol.messages import (
+from baldric.protocol.messages import (
     AssistantMessage,
     CustomMessage,
     TextContent,

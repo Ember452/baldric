@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pytest
 
-from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.extensions.builtins.subagents.agents import (
+from baldric.coding.config.paths import BaldricPaths
+from baldric.coding.extensions.builtins.subagents.agents import (
     DEFAULT_AGENT_TYPES,
     format_agent_type_list,
     load_agent_definitions,

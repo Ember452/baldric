@@ -14,17 +14,17 @@ from collections.abc import AsyncIterator
 import httpx
 import pytest
 
-from baldric_ai._provider_events import (
+from baldric.ai._provider_events import (
     ProviderEvent,
     ProviderResponseEndEvent,
     ProviderResponseStartEvent,
     ProviderTextDeltaEvent,
 )
-from baldric_ai.env import OpenAICompatibleConfig, thinking_level_from_effort
-from baldric_ai.events import AssistantDoneEvent, AssistantStartEvent
-from baldric_ai.openai_compatible import OpenAICompatibleProvider
-from baldric_ai.stream import canonicalize_provider_stream
-from baldric_protocol.messages import AssistantMessage, UserMessage
+from baldric.ai.env import OpenAICompatibleConfig, thinking_level_from_effort
+from baldric.ai.events import AssistantDoneEvent, AssistantStartEvent
+from baldric.ai.openai_compatible import OpenAICompatibleProvider
+from baldric.ai.stream import canonicalize_provider_stream
+from baldric.protocol.messages import AssistantMessage, UserMessage
 
 
 async def _source(events: list[ProviderEvent]) -> AsyncIterator[ProviderEvent]:

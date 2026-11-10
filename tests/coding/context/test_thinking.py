@@ -1,6 +1,6 @@
 import pytest
 
-from baldric_coding.context.thinking import (
+from baldric.coding.context.thinking import (
     DEFAULT_THINKING_LEVEL,
     THINKING_LEVELS,
     next_thinking_level,

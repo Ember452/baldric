@@ -6,11 +6,11 @@ from pathlib import Path
 import httpx
 import pytest
 
-import baldric_coding.providers.stores.models_dev_store as store
-from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.providers.loader import effective_catalog
-from baldric_coding.providers.stores.models_dev import MODELS_DEV_URL, NVIDIA_MODELS_URL
-from baldric_coding.providers.stores.models_dev_store import (
+import baldric.coding.providers.stores.models_dev_store as store
+from baldric.coding.config.paths import BaldricPaths
+from baldric.coding.providers.loader import effective_catalog
+from baldric.coding.providers.stores.models_dev import MODELS_DEV_URL, NVIDIA_MODELS_URL
+from baldric.coding.providers.stores.models_dev_store import (
     ModelsDevRefreshError,
     cached_models_dev_catalog_document,
     refresh_models_dev_catalog,

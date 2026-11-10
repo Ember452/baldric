@@ -112,7 +112,7 @@ groups:
         status: shipped
       - id: "11"
         title: "Print and event rendering modes"
-        summary: "Final text mode, JSON event stream mode, transcript mode, renderer boundary in baldric_coding."
+        summary: "Final text mode, JSON event stream mode, transcript mode, renderer boundary in baldric.coding."
         status: shipped
       - id: "10"
         title: "System prompt assembly"

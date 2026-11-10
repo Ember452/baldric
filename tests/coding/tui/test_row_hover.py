@@ -16,7 +16,7 @@ the sidebar runtime test.
 
 from __future__ import annotations
 
-from baldric_coding.tui.app import BaldricTuiApp
+from baldric.coding.tui.app import BaldricTuiApp
 
 
 def test_app_css_gives_list_item_rows_a_hover_state() -> None:

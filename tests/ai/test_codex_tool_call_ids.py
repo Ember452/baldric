@@ -17,15 +17,15 @@ from json import loads
 import httpx
 import pytest
 
-from baldric_agent import AssistantMessage, ToolResultMessage, UserMessage
-from baldric_ai import (
+from baldric.agent import AssistantMessage, ToolResultMessage, UserMessage
+from baldric.ai import (
     AssistantDoneEvent,
     OpenAICodexConfig,
     OpenAICodexCredentials,
     OpenAICodexProvider,
     ToolCallEndEvent,
 )
-from baldric_ai.tool_call_ids import portable_tool_call_id
+from baldric.ai.tool_call_ids import portable_tool_call_id
 
 
 async def _collect(stream: AsyncIterator[object]) -> list[object]:

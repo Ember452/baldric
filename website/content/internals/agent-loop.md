@@ -25,14 +25,14 @@ read a file, see its contents, and then decide what to edit.
 ## What the loop does *not* do
 
 The loop knows nothing about CLI arguments, Textual widgets, session file
-locations, or resource discovery. Those belong to `baldric_coding`. Keeping them out
+locations, or resource discovery. Those belong to `baldric.coding`. Keeping them out
 is what makes the loop reusable across every frontend.
 
 ## Event-first design
 
 Every meaningful step is observable as an event, so print mode, Rich rendering,
 and the Textual TUI all share the same core. Frontends render from these
-provider-neutral events — never from raw provider chunks. The portable `baldric_agent.events.AgentEvent` stream contains:
+provider-neutral events — never from raw provider chunks. The portable `baldric.agent.events.AgentEvent` stream contains:
 
 - `AgentStartEvent` / `AgentEndEvent` — a run begins / ends
 - `TurnStartEvent` / `TurnEndEvent` — one assistant response and its tool results
@@ -47,7 +47,7 @@ events cover text, thinking, and tool-call start/delta/end updates. Provider
 completion or failure is represented by the final assistant message delivered
 through `MessageEndEvent`.
 
-`baldric_coding.events.CodingSessionEvent` extends that portable stream for
+`baldric.coding.events.CodingSessionEvent` extends that portable stream for
 frontends and SDK users with `agent_settled`, queue updates, compaction,
 session-entry/session-info changes, thinking-level changes, and automatic-retry
 events. Extensions observe those same event names, but the session-to-extension

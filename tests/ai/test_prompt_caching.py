@@ -4,23 +4,23 @@ from __future__ import annotations
 
 from typing import Any
 
-from baldric_agent import (
+from baldric.agent import (
     AssistantMessage,
     ImageContent,
     TextContent,
     ToolResultMessage,
     UserMessage,
 )
-from baldric_ai.anthropic import (
+from baldric.ai.anthropic import (
     MAX_CACHE_BREAKPOINTS,
     _build_messages_payload,
 )
-from baldric_ai.env import (
+from baldric.ai.env import (
     CACHE_RETENTION_LONG,
     CACHE_RETENTION_NONE,
     CACHE_RETENTION_SHORT,
 )
-from baldric_protocol.tools import AgentTool, ToolCall
+from baldric.protocol.tools import AgentTool, ToolCall
 
 OAUTH_PROMPT = "You are Claude Code, Anthropic's official CLI for Claude."
 

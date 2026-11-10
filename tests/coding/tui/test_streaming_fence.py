@@ -13,10 +13,10 @@ from __future__ import annotations
 
 import pytest
 
-from baldric_coding.rendering.themes import BALDRIC_DARK_THEME
-from baldric_coding.tui.app import BaldricTuiApp
-from baldric_coding.tui.state import ChatItem
-from baldric_coding.tui.widgets.core import StreamingTranscriptMessageWidget
+from baldric.coding.rendering.themes import BALDRIC_DARK_THEME
+from baldric.coding.tui.app import BaldricTuiApp
+from baldric.coding.tui.state import ChatItem
+from baldric.coding.tui.widgets.core import StreamingTranscriptMessageWidget
 from tests.helpers.tui_helpers import FakeSession
 
 

@@ -1,6 +1,6 @@
 """Equivalence tests for the shared tolerant JSON helper.
 
-``baldric_ai._sse.loads_object`` replaced six near-identical per-adapter copies.
+``baldric.ai._sse.loads_object`` replaced six near-identical per-adapter copies.
 These tests pin the behaviour those copies shared so a future change to the one
 helper cannot silently alter what an adapter accepts from an SSE connection.
 """
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from baldric_ai._sse import loads_object
+from baldric.ai._sse import loads_object
 
 
 @pytest.mark.parametrize(

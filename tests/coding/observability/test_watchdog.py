@@ -2,7 +2,7 @@
 
 import time
 
-from baldric_coding.observability.watchdog import WATCHDOG_EXIT_CODE, LoopWatchdog
+from baldric.coding.observability.watchdog import WATCHDOG_EXIT_CODE, LoopWatchdog
 
 
 def _wait_for_exits(exits: list[int], timeout: float = 2.0) -> bool:

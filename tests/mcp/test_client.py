@@ -1,4 +1,4 @@
-"""Tests for ``baldric_mcp.client``: one supervised connection per server."""
+"""Tests for ``baldric.mcp.client``: one supervised connection per server."""
 
 from __future__ import annotations
 
@@ -10,11 +10,11 @@ import httpx
 import mcp.types as mt
 import pytest
 
-from baldric_mcp.client import (
+from baldric.mcp.client import (
     McpServerConnection,
     McpToolUnavailable,
 )
-from baldric_mcp.config import McpServerConfig
+from baldric.mcp.config import McpServerConfig
 
 pytestmark = pytest.mark.anyio
 

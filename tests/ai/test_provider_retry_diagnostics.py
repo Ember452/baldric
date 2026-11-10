@@ -13,8 +13,8 @@ from collections.abc import AsyncIterator
 import httpx
 import pytest
 
-from baldric_agent import AssistantMessage, TextContent, UserMessage
-from baldric_ai import (
+from baldric.agent import AssistantMessage, TextContent, UserMessage
+from baldric.ai import (
     AssistantDoneEvent,
     AssistantErrorEvent,
     AssistantRetryEvent,
@@ -22,19 +22,19 @@ from baldric_ai import (
     OpenAICompatibleConfig,
     OpenAICompatibleProvider,
 )
-from baldric_ai._provider_events import (
+from baldric.ai._provider_events import (
     ProviderErrorEvent,
     ProviderEvent,
     ProviderResponseEndEvent,
     ProviderResponseStartEvent,
     ProviderRetryEvent,
 )
-from baldric_ai.env import (
+from baldric.ai.env import (
     DEFAULT_OPENAI_COMPATIBLE_MAX_RETRY_DELAY_SECONDS,
     openai_compatible_config_from_env,
 )
-from baldric_ai.stream import canonicalize_provider_stream
-from baldric_protocol.messages import AssistantMessageDiagnostic
+from baldric.ai.stream import canonicalize_provider_stream
+from baldric.protocol.messages import AssistantMessageDiagnostic
 
 _SSE_BODY = 'data: {"choices":[{"delta":{"content":"Hi"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'
 

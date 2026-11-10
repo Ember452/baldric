@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.tui.config import (
+from baldric.coding.config.paths import BaldricPaths
+from baldric.coding.tui.config import (
     HIGH_CONTRAST_THEME,
     TuiConfigError,
     TuiKeybindings,

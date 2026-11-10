@@ -46,7 +46,7 @@ def _managed_files() -> list[Path]:
         candidate = ROOT / name
         if candidate.exists():
             files.append(candidate)
-    for package_dir in sorted((ROOT / "src").glob("*")):
+    for package_dir in sorted((ROOT / "src" / "baldric").glob("*")):
         if not package_dir.is_dir():
             continue
         for name in GUIDANCE_NAMES:

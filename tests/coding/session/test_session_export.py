@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from baldric_coding.rendering.themes import BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME
-from baldric_coding.session.export import export_session_html, render_session_html
-from baldric_protocol.messages import (
+from baldric.coding.rendering.themes import BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME
+from baldric.coding.session.export import export_session_html, render_session_html
+from baldric.protocol.messages import (
     AssistantMessage,
     TextContent,
     ToolCall,
@@ -15,7 +15,7 @@ from baldric_protocol.messages import (
     UserMessage,
     assistant_content,
 )
-from baldric_protocol.session import (
+from baldric.protocol.session import (
     CompactionEntry,
     CustomMessageEntry,
     LabelEntry,
@@ -502,7 +502,7 @@ def test_export_session_html_keeps_the_previous_file_when_replace_fails(
         del source, destination
         raise OSError("replace failed")
 
-    monkeypatch.setattr("baldric_coding.utils.atomic.os.replace", fail_replace)
+    monkeypatch.setattr("baldric.coding.utils.atomic.os.replace", fail_replace)
 
     with pytest.raises(OSError, match="replace failed"):
         export_session_html(

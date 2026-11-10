@@ -22,8 +22,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 BASELINE = Path(__file__).with_name("session_state_write_baseline.json")
-SCANNED_PACKAGE = ROOT / "src" / "baldric_coding"
-OWNER_MODULE = Path("src/baldric_coding/session/session.py")
+SCANNED_PACKAGE = ROOT / "src" / "baldric" / "coding"
+OWNER_MODULE = Path("src/baldric/coding/session/session.py")
 
 # The guard must never pass because it looked at the wrong tree.
 MINIMUM_FILES = 3

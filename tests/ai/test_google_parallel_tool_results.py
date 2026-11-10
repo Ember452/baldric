@@ -1,4 +1,4 @@
-from baldric_agent import (
+from baldric.agent import (
     AssistantMessage,
     ImageContent,
     TextContent,
@@ -6,7 +6,7 @@ from baldric_agent import (
     ToolResultMessage,
     UserMessage,
 )
-from baldric_ai.google import _build_google_payload
+from baldric.ai.google import _build_google_payload
 
 
 def _payload(model: str, messages: list) -> dict:

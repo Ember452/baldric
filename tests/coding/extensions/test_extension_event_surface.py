@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import inspect
 
-import baldric_agent.events as agent_events
-import baldric_coding.events as coding_events
-from baldric_coding.extensions.api import AGENT_EVENT_TYPES
+import baldric.agent.events as agent_events
+import baldric.coding.events as coding_events
+from baldric.coding.extensions.api import AGENT_EVENT_TYPES
 
 
 def _event_types() -> set[str]:

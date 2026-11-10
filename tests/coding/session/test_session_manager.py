@@ -5,8 +5,8 @@ from threading import Barrier
 
 import pytest
 
-from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.session.manager import CodingSessionRecord, SessionManager, SessionRecordModel
+from baldric.coding.config.paths import BaldricPaths
+from baldric.coding.session.manager import CodingSessionRecord, SessionManager, SessionRecordModel
 
 
 def test_session_manager_creates_and_lists_sessions(tmp_path: Path) -> None:
@@ -450,7 +450,7 @@ def test_session_manager_recovers_from_a_damaged_index_line(
         encoding="utf-8",
     )
 
-    with caplog.at_level("WARNING", logger="baldric_coding.session.manager"):
+    with caplog.at_level("WARNING", logger="baldric.coding.session.manager"):
         sessions = manager.list_sessions()
 
     assert sessions == [record]
@@ -473,7 +473,7 @@ def test_session_manager_index_write_keeps_the_previous_file_when_replace_fails(
         del source, destination
         raise OSError("replace failed")
 
-    monkeypatch.setattr("baldric_coding.utils.atomic.os.replace", fail_replace)
+    monkeypatch.setattr("baldric.coding.utils.atomic.os.replace", fail_replace)
 
     with pytest.raises(OSError, match="replace failed"):
         # A metadata change forces the write; a timestamp-only touch is throttled.

@@ -8,9 +8,9 @@ that it is indistinguishable from a full replay.
 
 from __future__ import annotations
 
-from baldric_coding.session import SessionState
-from baldric_protocol.messages import AssistantMessage, UserMessage
-from baldric_protocol.session import (
+from baldric.coding.session import SessionState
+from baldric.protocol.messages import AssistantMessage, UserMessage
+from baldric.protocol.session import (
     CompactionEntry,
     LabelEntry,
     MessageEntry,

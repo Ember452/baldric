@@ -132,7 +132,7 @@ detects violations - a green gate that no longer fires is worse than no gate.
 ## Known Limitations (do not "fix" these)
 
 - **14 mypy errors on Windows only** (`trust/policy.py`,
-  `baldric_coding/session/storage.py`):
+  `baldric/coding/session/storage.py`):
   `fcntl` does not exist on Windows. CI runs mypy on Linux where it is green. Do
   not add platform shims or delete the POSIX code to silence local output.
 - **121 skipped tests on Windows**: POSIX/timing semantics that run on Linux CI.
@@ -143,15 +143,15 @@ detects violations - a green gate that no longer fires is worse than no gate.
 - **94 `# noqa: BLE001`**: broad exception handling is recorded debt, not a
   target. The suppression ratchet only stops it from growing.
 - **The TUI is a frontend, not the architecture**: do not add Textual imports to
-  `baldric_agent` or `baldric_ai` to make a feature easier.
+  `baldric.agent` or `baldric.ai` to make a feature easier.
 
 ## Scoped Instructions
 
 Before changing a package, read the nearest scoped instructions:
 
-- `src/baldric_ai/AGENTS.md` - provider and model streaming layer
-- `src/baldric_agent/AGENTS.md` - portable agent harness
-- `src/baldric_coding/AGENTS.md` - CLI, session, TUI, and extensions
+- `src/baldric/ai/AGENTS.md` - provider and model streaming layer
+- `src/baldric/agent/AGENTS.md` - portable agent harness
+- `src/baldric/coding/AGENTS.md` - CLI, session, TUI, and extensions
 
 ## Project Roadmap
 
@@ -174,9 +174,9 @@ TUI = one possible frontend
 Baldric should be organized around these layers:
 
 ```text
-baldric_ai      provider/model streaming layer
-baldric_agent   portable agent harness, loop, tools, events
-baldric_coding  CLI app, resources, skills, extensions, commands, TUI integration
+baldric.ai      provider/model streaming layer
+baldric.agent   portable agent harness, loop, tools, events
+baldric.coding  CLI app, resources, skills, extensions, commands, TUI integration
 ```
 
 Keep the core agent package independent of CLI, Textual, Rich rendering, session file locations, and app-specific resource loading.

@@ -4,12 +4,12 @@ import pyte
 from rich.color import Color as RichColor
 from rich.console import Console
 
-from baldric_coding.rendering.diffs import (
+from baldric.coding.rendering.diffs import (
     _changed_word_ranges,
     parse_unified_patch,
     render_patch,
 )
-from baldric_coding.rendering.themes import BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME
+from baldric.coding.rendering.themes import BALDRIC_DARK_THEME, BALDRIC_LIGHT_THEME
 
 
 def _sgr_bg(hex_color: str) -> str:

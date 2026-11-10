@@ -12,8 +12,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from baldric_coding.extensions.provider_registry import DynamicProviderRegistry
-from baldric_coding.extensions.providers import (
+from baldric.coding.extensions.provider_registry import DynamicProviderRegistry
+from baldric.coding.extensions.providers import (
     DynamicProvider,
     NoAuth,
     OpenAICompatibleTransport,

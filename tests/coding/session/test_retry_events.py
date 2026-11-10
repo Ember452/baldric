@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from baldric_agent import AgentEndEvent, AssistantMessage, MessageEndEvent, RetryAttemptEvent
-from baldric_coding.events import AutoRetryEndEvent, AutoRetryStartEvent
-from baldric_coding.session.retry_events import with_auto_retry_events
+from baldric.agent import AgentEndEvent, AssistantMessage, MessageEndEvent, RetryAttemptEvent
+from baldric.coding.events import AutoRetryEndEvent, AutoRetryStartEvent
+from baldric.coding.session.retry_events import with_auto_retry_events
 
 
 async def _consume(events: list[object]) -> list[object]:

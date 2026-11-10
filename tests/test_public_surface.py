@@ -1,10 +1,10 @@
-"""Contract test for the explicit ``baldric_coding`` public facade."""
+"""Contract test for the explicit ``baldric.coding`` public facade."""
 
 from __future__ import annotations
 
 import types
 
-import baldric_coding
+import baldric.coding
 
 EXPECTED = (
     "AnthropicProviderConfig",
@@ -151,9 +151,9 @@ EXPECTED = (
 
 def test_baldric_coding_public_surface_is_frozen() -> None:
     """Pin the explicit 139-name facade so split refactors cannot drop exports."""
-    assert tuple(sorted(baldric_coding.__all__)) == EXPECTED
+    assert tuple(sorted(baldric.coding.__all__)) == EXPECTED
     module_names = sorted(
-        name for name in baldric_coding.__all__ if isinstance(getattr(baldric_coding, name), types.ModuleType)
+        name for name in baldric.coding.__all__ if isinstance(getattr(baldric.coding, name), types.ModuleType)
     )
     assert module_names == []
-    assert len(baldric_coding.__all__) == 139
+    assert len(baldric.coding.__all__) == 139

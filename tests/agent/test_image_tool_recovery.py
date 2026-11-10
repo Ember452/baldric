@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from baldric_agent import (
+from baldric.agent import (
     AgentEvent,
     AgentMessage,
     AssistantMessage,
@@ -21,9 +21,9 @@ from baldric_agent import (
     ToolResultMessage,
     UserMessage,
 )
-from baldric_agent.context_projection import provider_context
-from baldric_agent.loop import run_agent_loop
-from baldric_ai import CancellationToken, FakeProvider
+from baldric.agent.context_projection import provider_context
+from baldric.agent.loop import run_agent_loop
+from baldric.ai import CancellationToken, FakeProvider
 from tests.helpers.pi_event_helpers import assistant_done, assistant_error
 
 
@@ -44,7 +44,7 @@ def _image_history() -> list[AgentMessage]:
 
 
 def _tool(execute: Any) -> Any:
-    from baldric_protocol.tools import AgentTool
+    from baldric.protocol.tools import AgentTool
 
     return AgentTool(
         name="read",
@@ -134,7 +134,7 @@ async def test_success_resets_error_streak_and_tools_are_not_rerun() -> None:
     ) -> Any:
         nonlocal executions
         executions += 1
-        from baldric_protocol.tools import AgentToolResult
+        from baldric.protocol.tools import AgentToolResult
 
         return AgentToolResult(content=[ImageContent(data="AA==", mime_type="image/png")])
 

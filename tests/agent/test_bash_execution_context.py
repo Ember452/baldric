@@ -7,8 +7,8 @@ execution in the transcript without sending it to the model.
 
 from __future__ import annotations
 
-from baldric_agent.context_projection import provider_context
-from baldric_protocol.messages import BashExecutionMessage, UserMessage, bash_execution_text
+from baldric.agent.context_projection import provider_context
+from baldric.protocol.messages import BashExecutionMessage, UserMessage, bash_execution_text
 
 
 def _execution(**overrides: object) -> BashExecutionMessage:

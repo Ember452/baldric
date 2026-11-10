@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from baldric_agent import (
+from baldric.agent import (
     AssistantMessage,
     TextContent,
     ThinkingContent,
@@ -12,9 +12,9 @@ from baldric_agent import (
     ToolResultMessage,
     UserMessage,
 )
-from baldric_ai.anthropic import _build_messages_payload
-from baldric_ai.env import CACHE_RETENTION_NONE
-from baldric_ai.tool_call_ids import portable_tool_call_id
+from baldric.ai.anthropic import _build_messages_payload
+from baldric.ai.env import CACHE_RETENTION_NONE
+from baldric.ai.tool_call_ids import portable_tool_call_id
 
 
 def test_portable_tool_call_id_preserves_safe_ids_and_hashes_native_ids() -> None:

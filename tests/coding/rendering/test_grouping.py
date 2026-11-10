@@ -2,13 +2,13 @@
 
 from rich.console import Console
 
-from baldric_coding.rendering.grouping import (
+from baldric.coding.rendering.grouping import (
     format_tool_run_summary,
     should_summarize,
 )
-from baldric_coding.rendering.themes import BALDRIC_DARK_THEME
-from baldric_coding.tui.state import ChatItem
-from baldric_coding.tui.widgets.core import _render_transcript_tool_batch
+from baldric.coding.rendering.themes import BALDRIC_DARK_THEME
+from baldric.coding.tui.state import ChatItem
+from baldric.coding.tui.widgets.core import _render_transcript_tool_batch
 
 
 def test_summary_preserves_first_seen_order_and_counts() -> None:

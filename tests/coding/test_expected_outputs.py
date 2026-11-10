@@ -6,7 +6,7 @@ someone deliberately reruns with ``UPDATE_EXPECTED=1`` and reviews the diff.
 
 from __future__ import annotations
 
-from baldric_protocol.messages import AssistantMessage, TextContent, ToolCall, Usage
+from baldric.protocol.messages import AssistantMessage, TextContent, ToolCall, Usage
 from tests.helpers.golden import assert_matches_expected
 
 # Only wire-format output is locked here. Rendered terminal output (``--help``,
@@ -34,7 +34,7 @@ def test_assistant_message_wire_format_is_stable() -> None:
 
 
 def test_tool_result_message_wire_format_is_stable() -> None:
-    from baldric_protocol.messages import ToolResultMessage
+    from baldric.protocol.messages import ToolResultMessage
 
     message = ToolResultMessage(
         tool_call_id="call-1",

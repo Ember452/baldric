@@ -5,40 +5,40 @@ from types import SimpleNamespace
 import pytest
 from typer.testing import CliRunner
 
-from baldric_agent import AssistantMessage, UserMessage
-from baldric_ai import (
+from baldric.agent import AssistantMessage, UserMessage
+from baldric.ai import (
     FakeProvider,
 )
-from baldric_coding import CodingSessionRecord, SessionManager, cli
-from baldric_coding.cli import app, run_print_mode
-from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.context.resources import BaldricResourcePaths
-from baldric_coding.context.skills.skills import load_skills
-from baldric_coding.context.system_prompt import (
+from baldric.coding import CodingSessionRecord, SessionManager, cli
+from baldric.coding.cli import app, run_print_mode
+from baldric.coding.config.paths import BaldricPaths
+from baldric.coding.context.resources import BaldricResourcePaths
+from baldric.coding.context.skills.skills import load_skills
+from baldric.coding.context.system_prompt import (
     BuildSystemPromptOptions,
     build_system_prompt,
     build_system_prompt_inspection,
     format_system_prompt_inspection,
 )
-from baldric_coding.extensions import ExtensionRuntime
-from baldric_coding.extensions.installer import ExtensionInstallRecord
-from baldric_coding.providers.config import (
+from baldric.coding.extensions import ExtensionRuntime
+from baldric.coding.extensions.installer import ExtensionInstallRecord
+from baldric.coding.providers.config import (
     OpenAICompatibleProviderConfig,
     ProviderSettings,
     load_provider_settings,
 )
-from baldric_coding.rendering import PrintOutputMode
-from baldric_coding.session import JsonlSessionStorage
-from baldric_coding.tools.registry import create_coding_tools
-from baldric_coding.update.check import (
+from baldric.coding.rendering import PrintOutputMode
+from baldric.coding.session import JsonlSessionStorage
+from baldric.coding.tools.registry import create_coding_tools
+from baldric.coding.update.check import (
     ReleaseNoteSection,
     ReleaseNotesEntry,
     ReleaseNotesNotice,
     UpdateNotice,
 )
-from baldric_coding.update.updater import UpdateResult
-from baldric_protocol.messages import BashExecutionMessage
-from baldric_protocol.session import MessageEntry, ModelChangeEntry
+from baldric.coding.update.updater import UpdateResult
+from baldric.protocol.messages import BashExecutionMessage
+from baldric.protocol.session import MessageEntry, ModelChangeEntry
 from tests.helpers.conftest_utils import isolate_home
 from tests.helpers.pi_event_helpers import assistant_done, assistant_error, assistant_start, text_delta
 
@@ -1804,7 +1804,7 @@ def test_tui_surfaces_bad_model_as_clean_error(monkeypatch: pytest.MonkeyPatch, 
     ``ValueError`` subclass) raised while resolving the provider/model selection
     escaped the ``anyio`` event loop as an unhandled traceback.
     """
-    import baldric_coding.tui.app as tui_app
+    import baldric.coding.tui.app as tui_app
 
     settings = _constrained_provider_settings()
 
@@ -1833,7 +1833,7 @@ def test_print_mode_surfaces_bad_model_as_clean_error(
     likewise only caught ``RuntimeError``, so it also dumped a
     ``ProviderConfigError`` traceback instead of a friendly message.
     """
-    import baldric_coding.tui.app as tui_app
+    import baldric.coding.tui.app as tui_app
 
     settings = _constrained_provider_settings()
 

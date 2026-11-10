@@ -8,7 +8,7 @@ from rich.console import Console
 from textual.app import App
 from textual.widgets import Input, Label, ListView, ProgressBar, Select, Static
 
-from baldric_coding.extensions import (
+from baldric.coding.extensions import (
     DynamicProvider,
     DynamicProviderRegistry,
     LocalArtifactOption,
@@ -28,7 +28,7 @@ from baldric_coding.extensions import (
     OpenAICompatibleTransport,
     ProviderModel,
 )
-from baldric_coding.tui.backends import (
+from baldric.coding.tui.backends import (
     LocalBackendPickerScreen,
     LocalBackendScreen,
     LocalChoiceConfirmScreen,
@@ -36,7 +36,7 @@ from baldric_coding.tui.backends import (
     LocalConfirmScreen,
     LocalSearchResultsScreen,
 )
-from baldric_coding.tui.config import BALDRIC_DARK_THEME
+from baldric.coding.tui.config import BALDRIC_DARK_THEME
 
 pytestmark = pytest.mark.anyio
 

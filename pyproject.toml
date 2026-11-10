@@ -30,7 +30,7 @@ Repository = "https://github.com/Ember452/baldric"
 Issues = "https://github.com/Ember452/baldric/issues"
 
 [project.scripts]
-baldric = "baldric_coding.cli:app"
+baldric = "baldric.coding.cli:app"
 
 [[tool.uv.index]]
 url = "https://mirrors.aliyun.com/pypi/simple/"
@@ -49,7 +49,7 @@ dev = [
 
 [tool.coverage.run]
 source = ["src"]
-omit = ["src/baldric_coding/data/*"]
+omit = ["src/baldric/coding/data/*"]
 
 [tool.coverage.report]
 # Ratchet floor: CI fails below this line. The committed value is deliberately
@@ -60,7 +60,7 @@ show_missing = false
 precision = 1
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/baldric_protocol", "src/baldric_ai", "src/baldric_agent", "src/baldric_coding", "src/baldric_mcp"]
+packages = ["src/baldric"]
 
 [tool.ruff]
 line-length = 110
@@ -77,7 +77,7 @@ indent-style = "space"
 [tool.mypy]
 python_version = "3.12"
 strict = true
-packages = ["baldric_protocol", "baldric_ai", "baldric_agent", "baldric_coding", "baldric_mcp"]
+packages = ["baldric"]
 
 [[tool.mypy.overrides]]
 module = "pygments.*"

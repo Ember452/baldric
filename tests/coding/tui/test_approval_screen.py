@@ -3,9 +3,9 @@
 import pytest
 from textual.app import App
 
-from baldric_coding.rendering.themes import BALDRIC_DARK_THEME
-from baldric_coding.trust.approvals import ApprovalDecision, ApprovalRequest, ApprovalRule
-from baldric_coding.tui.screens.approval import ApprovalScreen
+from baldric.coding.rendering.themes import BALDRIC_DARK_THEME
+from baldric.coding.trust.approvals import ApprovalDecision, ApprovalRequest, ApprovalRule
+from baldric.coding.tui.screens.approval import ApprovalScreen
 
 REQUEST = ApprovalRequest(
     tool_name="edit",
@@ -118,9 +118,9 @@ async def test_card_renders_preview_and_options() -> None:
 async def test_tui_approval_gate_is_silent_in_auto_mode() -> None:
     import asyncio
 
-    from baldric_coding.tui.app import BaldricTuiApp
-    from baldric_coding.tui.config import TuiSettings
-    from baldric_protocol.messages import ToolCall
+    from baldric.coding.tui.app import BaldricTuiApp
+    from baldric.coding.tui.config import TuiSettings
+    from baldric.protocol.messages import ToolCall
     from tests.helpers.tui_helpers import FakeSession
 
     app = BaldricTuiApp(FakeSession(), tui_settings=TuiSettings(approval_mode="auto"))
@@ -136,9 +136,9 @@ async def test_tui_approval_gate_is_silent_in_auto_mode() -> None:
 @pytest.mark.anyio
 async def test_tui_approval_gate_asks_then_allows_once() -> None:
 
-    from baldric_coding.tui.app import BaldricTuiApp
-    from baldric_coding.tui.config import TuiSettings
-    from baldric_protocol.messages import ToolCall
+    from baldric.coding.tui.app import BaldricTuiApp
+    from baldric.coding.tui.config import TuiSettings
+    from baldric.protocol.messages import ToolCall
     from tests.helpers.tui_helpers import FakeSession
 
     app = BaldricTuiApp(FakeSession(), tui_settings=TuiSettings(approval_mode="ask"))
@@ -162,9 +162,9 @@ async def test_tui_approval_gate_asks_then_allows_once() -> None:
 @pytest.mark.anyio
 async def test_tui_approval_gate_reject_reason_blocks_the_call() -> None:
 
-    from baldric_coding.tui.app import BaldricTuiApp
-    from baldric_coding.tui.config import TuiSettings
-    from baldric_protocol.messages import ToolCall
+    from baldric.coding.tui.app import BaldricTuiApp
+    from baldric.coding.tui.config import TuiSettings
+    from baldric.protocol.messages import ToolCall
     from tests.helpers.tui_helpers import FakeSession
 
     app = BaldricTuiApp(FakeSession(), tui_settings=TuiSettings(approval_mode="ask"))

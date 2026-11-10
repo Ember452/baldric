@@ -12,8 +12,8 @@ from dataclasses import dataclass
 
 import httpx
 
-from baldric_agent.harness import SimpleCancellationToken
-from baldric_coding.extensions import (
+from baldric.agent.harness import SimpleCancellationToken
+from baldric.coding.extensions import (
     DynamicProvider,
     LocalBackend,
     LocalBackendStatus,

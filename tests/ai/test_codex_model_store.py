@@ -3,10 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from baldric_ai.model_catalog import RuntimeModel, RuntimeModelCatalog
-from baldric_ai.model_limits import RuntimeModelLimits
-from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.providers.stores.codex_model_store import (
+from baldric.ai.model_catalog import RuntimeModel, RuntimeModelCatalog
+from baldric.ai.model_limits import RuntimeModelLimits
+from baldric.coding.config.paths import BaldricPaths
+from baldric.coding.providers.stores.codex_model_store import (
     cached_codex_model_catalog,
     save_codex_model_catalog,
 )

@@ -6,9 +6,9 @@ from typing import Any
 
 import pytest
 
-from baldric_coding.tui.app import BaldricTuiApp
-from baldric_coding.tui.editor import EditorError, EditorResult
-from baldric_coding.tui.widgets import PromptInput
+from baldric.coding.tui.app import BaldricTuiApp
+from baldric.coding.tui.editor import EditorError, EditorResult
+from baldric.coding.tui.widgets import PromptInput
 from tests.helpers.tui_helpers import FakeSession
 
 
@@ -35,7 +35,7 @@ def _patch_editor_result(
         return result
 
     monkeypatch.setattr(
-        "baldric_coding.tui.app.run_external_editor",
+        "baldric.coding.tui.app.run_external_editor",
         fake_run_external_editor,
     )
 
@@ -51,7 +51,7 @@ def _patch_editor_error(
         raise error
 
     monkeypatch.setattr(
-        "baldric_coding.tui.app.run_external_editor",
+        "baldric.coding.tui.app.run_external_editor",
         fake_run_external_editor,
     )
 

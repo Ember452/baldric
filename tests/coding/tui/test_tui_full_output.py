@@ -12,15 +12,15 @@ of the escape hatch:
 
 from __future__ import annotations
 
-from baldric_coding.rendering.tool_preview import BASH_PREVIEW_LINES, TERMINAL_COMMAND_PREVIEW_LINES
-from baldric_coding.tui.state import (
+from baldric.coding.rendering.tool_preview import BASH_PREVIEW_LINES, TERMINAL_COMMAND_PREVIEW_LINES
+from baldric.coding.tui.state import (
     ChatItem,
     TuiState,
     format_terminal_command_result_block,
     format_tool_result_block,
 )
-from baldric_protocol.messages import TextContent
-from baldric_protocol.tools import AgentToolResult
+from baldric.protocol.messages import TextContent
+from baldric.protocol.tools import AgentToolResult
 
 
 def _long_output(lines: int) -> str:
@@ -244,7 +244,7 @@ def test_state_defaults_off_and_can_be_enabled() -> None:
 def test_show_full_output_flag_is_accepted_by_the_cli() -> None:
     from typer.testing import CliRunner
 
-    from baldric_coding.cli import app
+    from baldric.coding.cli import app
 
     result = CliRunner().invoke(app, ["--show-full-output", "--version"])
 
@@ -255,7 +255,7 @@ def test_show_full_output_reaches_run_tui_app(monkeypatch) -> None:
     """The flag must survive the CLI's `partial` dispatch, not just parse."""
     from typer.testing import CliRunner
 
-    from baldric_coding import cli as cli_module
+    from baldric.coding import cli as cli_module
 
     seen: dict[str, object] = {}
 
@@ -274,7 +274,7 @@ def test_show_full_output_reaches_run_tui_app(monkeypatch) -> None:
 def test_flag_absent_leaves_full_output_off(monkeypatch) -> None:
     from typer.testing import CliRunner
 
-    from baldric_coding import cli as cli_module
+    from baldric.coding import cli as cli_module
 
     seen: dict[str, object] = {}
 

@@ -3,8 +3,8 @@ from collections.abc import AsyncIterator
 import httpx
 import pytest
 
-from baldric_agent import UserMessage
-from baldric_ai import AnthropicConfig, AnthropicProvider, AssistantDoneEvent
+from baldric.agent import UserMessage
+from baldric.ai import AnthropicConfig, AnthropicProvider, AssistantDoneEvent
 
 
 async def _collect(stream: AsyncIterator[object]) -> list[object]:

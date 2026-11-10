@@ -5,15 +5,15 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from baldric_coding.extensions.api import CustomMessageView, MessageRenderOptions
-from baldric_coding.extensions.builtins.subagents.notification_render import (
+from baldric.coding.extensions.api import CustomMessageView, MessageRenderOptions
+from baldric.coding.extensions.builtins.subagents.notification_render import (
     COLLAPSED_PREVIEW_CHARS,
     EXPANDED_RESULT_LINES,
     render_agent_result,
     render_notification,
     stat_parts,
 )
-from baldric_protocol.tools import AgentToolResult
+from baldric.protocol.tools import AgentToolResult
 
 
 def _details(**overrides: Any) -> dict[str, Any]:

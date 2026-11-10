@@ -9,15 +9,15 @@ import time
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-from baldric_coding.providers.loader import builtin_source_catalog
-from baldric_coding.providers.stores.models_dev import (
+from baldric.coding.providers.loader import builtin_source_catalog
+from baldric.coding.providers.stores.models_dev import (
     MODELS_DEV_URL,
     NVIDIA_MODELS_URL,
     models_dev_catalog_document,
     nvidia_model_filter,
 )
 
-DEFAULT_OUTPUT = Path("src/baldric_coding/data/models-dev-catalog.json")
+DEFAULT_OUTPUT = Path("src/baldric/coding/data/models-dev-catalog.json")
 
 
 def _load_source(location: str) -> object:

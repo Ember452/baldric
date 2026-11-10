@@ -11,14 +11,14 @@ from pathlib import Path
 
 import pytest
 
-import baldric_coding.session.session as coding_session_module
-from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.providers.config import OpenAICompatibleProviderConfig, ProviderSettings
-from baldric_coding.session import JsonlSessionStorage
-from baldric_coding.session.manager import SessionManager
-from baldric_coding.session.session import CodingSession, CodingSessionConfig
-from baldric_coding.tools.registry import create_coding_tools
-from baldric_protocol.tools import AgentTool
+import baldric.coding.session.session as coding_session_module
+from baldric.coding.config.paths import BaldricPaths
+from baldric.coding.providers.config import OpenAICompatibleProviderConfig, ProviderSettings
+from baldric.coding.session import JsonlSessionStorage
+from baldric.coding.session.manager import SessionManager
+from baldric.coding.session.session import CodingSession, CodingSessionConfig
+from baldric.coding.tools.registry import create_coding_tools
+from baldric.protocol.tools import AgentTool
 
 
 class _Provider:

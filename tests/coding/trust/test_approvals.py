@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from baldric_coding.trust.approvals import (
+from baldric.coding.trust.approvals import (
     ApprovalPolicy,
     approval_target,
     build_approval_preview,

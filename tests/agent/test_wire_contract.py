@@ -16,7 +16,7 @@ from typing import get_args
 
 from pydantic import TypeAdapter
 
-from baldric_agent import (
+from baldric.agent import (
     AgentEndEvent,
     AgentEvent,
     AgentMessage,
@@ -45,8 +45,8 @@ from baldric_agent import (
     UsageCost,
     UserMessage,
 )
-from baldric_protocol.messages import AssistantMessageDiagnostic, ResponseTiming, WireModel
-from baldric_protocol.provider_events import (
+from baldric.protocol.messages import AssistantMessageDiagnostic, ResponseTiming, WireModel
+from baldric.protocol.provider_events import (
     AssistantDoneEvent,
     AssistantErrorEvent,
     AssistantMessageEvent,

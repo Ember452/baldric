@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from baldric_coding.tui.app import BaldricTuiApp
-from baldric_coding.tui.state import ChatItem, TuiState
+from baldric.coding.tui.app import BaldricTuiApp
+from baldric.coding.tui.state import ChatItem, TuiState
 from tests.helpers.tui_helpers import FakeSession
 
 
@@ -30,7 +30,7 @@ def test_toggle_thinking_expansion_marks_the_run() -> None:
 
 @pytest.mark.anyio
 async def test_clicking_a_collapsed_thinking_run_expands_it() -> None:
-    from baldric_coding.tui.widgets.core import HiddenThinkingWidget
+    from baldric.coding.tui.widgets.core import HiddenThinkingWidget
 
     app = BaldricTuiApp(FakeSession())
     state = app.state
@@ -59,7 +59,7 @@ async def test_clicking_a_collapsed_thinking_run_expands_it() -> None:
 
 @pytest.mark.anyio
 async def test_expansion_survives_a_state_redraw() -> None:
-    from baldric_coding.tui.widgets.core import HiddenThinkingWidget
+    from baldric.coding.tui.widgets.core import HiddenThinkingWidget
 
     app = BaldricTuiApp(FakeSession())
     state = app.state

@@ -7,9 +7,9 @@ from types import SimpleNamespace
 import pytest
 from textual.widgets import Input, Static
 
-from baldric_coding.tui.app import BaldricTuiApp
-from baldric_coding.tui.config import BALDRIC_DARK_THEME
-from baldric_coding.tui.screens.extensions import ExtensionsScreen
+from baldric.coding.tui.app import BaldricTuiApp
+from baldric.coding.tui.config import BALDRIC_DARK_THEME
+from baldric.coding.tui.screens.extensions import ExtensionsScreen
 from tests.helpers.tui_helpers import FakeSession
 
 
@@ -59,7 +59,7 @@ async def test_extensions_screen_inventory_filter_empty_and_cancel() -> None:
 
 @pytest.mark.anyio
 async def test_extensions_screen_shows_diagnostics() -> None:
-    from baldric_coding.context.resources import ResourceDiagnostic
+    from baldric.coding.context.resources import ResourceDiagnostic
 
     runtime = SimpleNamespace(
         extension_info=(),

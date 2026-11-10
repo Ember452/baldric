@@ -6,14 +6,14 @@ from pathlib import Path
 
 import pytest
 
-from baldric_coding.config.paths import BaldricPaths
-from baldric_coding.providers.catalog import (
+from baldric.coding.config.paths import BaldricPaths
+from baldric.coding.providers.catalog import (
     BUILTIN_PROVIDER_CATALOG,
     builtin_provider_entry,
     model_cost_for_input_tokens,
 )
-from baldric_coding.providers.config import load_provider_settings
-from baldric_coding.providers.loader import (
+from baldric.coding.providers.config import load_provider_settings
+from baldric.coding.providers.loader import (
     CatalogError,
     builtin_catalog,
     builtin_catalog_resource_text,

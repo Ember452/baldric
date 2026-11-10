@@ -17,9 +17,9 @@ AgentEvent      — describes assistant text, tool calls, results, errors
 Frontend state  — belongs to your UI
 ```
 
-The reusable `baldric_agent` package stays independent of terminal frameworks,
+The reusable `baldric.agent` package stays independent of terminal frameworks,
 widgets, keybindings, config paths, and slash-command UX. Build against
-`baldric_coding.session.session.CodingSession`, not Textual widgets.
+`baldric.coding.session.session.CodingSession`, not Textual widgets.
 
 `CodingSession` provides the environment (provider/model, tools, persistence,
 skills, prompt templates, project context, slash-command handling, compaction).
@@ -34,8 +34,8 @@ async for event in session.prompt(user_text):
 ```
 
 The stream yields provider-neutral `CodingSessionEvent` values: portable
-`AgentEvent` values from `baldric_agent.events` plus session-level values from
-`baldric_coding.events` (see [the agent loop](/internals/agent-loop/)).
+`AgentEvent` values from `baldric.agent.events` plus session-level values from
+`baldric.coding.events` (see [the agent loop](/internals/agent-loop/)).
 Render from these, never from provider-specific chunks. Use `agent_start` to
 enter the running state and `agent_settled`—not merely `agent_end`—to leave it,
 because automatic compaction, retry, or queued continuation may follow an
@@ -59,7 +59,7 @@ otherwise stop. Overlapping `session.prompt(...)` calls without
 
 ## Slash commands
 
-Slash commands belong to `baldric_coding`. Before treating input as a prompt:
+Slash commands belong to `baldric.coding`. Before treating input as a prompt:
 
 ```python
 result = session.handle_command(text)
@@ -81,7 +81,7 @@ Initialize the visible transcript from `session.messages` (the built-in
 structured metadata (e.g. edit patches), so you can render restored tool results
 without reading JSONL directly.
 
-For session switching, use `baldric_coding.session.manager.SessionManager` —
+For session switching, use `baldric.coding.session.manager.SessionManager` —
 `list_sessions(session.cwd)`, then `await session.resume(session_id)` (or load a
 fresh `CodingSession` with `storage=jsonl_session_storage(record.path)`), then
 rebuild the transcript from `session.messages`.
@@ -95,7 +95,7 @@ rebuild the transcript from `session.messages`.
   `session_manager`. For model changes from another provider, call
   `set_provider(...)` then `set_model(...)`.
 - Keybindings and themes are **frontend policy**. The built-in app reads
-  `~/.baldric/tui.json` via `baldric_coding.tui.load_tui_settings()`, but your UI can
+  `~/.baldric/tui.json` via `baldric.coding.tui.load_tui_settings()`, but your UI can
   ignore it.
 
 ## What not to depend on

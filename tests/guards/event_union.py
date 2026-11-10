@@ -12,13 +12,13 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-import baldric_agent.events as agent_events
-import baldric_coding.events as coding_events
+import baldric.agent.events as agent_events
+import baldric.coding.events as coding_events
 
 ROOT = Path(__file__).resolve().parents[2]
 EVENT_SOURCES = (
-    ROOT / "src" / "baldric_agent" / "events.py",
-    ROOT / "src" / "baldric_coding" / "events.py",
+    ROOT / "src" / "baldric" / "agent" / "events.py",
+    ROOT / "src" / "baldric" / "coding" / "events.py",
 )
 
 

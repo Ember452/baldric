@@ -149,7 +149,7 @@ fail before making a model API request with an error like
 
 Baldric separates provider metadata from runtime preferences:
 
-- `src/baldric_coding/data/catalog.toml` ships the built-in provider/model catalog.
+- `src/baldric/coding/data/catalog.toml` ships the built-in provider/model catalog.
 - `~/.baldric/catalog.toml` optionally adds personal providers or overlays built-ins.
 - `~/.baldric/providers.json` stores runtime preferences such as the default provider,
   default model, scoped models, headers, and timeout/retry settings.
@@ -309,7 +309,7 @@ Provider preferences live in `~/.baldric/providers.json`:
 ```
 
 - `provider_preferences` keys must refer to providers from the effective catalog
-  (`src/baldric_coding/data/catalog.toml` plus `~/.baldric/catalog.toml`).
+  (`src/baldric/coding/data/catalog.toml` plus `~/.baldric/catalog.toml`).
 - `headers` is optional (string→string). For example, Hugging Face organization
   billing can be configured with `"headers": { "X-HF-Bill-To": "my-org" }` on
   the `huggingface` provider preference. `thinking_defaults` remembers the

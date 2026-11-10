@@ -1,140 +1,140 @@
 {
-  "src/baldric_agent/harness.py": {
+  "src/baldric/agent/harness.py": {
     "noqa:BLE001": 1
   },
-  "src/baldric_agent/tool_calls.py": {
+  "src/baldric/agent/tool_calls.py": {
     "noqa:BLE001": 3
   },
-  "src/baldric_ai/openai_codex.py": {
+  "src/baldric/ai/openai_codex.py": {
     "noqa:BLE001": 1
   },
-  "src/baldric_ai/stream.py": {
+  "src/baldric/ai/stream.py": {
     "type-ignore:arg-type": 1,
     "type-ignore:assignment": 1
   },
-  "src/baldric_coding/auth/oauth.py": {
+  "src/baldric/coding/auth/oauth.py": {
     "noqa:N802": 1
   },
-  "src/baldric_coding/backends/contracts.py": {
+  "src/baldric/coding/backends/contracts.py": {
     "type-ignore:no-untyped-def": 1
   },
-  "src/baldric_coding/cli.py": {
+  "src/baldric/coding/cli.py": {
     "type-ignore:union-attr": 1
   },
-  "src/baldric_coding/extensions/builtins/llama_cpp/service.py": {
+  "src/baldric/coding/extensions/builtins/llama_cpp/service.py": {
     "type-ignore:arg-type": 2
   },
-  "src/baldric_coding/extensions/builtins/llama_cpp/state.py": {
+  "src/baldric/coding/extensions/builtins/llama_cpp/state.py": {
     "type-ignore:attr-defined": 4
   },
-  "src/baldric_coding/extensions/builtins/subagents/agents_menu.py": {
+  "src/baldric/coding/extensions/builtins/subagents/agents_menu.py": {
     "noqa:BLE001": 1
   },
-  "src/baldric_coding/extensions/builtins/subagents/extension.py": {
+  "src/baldric/coding/extensions/builtins/subagents/extension.py": {
     "noqa:BLE001": 7,
     "noqa:SLF001": 3
   },
-  "src/baldric_coding/extensions/builtins/subagents/output_file.py": {
+  "src/baldric/coding/extensions/builtins/subagents/output_file.py": {
     "noqa:BLE001": 1
   },
-  "src/baldric_coding/extensions/builtins/subagents/prompts.py": {
+  "src/baldric/coding/extensions/builtins/subagents/prompts.py": {
     "noqa:BLE001": 1
   },
-  "src/baldric_coding/extensions/builtins/subagents/schedule.py": {
+  "src/baldric/coding/extensions/builtins/subagents/schedule.py": {
     "noqa:BLE001": 2
   },
-  "src/baldric_coding/extensions/builtins/subagents/ui/viewer.py": {
+  "src/baldric/coding/extensions/builtins/subagents/ui/viewer.py": {
     "noqa:BLE001": 1
   },
-  "src/baldric_coding/extensions/builtins/subagents/worktree.py": {
+  "src/baldric/coding/extensions/builtins/subagents/worktree.py": {
     "noqa:BLE001": 1
   },
-  "src/baldric_coding/extensions/loader.py": {
+  "src/baldric/coding/extensions/loader.py": {
     "noqa:BLE001": 1
   },
-  "src/baldric_coding/extensions/runtime.py": {
+  "src/baldric/coding/extensions/runtime.py": {
     "noqa:BLE001": 11
   },
-  "src/baldric_coding/providers/config/__init__.py": {
+  "src/baldric/coding/providers/config/__init__.py": {
     "noqa:F401": 4
   },
-  "src/baldric_coding/providers/runtime.py": {
+  "src/baldric/coding/providers/runtime.py": {
     "noqa:BLE001": 4
   },
-  "src/baldric_coding/session/export/html.py": {
+  "src/baldric/coding/session/export/html.py": {
     "noqa:BLE001": 1
   },
-  "src/baldric_coding/session/lifecycle.py": {
+  "src/baldric/coding/session/lifecycle.py": {
     "noqa:BLE001": 2,
     "noqa:F401": 3
   },
-  "src/baldric_coding/session/model_selection.py": {
+  "src/baldric/coding/session/model_selection.py": {
     "noqa:F401": 3
   },
-  "src/baldric_coding/session/provider_helpers.py": {
+  "src/baldric/coding/session/provider_helpers.py": {
     "noqa:BLE001": 1
   },
-  "src/baldric_coding/session/runtime.py": {
+  "src/baldric/coding/session/runtime.py": {
     "noqa:BLE001": 5,
     "noqa:F401": 3
   },
-  "src/baldric_coding/session/session.py": {
+  "src/baldric/coding/session/session.py": {
     "noqa:F401": 3,
     "type-ignore:arg-type": 1,
     "type-ignore:attr-defined": 1
   },
-  "src/baldric_coding/session/storage.py": {
+  "src/baldric/coding/session/storage.py": {
     "type-ignore:attr-defined": 2
   },
-  "src/baldric_coding/tools/registry.py": {
+  "src/baldric/coding/tools/registry.py": {
     "noqa:F401": 1
   },
-  "src/baldric_coding/trust/policy.py": {
+  "src/baldric/coding/trust/policy.py": {
     "noqa:BLE001": 1,
     "type-ignore:attr-defined": 2
   },
-  "src/baldric_coding/tui/app.py": {
+  "src/baldric/coding/tui/app.py": {
     "noqa:BLE001": 24,
     "type-ignore:assignment": 1,
     "type-ignore:import-untyped": 1,
     "type-ignore:misc": 1
   },
-  "src/baldric_coding/tui/backends.py": {
+  "src/baldric/coding/tui/backends.py": {
     "noqa:BLE001": 3,
     "type-ignore:no-untyped-def": 1
   },
-  "src/baldric_coding/tui/editor.py": {
+  "src/baldric/coding/tui/editor.py": {
     "noqa:BLE001": 2
   },
-  "src/baldric_coding/tui/extension_components.py": {
+  "src/baldric/coding/tui/extension_components.py": {
     "noqa:BLE001": 8,
     "noqa:E731": 1
   },
-  "src/baldric_coding/tui/screens/login.py": {
+  "src/baldric/coding/tui/screens/login.py": {
     "noqa:BLE001": 1
   },
-  "src/baldric_coding/tui/screens/sidebar.py": {
+  "src/baldric/coding/tui/screens/sidebar.py": {
     "noqa:BLE001": 1
   },
-  "src/baldric_coding/tui/screens/tree_picker.py": {
+  "src/baldric/coding/tui/screens/tree_picker.py": {
     "noqa:BLE001": 1
   },
-  "src/baldric_coding/tui/trust.py": {
+  "src/baldric/coding/tui/trust.py": {
     "type-ignore:arg-type": 1
   },
-  "src/baldric_coding/tui/widgets/__init__.py": {
+  "src/baldric/coding/tui/widgets/__init__.py": {
     "noqa:E501": 1
   },
-  "src/baldric_coding/tui/widgets/core.py": {
+  "src/baldric/coding/tui/widgets/core.py": {
     "noqa:BLE001": 1
   },
-  "src/baldric_coding/tui/widgets/markdown.py": {
+  "src/baldric/coding/tui/widgets/markdown.py": {
     "type-ignore:attr-defined": 1
   },
-  "src/baldric_coding/update/check.py": {
+  "src/baldric/coding/update/check.py": {
     "noqa:BLE001": 4
   },
-  "src/baldric_coding/update/updater.py": {
+  "src/baldric/coding/update/updater.py": {
     "noqa:BLE001": 1
   }
 }

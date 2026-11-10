@@ -3,8 +3,8 @@ from json import dumps, loads
 import httpx
 import pytest
 
-from baldric_agent import AssistantMessage, ToolResultMessage, UserMessage
-from baldric_ai import (
+from baldric.agent import AssistantMessage, ToolResultMessage, UserMessage
+from baldric.ai import (
     AssistantDoneEvent,
     OpenAICompatibleConfig,
     OpenAICompatibleProvider,

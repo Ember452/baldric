@@ -5,7 +5,7 @@ from json import loads
 import httpx
 import pytest
 
-from baldric_agent import (
+from baldric.agent import (
     AgentTool,
     AgentToolResult,
     AssistantMessage,
@@ -17,8 +17,8 @@ from baldric_agent import (
     ToolResultMessage,
     UserMessage,
 )
-from baldric_agent.loop import run_agent_loop
-from baldric_ai import (
+from baldric.agent.loop import run_agent_loop
+from baldric.ai import (
     AnthropicConfig,
     AnthropicProvider,
     AssistantDoneEvent,
@@ -41,8 +41,8 @@ from baldric_ai import (
     ToolCallEndEvent,
     openai_compatible_config_from_env,
 )
-from baldric_protocol.messages import assistant_content
-from baldric_protocol.types import JSONValue
+from baldric.protocol.messages import assistant_content
+from baldric.protocol.types import JSONValue
 
 
 async def _collect(stream: AsyncIterator[object]) -> list[object]:
@@ -2991,7 +2991,7 @@ def _weather_tool() -> AgentTool:
 
 
 def test_use_responses_api_routes_only_restricted_models() -> None:
-    from baldric_ai.openai_compatible import _use_responses_api
+    from baldric.ai.openai_compatible import _use_responses_api
 
     assert _use_responses_api("gpt-5.5") is True
     assert _use_responses_api("gpt-5.5-pro") is True

@@ -7,9 +7,9 @@ Thanks for helping improve Baldric. Baldric is both a usable terminal coding age
 Baldric is organized around three layers:
 
 ```text
-baldric_ai      provider/model streaming layer
-baldric_agent   portable agent harness, loop, tools, events, sessions
-baldric_coding  CLI app, resources, skills, extensions, commands, TUI integration
+baldric.ai      provider/model streaming layer
+baldric.agent   portable agent harness, loop, tools, events, sessions
+baldric.coding  CLI app, resources, skills, extensions, commands, TUI integration
 ```
 
 The key boundary is:
@@ -24,7 +24,7 @@ Please keep these principles in mind:
 
 - **Small layers beat magic.** Each package should have one clear job.
 - **Events are the contract.** The harness emits typed events; UI and renderers consume them.
-- **The core stays portable.** `baldric_agent` should not depend on the CLI, Textual, Rich, local config paths, or Baldric-specific resource loading.
+- **The core stays portable.** `baldric.agent` should not depend on the CLI, Textual, Rich, local config paths, or Baldric-specific resource loading.
 - **Tools are ordinary typed functions.** Prefer explicit schemas and structured results.
 - **Sessions are durable and inspectable.** Avoid changes that make history hard to read, resume, or export.
 - **Documentation follows implementation.** User-facing behavior and architectural decisions should be documented.
@@ -81,9 +81,9 @@ npm test       # site tests
 
 Use the layer boundaries to decide where code should live:
 
-- Provider integrations, model adapters, and provider-neutral streaming belong in `baldric_ai`.
-- Agent loop behavior, tool abstractions, events, messages, harnesses, and portable session primitives belong in `baldric_agent`.
-- CLI behavior, slash commands, TUI integration, local config, resources, skills, prompt templates, and coding-specific tools belong in `baldric_coding`.
+- Provider integrations, model adapters, and provider-neutral streaming belong in `baldric.ai`.
+- Agent loop behavior, tool abstractions, events, messages, harnesses, and portable session primitives belong in `baldric.agent`.
+- CLI behavior, slash commands, TUI integration, local config, resources, skills, prompt templates, and coding-specific tools belong in `baldric.coding`.
 - Textual-specific code should stay behind the TUI layer.
 - Rich rendering should not leak into the reusable agent harness.
 
@@ -92,7 +92,7 @@ If a change crosses layers, prefer adding a small typed boundary instead of impo
 ## Adding a provider or model
 
 The built-in provider catalog is data, not code: edit
-`src/baldric_coding/data/catalog.toml` and open a PR — no Python changes needed.
+`src/baldric/coding/data/catalog.toml` and open a PR — no Python changes needed.
 Each `[[providers]]` table declares the provider's name, kind
 (`openai-compatible`, `anthropic`, or `openai-codex`), base URL, models,
 default model, context windows, and thinking configuration. Validation happens

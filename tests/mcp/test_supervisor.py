@@ -1,4 +1,4 @@
-"""Tests for ``baldric_mcp.supervisor``: ownership of all connections."""
+"""Tests for ``baldric.mcp.supervisor``: ownership of all connections."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ from typing import Any
 
 import pytest
 
-from baldric_mcp.client import McpConnectionState, McpToolInfo, McpToolUnavailable
-from baldric_mcp.config import McpServerConfig
-from baldric_mcp.supervisor import McpSupervisor
+from baldric.mcp.client import McpConnectionState, McpToolInfo, McpToolUnavailable
+from baldric.mcp.config import McpServerConfig
+from baldric.mcp.supervisor import McpSupervisor
 
 pytestmark = pytest.mark.anyio
 

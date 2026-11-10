@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from typing import get_args
 
-from baldric_protocol.messages import TextContent, Usage, UserMessage
-from baldric_protocol.session import (
+from baldric.protocol.messages import TextContent, Usage, UserMessage
+from baldric.protocol.session import (
     BranchSummaryEntry,
     CompactionEntry,
     CustomEntry,
@@ -27,7 +27,7 @@ from baldric_protocol.session import (
     SessionInfoEntry,
     ThinkingLevelChangeEntry,
 )
-from baldric_protocol.session.jsonl import entry_from_json_line, entry_to_json_line
+from baldric.protocol.session.jsonl import entry_from_json_line, entry_to_json_line
 from tests.helpers.golden import assert_matches_expected
 
 _TIMESTAMP = 1_700_000_000.0

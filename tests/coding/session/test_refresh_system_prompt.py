@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from baldric_agent import AssistantMessage
-from baldric_ai import FakeProvider
-from baldric_coding import CodingSession, CodingSessionConfig
-from baldric_coding.session import JsonlSessionStorage
+from baldric.agent import AssistantMessage
+from baldric.ai import FakeProvider
+from baldric.coding import CodingSession, CodingSessionConfig
+from baldric.coding.session import JsonlSessionStorage
 from tests.helpers.pi_event_helpers import assistant_done, assistant_start
 
 pytestmark = pytest.mark.anyio

@@ -7,9 +7,9 @@ from types import SimpleNamespace
 import pytest
 from typer.testing import CliRunner
 
-from baldric_agent import AssistantMessage, Usage, UserMessage
-from baldric_ai import FakeProvider
-from baldric_coding import (
+from baldric.agent import AssistantMessage, Usage, UserMessage
+from baldric.ai import FakeProvider
+from baldric.coding import (
     BaldricPaths,
     CodingSession,
     CodingSessionConfig,
@@ -18,11 +18,11 @@ from baldric_coding import (
     ProviderSettings,
     SessionManager,
 )
-from baldric_coding import cli as cli_module
-from baldric_coding.modes.rpc import RpcServer
-from baldric_coding.providers.config import ProviderModelMetadata
-from baldric_coding.session import JsonlSessionStorage
-from baldric_protocol.session import (
+from baldric.coding import cli as cli_module
+from baldric.coding.modes.rpc import RpcServer
+from baldric.coding.providers.config import ProviderModelMetadata
+from baldric.coding.session import JsonlSessionStorage
+from baldric.protocol.session import (
     CompactionEntry,
     CustomMessageEntry,
     LeafEntry,

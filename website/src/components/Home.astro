@@ -1,8 +1,8 @@
 ---
 import { Code } from "astro:components";
 import { site, withBase } from "../data";
-const toolCode = `from baldric_agent.messages import TextContent
-from baldric_agent.tools import AgentTool, AgentToolResult
+const toolCode = `from baldric.agent.messages import TextContent
+from baldric.agent.tools import AgentTool, AgentToolResult
 
 
 async def _run_hello(tool_call_id, arguments,
@@ -243,9 +243,9 @@ const frontendCode = `async for event in session.prompt(text):
           <text x="44" y="250" class="hand big">you</text>
           <path d="M44 262 C 58 266, 72 262, 88 264" marker-end="url(#ah)"></path>
 
-          <!-- baldric_coding -->
+          <!-- baldric.coding -->
           <path d="M92 40 L 930 43 L 927 442 L 94 439 Z"></path>
-          <text x="112" y="78" class="hand big start">baldric_coding</text>
+          <text x="112" y="78" class="hand big start">baldric.coding</text>
           <text x="248" y="78" class="hand soft start">the app &mdash; touches your machine</text>
           <text x="690" y="150" class="hand start">· reads &amp; edits files</text>
           <text x="690" y="190" class="hand start">· runs shell commands</text>
@@ -253,24 +253,24 @@ const frontendCode = `async for event in session.prompt(text):
           <text x="690" y="270" class="hand start">· skills &amp; slash commands</text>
           <text x="690" y="310" class="hand start">· the terminal UI</text>
 
-          <!-- baldric_agent -->
+          <!-- baldric.agent -->
           <path d="M132 102 L 662 100 L 660 404 L 134 402 Z"></path>
-          <text x="152" y="138" class="hand big start">baldric_agent</text>
+          <text x="152" y="138" class="hand big start">baldric.agent</text>
           <text x="282" y="138" class="hand soft start">the loop &mdash; pure logic</text>
           <text x="462" y="200" class="hand start">· the transcript</text>
           <text x="462" y="240" class="hand start">· tool calls &amp; results</text>
           <text x="462" y="280" class="hand start">· cancellation</text>
           <text x="462" y="320" class="hand start">· queued prompts</text>
 
-          <!-- baldric_ai -->
+          <!-- baldric.ai -->
           <path d="M172 164 L 432 166 L 430 366 L 174 363 Z"></path>
-          <text x="190" y="200" class="hand big start">baldric_ai</text>
+          <text x="190" y="200" class="hand big start">baldric.ai</text>
           <text x="276" y="200" class="hand soft start">the model</text>
           <text x="196" y="250" class="hand start">· provider adapters</text>
           <text x="196" y="290" class="hand start">· token streaming</text>
           <text x="196" y="330" class="hand start">· one event format</text>
 
-          <!-- baldric_ai -> model APIs -->
+          <!-- baldric.ai -> model APIs -->
           <path d="M302 368 C 300 400, 304 440, 302 478" marker-end="url(#ah)"></path>
           <text x="318" y="470" class="hand soft start">the only way out to a model</text>
           <text x="302" y="512" class="hand big">model APIs</text>
@@ -320,11 +320,11 @@ const frontendCode = `async for event in session.prompt(text):
           <path class="flow" d="M252 216 C 262 170, 290 140, 298 114" marker-end="url(#ah)"></path>
           <path class="flow" d="M688 216 C 680 170, 660 140, 652 114" marker-end="url(#ah)"></path>
           <path class="flow" d="M866 216 C 864 170, 858 140, 856 114" marker-end="url(#ah)"></path>
-          <text x="24" y="61" class="hand big start">baldric_coding</text>
+          <text x="24" y="61" class="hand big start">baldric.coding</text>
           <text x="156" y="61" class="hand soft start">the app</text>
-          <text x="24" y="201" class="hand big start">baldric_agent</text>
+          <text x="24" y="201" class="hand big start">baldric.agent</text>
           <text x="144" y="201" class="hand soft start">the loop</text>
-          <text x="24" y="341" class="hand big start">baldric_ai</text>
+          <text x="24" y="341" class="hand big start">baldric.ai</text>
           <text x="108" y="341" class="hand soft start">the model</text>
           <text x="292" y="306" class="hand soft end">became text</text>
           <text x="474" y="306" class="hand soft start">run read(README)</text>
@@ -519,43 +519,43 @@ const frontendCode = `async for event in session.prompt(text):
         <tr>
           <td class="n">1</td>
           <td><a href={withBase("/internals/agent-loop/")}>Events, the contract</a></td>
-          <td><code>baldric_agent/events.py</code></td>
+          <td><code>baldric/agent/events.py</code></td>
           <td class="num">87</td>
         </tr>
         <tr>
           <td class="n">2</td>
           <td><a href={withBase("/internals/architecture/")}>Models become events</a></td>
-          <td><code>baldric_ai/_provider_events.py</code></td>
+          <td><code>baldric/ai/_provider_events.py</code></td>
           <td class="num">93</td>
         </tr>
         <tr>
           <td class="n">3</td>
           <td><a href={withBase("/reference/tools/")}>What a tool is</a></td>
-          <td><code>baldric_agent/tools.py</code></td>
+          <td><code>baldric/agent/tools.py</code></td>
           <td class="num">118</td>
         </tr>
         <tr>
           <td class="n">4</td>
           <td><a href={withBase("/internals/agent-loop/")}>The loop</a></td>
-          <td><code>baldric_agent/loop.py</code></td>
+          <td><code>baldric/agent/loop.py</code></td>
           <td class="num">376</td>
         </tr>
         <tr>
           <td class="n">5</td>
           <td><a href={withBase("/internals/architecture/")}>The harness</a></td>
-          <td><code>baldric_agent/harness.py</code></td>
+          <td><code>baldric/agent/harness.py</code></td>
           <td class="num">259</td>
         </tr>
         <tr>
           <td class="n">6</td>
           <td><a href={withBase("/guides/sessions/")}>Sessions on disk</a></td>
-          <td><code>baldric_agent/session/jsonl.py</code></td>
+          <td><code>baldric/agent/session/jsonl.py</code></td>
           <td class="num">171</td>
         </tr>
         <tr>
           <td class="n">7</td>
           <td><a href={withBase("/reference/tools/")}>Real tools</a></td>
-          <td><code>baldric_coding/tools.py</code></td>
+          <td><code>baldric/coding/tools.py</code></td>
           <td class="num">1,218</td>
         </tr>
       </tbody>

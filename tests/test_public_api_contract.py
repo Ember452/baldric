@@ -1,4 +1,4 @@
-"""Contract tests for the public API surface of ``baldric_ai`` and ``baldric_agent``.
+"""Contract tests for the public API surface of ``baldric.ai`` and ``baldric.agent``.
 
 Public API policy: the package-root ``__all__`` list is the supported surface;
 submodule objects are implementation details and must not appear in ``__all__``.
@@ -14,8 +14,8 @@ import ast
 import types
 from pathlib import Path
 
-import baldric_agent
-import baldric_ai
+import baldric.agent
+import baldric.ai
 
 EXPECTED_BALDRIC_AI = (
     "AnthropicConfig",
@@ -143,12 +143,12 @@ def _assert_static_all_literal(relative_path: str) -> None:
 
 
 def test_baldric_ai_public_api_is_frozen() -> None:
-    """Pin the supported ``baldric_ai`` public symbols."""
-    _assert_public_surface(baldric_ai, EXPECTED_BALDRIC_AI)
-    _assert_static_all_literal("src/baldric_ai/__init__.py")
+    """Pin the supported ``baldric.ai`` public symbols."""
+    _assert_public_surface(baldric.ai, EXPECTED_BALDRIC_AI)
+    _assert_static_all_literal("src/baldric/ai/__init__.py")
 
 
 def test_baldric_agent_public_api_is_frozen() -> None:
-    """Pin the supported ``baldric_agent`` public symbols."""
-    _assert_public_surface(baldric_agent, EXPECTED_BALDRIC_AGENT)
-    _assert_static_all_literal("src/baldric_agent/__init__.py")
+    """Pin the supported ``baldric.agent`` public symbols."""
+    _assert_public_surface(baldric.agent, EXPECTED_BALDRIC_AGENT)
+    _assert_static_all_literal("src/baldric/agent/__init__.py")

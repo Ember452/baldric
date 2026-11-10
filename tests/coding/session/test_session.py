@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from baldric_agent import (
+from baldric.agent import (
     AssistantMessage,
     CustomMessage,
     ImageContent,
@@ -15,9 +15,9 @@ from baldric_agent import (
     UsageCost,
     UserMessage,
 )
-from baldric_coding.session import JsonlSessionStorage, SessionState
-from baldric_protocol.messages import message_to_user, sum_usage
-from baldric_protocol.session import (
+from baldric.coding.session import JsonlSessionStorage, SessionState
+from baldric.protocol.messages import message_to_user, sum_usage
+from baldric.protocol.session import (
     BranchSummaryEntry,
     CompactionEntry,
     CustomEntry,
@@ -359,7 +359,7 @@ async def test_jsonl_storage_reads_existing_file_with_unicode_line_separator(
 async def test_jsonl_storage_reuses_parsed_entries_after_own_appends(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric_protocol.session import jsonl as jsonl_module
+    from baldric.protocol.session import jsonl as jsonl_module
 
     path = tmp_path / "session.jsonl"
     storage = JsonlSessionStorage(path)
@@ -660,7 +660,7 @@ def test_session_state_applies_compaction_and_branch_summary() -> None:
 def test_compaction_and_branch_summary_messages_carry_the_entrys_own_timestamp() -> None:
     """Resuming must not reset provider-usage anchoring to wall-clock "now".
 
-    ``_last_applicable_provider_usage`` (baldric_coding/context_window.py) trusts a
+    ``_last_applicable_provider_usage`` (baldric/coding/context_window.py) trusts a
     provider usage block only when its message timestamp is not older than the
     latest prefix timestamp. A synthetic summary defaulting to "now" instead of
     the entry's own historical timestamp would poison that check for every later
@@ -907,7 +907,7 @@ async def test_jsonl_storage_reads_a_transcript_with_a_torn_final_line(
     path.write_text(entry_to_json_line(entry) + '{"id":"torn","type":"mess', encoding="utf-8")
     storage = JsonlSessionStorage(path)
 
-    with caplog.at_level("WARNING", logger="baldric_coding.session.storage"):
+    with caplog.at_level("WARNING", logger="baldric.coding.session.storage"):
         assert await storage.read_all() == [entry]
 
     assert "partial final line" in caplog.text

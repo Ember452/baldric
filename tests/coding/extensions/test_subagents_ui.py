@@ -4,7 +4,7 @@ Two layers, per the design's test plan:
 
 * Widget behaviour — mount the strip / viewer in a minimal Textual test ``App``
   and drive them with
-  :class:`~baldric_coding.extensions.builtins.subagents.extension.AgentRun`
+  :class:`~baldric.coding.extensions.builtins.subagents.extension.AgentRun`
   instances and a ``SimpleNamespace`` manager (no full host wiring needed).
 * Seam wiring — a ``FakeComponentBridge`` implementing baldric's
   :class:`ComponentBridge`, exercising the controller's registrations and the
@@ -26,15 +26,15 @@ from textual.app import App, ComposeResult
 from textual.events import Key
 from textual.widgets import Input
 
-from baldric_coding.extensions.builtins.subagents.extension import AgentRun, SubagentManager
-from baldric_coding.extensions.builtins.subagents.ui.controller import STRIP_KEY, SubagentUiController
-from baldric_coding.extensions.builtins.subagents.ui.strip import AgentStripWidget
-from baldric_coding.extensions.builtins.subagents.ui.viewer import ConversationViewer
-from baldric_coding.tui.app import _theme_css_variables
-from baldric_coding.tui.config import BALDRIC_DARK_THEME
-from baldric_coding.tui.widgets import TranscriptMessageWidget
-from baldric_protocol.messages import AssistantMessage, ToolResultMessage, UserMessage
-from baldric_protocol.tools import ToolCall
+from baldric.coding.extensions.builtins.subagents.extension import AgentRun, SubagentManager
+from baldric.coding.extensions.builtins.subagents.ui.controller import STRIP_KEY, SubagentUiController
+from baldric.coding.extensions.builtins.subagents.ui.strip import AgentStripWidget
+from baldric.coding.extensions.builtins.subagents.ui.viewer import ConversationViewer
+from baldric.coding.tui.app import _theme_css_variables
+from baldric.coding.tui.config import BALDRIC_DARK_THEME
+from baldric.coding.tui.widgets import TranscriptMessageWidget
+from baldric.protocol.messages import AssistantMessage, ToolResultMessage, UserMessage
+from baldric.protocol.tools import ToolCall
 
 # Sibling test module (pytest prepend import mode puts tests/ on sys.path).
 from tests.helpers.subagents_shared import RecordingSession, _load_runtime
@@ -928,7 +928,7 @@ async def test_setup_survives_component_less_core(tmp_path, monkeypatch) -> None
     # the ``components`` attribute is absent entirely (not merely a no-op
     # bridge). The extension's getattr-guard must degrade to dialog-only rather
     # than crash session_start (constraint 8).
-    from baldric_coding.extensions.api import ExtensionUi
+    from baldric.coding.extensions.api import ExtensionUi
 
     monkeypatch.delattr(ExtensionUi, "components", raising=True)
     runtime = _load_runtime(tmp_path)
