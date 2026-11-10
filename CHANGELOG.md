@@ -1,0 +1,129 @@
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.3.0]
+
+### Added
+
+- A new `baldric_protocol` package owns the provider-neutral wire contract: message and content models, the tool contract, provider-stream events, and the persisted session wire (entry shape, tree traversal, JSONL format). Its only dependency is pydantic, it has no I/O, and third parties can build against it alone.
+- `baldric_protocol.PROTOCOL_VERSION` pins the wire contract, backed by golden snapshots and a version test so any wire change shows up as a reviewed diff.
+- The agent loop exposes Pi's turn-boundary hooks - `finish_turn`, `prepare_next_turn`, `prepare_request` - plus injectable `convert_to_llm` / `transform_context` context seams. All are optional; with none set the behavior is unchanged.
+- The harness exposes run observability reduced from the event stream (`streaming_message`, `pending_tool_calls`, `error_message`, active `signal`), and `queue_mode` is runtime-switchable.
+- Tools can report failure without raising via `AgentToolResult.is_error`; persisted tool results carry `duration_ms`; assistant messages record the requested `thinking_level`, stamped once in the provider funnel.
+
+### Changed
+
+- The agent kernel shrinks to nine modules with zero I/O: JSONL storage (locking, fsync, torn-tail repair) and the `SessionState` projection moved from `baldric_agent` into `baldric_coding`, matching pi's placement of SessionManager in coding-agent.
+- The provider layer now imports the protocol contract instead of the harness: `baldric_ai` and `baldric_agent` no longer depend on each other, and import-boundary guards are enforced both statically and at runtime via subprocess `sys.modules` assertions.
+- Breaking: a crashed run now ends with a synthesized error message and a complete event tail instead of propagating the exception to the consumer; the crash traceback rides on that message as an `agent_crash` diagnostic and the ops diagnostic log keeps recording it.
+- Breaking: `continue_()` drains queued steering or follow-up messages as the new prompt when the transcript ends with an assistant turn, and rejects an empty transcript; assistant tails without queues still continue because every run's prelude repair keeps requests provider-safe (deliberate divergence from pi, recorded in the parity plan).
+- Extension examples, the published extension guide, and the bundled example extensions import the contract from `baldric_protocol`.
+- The subagents extension's notification formatting helpers moved to a dedicated `notification_format.py` module; no behavior change.
+
+## [0.2.3]
+
+### Added
+
+- The `/thinking` command reports the active thinking mode and sets a new level, matching the command set Pi exposes.
+- Quality ratchets gate CI: suppression counts (`# type: ignore` / `# noqa`), structure metrics (file size, function length, inheritance depth, module fan-out), and instruction-file byte budgets may only shrink against their committed baselines.
+- Architecture layer boundaries now run as ordinary pytest tests, and every gate has a self-test that proves it still rejects a synthetic violation.
+- Golden files lock wire-format output (assistant and tool-result messages); updating them requires UPDATE_EXPECTED=1 and prints the accepted diff.
+- Code invariants run in the suite: subprocess calls must pass a timeout, bare `except:` is rejected, and unencoded file IO is ratcheted.
+- A lint-configuration fingerprint forces any change to ruff or mypy settings to be disclosed in the diff.
+
+### Fixed
+
+- The RPC frontend frames records as UTF-8 with LF terminators on every platform; previously Windows text-mode stdout emitted CRLF and stdin decoded through the system code page, which a byte-level peer would reject.
+
+### Changed
+
+- CI splits fast static checks from the coverage suite, adds a Windows smoke job for the deterministic core domains, and enforces a 120-second per-test timeout.
+- Local development uses tiered verification (static ~20s, everything except the TUI ~75s, full suite ~4min) instead of always running the whole suite; CI still runs it exhaustively.
+
+## [0.2.2]
+
+### Added
+
+- Hugging Face selections default to a fixed OpenRouter route; a per-model inference provider still wins, and an explicit null preference restores automatic routing.
+- Ctrl+E edits the prompt in an external editor, using the durable editor_command setting or BALDRIC_EDITOR / VISUAL / EDITOR; Ctrl+Z suspends the process on POSIX.
+- A rejected image tool result is recovered instead of ending the run: affected tool responses are replayed as text-only API errors, bounded at three consecutive failures, and the original tools are never re-executed.
+- The /extensions command opens a searchable, read-only inventory of loaded extensions and their diagnostics.
+- baldric extensions list, update, and remove manage extensions that Baldric installed, while leaving manually placed files untouched.
+
+### Changed
+
+- Coverage, structure, suppression, and agent-guidance ratchets now gate CI, alongside a single aggregated required check and a clean-worktree assertion.
+- Architecture layer boundaries run as ordinary pytest tests, and instruction files are split into a root guide plus per-package scoped guides.
+
+## [0.2.1]
+
+### Added
+
+- Sub-agents now ship by default as a bundled built-in extension: the `agent` tool spawns `general`, `fork`, and `explore` runs, `get_subagent_result` and `steer_subagent` read and redirect them, and `/agents` lists the available types and live runs.
+- The transcript shows a completion card for each finished subagent run, with the detail fields the card was designed to carry.
+- A timer-driven dispatcher arms scheduled subagent runs from the `agent` tool, accepting an interval (`5m`, `1h`), a cron-style time, or a one-shot delay (`+10m`).
+- A spawned subagent inherits the parent's project-trust decision instead of prompting again in the child session.
+
+### Fixed
+
+- A spawned subagent continues the session's thinking level rather than resolving it against the wrong branch or falling back to the default.
+- Fork capture works when the parent session carries no thinking level.
+- An unknown key in a schedule patch is rejected instead of being silently dropped.
+- A settings-file read failure is scoped to the settings loader rather than breaking the whole extension.
+- Subagent modules import their siblings by relative path, so the bundled extension loads correctly from an installed package.
+
+## [0.2.0]
+
+### Added
+
+- Tool-call arguments are validated against each tool's JSON schema before execution, and a refused call returns one aggregated error that names every problem with its path.
+- Automatic threshold compaction emits `CompactionStartEvent` and `CompactionEndEvent`, so the TUI shows a `Compacting context` status row and extensions can observe background compaction.
+- HTML session exports include a compact summary (entries, messages, tools, events, duration) and a timestamp timeline grouped into message, tool, and event lanes.
+- A `/diagnostics` command renders resource loading warnings and errors with severity, kind, name, source path, and message; the scrollable command modal keeps paths literal.
+- A themed vertical scrollbar on the transcript via new `scrollbar` and `scrollbar_hover` theme colors.
+- `--show-full-output` starts the TUI with untruncated tool and `!`-command output; the tool-results toggle reveals the full text for rows captured under it.
+
+### Fixed
+
+- The bash `description` argument is now optional and display-only, matching how it is used.
+- Legacy `edit` calls that send top-level `oldText`/`newText` or a JSON-string `edits` value are prepared into the canonical schema shape before validation, so they no longer trip the new argument check.
+
+## [0.1.2]
+
+### Fixed
+
+- Preserve streamed Responses-API tool-call arguments when the final frame is empty.
+- Stream tool progress updates live while a long-running tool is still working.
+- Automatic and manual compaction no longer drop the newest user turn.
+- Re-render sidebar collapsible titles when the theme changes.
+- Honor the project .gitignore in @ file-reference completion.
+- Commit a directory reference (@src/) on Tab instead of immediately drilling into its children.
+- Ctrl-C now copies the active selection and only clears the prompt when nothing is selected.
+- Run blocking file I/O in the read/write/edit tools on a worker thread so large files no longer stall the event loop.
+
+### Added
+
+- All built-in slash-command names and aliases are reserved so a prompt template cannot shadow them.
+- @ file-reference completion caches the workspace walk with a short TTL.
+- ui.suspend() lets an extension pause the TUI to run an external terminal program.
+
+## [0.1.1]
+
+### Fixed
+
+- End the agent run when every tool result sets terminate, without requesting another turn.
+- Preserve CRLF line endings in the edit tool.
+- Ignore the Anthropic SSE [DONE] sentinel and empty SSE data frames (OpenAI-compatible and Google) instead of aborting the stream.
+- Correlate streamed Responses-API tool calls by call_id/output_index so parallel tool calls keep their IDs and arguments.
+- Send parallel Gemini function responses in a single user turn.
+- Anchor compaction and branch-summary messages to their own entry timestamp so resuming keeps provider usage valid.
+
+## [0.1.0]
+
+### Added
+
+- Initial Baldric release: a fork of tau (huggingface/tau), rebased onto its own 0.1.0 version line.
