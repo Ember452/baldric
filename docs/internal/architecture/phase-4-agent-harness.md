@@ -1,31 +1,31 @@
 ---
-title: "Phase 4: AgentHarness"
+title: "Phase 4：AgentHarness"
 ---
 
-Phase 4 adds `AgentHarness`, the reusable stateful brain built on top of the pure agent loop.
+Phase 4 加了 `AgentHarness`——构建在纯 agent loop 之上的可复用有状态大脑。
 
-The previous phase introduced `run_agent_loop()`, which coordinates a provider, tools, messages, and events. That loop is intentionally mostly stateless: callers pass in a transcript list, and the loop appends assistant and tool result messages.
+上一阶段引入了 `run_agent_loop()`，它协调 provider、工具、消息与事件。该循环刻意几乎无状态：调用者传入 transcript 列表，循环追加 assistant 与工具结果消息。
 
-`AgentHarness` owns that transcript for callers.
+`AgentHarness` 替调用者拥有那份 transcript。
 
-## What was added
+## 加了什么
 
-Phase 4 added:
+Phase 4 加了：
 
 ```text
 src/baldric_agent/harness.py
 ```
 
-with:
+包含：
 
 - `AgentHarnessConfig`
 - `AgentHarness`
 - `SimpleCancellationToken`
 - `EventListener`
 
-## Why the harness exists
+## harness 为什么存在
 
-Baldric's architecture separates three layers:
+Baldric 的架构分三层：
 
 ```text
 AgentHarness = reusable brain
@@ -33,29 +33,29 @@ AgentSession = coding-agent environment
 TUI = one possible frontend
 ```
 
-The harness is the reusable stateful layer. It is still not the full coding-agent app.
+harness 是可复用的有状态层。它仍不是完整的编码 agent 应用。
 
-That means it can own conversation state and run the loop, but it should not know about:
+这意味着它可以拥有对话状态并运行循环，但不该知道：
 
-- where session files are stored
-- how slash commands work
-- how project instructions are discovered
-- how Rich or Textual render events
-- which built-in coding tools are registered by default
+- session 文件存哪里
+- slash 命令如何工作
+- 项目指令如何发现
+- Rich 或 Textual 如何渲染事件
+- 默认注册哪些内置编码工具
 
-Those responsibilities belong to later `baldric_coding` phases.
+那些职责属于后续的 `baldric_coding` 阶段。
 
-## Harness configuration
+## harness 配置
 
-`AgentHarnessConfig` stores the stable inputs needed to run the loop:
+`AgentHarnessConfig` 存储运行循环所需的稳定输入：
 
 - provider
-- model name
+- 模型名
 - system prompt
-- tools
-- optional max turn count
+- 工具
+- 可选最大轮数
 
-Conceptually:
+概念上：
 
 ```python
 config = AgentHarnessConfig(
@@ -66,18 +66,18 @@ config = AgentHarnessConfig(
 )
 ```
 
-The harness receives this config and uses it for every prompt or continuation.
+harness 接收这份配置，在每次 prompt 或继续运行时使用。
 
-## Prompt flow
+## prompt 流程
 
-Calling `prompt()` appends a user message and starts the loop.
+调用 `prompt()` 追加一条用户消息并启动循环。
 
 ```python
 async for event in harness.prompt("Read README.md"):
     ...
 ```
 
-The transcript changes like this:
+transcript 如此变化：
 
 ```text
 before prompt:
@@ -93,69 +93,69 @@ after loop runs:
   AssistantMessage(...)
 ```
 
-The harness does not render those events. It simply yields them.
+harness 不渲染那些事件，只是 yield 它们。
 
-## Continue flow
+## continue 流程
 
-Calling `continue_()` runs the loop without appending a new user message.
+调用 `continue_()` 运行循环而不追加新的用户消息。
 
-This is useful for future features such as:
+这对未来的特性有用，例如：
 
-- resuming after restoring a session
-- continuing after an interrupted run
-- letting a coding-session wrapper decide when the next model turn should happen
+- 还原 session 后继续
+- 被打断的运行之后继续
+- 让 coding-session 包装决定下一轮模型调用何时发生
 
 ```python
 async for event in harness.continue_():
     ...
 ```
 
-## Transcript snapshots
+## transcript 快照
 
-The `messages` property returns an immutable tuple snapshot.
+`messages` 属性返回不可变的元组快照。
 
-This protects the harness transcript from accidental external mutation:
+这保护 harness transcript 不被外部意外改动：
 
 ```python
 snapshot = harness.messages
 ```
 
-A future session layer can use this snapshot for persistence. For controlled restoration, `append_message()` can append existing messages.
+未来的 session 层可以用该快照做持久化。受控还原时，`append_message()` 可以追加既有消息。
 
-## Event listeners
+## 事件监听器
 
-The harness supports event subscriptions:
+harness 支持事件订阅：
 
 ```python
 unsubscribe = harness.subscribe(listener)
 ```
 
-Listeners receive the same `AgentEvent` objects yielded by `prompt()` and `continue_()`.
+监听器收到与 `prompt()`、`continue_()` yield 的相同的 `AgentEvent`。
 
-This lets future code observe runs without becoming the main event consumer. For example:
+这让未来代码可以观察运行而不必成为主事件消费者。例如：
 
-- logging
-- metrics
-- session persistence hooks
-- UI bridges
+- 日志
+- 指标
+- session 持久化 hook
+- UI 桥
 
-The primary API remains async iteration over events.
+主 API 仍是对事件的异步迭代。
 
-## Cancellation
+## 取消
 
-Phase 4 adds a minimal cancellation token.
+Phase 4 加了最小取消 token。
 
 ```python
 harness.cancel()
 ```
 
-When cancellation is requested, the current loop can stop and emit a recoverable cancellation error.
+请求取消时，当前循环可以停止并发出可恢复的取消错误。
 
-This is intentionally simple. Later UI layers can connect it to keybindings, buttons, or command handlers.
+刻意简单。后续 UI 层可以把它接到键位、按钮或命令 handler。
 
-## Relationship to the loop
+## 与循环的关系
 
-The harness delegates to `run_agent_loop()`:
+harness 委托给 `run_agent_loop()`：
 
 ```text
 AgentHarness.prompt()
@@ -169,28 +169,28 @@ yield AgentEvent objects
 transcript grows
 ```
 
-The loop still owns the turn-by-turn mechanics. The harness owns durable in-memory conversation state.
+循环仍拥有逐轮机制。harness 拥有持久的内存对话状态。
 
-## How Phase 4 supports later phases
+## Phase 4 如何支撑后续阶段
 
-### Phase 5: built-in coding tools
+### Phase 5：内置编码工具
 
-The harness already accepts `AgentTool` instances. Once coding tools exist, the coding app can pass them into the harness config.
+harness 已接受 `AgentTool` 实例。编码工具出现后，编码应用可以把它们传入 harness 配置。
 
-### Phase 6: print-mode CLI
+### Phase 6：print-mode CLI
 
-The CLI can create an `AgentHarness`, call `prompt()`, and print streamed events.
+CLI 可以创建 `AgentHarness`、调用 `prompt()` 并打印流式事件。
 
-### Phase 7: sessions
+### Phase 7：session
 
-Session persistence can restore messages into a harness and save snapshots after events.
+session 持久化可以把消息还原进 harness 并在事件后保存快照。
 
-### Phase 8: coding session wrapper
+### Phase 8：coding session 包装
 
-The coding session wrapper can compose higher-level behavior around the harness: slash commands, direct bash commands, prompt expansion, resources, and persistence.
+coding session 包装可以在 harness 周围组合更高层行为：slash 命令、直接 bash 命令、prompt 展开、资源与持久化。
 
-## Design rule
+## 设计规则
 
-`AgentHarness` can own agent state, but it must remain frontend-agnostic and coding-app-agnostic.
+`AgentHarness` 可以拥有 agent 状态，但必须保持 frontend 无关、编码应用无关。
 
-If a behavior depends on terminal rendering, project files, user config directories, or slash commands, it belongs outside `baldric_agent`.
+行为依赖终端渲染、项目文件、用户配置目录或 slash 命令时，属于 `baldric_agent` 之外。

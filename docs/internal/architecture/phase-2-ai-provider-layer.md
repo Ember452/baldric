@@ -1,14 +1,14 @@
 ---
-title: "Phase 2: AI Provider Layer"
+title: "Phase 2：AI provider 层"
 ---
 
-Phase 2 creates Baldric's provider/model streaming layer in `baldric_ai`.
+Phase 2 在 `baldric_ai` 创建 Baldric 的 provider/model 流式层。
 
-The purpose of this layer is to let Baldric talk to model APIs without letting provider-specific details leak into the reusable agent loop.
+这一层的目的是让 Baldric 与模型 API 对话，而不让 provider 特定细节泄漏进可复用的 agent loop。
 
-## What was added
+## 加了什么
 
-Phase 2 added these modules:
+Phase 2 加了这些模块：
 
 ```text
 src/baldric_ai/events.py              provider-neutral stream events
@@ -18,13 +18,13 @@ src/baldric_ai/env.py                 environment-based provider configuration
 src/baldric_ai/openai_compatible.py   OpenAI-compatible chat completions adapter
 ```
 
-## Why the provider layer exists
+## provider 层为什么存在
 
-Model APIs do not all stream responses the same way. Each provider has its own request format, response chunks, tool-call encoding, error shape, and authentication rules.
+模型 API 的流式方式各不相同。每个 provider 有自己的请求格式、响应分块、tool call 编码、错误形状与认证规则。
 
-Baldric does not want the agent loop to know those details.
+Baldric 不想让 agent loop 知道那些细节。
 
-Instead, the split is:
+切分是：
 
 ```text
 Provider API payloads
@@ -36,15 +36,15 @@ ProviderEvent stream
 baldric_agent loop
 ```
 
-The future agent loop can consume the same Baldric event stream regardless of the backend model.
+未来的 agent loop 无论背后是哪家模型，都消费同一条 Baldric 事件流。
 
-## Provider events
+## provider 事件
 
-Provider events are lower-level than agent events.
+provider 事件比 agent 事件更低层。
 
-They describe what the model is streaming, not what the full agent is doing.
+它们描述模型正在流式输出什么，而不是整个 agent 在做什么。
 
-Current provider events are:
+当前的 provider 事件：
 
 - `ProviderResponseStartEvent`
 - `ProviderTextDeltaEvent`
@@ -52,7 +52,7 @@ Current provider events are:
 - `ProviderResponseEndEvent`
 - `ProviderErrorEvent`
 
-A simple text response may look like this:
+一次简单的文本响应可能像这样：
 
 ```text
 response_start
@@ -61,7 +61,7 @@ text_delta       "lo"
 response_end     AssistantMessage(content="Hello")
 ```
 
-A response with a tool call may look like this:
+带 tool call 的响应可能像这样：
 
 ```text
 response_start
@@ -72,9 +72,9 @@ response_end     AssistantMessage(... tool_calls=[...])
 
 ## `ModelProvider`
 
-`ModelProvider` is the protocol every model adapter must satisfy.
+`ModelProvider` 是每个模型适配器必须满足的协议。
 
-Conceptually, it says:
+概念上它说：
 
 ```python
 provider.stream_response(
@@ -85,63 +85,63 @@ provider.stream_response(
 )
 ```
 
-and returns an async stream of provider events.
+并返回 provider 事件的异步流。
 
-This is the seam that lets Baldric support multiple backends later.
+这就是让 Baldric 日后支持多 backend 的接缝。
 
-## Fake provider
+## fake provider
 
-`FakeProvider` replays scripted provider events.
+`FakeProvider` 回放脚本化的 provider 事件。
 
-This is important because Baldric should be testable without:
+这很重要，因为 Baldric 的测试应不依赖：
 
-- network access
-- API keys
-- nondeterministic model output
-- provider rate limits
+- 网络访问
+- API key
+- 非确定性模型输出
+- provider 限速
 
-Later, the pure agent loop can be tested by giving it a fake provider that emits exactly the text and tool calls a test needs.
+之后，纯 agent loop 可以用一个 fake provider 测试——它精确发出测试需要的文本与 tool call。
 
-## OpenAI-compatible provider
+## OpenAI 兼容 provider
 
-The first real adapter targets OpenAI-compatible `/chat/completions` APIs.
+第一个真实适配器面向 OpenAI 兼容 `/chat/completions` API。
 
-It handles:
+它处理：
 
-- bearer token authentication
-- chat message formatting
-- tool schema formatting
-- server-sent event streaming
-- streamed text deltas
-- streamed tool-call argument assembly
-- provider errors
+- bearer token 认证
+- chat 消息格式化
+- 工具 schema 格式化
+- server-sent event 流式
+- 流式文本 delta
+- 流式 tool call 参数组装
+- provider 错误
 
-Configuration is loaded with:
+配置经以下方式加载：
 
 ```python
 openai_compatible_config_from_env()
 ```
 
-using:
+使用：
 
 ```text
 OPENAI_API_KEY
 OPENAI_BASE_URL
 ```
 
-`OPENAI_BASE_URL` defaults to:
+`OPENAI_BASE_URL` 默认：
 
 ```text
 https://api.openai.com/v1
 ```
 
-## Important boundary
+## 重要边界
 
-`baldric_ai` does not execute tools.
+`baldric_ai` 不执行工具。
 
-If a model asks for a tool, the provider layer only emits a `ProviderToolCallEvent` containing a neutral `ToolCall`.
+模型请求工具时，provider 层只发出携带中立 `ToolCall` 的 `ProviderToolCallEvent`。
 
-Tool execution belongs to the future `baldric_agent` loop:
+工具执行属于未来的 `baldric_agent` loop：
 
 ```text
 baldric_ai:
@@ -151,28 +151,25 @@ baldric_agent:
   "Find the registered AgentTool, execute it, append the result, continue."
 ```
 
-Keeping this boundary clean makes it possible to reuse the same provider layer for CLIs, tests, Rich output, Textual, and other frontends.
+保持这条边界干净，让同一 provider 层能被 CLI、测试、Rich 输出、Textual 与其他 frontend 复用。
 
-## How Phase 2 supports later phases
+## Phase 2 如何支撑后续阶段
 
-### Phase 3: pure agent loop
+### Phase 3：纯 agent loop
 
-The loop consumes `ProviderEvent`s, converts them into higher-level
-`AgentEvent`s, executes tools, and decides whether another model turn is needed.
-Later provider hardening added retry and thinking-delta events to that same
-conversion path without giving providers any knowledge of the CLI or TUI.
+loop 消费 `ProviderEvent`，转成更高层的
+`AgentEvent`，执行工具，并判断是否需要另一轮模型调用。
+后续的 provider 加固在同一条转换路径上加了重试与 thinking delta 事件，而没有让 provider 知道 CLI 或 TUI。
 
-### Phase 4: harness
+### Phase 4：harness
 
-The harness owns a provider instance, passes the current transcript into
-`stream_response()`, and exposes prompt/continue APIs that can be used by print
-mode, JSON event streaming, Rich rendering, and Textual.
+harness 拥有一个 provider 实例，把当前 transcript 传入
+`stream_response()`，并暴露 print mode、JSON 事件流、Rich 渲染与 Textual 都能用的 prompt/continue API。
 
-### Phase 6: print-mode CLI
+### Phase 6：print-mode CLI
 
-The CLI chooses a provider/model from configuration or command-line flags, then
-displays streamed output as it arrives.
+CLI 从配置或命令行旗标选择 provider/model，然后随输出到达流式显示。
 
-### Future providers
+### 未来的 provider
 
-Additional providers can implement the same `ModelProvider` protocol without changing the agent loop.
+更多 provider 可以实现同一 `ModelProvider` 协议，而不改 agent loop。
