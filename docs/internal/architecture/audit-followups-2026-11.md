@@ -1,56 +1,52 @@
-# Audit follow-ups: what the 2026-11 review changed
+# 审计跟进：2026-11 评审改了什么
 
-**Status:** first pass complete on `fix/audit-followups-2026-11`.
+**状态：** 首轮已在 `fix/audit-followups-2026-11` 完成。
 
-This note records, for each finding in the review, whether the branch fixed it,
-deleted the dead thing, or deliberately left it. The rule from
-`contract-debt.md` applies: an entry is either wired with a test, removed, or
-listed here with the trigger that would bring it back.
+本笔记逐条记录评审发现：本分支修复了它、删除了死物、还是刻意保留。`contract-debt.md`
+的规则适用：条目要么带测试接线、要么移除、要么在此列出使其回归的触发条件。
 
-## Fixed
+## 已修复
 
-| Finding | Change |
+| 发现 | 变更 |
 | --- | --- |
-| Session entries could not gain a field (P0) | `schema_version` on every entry (omitted at v1, so files stay byte-identical), tolerant read that strips undeclared fields at any depth, and `SessionVersionError` naming both versions for a newer file or an unknown type |
-| `prompt()`-then-`cancel()` did nothing; an abandoned run wedged the harness (P0) | The run and its cancel token are registered before the generator body runs; `_RunIterator` owns the lifecycle and `aclose()` releases it |
-| TUI never observed `x-inference-provider` (P0) | `load()` rebuilds an owned Hugging Face provider through the observer path the print and RPC frontends already used |
-| `resume()` dropped `tools=` and `runtime_model_catalogs` (P1) | Both copied; a parity test drives a real `resume()` |
-| `/model` and `/thinking` were silent no-ops in print mode (P1) | Print mode applies the intents; commands that only need a screen say `interactive-only` |
-| Print renderers disagreed about failure (P1) | One predicate: `error`, `aborted` and truncated (`length`) all fail the run |
-| Persisting a message was O(n) in session length (P1) | A tip append extends the derived state; full replay stays for retries, non-tip parents and other entry kinds. Index writes are throttled when only the timestamp changes |
-| Google and Mistral never reported usage (P0) | Both parse it into the same normalised `Usage` shape as the other adapters |
-| Four partial SSE parsers (P1) | `_sse.iter_sse_events` is the only one; each adapter asserts a split frame yields the same events as a single-line frame |
-| Codex encoded `item_id` into `ToolCall.id` (P1) | Only the portable `call_id` is stored; the adapter keeps its own map |
-| Retry data dropped, one-second retry default (P1) | Retry data lands on the message diagnostics (truncated, never model-visible); default delay is 15s |
-| Extension API had no version (P0) | `EXTENSION_API_VERSION` + `ExtensionCapabilities`, checked at load |
-| Extensions could read every credential and shadow a built-in provider id (P0) | Scoped credential reader and environment allow-list at the single auth choke point; id collisions are refused |
-| `/reload` never unloaded modules; `reset_for_reload` was dead and its docstring lied (P1) | Deleted the dead method; `retire()` unloads the module names that generation loaded, behind a prefix guard |
-| A failed `setup()` never received `session_shutdown` (P1) | Kept on a shutdown-only queue and drained by the next awaited shutdown |
-| Installer registry write was not atomic (P2) | `atomic_write_text`, and a corrupt registry is preserved as `<name>.corrupt` |
+| session entry 无法增加字段（P0） | 每条 entry 的 `schema_version`（v1 省略，文件保持字节一致）、宽容读取（任意深度剥离未声明字段），以及新旧版本双双指名的 `SessionVersionError`（针对更新文件或未知类型） |
+| `prompt()` 后接 `cancel()` 无效；被放弃的运行卡死 harness（P0） | 运行与其取消 token 在生成器体执行前注册；`_RunIterator` 拥有生命周期，`aclose()` 释放它 |
+| TUI 从不观察 `x-inference-provider`（P0） | `load()` 经 print 与 RPC frontend 已用的观察者路径重建自有的 Hugging Face provider |
+| `resume()` 丢弃 `tools=` 与 `runtime_model_catalogs`（P1） | 两者都被拷贝；一个 parity 测试驱动真实 `resume()` |
+| `/model` 与 `/thinking` 在 print mode 是静默 no-op（P1） | print mode 应用意图；只需屏幕的命令说 `interactive-only` |
+| print 渲染器对失败判断不一致（P1） | 单一谓词：`error`、`aborted` 与截断（`length`）都使运行失败 |
+| 持久化消息是 O(session 长度)（P1） | 尖端追加扩展派生状态；完整回放保留给重试、非尖端父节点与其他 entry 类型。只有时间戳变化时限流索引写入 |
+| Google 与 Mistral 从不报告用量（P0） | 两者都解析进与其他适配器相同的归一化 `Usage` 形状 |
+| 四个部分 SSE 解析器（P1） | `_sse.iter_sse_events` 是唯一的；每个适配器断言拆分帧产出与单行帧相同的事件 |
+| Codex 把 `item_id` 编进 `ToolCall.id`（P1） | 只存可移植的 `call_id`；适配器保留自己的映射 |
+| 重试数据被丢弃、默认 1 秒重试（P1） | 重试数据落到消息诊断（截断、永不对模型可见）；默认延迟 15 秒 |
+| extension API 无版本（P0） | `EXTENSION_API_VERSION` + `ExtensionCapabilities`，加载时检查 |
+| extension 可读所有凭据并遮蔽内置 provider id（P0） | 单一认证咽喉处的范围化凭据读取器与环境允许列表；id 冲突被拒 |
+| `/reload` 从不卸载模块；`reset_for_reload` 已死且 docstring 撒谎（P1） | 删除死方法；`retire()` 在前缀守卫之后卸载该世代加载的模块名 |
+| 失败的 `setup()` 收不到 `session_shutdown`（P1） | 放入仅关闭队列，由下一次被 await 的关闭排空 |
+| 安装器 registry 写入非原子（P2） | `atomic_write_text`，损坏的 registry 保留为 `<name>.corrupt` |
 
-## Still open (with the trigger that brings them back)
+## 仍开放（附使其回归的触发条件）
 
-| Finding | Why it is still open |
+| 发现 | 仍开放的原因 |
 | --- | --- |
-| `Usage.cost` has a reader and no producer | Removing it changes the wire shape; wiring it needs pricing in the provider layer, where it does not exist today. Decision pending on `deferred-decisions.md` terms. Trigger: the first consumer that needs cost to survive an export. |
-| `execution_mode="parallel"` | **Fixed as a rejection**: `AgentHarness` refuses a tool that declares `parallel`, because this loop runs tools sequentially. Pi implements the parallel batch through `toolExecution`; that remains a feature. |
-| `EntryAppendedEvent` | **Deleted** with its whitelist entry; a guard test now rejects any whitelisted type that no event module declares. |
-| `BashExecutionMessage` is never constructed | Wire-parity placeholder for Pi's `!!` path, which Baldric implements differently. Trigger: implementing `!!` as a message. |
-| `/help` and `/context` command functions were unregistered | **Fixed by registering them.** They were implemented and tested but unreachable. The old `test_non_pi_commands_are_not_registered` guard forbade them for pi-parity reasons; that policy is now reversed on purpose (`/provider` and `/resources` still stay unregistered), and both tests pin the new contract. |
-| Tool-level authorization does not exist (`before_tool_call` has no call sites) | The trust model is project-level by design; tool gating is a new feature. Trigger: the first request to restrict a specific tool. |
-| Windows `os.kill(pid, 0)` "kills processes" | **Not a defect.** Verified on this platform: the child kept writing heartbeats (4 → 19) and stayed alive. Recorded so it is not re-investigated. |
-| Extension credential scope is declared by the extension | A hostile extension can still name another provider's credential. Closing it needs a host-owned provider-to-credential map and a `resolve_provider_auth` signature change. |
-| `CodingSession` owns ~33 mutable fields that other modules write | **Ratcheted, not eliminated.** The four hottest fields now have semantic writers on the class and every call site uses them (154 external write sites -> 119). `tests/guards/test_session_state_write_ratchet.py` fails on any new write and fails again when a cleanup is not recorded, so the number can only fall. The remaining bulk is `_adopt_replacement`, which copies a whole state in one operation. |
-| `SessionInfoChangedEvent` / `ThinkingLevelChangedEvent` did not reach a frontend | **Fixed.** Both are queued when they happen and handed to the next `prompt()` stream before its own events (pi publishes session-level events to session subscribers; queueing is the smaller equivalent here). A frontend therefore sees a rename or a thinking change even when an extension made it. The idle-time case still waits for the next run. |
-| `Usage.cost` had no producer | **Fixed.** `_persist_message` prices the response from the catalog before the entry is written (a provider-reported cost wins, an unpriced model stays zero). Pi prices in the adapter because its model objects carry rates; ours come from the provider catalog. |
-| `BashExecutionMessage` was never constructed | **Fixed.** Terminal commands persist as `bashExecution` messages; context projection renders the same text the model saw before, honours `exclude_from_context`, and the transcript loader shows them on resume. |
-| `before_tool_call` has no app call site | **Not a defect.** The loop honours and tests the hook (`tests/agent/test_agent_loop.py`), and the app layer deliberately uses the extension `tool_call` hook instead, because that hook also rewrites arguments - which `before_tool_call` cannot express. Keeping the harness hook is pi parity for embedders; recorded so it is not re-investigated. |
-| Extension credential scope was declared by the extension | **Fixed.** The host passes the provider id into `resolve_provider_auth` and keeps only declared names belonging to it (`<id>` or `<id>:<suffix>`). Environment names stay as declared, because any in-process extension can read `os.environ` directly; the credential store is the real boundary. |
+| `Usage.cost` 有读者无生产者 | 移除它改变 wire 形状；接线它需要在 provider 层做定价，而定价今天不在那里。按 `deferred-decisions.md` 条款决策待定。触发：第一个需要成本在导出中存活的消费者。 |
+| `execution_mode="parallel"` | **以拒绝方式修复**：`AgentHarness` 拒绝声明 `parallel` 的工具，因为本循环串行运行工具。Pi 经 `toolExecution` 实现并行批次；那仍是一个特性。 |
+| `EntryAppendedEvent` | **已删除**连同其白名单条目；守卫测试现在拒绝任何没有事件模块声明的白名单类型。 |
+| `BashExecutionMessage` 从不被构造 | Pi 的 `!!` 路径的 wire 对齐占位，Baldric 以不同方式实现。触发：把 `!!` 实现为消息。 |
+| `/help` 与 `/context` 命令函数未注册 | **通过注册修复。** 它们已实现并有测试但不可达。旧的 `test_non_pi_commands_are_not_registered` 守卫以 pi-parity 理由禁止它们；该政策现在被有意反转（`/provider` 与 `/resources` 仍不注册），两个测试都钉住新契约。 |
+| 工具级授权不存在（`before_tool_call` 无调用点） | 信任模型按设计是项目级；工具门控是新特性。触发：第一个限制特定工具的请求。 |
+| Windows `os.kill(pid, 0)` "杀进程" | **不是缺陷。** 在本平台验证：child 持续写心跳（4 → 19）并保持存活。记录以免再查。 |
+| extension 凭据范围由 extension 自己声明 | 敌意 extension 仍可指名别的 provider 的凭据。关闭它需要宿主自有的 provider 到凭据映射与 `resolve_provider_auth` 签名变更。 |
+| `CodingSession` 拥有约 33 个被其他模块写的可变字段 | **已加棘轮，未消除。** 四个最热字段现在在类上有语义写入器，所有调用点都用它们（154 个外部写点 → 119）。`tests/guards/test_session_state_write_ratchet.py` 对任何新写失败、清理未记录时也失败，数字只能降。剩余大头是 `_adopt_replacement`——它一次拷贝整个状态。 |
+| `SessionInfoChangedEvent` / `ThinkingLevelChangedEvent` 到不了 frontend | **已修复。** 两者在发生时排队，在其自身事件之前交给下一次 `prompt()` 流（pi 把 session 级事件发布给 session 订阅者；排队是这里更小的等价物）。因此 frontend 即使是 extension 触发的改名或 thinking 变更也能看到。空闲期的情况仍要等下一次运行。 |
+| `Usage.cost` 无生产者 | **已修复。** `_persist_message` 在 entry 写入前从目录给响应计价（provider 上报的成本获胜，未定价模型保持零）。Pi 在适配器计价因为其模型对象自带费率；我们的来自 provider 目录。 |
+| `BashExecutionMessage` 从不被构造 | **已修复。** 终端命令持久化为 `bashExecution` 消息；context 投影渲染模型之前看到的同一文本，遵守 `exclude_from_context`，transcript 加载器在 resume 时显示它们。 |
+| `before_tool_call` 无应用调用点 | **不是缺陷。** loop 遵守并测试该 hook（`tests/agent/test_agent_loop.py`），应用层刻意改用 extension 的 `tool_call` hook——因为那个 hook 还能改写参数，而 `before_tool_call` 表达不了。保留 harness hook 是给嵌入者的 pi parity；记录以免再查。 |
+| extension 凭据范围由 extension 声明 | **已修复。** 宿主把 provider id 传入 `resolve_provider_auth`，只保留属于它的已声明名字（`<id>` 或 `<id>:<suffix>`）。环境名按声明保留，因为任何进程内 extension 都能直接读 `os.environ`；凭据库才是真边界。 |
 
-## Verification
+## 验证
 
-- `ruff check`, `ruff format --check`, `mypy` (Windows: only the known `fcntl` errors), four ratchets.
-- `pytest -q` (full suite, TUI included).
-- Every fix above landed with a test that fails against the previous
-  implementation; the ones where that was checked by reverting the source file
-  say so in their commit message.
+- `ruff check`、`ruff format --check`、`mypy`（Windows：只有已知 `fcntl` 错误）、四个棘轮。
+- `pytest -q`（全量，含 TUI）。
+- 上面每个修复都带着一个对旧实现会失败的测试落地；那些通过回退源文件验证过的，在 commit message 里写明。

@@ -1,28 +1,28 @@
 ---
-title: "Phase 20: Installation and Configuration Docs"
+title: "Phase 20：安装与配置文档"
 ---
 
-This phase starts Baldric's packaging and installation polish.
+本阶段启动 Baldric 的打包与安装打磨。
 
-The project already exposes the user-facing console command through:
+项目已经通过下列方式暴露面向用户的控制台命令：
 
 ```toml
 [project.scripts]
 baldric = "baldric_coding.cli:app"
 ```
 
-This slice documents how to install and operate that command as a normal tool.
+这一片文档化如何像普通工具一样安装与操作该命令。
 
-## What was added
+## 加了什么
 
-New user-facing docs:
+新的面向用户文档：
 
 ```text
 docs/installation.md
 docs/configuration.md
 ```
 
-Updated docs:
+更新的文档：
 
 ```text
 README.md
@@ -32,30 +32,29 @@ docs/providers.md
 mkdocs.yml
 ```
 
-## Covered Workflows
+## 覆盖的流程
 
-The docs now cover:
+文档现在覆盖：
 
-- installing Baldric with `uv tool install`
-- installing Baldric with `pipx`
-- verifying the installed `baldric` command
-- first-run provider setup
-- opening the TUI with `baldric`
-- running one prompt in print mode
-- provider config under `~/.baldric/providers.json`
-- session storage under `~/.baldric/sessions`
-- skills and prompt template locations
-- project context file discovery
-- currently disabled shell completion
+- 用 `uv tool install` 安装 Baldric
+- 用 `pipx` 安装 Baldric
+- 验证安装好的 `baldric` 命令
+- 首次运行的 provider setup
+- 用 `baldric` 打开 TUI
+- 在 print mode 跑一条 prompt
+- `~/.baldric/providers.json` 下的 provider 配置
+- `~/.baldric/sessions` 下的 session 存储
+- skill 与 prompt template 位置
+- 项目 context 文件发现
+- 当前禁用的 shell 补全
 
-## Boundary
+## 边界
 
-This phase does not change `baldric_agent` or provider/runtime behavior. It makes
-the current user-facing application install and configuration paths explicit.
+本阶段不改 `baldric_agent` 或 provider/runtime 行为。它把当前面向用户的应用安装与配置路径显式化。
 
-## Tests
+## 测试
 
-The docs slice is verified by:
+文档片经以下验证：
 
 ```text
 uv run baldric --version

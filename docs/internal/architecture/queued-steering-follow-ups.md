@@ -1,68 +1,56 @@
 ---
-title: "Queued Steering And Follow-ups"
+title: "排队的 steering 与 follow-up"
 ---
 
-This slice adds Pi-style message queueing while an agent run is active.
+这一片在 agent 运行活动时增加 Pi 式的消息排队。
 
-## What Was Added
+## 加了什么
 
-`baldric_agent.AgentHarness` now owns two prompt queues:
+`baldric_agent.AgentHarness` 现在拥有两条 prompt 队列：
 
-- steering messages, injected after the current assistant turn and any tool batch
-- follow-up messages, injected only when the run would otherwise stop
+- steering 消息，在当前 assistant 轮与工具批次之后注入
+- follow-up 消息，只在运行本会停止时注入
 
-The harness exposes `steer()`, `follow_up()`, `clear_queues()`,
-`queued_messages`, `pending_message_count`, and `is_running`. Direct overlapping
-`prompt()` and `continue_()` calls are rejected so callers cannot mutate one
-transcript from two active runs.
+harness 暴露 `steer()`、`follow_up()`、`clear_queues()`、
+`queued_messages`、`pending_message_count` 与 `is_running`。直接重叠的
+`prompt()` 与 `continue_()` 调用被拒绝，调用者无法从两个活动运行改动同一份 transcript。
 
-`run_agent_loop()` accepts provider-neutral queue-drain callbacks. When a queue
-drains, the loop appends the queued user message to the same message list used
-for normal prompts and emits ordinary user `MessageStartEvent` and
-`MessageEndEvent` values before the next provider call.
+`run_agent_loop()` 接受 provider 中立的队列排水回调。队列排水时，循环把排队的用户消息追加到与普通 prompt 相同的消息列表，并在下一次 provider 调用之前发出普通的用户 `MessageStartEvent` 与
+`MessageEndEvent`。
 
-`QueueUpdateEvent` reports pending steering and follow-up text for frontends.
-The Textual TUI uses it for status-line queue counts.
+`QueueUpdateEvent` 为 frontend 报告待处理的 steering 与 follow-up 文本。
+Textual TUI 用它做状态行的队列计数。
 
-## Coding Session Boundary
+## coding session 边界
 
-`CodingSession.prompt()` keeps ordinary non-running prompts unchanged. While the
-harness is running, callers must pass one of:
+`CodingSession.prompt()` 对普通非运行 prompt 保持不变。harness 运行中时，调用者必须传：
 
 ```python
 session.prompt(text, streaming_behavior="steer")
 session.prompt(text, streaming_behavior="follow_up")
 ```
 
-The session expands `/skill:<name>` prompt text before queueing. It does not
-persist a queued message at queue time. Persistence still happens after the
-active run finishes, when the harness has injected queued user messages into the
-transcript.
+之一。session 在排队前展开 `/skill:<name>` prompt 文本。排队时不
+持久化消息。持久化仍发生在活动运行结束、harness 已把排队的用户消息注入 transcript 之后。
 
-## TUI Behavior
+## TUI 行为
 
-The built-in Textual frontend maps:
+内置 Textual frontend 映射：
 
-- `Enter` while running to steering queueing
-- `Alt-Enter` while running to follow-up queueing
-- `Up` on an empty prompt while running to edit the latest queued follow-up
+- 运行中的 `Enter` → steering 排队
+- 运行中的 `Alt-Enter` → follow-up 排队
+- 运行中空 prompt 上的 `Up` → 编辑最近排队的 follow-up
 
-Pending queues are visible above the prompt while the run continues. If several
-follow-ups are queued, edit pulls the most recently queued follow-up back into
-the prompt and removes it from the queue. Once a queued message is injected, it
-appears in the transcript as a normal user message and the pending queue display
-updates.
+运行继续时待处理队列显示在 prompt 上方。多个 follow-up 排队时，编辑把最近排队的 follow-up 拉回 prompt 并从队列移除。排队消息一旦注入，就作为普通用户消息出现在 transcript，待处理队列显示随之更新。
 
-## Boundary
+## 边界
 
-Queue ownership lives in `baldric_agent`, prompt expansion and persistence stay in
-`baldric_coding`, and Textual only decides keybindings and presentation. Provider
-adapters do not know about queued messages; they receive the updated transcript
-on the next provider call.
+队列所有权在 `baldric_agent`，prompt 展开与持久化留在
+`baldric_coding`，Textual 只决定键位与呈现。provider 适配器不知道排队消息；它们在下一次 provider 调用收到更新后的 transcript。
 
-## Tests
+## 测试
 
-The behavior is covered by:
+行为覆盖于：
 
 ```text
 tests/test_agent_loop.py

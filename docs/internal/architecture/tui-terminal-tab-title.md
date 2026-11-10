@@ -1,69 +1,54 @@
-# TUI terminal tab titles
+# TUI 终端标签页标题
 
 Issue: #260
 
-## What changed
+## 变更了什么
 
-The Textual TUI now updates the terminal emulator's window/tab title with the
-active Baldric session name and running state:
+Textual TUI 现在用活动 Baldric session 名与运行状态更新终端模拟器的窗口/标签页标题：
 
-- idle unnamed session: `τ`
-- idle named session: `τ | <session name>`
-- running session: an animated Braille spinner prefix plus the idle title
+- 空闲未命名 session：`τ`
+- 空闲已命名 session：`τ | <session name>`
+- 运行中 session：动画布莱叶 spinner 前缀加空闲标题
 
-On TUI shutdown Baldric writes a neutral `τ` title so the terminal is not left with
-a stale running frame.
+TUI 关闭时 Baldric 写中性的 `τ` 标题，终端不会留下过期的运行帧。
 
-## Why it lives in `baldric_coding`
+## 为什么住在 `baldric_coding`
 
-Terminal title updates are a frontend concern. The implementation uses state the
-TUI already owns:
+终端标题更新是 frontend 事务。实现使用 TUI 已有的状态：
 
-- `TuiState.running`, populated from `AgentStartEvent`, `AgentEndEvent`, and
-  non-recoverable `ErrorEvent` by the adapter;
-- `CodingSession.session_title`, which is updated by `/name` and automatic
-  session naming.
+- `TuiState.running`，由适配器从 `AgentStartEvent`、`AgentEndEvent` 与
+  不可恢复的 `ErrorEvent` 填充；
+- `CodingSession.session_title`，由 `/name` 与自动 session 命名更新。
 
-No terminal or Textual dependencies were added to `baldric_agent` or `baldric_ai`.
+没有终端或 Textual 依赖加进 `baldric_agent` 或 `baldric_ai`。
 
-## Mechanism
+## 机制
 
-`src/baldric_coding/tui/terminal_title.py` emits OSC 0 sequences:
+`src/baldric_coding/tui/terminal_title.py` 发出 OSC 0 序列：
 
 ```text
 ESC ] 0 ; <title> BEL
 ```
 
-OSC 0 is broadly supported by common terminal emulators and sets the terminal
-window/tab title. The `TerminalTitleController` writes only when the computed
-title changes, so idle refreshes do not spam stdout. While running, the existing
-activity timer drives both the in-app prompt animation and the tab-title spinner.
+OSC 0 被常见终端模拟器广泛支持，设置终端窗口/标签页标题。`TerminalTitleController` 只在计算出的标题变化时写入，空闲刷新不刷屏 stdout。运行期间，既有活动计时器同时驱动应用内 prompt 动画与标签页标题 spinner。
 
-## Capability detection and safety
+## 能力检测与安全
 
-Title writing is enabled only when stdout is a TTY, `TERM` is not `dumb`, and CI
-is not detected. Users can opt out with `BALDRIC_TERMINAL_TITLE=0`; CI/no-TTY cases
-can opt in explicitly with `BALDRIC_TERMINAL_TITLE=1` only where supported by the
-helper's rules. Title writes are best-effort: if the terminal stream raises while
-Baldric is writing an OSC sequence, Baldric disables further title writes for that TUI
-process instead of interrupting the session.
+只在 stdout 是 TTY、`TERM` 不是 `dumb`、且未检测到 CI 时启用标题写入。用户可用 `BALDRIC_TERMINAL_TITLE=0` 关闭；CI/无 TTY 场景仅在 helper 规则允许处用 `BALDRIC_TERMINAL_TITLE=1` 显式打开。标题写入是尽力而为：Baldric 写 OSC 序列时终端流抛异常，则对该 TUI 进程禁用后续标题写入，而不打断 session。
 
-Session names are sanitized before they enter an OSC payload: C0/C1 control
-characters, including BEL and ESC, are stripped and the title is capped to 120
-characters.
+session 名在进入 OSC 载荷前净化：C0/C1 控制字符（含 BEL 与 ESC）被剥离，标题截到 120 字符。
 
-## Testing and manual verification
+## 测试与手动验证
 
-Automated tests cover title construction, sanitization, capability detection,
-deduplicated writes, and TUI running/name/idle transitions.
+自动化测试覆盖标题构建、净化、能力检测、
+去重写入，以及 TUI 运行/命名/空闲转换。
 
-Manual verification:
+手动验证：
 
-1. Open `baldric` in a real terminal tab.
-2. Confirm an unnamed idle TUI shows `τ` in the tab title.
-3. Run `/name build notes` and confirm the tab changes to `τ | build notes`.
-4. Submit a prompt that runs long enough to observe the animated spinner prefix.
-5. Cancel or let the run finish; confirm the spinner stops.
-6. Quit the TUI and confirm the tab is reset to `τ`.
-7. Repeat once with `BALDRIC_TERMINAL_TITLE=0 baldric` and confirm Baldric does not manage
-   the tab title.
+1. 在真实终端标签页打开 `baldric`。
+2. 确认未命名的空闲 TUI 标签页标题显示 `τ`。
+3. 运行 `/name build notes`，确认标签页变为 `τ | build notes`。
+4. 提交一个运行足够久能看到动画 spinner 前缀的 prompt。
+5. 取消或等运行结束；确认 spinner 停止。
+6. 退出 TUI，确认标签页重置为 `τ`。
+7. 用 `BALDRIC_TERMINAL_TITLE=0 baldric` 再来一次，确认 Baldric 不管理标签页标题。
