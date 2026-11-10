@@ -204,6 +204,60 @@ or reloading a generation cancels its backend operations and discards late
 results. The built-in `/local` command opens the generic TUI host; print mode
 reports that the command is interactive-only.
 
+## Provider seams (API v2)
+
+Extensions can observe or rewrite the outgoing model request. These mirror Pi's
+`onPayload` / custom `headers` / `onResponse` hooks and are declared with the
+`provider_hooks` capability:
+
+```python
+def setup(baldric):
+    baldric.on("context", lambda event, ctx: None)                    # rewrite messages/system
+    baldric.on("before_provider_headers", lambda e, c: e.headers.update({"X-App": "x"}))
+    baldric.on("before_provider_request", lambda e, c: {**e.payload, "x-flag": True})
+    baldric.on("after_provider_response", lambda e, c: print(e.status))
+    baldric.on("provider_stream_event", lambda e, c: None)            # raw parsed events
+```
+
+`context`/`before_provider_request` are chained (return a replacement or `None`);
+`before_provider_headers` mutates in place; `after_provider_response` and
+`provider_stream_event` are read-only. A raising handler is skipped (it never
+breaks the run). With no provider seam registered, the provider is not wrapped
+and the request is byte-identical.
+
+## Renderers (API v2)
+
+```python
+def setup(baldric):
+    baldric.register_entry_renderer("status-card", lambda view, opts: f"[b]{view.data['title']}[/b]")
+    baldric.register_tool_renderer(render_call=my_call_line, render_result=my_result_block)
+    baldric.register_markdown_transformer(lambda md, ctx: md.replace(":warning:", "⚠"))
+```
+
+Renderers return Rich markup text (never Textual widgets). Entry renderers apply
+to `CustomEntry` rows created with `append_entry`; tool resolvers receive the
+tool name and a `next()` callable so they can wrap, defer, or take over any tool;
+markdown transformers are display-only and chain in load order on the declared
+message types (`user`, `assistant`, `assistant-thinking` by default).
+
+## Dynamic tools and lifecycle handles (API v2)
+
+```python
+def setup(baldric):
+    baldric.on("user_bash", lambda event, ctx: UserBashResult(output="handled remotely"))
+    baldric.on("model_select", lambda event, ctx: None)        # event.model / previous_model
+    baldric.on("thinking_level_select", lambda e, c: None)     # alias of thinking_level_changed
+    baldric.on("session_before_compact", lambda e, c: CompactionSummaryResult(summary="..."))
+    baldric.set_active_tools(["read", "write"])                # restrict what the model sees
+    result = await baldric.execute_tool("read", {"path": "README.md"})
+    await baldric.set_model("fast-model")
+    applied = await baldric.set_thinking_level("high")
+```
+
+`session_before_compact` supplies the summary only; compaction itself cannot be
+vetoed. A supplied summary is clamped to 20k characters and blank/failing
+handlers fall back to the built-in summarizer.
+
 ## Development checklist
 
 1. Read this document and the closest installed example under `examples/extensions/` completely before implementing.

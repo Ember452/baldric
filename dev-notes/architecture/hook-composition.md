@@ -54,9 +54,14 @@ Without the third, wide handles are undefined behaviour. This document fixes it.
 ## Seam catalog
 
 Every seam that a v2 extension can hook gets exactly one row here. A new seam that
-does not add a row is non-conformant. The `capability domain` column maps to
-`ExtensionCapabilities` (see the plan, Task G): an extension that has not declared
-the domain does not get that seam's handlers registered at all (default deny).
+does not add a row is non-conformant. The `capability domain` column names the
+`ExtensionCapabilities` field an extension declares: `provider_hooks` and
+`renderers` were added in v2 for the new surfaces. Caps are **declarative
+contract metadata, not a runtime permission gate** — the host never refuses a
+seam because a domain was not declared, because the extension contract promises
+an ecosystem, not a sandbox (the plan's "default deny" idea was dropped after
+checking the existing design, which states this explicitly). Declaring the
+domain is still the disclosure step reviewers look for.
 
 | seam | aggregation | failure mode | termination | capability domain | status |
 | --- | --- | --- | --- | --- | --- |
@@ -65,22 +70,28 @@ the domain does not get that seam's handlers registered at all (default deny).
 | `tool_result` (after) | chained | fail-open | last-override (`replace`) | `hooks` (existing) | shipped |
 | `project_trust` | in-place | fail-closed | first-wins (gate) | `hooks` (existing) | shipped |
 | `message_end` | chained | fail-open | — (transform) | `hooks` (existing) | shipped |
-| `context` (provider) | chained | fail-open | — (transform) | `provider_hooks` | planned (Task A) |
-| `context_with_system` (provider) | chained | fail-open | — (transform) | `provider_hooks` | planned (Task A) |
-| `before_provider_headers` | in-place | fail-open | last-override (mutation wins) | `provider_hooks` | planned (Task A) |
-| `before_provider_request` | chained | fail-open | last-override (payload) | `provider_hooks` | planned (Task A) |
-| `after_provider_response` | in-place (read) | fail-open | — (observe) | `provider_hooks` | planned (Task A) |
-| `provider_stream_event` | in-place (read) | fail-open | — (observe) | `provider_hooks` | planned (Task A) |
-| `cache_warming_decision` | chained | fail-open | last-override (action) | `provider_hooks` | planned (Task A) |
-| `session_before_compact` (manual/threshold) | — | fail-closed | first-wins (`block`\|`replace`) | `session_structure_hooks` | planned (Task B) |
-| `session_before_compact` (overflow) | — | fail-closed | **`block` forbidden** | `session_structure_hooks` | planned (Task B) |
-| `session_before_fork/switch/tree` | — | fail-closed | first-wins (`block`\|`replace`) | `session_structure_hooks` | planned (Task B) |
+| `user_bash` | — | fail-open | first-wins (`UserBashResult`) | `hooks` | shipped (v2) |
+| `model_select` | — (observe) | fail-open | — (notification) | `hooks` | shipped (v2) |
+| `thinking_level_select` (alias of `thinking_level_changed`) | — (observe) | fail-open | — (notification) | `hooks` | shipped (v2) |
+| `session_before_compact` | — | fail-open | first-wins (`CompactionSummaryResult`), no `block` | `hooks` | shipped (v2, summary only) |
+| `context` (provider) | chained | fail-open | — (transform) | `provider_hooks` | shipped (v2) |
+| `context_with_system` (provider) | chained | fail-open | — (transform) | `provider_hooks` | shipped (v2) |
+| `before_provider_headers` | in-place | fail-open | last-override (mutation wins) | `provider_hooks` | shipped (v2) |
+| `before_provider_request` | chained | fail-open | last-override (payload) | `provider_hooks` | shipped (v2) |
+| `after_provider_response` | in-place (read) | fail-open | — (observe) | `provider_hooks` | shipped (v2) |
+| `provider_stream_event` | in-place (read) | fail-open | — (observe) | `provider_hooks` | shipped (v2) |
+| `cache_warming_decision` | chained | fail-open | last-override (action) | `provider_hooks` | deferred (no cache-warming mechanism) |
+| entry renderer | — | fail-open | first-wins per namespace | `renderers` | shipped (v2) |
+| tool render resolver | — | fail-open | first valid wins, `next()` fallback | `renderers` | shipped (v2) |
+| markdown transformer | chained | fail-open | — (display transform) | `renderers` | shipped (v2) |
+| `session_before_fork/switch/tree` | — | fail-closed | first-wins (`block`\|`replace`) | `hooks` | deferred (no real demand; would need mutation auditing first) |
 
-Overflow compaction note: the overflow path may `observe` or `replace` but **may not
-`block`**. A `block` there is a contract violation: the host reports it to the
-extension author and enforces the default compaction, rather than silently
-honouring it (a silent honour is what produces the model-overflow + extension-veto
-infinite retry loop).
+Compaction note: an extension may supply the summary, never veto it. Overflow
+and threshold compaction must always complete, so `block` is not part of this
+contract — the host falls back to the built-in summarizer instead of letting a
+model-overflow + extension-veto infinite retry loop happen. The supplied text is
+clamped to `MAX_EXTENSION_COMPACTION_SUMMARY_CHARS` (20k) so it cannot blow the
+budget it protects.
 
 ## What the current runtime already satisfies
 

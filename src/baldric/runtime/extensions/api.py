@@ -59,7 +59,11 @@ AGENT_EVENT_WILDCARD = "agent_event"
 # break later against a changed runtime. Pi deliberately keeps no backward
 # compatibility and therefore has no constant; Baldric's ecosystem promise is
 # why this one exists.
-EXTENSION_API_VERSION = 1
+#
+# v2 added the provider seams, the entry/tool/markdown renderers, the dynamic
+# tool handles (set_active_tools / execute_tool), and the lifecycle events
+# (user_bash, model_select, thinking_level_select, session_before_compact).
+EXTENSION_API_VERSION = 2
 
 LIFECYCLE_EVENT_TYPES: frozenset[str] = frozenset(
     {
@@ -125,6 +129,13 @@ class ExtensionCapabilities:
     ``textual.widget.Widget``/Textual event values. Extensions that only
     register tools, hooks, commands, providers, or plain-text UI never need
     Textual.
+
+    v2 adds two domains for the new surfaces: ``provider_hooks`` (the
+    provider-level seams) and ``renderers`` (entry/tool/markdown renderers).
+    Like the other fields these describe reliance, not permission: the host
+    never refuses a surface because a domain was not declared, because the
+    contract promises an ecosystem, not a sandbox (see the note on
+    ``EXTENSION_API_VERSION``).
     """
 
     ui: bool = False
@@ -132,9 +143,19 @@ class ExtensionCapabilities:
     providers: bool = False
     tools: bool = False
     hooks: bool = False
+    provider_hooks: bool = False
+    renderers: bool = False
 
     def __post_init__(self) -> None:
-        for name in ("ui", "components", "providers", "tools", "hooks"):
+        for name in (
+            "ui",
+            "components",
+            "providers",
+            "tools",
+            "hooks",
+            "provider_hooks",
+            "renderers",
+        ):
             if not isinstance(getattr(self, name), bool):
                 raise TypeError(f"Extension capability `{name}` must be a boolean")
 

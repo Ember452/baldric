@@ -9,8 +9,21 @@ Status: **EXECUTING**。Task 0 / A1 / A2 已完成（commits 见下）。动手�
 - [x] Task 0 — Hook Composition 契约（`dev-notes/architecture/hook-composition.md` + guard 测试）
 - [x] Task A1 — ai 层 3 个 provider 原生缝（payload/headers/response，6 adapter + fake 接入）
 - [x] Task A2 — 扩展 API 层桥接（`on("before_provider_*"/context/...)` → RequestHooks/HookableProvider，session 包装接线）
-- [ ] A2-剩余：扩展 API 的 `set_model`/`set_thinking_level` 归 Task F
-- [ ] Task D / B / C / F / E / G 待做
+- [x] Task A 的端到端验证 — `tests/runtime/session/test_provider_hook_wiring.py`（真实扩展 + 真实 prompt 路径）
+- [x] Task D — 三类 renderer（entry / tool resolver / markdown transformer）
+- [x] Task F — user_bash / model_select / set_model / set_thinking_level / thinking_level_select 别名
+- [x] Task C（收窄）— set_active_tools + execute_tool（名字覆盖内建工具原本就存在，见下方勘误）
+- [x] Task B（收窄）— 自定义压缩摘要 + clamp + fail-open（观察事件原本就有，见勘误）
+- [x] Task G — EXTENSION_API_VERSION 1→2 + capability 域 provider_hooks/renderers + 文档
+- [ ] Task E — **明确不做**（session_manager 活把手：需先有 mutation 审计与真实需求；现在做是契约负债）
+- [ ] B 的否决权 / E 的结构钩子 — 有真实扩展需求时再议
+
+## 勘误（执行中按现场修正计划）
+
+1. **Task C 的"覆盖内建工具"是伪缺口**：`compose_tools` 早已支持"扩展工具按名字就地覆盖内建工具"，`bind_live_tools` 也支持动态 register/unregister。真正缺的只有 `set_active_tools` 与 `execute_tool`，已补。
+2. **Task B 的"观察"已存在**：`compaction_start`/`compaction_end` 事件早已发给扩展（`AGENT_EVENT_TYPES` 白名单内）。真正缺的只有"自定义摘要"，已补（无否决权）。
+3. **Task G 的"caps 默认拒绝"与既有设计冲突**：`ExtensionCapabilities` 的既有文档明确写着"contract metadata, not a runtime permission system"。因此 v2 只增加域声明（`provider_hooks` / `renderers`）与版本号，不做权限级默认拒绝——否则会推翻既有生态承诺。此偏离已记录在 `hook-composition.md`。
+4. **Task E 的决定**：session_manager 活把手需要 mutation 审计 + 并发/树不变量校验 + 公共 API 重整，工作量大于 E 本身，且当前零消费者。现在做是纯负债；以后做不会更贵。
 
 ---
 
