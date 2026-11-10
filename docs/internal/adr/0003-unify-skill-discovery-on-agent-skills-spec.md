@@ -1,14 +1,14 @@
 ---
-title: "ADR 0003 — Unify skill discovery on the Agent Skills spec"
+title: "ADR 0003 — 技能发现统一到 Agent Skills 规范"
 ---
 
-## Status
+## 状态
 
-Accepted.
+已接受。
 
-## Context
+## 背景
 
-Baldric discovers Markdown skills from four locations, in increasing precedence:
+Baldric 从四个位置发现 Markdown skill，优先级递增：
 
 ```text
 ~/.baldric/skills/
@@ -17,85 +17,67 @@ Baldric discovers Markdown skills from four locations, in increasing precedence:
 <cwd>/.agents/skills/
 ```
 
-Historically Baldric accepted **either** layout in any of these directories:
+历史上 Baldric 在这些目录里**两种**布局都接受：
 
-- a `foo.md` file at the root (skill name = `foo`), or
-- a `foo/SKILL.md` subdirectory (skill name = `foo`).
+- 根下的 `foo.md` 文件（skill 名 = `foo`），或
+- `foo/SKILL.md` 子目录（skill 名 = `foo`）。
 
-PR [#280](https://github.com/huggingface/tau/pull/280) tightened discovery for
-the `.agents/` locations to match the [Agent Skills
-spec](https://agentskills.io/specification#directory-structure), which requires
-the `subdir/SKILL.md` form. It intentionally left `.baldric/skills/` on the
-permissive "any `.md`" rule.
+PR [#280](https://github.com/huggingface/tau/pull/280) 把 `.agents/` 位置的发现收紧到 [Agent Skills
+spec](https://agentskills.io/specification#directory-structure)，它要求 `subdir/SKILL.md` 形式。它有意让 `.baldric/skills/` 保留宽松的"任意 `.md`"规则。
 
-That left Baldric with two different rules for two visually-identical locations:
+这让 Baldric 对两个外观完全相同的位置适用两条不同规则：
 
-| Location | `foo.md` (bare file) | `foo/SKILL.md` (directory) |
+| 位置 | `foo.md`（裸文件） | `foo/SKILL.md`（目录） |
 |---|---|---|
-| `.baldric/skills/` | ✅ loaded | ✅ loaded |
-| `.agents/skills/` | ❌ ignored | ✅ loaded |
+| `.baldric/skills/` | ✅ 加载 | ✅ 加载 |
+| `.agents/skills/` | ❌ 忽略 | ✅ 加载 |
 
-## Decision
+## 决策
 
-Apply the Agent Skills spec uniformly to **every** skills location Baldric
-scans. A skill is always `<skills-dir>/<name>/SKILL.md`. Bare `.md` files at
-the root of a skills directory are not loaded as skills; instead, Baldric emits an
-informational `ResourceDiagnostic` telling the user how to migrate:
+把 Agent Skills 规范统一应用到 Baldric 扫描的**每一个** skills 位置。skill 一律是 `<skills-dir>/<name>/SKILL.md`。skills 目录根下的裸 `.md` 文件不再作为 skill 加载；Baldric 改为发出一条信息级 `ResourceDiagnostic`，告知用户如何迁移：
 
 ```text
 mv foo.md foo/SKILL.md
 ```
 
-The `agents_mode` branch introduced by #280 is removed from
-`_load_skills_from_dir_with_diagnostics`.
+#280 引入的 `agents_mode` 分支从 `_load_skills_from_dir_with_diagnostics` 中移除。
 
-## Why diverge from Pi here
+## 为什么在这里偏离 Pi
 
-Pi maintains an explicit `SkillDiscoveryMode = "pi" | "agents"` split in
-`packages/coding-agent/src/core/package-manager.ts`:
+Pi 在 `packages/coding-agent/src/core/package-manager.ts` 里维护显式的 `SkillDiscoveryMode = "pi" | "agents"` 分裂：
 
-- `.pi/skills/` and `~/.pi/agent/skills/` use "pi mode" (bare `.md` allowed).
-- `.agents/skills/` uses "agents mode" (strict `SKILL.md` only).
+- `.pi/skills/` 与 `~/.pi/agent/skills/` 用 "pi mode"（允许裸 `.md`）。
+- `.agents/skills/` 用 "agents mode"（只认严格的 `SKILL.md`）。
 
-Reading Pi's own changelog makes clear that this split is **not a philosophical
-choice** — it is a **backward-compatibility carveout**:
+读 Pi 自己的 changelog 可以看出这个分裂**不是哲学选择**——它是**向后兼容的特例**：
 
 > **Pi skills now use `SKILL.md` convention**: Pi skills must now be named
 > `SKILL.md` inside a directory, matching Codex CLI format. Previously any
 > `*.md` file was treated as a skill. Migrate by renaming
 > `~/.pi/agent/skills/foo.md` to `~/.pi/agent/skills/foo/SKILL.md`.
 
-And the fix that mirrors #280:
+以及与 #280 对应的修复：
 
 > Fixed skill discovery to stop recursing once a directory contains
 > `SKILL.md`, and to ignore root `*.md` files in `.agents/skills` while
 > keeping root markdown skill files supported in `~/.pi/agent/skills`,
 > `.pi/skills`, and package `skills/` directories (pi-mono#2603)
 
-Pi's direction of travel is clearly "`SKILL.md` everywhere." Pi cannot finish
-that migration cleanly because it has a large installed base of bare-`.md`
-skills that would break.
+Pi 的行进方向明确是"`SKILL.md` 处处如此"。Pi 无法干净地完成这次迁移，因为它有大量已安装的裸 `.md` skill 会因此损坏。
 
-Baldric does not share that constraint. We are pre-1.0 (`0.1.3`), have no
-meaningful backward-compat contract for `.baldric/skills/` layouts, and can ship
-the endgame directly instead of carrying a legacy path forward.
+Baldric 没有这个约束。我们处于 pre-1.0（`0.1.3`），对 `.baldric/skills/` 布局没有实质的向后兼容契约，可以直接交付终局，不必拖着一个 legacy 路径前进。
 
-## Consequences
+## 后果
 
-- One rule for every skills directory. The `agents_mode` heuristic
-  (`skills_dir.parent.name == ".agents"`) disappears.
-- User skills authored as bare `.md` files under `.baldric/skills/` are no longer
-  loaded and must be migrated. Baldric surfaces this via a diagnostic at load time
-  so the failure mode is visible rather than silent.
-- Skill loader behavior no longer depends on parent directory names, so it
-  stays correct when callers pass unusual `BaldricResourcePaths.agents_root`
-  values (for example a custom skills root during testing or embedding).
-- Documentation (`website/content/guides/skills-and-prompts.md`) now shows the
-  spec layout as the only supported form.
+- 所有 skills 目录一条规则。`agents_mode` 启发式
+  （`skills_dir.parent.name == ".agents"`）消失。
+- 以裸 `.md` 形式写在 `.baldric/skills/` 下的用户 skill 不再加载，必须迁移。Baldric 在加载时以诊断暴露这一点，失败可见而非静默。
+- skill 加载器行为不再依赖父目录名，调用者传入非常规的 `BaldricResourcePaths.agents_root` 值（例如测试或嵌入时的自定义 skills 根）时依然正确。
+- 文档（`docs/user/how-to/skills-and-prompts.md`）现在把规范布局作为唯一受支持形式展示。
 
-## Migration
+## 迁移
 
-For each bare `.md` skill under any Baldric-scanned skills directory:
+对任何 Baldric 扫描的 skills 目录下的每个裸 `.md` skill：
 
 ```bash
 cd ~/.baldric/skills          # or .baldric/skills, .agents/skills, etc.
@@ -106,15 +88,12 @@ for f in *.md; do
 done
 ```
 
-The load-time diagnostic points users at exactly the destination path they
-should rename each file to.
+加载时诊断会把每个文件应重命名的目标路径准确指给用户。
 
-## References
+## 参考
 
-- PR [#280](https://github.com/huggingface/tau/pull/280) — narrower fix for
-  `.agents/` only.
-- Issue [#292](https://github.com/huggingface/tau/issues/292) — this
-  unification.
+- PR [#280](https://github.com/huggingface/tau/pull/280) — 只针对
+  `.agents/` 的较窄修复。
+- Issue [#292](https://github.com/huggingface/tau/issues/292) — 本次统一。
 - Agent Skills spec: <https://agentskills.io/specification#directory-structure>
-- Pi's `SkillDiscoveryMode`: `packages/coding-agent/src/core/package-manager.ts`
-  in the pi-mono repo.
+- Pi 的 `SkillDiscoveryMode`：pi-mono 仓库的 `packages/coding-agent/src/core/package-manager.ts`

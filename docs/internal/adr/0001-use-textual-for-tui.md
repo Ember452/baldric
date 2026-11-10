@@ -1,19 +1,19 @@
 ---
-title: "ADR 0001 — Use Textual for the interactive TUI"
+title: "ADR 0001 — 交互式 TUI 使用 Textual"
 ---
 
-## Status
+## 状态
 
-Accepted for future phases.
+已接受，用于后续阶段。
 
-## Context
+## 背景
 
-Baldric needs an interactive terminal UI, but the reusable agent harness must stay independent of frontend frameworks.
+Baldric 需要一个交互式终端 UI，但可复用的 agent harness 必须保持对 frontend 框架独立。
 
-## Decision
+## 决策
 
-Use Textual for the full interactive TUI after the core loop, tools, sessions, and print-mode CLI are stable.
-Textual will live behind an adapter boundary that consumes agent events.
+在内核循环、工具、session 与 print-mode CLI 稳定之后，完整交互式 TUI 使用 Textual。
+Textual 藏在一个消费 agent 事件的适配器边界之后。
 
 ```text
 AgentHarness emits events
@@ -23,8 +23,8 @@ UI adapter consumes events
 Textual app renders chat, tool, and status components
 ```
 
-## Consequences
+## 后果
 
-- `baldric_agent` must not depend on Textual.
-- Early phases will use simple print mode and Rich renderers first.
-- Textual widgets can evolve without changing the core agent loop.
+- `baldric_agent` 不得依赖 Textual。
+- 早期阶段先用简单的 print mode 与 Rich 渲染器。
+- Textual 组件可以独立演化，不改内核 agent loop。
