@@ -1,4 +1,4 @@
-# TUI 视觉系统 Implementation Plan（第二批：L3 交互层 + L4 一致性层）
+# TUI 视觉系统实施计划（第二批：L3 交互层 + L4 一致性层）
 
 > **执行纪律（沿用第一批，用户指定，优先级高于本文档）**
 >
@@ -9,8 +9,8 @@
 > 5. 修烂代码必须单独 commit，说明原行为与新行为。
 > 6. 硬约束不变：`TuiTheme` 35 字段、`theme_css_variables` 32 键不减不改名；`rendering/` 不引 Textual；每 commit 一件事。
 
-**Spec:** `docs/superpowers/specs/2026-11-08-tui-visual-system-design.md` §6（L3）、§7（L4）
-**前置:** 第一批已完成（commit `4380cba..acba095`），验收记录 `dev-notes/architecture/tui-visual-batch1-acceptance.md`
+**规格：** `docs/superpowers/specs/2026-11-08-tui-visual-system-design.md` §6（L3）、§7（L4）
+**前置：** 第一批已完成（commit `4380cba..acba095`），验收记录 `dev-notes/architecture/tui-visual-batch1-acceptance.md`
 
 ---
 
@@ -30,64 +30,64 @@
 
 ---
 
-## Task 1: spinner 换 10 帧 + 80ms（小，热身）
+## 任务 1：spinner 换 10 帧 + 80ms（小，热身）
 
-**Files:** `rendering/activity.py`；测试 `tests/coding/rendering/` 或 tui 现有 activity 测试。
+**文件：** `rendering/activity.py`；测试 `tests/coding/rendering/` 或 tui 现有 activity 测试。
 
 - [ ] 核实：`ACTIVITY_SPINNER_FRAMES`/`ACTIVITY_TICK_SECONDS` 全部消费点（app.py re-export、`set_interval`）；opencode/pi 帧序列与 interval（已核实一致）。
 - [ ] bug 场景：① `set_interval` 的回调节拍与新帧数不匹配（取模安全）；② 测试断言帧序列硬编码（有意变更 → 改断言）；③ re-export 别名遗漏导致 AttributeError。
 - [ ] 改 `ACTIVITY_SPINNER_FRAMES`（10 帧）与 `ACTIVITY_TICK_SECONDS = 0.08`；跑 activity 相关测试；commit `feat(tui): ten-frame braille spinner at 80ms`。
 
-## Task 2: 工具结果数据层——显式记录成败与时长（烂代码修复，独立 commit）
+## 任务 2：工具结果数据层——显式记录成败与时长（烂代码修复，独立 commit）
 
-**Files:** `tui/state.py`（`record_tool_result` + `ChatItem`）、`tests/`。
+**文件：** `tui/state.py`（`record_tool_result` + `ChatItem`）、`tests/`。
 
 - [ ] 核实：`ChatItem` 全字段与构造点；`started_at` 的写入点（谁在 pending 时盖章）；`tool_result` 字段消费者。
 - [ ] bug 场景：① orphan 结果路径（`:675-684`）漏记时长；② 批量/分组调用（`_grouped_calls_by_call_id`）时长记在成员还是组上；③ `time.monotonic()` 跨天/进程恢复的会话重放无意义（持久化字段为 None 时渲染侧回退）。
 - [ ] `ChatItem` 增 `tool_is_error: bool | None = None`、`tool_duration_seconds: float | None = None`；`record_tool_result` 在清除 `started_at` 前捕获时长、写入 is_error。原行为：渲染侧靠 `startswith("✓")` 猜；新行为：显式状态。
 - [ ] commit `fix(tui-state): record tool outcome and duration explicitly`。
 
-## Task 3: 工具行三态底色渐变 + 完成后 `· 4.2s`（ThemeTokens 接线）
+## 任务 3：工具行三态底色渐变 + 完成后 `· 4.2s`（ThemeTokens 接线）
 
-**Files:** `widgets/core.py`（`_chat_item_role_style`、工具行渲染）、`rendering/`（新纯函数：状态→底色渐变帧）、`state.py` 无。
+**文件：** `widgets/core.py`（`_chat_item_role_style`、工具行渲染）、`rendering/`（新纯函数：状态→底色渐变帧）、`state.py` 无。
 
 - [ ] 核实：`role_tool_*_bg` 三值在 5 套主题里的取值；`_blend_hex_colors` 复用；工具行重绘时机（record 后是否有动画帧循环，参照 `_sync_activity_indicator` 的 timer 模式）；`+N −M` diffstat 的数据可得性（patch 在 `tool_result.details`，`parse_unified_patch` 可数）。
 - [ ] bug 场景：① 渐变帧 timer 泄漏（行被移除后未停）；② 分组行（batch）成员各自完成时的底色归属；③ `parse_unified_patch` 对非 diff 内容返回空（diffstat 缺省为不显示）；④ 三态色在 light 主题对比度不足。
 - [ ] 渲染：pending=无底色（border 表达）、success/error=对应 `role_tool_*_bg` + 2 帧从工具文本色渐入；完成后行尾 `· 4.2s`（有 patch 时先 `+3 −1 · `）。第一版可不做 diffstat（拆到后续），本任务保底完成时长。
 - [ ] commit `feat(tui): tool row state backgrounds with completion timing`。
 
-## Task 4: 流式收敛实测与打磨
+## 任务 4：流式收敛实测与打磨
 
-**Files:** `widgets/core.py`（Streaming/`TranscriptMarkdownStream`）、必要时 `rendering/`。
+**文件：** `widgets/core.py`（Streaming/`TranscriptMarkdownStream`）、必要时 `rendering/`。
 
 - [x] 探针实测（2026-11-09）：未闭合栅栏**已经**渲染为真实、有样式的 `MarkdownFence`（Textual 增量 Markdown），闭合瞬间自动收敛——spec 担心的"纯文本切 rich"不存在，零新代码。
 - [x] 探针转为永久回归守卫：`tests/coding/tui/test_streaming_fence.py`（commit `81ed8eb`）。
 
-## Task 5: 思考块点击展开
+## 任务 5：思考块点击展开
 
-**Files:** `widgets/core.py`（折叠摘要行→可点击）、`tui/state.py`（按块展开状态）、`rendering/thinking.py` 不动。
+**文件：** `widgets/core.py`（折叠摘要行→可点击）、`tui/state.py`（按块展开状态）、`rendering/thinking.py` 不动。
 
 - [x] 完成（commit `e32f507`）：`HiddenThinkingWidget` 可点击摘要行；展开态存 `TuiState.expanded_thinking_ids`（按 run 首项 id），重绘不丢；全局 Ctrl+T 优先；流式中无冲突（摘要行只存在于已完成的 run）。两条重绘路径均消费展开集合。
 - [x] 棘轮补偿：`TranscriptMarkdownStream` → `widgets/markdown_stream.py`、SystemPrompt 两件套 → `widgets/system_prompt.py`，core.py 1946 → 1860（净缩）。
 
-## Task 6: hover/focus/selected 一致性
+## 任务 6：hover/focus/selected 一致性
 
-**Files:** 各 picker/completion 的 CSS 与样式函数（以 grep 实测为准）。
+**文件：** 各 picker/completion 的 CSS 与样式函数（以 grep 实测为准）。
 
 - [ ] 核实：opencode `action.$hovered/$focused/$selected` 语义；现状每处高亮用的字段（`completion_selected`、ListView `-highlight` 等）；列一张不一致清单再动手。
 - [ ] bug 场景：① 键盘 focus 与鼠标 hover 双高亮叠加；② `-highlight` 类被多组件复用导致误伤；③ light 主题对比度。
 - [ ] commit 一处一概念，可能拆多个小 commit。
 
-## Task 7: 侧栏 `extensions` 分区重复澄清（烂代码，先核查）
+## 任务 7：侧栏 `extensions` 分区重复澄清（烂代码，先核查）
 
-**Files:** `tui/widgets/sidebar.py:211/:355`（行号以实查为准）。
+**文件：** `tui/widgets/sidebar.py:211/:355`（行号以实查为准）。
 
 - [x] 核查结论（2026-11-09）：**不属实，关闭**。两处 `_sidebar_section("extensions", ...)` 服务于两条互斥的渲染路径——交互 widget 路径（`SessionSidebar.update_from_session` 写入 `#sidebar-extensions-content`）与静态渲染器 `render_session_sidebar`（测试/非交互）。`#sidebar-extensions-content`（已装扩展列表）与 `#sidebar-extension-sections`（扩展组件桥挂载点）也是两个不同的东西。sidebar.py 已加注释防混淆。
 - [ ] 侧栏内部样式重构（spec §5.5 后半）留第三批。
 
-## Task 8: PickerShell / DialogShell 基类 + 首批迁移（分阶段）
+## 任务 8：PickerShell / DialogShell 基类 + 首批迁移（分阶段）
 
-**Files:** 新 `tui/screens/shells.py`（screens 层）；首批迁移 4 个搜索型 picker：session/model/skill/tree。
+**文件：** 新 `tui/screens/shells.py`（screens 层）；首批迁移 4 个搜索型 picker：session/model/skill/tree。
 
 - [x] 核实结论（2026-11-09）：**本批顺延，不建基类**。实测 20 个 ModalScreen 的 widget 组成差异远大于共性，硬抽象会产出"为复用而设灵活开关"的基类（违反 AGENTS.md Simplicity First）：
 
@@ -102,7 +102,7 @@
 - [ ] **改为独立议题**：第三批后若仍有 ≥6 个同构 picker，再用真实数据（同构 picker 数）决策引入 `PickerShell` 并系统性迁移。
 - [ ] `spec §7` 的 150α 遮罩不得引入新 CSS 变量（32 键硬约束）——记为第三批前置项。
 
-## Task 9: 截图验收 + 全量闸门（收口）
+## 任务 9：截图验收 + 全量闸门（收口）
 
 - [ ] 扩充 batch-1 截图脚本：三态工具行、点击展开的思考块、新 picker 外观。
 - [ ] 全量闸门同第一批：fast + TUI + ruff + format + import graph + structure + suppressions + mypy（14 已知噪音）。
