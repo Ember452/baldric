@@ -61,6 +61,9 @@ jobs:
       - name: Check agent-guidance ratchet
         run: uv run python scripts/check_agent_guidance.py
 
+      - name: Check changelog is current
+        run: uv run python scripts/render_changelog.py --check
+
       - name: Check version consistency
         run: uv run python scripts/verify_versions.py
 

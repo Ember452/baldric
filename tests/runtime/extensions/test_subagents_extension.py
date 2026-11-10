@@ -923,7 +923,7 @@ async def test_output_file_streams_transcript(tmp_path: Path) -> None:
     )
     output_line = next(line for line in spawn_result.text.splitlines() if line.startswith("Output file: "))
     output_path = Path(output_line.removeprefix("Output file: "))
-    # Durable location (ADR 0003): under the transcript root of the paths the
+    # Durable location (ADR 0006): under the transcript root of the paths the
     # runtime was loaded with, not the system temp dir.
     assert str(output_path).startswith(str(_runtime_paths(tmp_path).home / "subagents"))
     assert output_path.parent.name == "tasks"
@@ -954,7 +954,7 @@ async def test_output_file_streams_transcript(tmp_path: Path) -> None:
 
 
 async def test_retention_zero_uses_temp_directory(tmp_path: Path) -> None:
-    # transcriptRetentionDays: 0 opts out of durable storage (ADR 0003) and
+    # transcriptRetentionDays: 0 opts out of durable storage (ADR 0006) and
     # keeps the old per-uid location in the system temp directory.
     runtime = _load_runtime(tmp_path)
     runtime.bind(RecordingSession(tmp_path))

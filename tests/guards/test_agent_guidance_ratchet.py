@@ -18,6 +18,7 @@ def test_baseline_is_committed_and_readable() -> None:
     assert BASELINE.exists(), "agent-guidance-baseline.json must be committed"
     baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
     assert "AGENTS.md" in baseline["files"]
+    assert "docs/AGENTS.md" in baseline["files"]
     assert baseline["chain_bytes"] > 0
     assert baseline["shims"] == ["CLAUDE.md"]
 

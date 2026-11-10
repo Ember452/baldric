@@ -198,7 +198,7 @@ Baldric follows a few rules:
 - **Sessions are durable and inspectable.** History is append-only JSONL; active
   context can be compacted without rewriting the record.
 - **Documentation follows implementation.** The public docs explain the result;
-  `dev-notes/` preserves the phase-by-phase build journal.
+  `docs/internal/` preserves the phase-by-phase build journal.
 
 ## Use Baldric as a library
 
@@ -255,7 +255,7 @@ Open <http://localhost:4321/>. Build with `npm run build`, then
 ## Documentation
 
 User docs are published at <https://ember452.github.io/baldric/> and live in
-`website/content/`.
+`docs/user/`.
 
 Useful entry points:
 

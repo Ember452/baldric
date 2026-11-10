@@ -40,17 +40,18 @@ SHIM_REQUIRED_TEXT = "@AGENTS.md"
 
 
 def _managed_files() -> list[Path]:
-    """Return root-level and package-level guidance files, shallow to deep."""
+    """Return root, docs, and package guidance files, shallow to deep."""
     files: list[Path] = []
     for name in GUIDANCE_NAMES:
         candidate = ROOT / name
         if candidate.exists():
             files.append(candidate)
-    for package_dir in sorted((ROOT / "src" / "baldric").glob("*")):
-        if not package_dir.is_dir():
+    guidance_dirs = [ROOT / "docs", *sorted((ROOT / "src" / "baldric").glob("*"))]
+    for guidance_dir in guidance_dirs:
+        if not guidance_dir.is_dir():
             continue
         for name in GUIDANCE_NAMES:
-            candidate = package_dir / name
+            candidate = guidance_dir / name
             if candidate.exists():
                 files.append(candidate)
     return files

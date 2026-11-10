@@ -112,7 +112,7 @@ are unioned) and needs no PR at all.
 
 ## Documentation expectations
 
-For substantial architectural or phase-oriented work, add beginner-friendly notes under `dev-notes/` explaining:
+For substantial architectural or phase-oriented work, add beginner-friendly notes under `docs/internal/` explaining:
 
 - what changed
 - why it exists
@@ -122,7 +122,7 @@ For substantial architectural or phase-oriented work, add beginner-friendly note
 For user-facing behavior, update the published docs under:
 
 ```text
-website/content/
+docs/user/
 ```
 
 ## Release process
@@ -134,7 +134,7 @@ To prepare a release, intentionally bump `[project].version` in `pyproject.toml`
 and merge that change through a pull request. The PyPI workflow publishes only
 when it detects that version change, or when a maintainer uses an explicit
 release trigger such as a published GitHub Release or manual workflow dispatch.
-See [dev-notes/release-process.md](dev-notes/release-process.md) for the full
+See [docs/internal/notes/release-process.md](docs/internal/notes/release-process.md) for the full
 process.
 
 ## Pull request guidelines

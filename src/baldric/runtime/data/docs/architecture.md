@@ -57,4 +57,4 @@ contract. Refresh cancellation is bounded and generation-safe, and a late
 operation cannot publish after retirement. Router mutations remain a later
 phase.
 
-In a Baldric checkout, read `AGENTS.md`, `website/content/internals/architecture.md`, and relevant `dev-notes/architecture/` documents before broad architectural changes.
+In a Baldric checkout, read `AGENTS.md`, `docs/user/explanation/architecture.md`, and relevant `docs/internal/architecture/` documents before broad architectural changes.

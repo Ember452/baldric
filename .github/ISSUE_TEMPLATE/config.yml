@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Usage questions
+    url: https://github.com/Ember452/baldric/discussions
+    about: Ask for help with installation, configuration, or workflows.
+  - name: Security reports
+    url: https://github.com/Ember452/baldric/security/advisories/new
+    about: Report vulnerabilities privately.

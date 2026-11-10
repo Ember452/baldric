@@ -1063,7 +1063,7 @@ def setup(baldric: ExtensionAPI) -> None:
         if not scheduler.is_active():
             start_scheduler()
         _install_ui_components()
-        # ADR 0003: age out durable transcripts. Best-effort and off-loop so
+        # ADR 0006: age out durable transcripts. Best-effort and off-loop so
         # an enormous or slow ~/.baldric/subagents/ tree cannot delay startup.
         retention = manager._get_settings().transcript_retention_days
         if retention is not None and retention > 0:
