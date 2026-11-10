@@ -576,8 +576,8 @@ def test_runtime_metadata_exposes_declared_contract(tmp_path: Path) -> None:
     _write_extension(
         _user_extensions_dir(paths),
         "declared",
-        "from baldric.runtime.extensions import ExtensionCapabilities\n"
-        "API_VERSION = 1\n"
+        "from baldric.runtime.extensions import ExtensionCapabilities, EXTENSION_API_VERSION\n"
+        f"API_VERSION = {EXTENSION_API_VERSION}\n"
         "CAPABILITIES = ExtensionCapabilities(components=True)\n"
         "\n\n"
         "def setup(baldric):\n    pass\n",
@@ -594,7 +594,9 @@ def test_runtime_metadata_exposes_declared_contract(tmp_path: Path) -> None:
 
 
 def test_capabilities_mark_textual_components_explicitly() -> None:
-    assert EXTENSION_API_VERSION == 1
+    # v2 added the provider-hook and renderer domains; bumping this constant is
+    # the disclosure step for that contract change.
+    assert EXTENSION_API_VERSION == 2
     assert ExtensionCapabilities().requires_textual is False
     assert ExtensionCapabilities(components=True).requires_textual is True
 

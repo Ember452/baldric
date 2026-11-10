@@ -14,6 +14,7 @@ from baldric.agent.events import AgentEvent
 from baldric.agent.harness import AgentHarness, AgentHarnessConfig, QueuedMessages
 from baldric.agent.tool_calls import BeforeToolCall
 from baldric.agent.tool_history import ToolHistoryRepair
+from baldric.ai.hooks import HookableProvider
 from baldric.ai.model_catalog import RuntimeModelCatalog
 from baldric.ai.model_limits import RuntimeModelLimits
 from baldric.runtime.auth.credentials import FileCredentialStore, credentials_path
@@ -45,6 +46,7 @@ from baldric.runtime.context.thinking import (
 from baldric.runtime.events import (
     AgentSettledEvent,
     CodingSessionEvent,
+    ModelSelectEvent,
     QueueUpdateEvent,
 )
 from baldric.runtime.extensions.providers import DynamicProvider, ProviderModel
@@ -878,9 +880,12 @@ class CodingSession:
             )
 
         system = config.system if config.system is not None else _build_system_prompt()
+        initial_provider = config.provider
+        if initial_provider is not None and extension_runtime.has_provider_hooks():
+            initial_provider = HookableProvider(initial_provider, extension_runtime.build_provider_hooks())
         harness = AgentHarness(
             AgentHarnessConfig(
-                provider=config.provider,
+                provider=initial_provider,
                 model=active_model,
                 system=system,
                 tools=tools,
@@ -1684,6 +1689,17 @@ class CodingSession:
     def set_model(self, model: str) -> None:
         return _model_selection.set_model(self, model)
 
+    async def notify_model_selected(self, previous_model: str | None) -> None:
+        """Queue and dispatch the ``model_select`` notification.
+
+        Ports Pi's model_select: fired on an explicit selection for every
+        frontend and extension. Session restores replay entries instead, so they
+        never call this.
+        """
+        event = ModelSelectEvent(model=self.model, previous_model=previous_model)
+        self.queue_frontend_event(event)
+        await self._extension_runtime.emit_event(event)
+
     async def apply_startup_model_override(self, model: str) -> None:
         return await _model_selection.apply_startup_model_override(self, model)
 
@@ -1805,6 +1821,19 @@ class CodingSession:
 
     def _invalidate_runtime_model_limits(self) -> None:
         return _model_runtime.invalidate_runtime_model_limits(self)
+
+    def _apply_provider_hooks(self, provider: ClosableModelProvider) -> ClosableModelProvider:
+        """Wrap a provider with extension provider seams, or return it unchanged.
+
+        Every place the session assigns ``_harness.config.provider`` funnels
+        through here so an extension's provider-level hooks (context / headers /
+        payload / response / stream) are applied uniformly, independent of which
+        code path set the provider. Returns the provider untouched when no
+        extension registered a provider seam (zero overhead).
+        """
+        if not self._extension_runtime.has_provider_hooks():
+            return provider
+        return HookableProvider(provider, self._extension_runtime.build_provider_hooks())
 
     async def _refresh_runtime_model_limits(self) -> None:
         await _model_runtime.refresh_runtime_model_limits(self)
@@ -2014,14 +2043,18 @@ class CodingSession:
     def _auto_compaction_plan(self) -> CompactionPlan | None:
         return _session_runtime._auto_compaction_plan(self)
 
-    async def _run_compaction_plan(self, plan: CompactionPlan) -> None:
-        return await _session_runtime._run_compaction_plan(self, plan)
+    async def _run_compaction_plan(self, plan: CompactionPlan, *, reason: str = "manual") -> None:
+        return await _session_runtime._run_compaction_plan(self, plan, reason=reason)
 
     async def _generate_compaction_summary(
-        self, messages: tuple[AgentMessage, ...], *, custom_instructions: str | None = None
+        self,
+        messages: tuple[AgentMessage, ...],
+        *,
+        custom_instructions: str | None = None,
+        reason: str = "manual",
     ) -> _GeneratedSummary:
         return await _session_runtime._generate_compaction_summary(
-            self, messages, custom_instructions=custom_instructions
+            self, messages, custom_instructions=custom_instructions, reason=reason
         )
 
     async def _summarize_branch_messages(

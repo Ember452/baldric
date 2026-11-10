@@ -1,0 +1,147 @@
+# Hook composition contract (v2 extension API)
+
+Status: **contract only** — defines the semantics that every extension hook must obey.
+Written before the provider-level and session-structure hooks (plan Tasks A/B) so both
+use one rulebook instead of inventing divergent ones. No runtime behaviour changes here.
+
+This is the third multiplier of extension freedom:
+
+```
+freedom = handle width (who can mutate what)
+        x replayability (every mutation lands in the event-sourced log)
+        x composition determinism (what happens when several extensions intercept)
+```
+
+Without the third, wide handles are undefined behaviour. This document fixes it.
+
+## The four rules
+
+1. **Order is deterministic.** Handlers run in registration order:
+   extension load order first, then within-extension registration order. Order is
+   observable and testable. No handler may be reordered, deduplicated, or run
+   concurrently with another handler for the same event.
+
+2. **Errors are isolated per handler.** One handler raising does not stop the
+   others and does not abort the run; the failure is recorded as a runtime
+   diagnostic against that extension. Whether the *operation* fails is decided by
+   the hook's **failure mode**, set per hook below — never by "the exception
+   silently changed the global result". Two failure modes:
+   - `fail-open` (observe/render/notify seams): a raising handler is skipped, the
+     operation proceeds with the other handlers' results.
+   - `fail-closed` (safety seams: trust, tool-call interception): a raising handler
+     is treated as a refusal/gate for that operation (never as "allow").
+
+3. **Aggregation is per-seam and never mixed.** A seam is exactly one of:
+   - **chained** (transform): handler *N+1* receives the value returned by handler
+     *N*; the last handler's return value is the result. Used for `input`,
+     `context`, `context_with_system`, `message_end`, `tool_result`,
+     `before_provider_request`, custom summary rewrites.
+   - **in-place** (mutate): handlers receive and mutate the same object; the
+     object itself is the result. Used for `before_provider_headers.headers`,
+     `before_agent_start.system_prompt_options`.
+   A chained seam's handler returns a new value; an in-place seam's handler
+   returns nothing meaningful. A seam is never both. This is enforced by type:
+   chained seams are typed `Callable[[Payload], Payload]`, in-place seams
+   `Callable[[MutableView], None]`.
+
+4. **Termination is per-seam and declared.** A "gate" seam (block/cancel/handled)
+   is **first-wins short-circuit**: the first handler returning a gate result ends
+   the seam; the operation is gated and later handlers for that operation do not
+   run. A "last-override" seam (e.g. cache-warming decision) is **last-valid-wins**:
+   every handler runs and the final non-null result wins. Each seam declares which
+   below; a seam is never both.
+
+## Seam catalog
+
+Every seam that a v2 extension can hook gets exactly one row here. A new seam that
+does not add a row is non-conformant. The `capability domain` column names the
+`ExtensionCapabilities` field an extension declares: `provider_hooks` and
+`renderers` were added in v2 for the new surfaces. Caps are **declarative
+contract metadata, not a runtime permission gate** — the host never refuses a
+seam because a domain was not declared, because the extension contract promises
+an ecosystem, not a sandbox (the plan's "default deny" idea was dropped after
+checking the existing design, which states this explicitly). Declaring the
+domain is still the disclosure step reviewers look for.
+
+| seam | aggregation | failure mode | termination | capability domain | status |
+| --- | --- | --- | --- | --- | --- |
+| `input` | chained | fail-open | — (transform) | `hooks` (existing) | shipped |
+| `tool_call` (before) | in-place | fail-closed | first-wins (`block`) | `hooks` (existing) | shipped |
+| `tool_result` (after) | chained | fail-open | last-override (`replace`) | `hooks` (existing) | shipped |
+| `project_trust` | in-place | fail-closed | first-wins (gate) | `hooks` (existing) | shipped |
+| `message_end` | chained | fail-open | — (transform) | `hooks` (existing) | shipped |
+| `user_bash` | — | fail-open | first-wins (`UserBashResult`) | `hooks` | shipped (v2) |
+| `model_select` | — (observe) | fail-open | — (notification) | `hooks` | shipped (v2) |
+| `thinking_level_select` (alias of `thinking_level_changed`) | — (observe) | fail-open | — (notification) | `hooks` | shipped (v2) |
+| `session_before_compact` | — | fail-open | first-wins (`CompactionSummaryResult`), no `block` | `hooks` | shipped (v2, summary only) |
+| `context` (provider) | chained | fail-open | — (transform) | `provider_hooks` | shipped (v2) |
+| `context_with_system` (provider) | chained | fail-open | — (transform) | `provider_hooks` | shipped (v2) |
+| `before_provider_headers` | in-place | fail-open | last-override (mutation wins) | `provider_hooks` | shipped (v2) |
+| `before_provider_request` | chained | fail-open | last-override (payload) | `provider_hooks` | shipped (v2) |
+| `after_provider_response` | in-place (read) | fail-open | — (observe) | `provider_hooks` | shipped (v2) |
+| `provider_stream_event` | in-place (read) | fail-open | — (observe) | `provider_hooks` | shipped (v2) |
+| `cache_warming_decision` | chained | fail-open | last-override (action) | `provider_hooks` | deferred (no cache-warming mechanism) |
+| entry renderer | — | fail-open | first-wins per namespace | `renderers` | shipped (v2) |
+| tool render resolver | — | fail-open | first valid wins, `next()` fallback | `renderers` | shipped (v2) |
+| markdown transformer | chained | fail-open | — (display transform) | `renderers` | shipped (v2) |
+| `session_before_fork/switch/tree` | — | fail-closed | first-wins (`block`\|`replace`) | `hooks` | deferred (no real demand; would need mutation auditing first) |
+
+Compaction note: an extension may supply the summary, never veto it. Overflow
+and threshold compaction must always complete, so `block` is not part of this
+contract — the host falls back to the built-in summarizer instead of letting a
+model-overflow + extension-veto infinite retry loop happen. The supplied text is
+clamped to `MAX_EXTENSION_COMPACTION_SUMMARY_CHARS` (20k) so it cannot blow the
+budget it protects.
+
+## What the current runtime already satisfies
+
+`ExtensionRuntime.emit_event` (runtime.py) already runs handlers in registration
+order and isolates a raising handler (records a runtime failure, continues). The
+existing seams therefore already obey rules 1 and 2 for their declared failure
+modes. Rules 3 (aggregation shape) and 4 (termination) are new **contract
+commitments** that the planned seams must implement; the shipped seams above are
+documented to the shape they already have, and the guard test below pins the parts
+that exist today so a refactor cannot silently regress them.
+
+## How to add a seam (checklist)
+
+1. Add a row to the catalog above with all four columns.
+2. Type it as chained or in-place per rule 3.
+3. Declare its capability domain; add the domain to `ExtensionCapabilities` if new.
+4. Implement it so a raising handler behaves per its failure mode.
+5. Add a fake-extension test covering: normal, two-handlers-agree, two-handlers-
+   conflict (per termination rule), and one-handler-raises.
+6. If it is a gate seam, add a "contract violation" test (e.g. overflow + block).
+
+## Provider seams — how they are wired (Tasks A1 + A2)
+
+Provider-level hooks follow Pi's two-layer split: the AI package exposes native
+request hooks, the extension layer bridges event names onto them.
+
+- **AI layer (A1).** `RequestHooks` (protocol) carries `payload` (chained),
+  `headers` (in-place), `response` (observe). `ai.hooks.apply_payload` /
+  `apply_headers` / `observe_response` run them with the isolation boundary and
+  await sync-or-async handlers. Each adapter invokes them at its real
+  payload-build / header-build / post-response point. Adapters only get them via
+  `stream_response(..., hooks=...)`, so an adapter with no hooks is byte-identical.
+- **Provider boundary (A1).** `HookableProvider` wraps a `ModelProvider` and
+  exposes `context` (chained), `provider_stream_event` (observe),
+  `response_start` (observe first event). It forwards its payload/headers/response
+  handlers to the wrapped adapter as `RequestHooks`.
+- **Extension bridge (A2).** `ExtensionRuntime.build_provider_hooks()` adapts
+  handlers registered with `on("context"/"context_with_system"/
+  "before_provider_headers"/"before_provider_request"/"after_provider_response"/
+  "provider_stream_event")` onto the AI seams, handing each handler a typed event
+  (`ProviderContextEvent` / `ProviderHeadersEvent` / ...). The session funnels every
+  `_harness.config.provider` assignment through `_apply_provider_hooks`, which wraps
+  the provider in a `HookableProvider` only when an extension registered a provider
+  seam (zero overhead otherwise). This is the same routing as Pi's coding-agent ->
+  ai bridge.
+
+Seam shape parity with the catalog above: `before_provider_request` = payload
+(chained), `before_provider_headers` = headers (in-place),
+`context`/`context_with_system` = context (chained), `after_provider_response` =
+response (observe), `provider_stream_event` = stream (observe). One `# noqa:
+BLE001` boundary exists in each of `ai.hooks._guarded` and
+`ExtensionRuntime._invoke_provider_handler`; both are the isolation boundary the
+contract requires, recorded as reviewed exceptions in the suppression baseline.

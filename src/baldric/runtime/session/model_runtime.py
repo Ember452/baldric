@@ -264,7 +264,7 @@ def activate_runtime_provider(
     provider: ClosableModelProvider,
     provider_config: ProviderConfig,
 ) -> None:
-    session._harness.config.provider = provider
+    session._harness.config.provider = session._apply_provider_hooks(provider)
     session._runtime_provider_config = provider_config
     session._invalidate_runtime_model_limits()
 

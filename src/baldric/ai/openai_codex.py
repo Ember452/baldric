@@ -35,6 +35,7 @@ from baldric.ai.env import (
     thinking_level_from_effort,
 )
 from baldric.ai.events import AssistantMessageEvent
+from baldric.ai.hooks import apply_headers, apply_payload, observe_response
 from baldric.ai.http import create_async_client, iter_sse_lines
 from baldric.ai.http_errors import provider_http_error_message
 from baldric.ai.model_catalog import RuntimeModel, RuntimeModelCatalog, RuntimeThinkingLevel
@@ -62,6 +63,7 @@ from baldric.protocol.messages import (
     UserMessage,
     assistant_content,
 )
+from baldric.protocol.provider import RequestHooks
 from baldric.protocol.tools import AgentTool, ToolCall
 from baldric.protocol.types import JSONValue
 
@@ -190,6 +192,7 @@ class OpenAICodexProvider:
         tools: list[AgentTool],
         signal: CancellationToken | None = None,
         session_id: str | None = None,
+        hooks: RequestHooks | None = None,
     ) -> AsyncIterator[AssistantMessageEvent]:
         """Stream one response as Pi-compatible assistant message events."""
         raw = self._stream_provider_events(
@@ -199,6 +202,7 @@ class OpenAICodexProvider:
             tools=tools,
             signal=signal,
             session_id=session_id,
+            hooks=hooks,
         )
         return canonicalize_provider_stream(
             raw,
@@ -217,6 +221,7 @@ class OpenAICodexProvider:
         tools: list[AgentTool],
         signal: CancellationToken | None = None,
         session_id: str | None = None,
+        hooks: RequestHooks | None = None,
     ) -> AsyncIterator[ProviderEvent]:
         """Stream one Codex Responses request as provider-neutral events."""
 
@@ -234,6 +239,7 @@ class OpenAICodexProvider:
                 prompt_cache_key=cache_key,
                 item_ids_by_call_id=self._item_ids_by_call_id,
             )
+            payload = await apply_payload(hooks, payload)
             url = _resolve_codex_url(self._config.base_url)
 
             attempt = 0
@@ -249,12 +255,14 @@ class OpenAICodexProvider:
                         originator=self._config.originator,
                         session_id=cache_key,
                     )
+                    await apply_headers(hooks, headers)
                     async with client.stream(
                         "POST",
                         url,
                         json=payload,
                         headers=headers,
                     ) as response:
+                        await observe_response(hooks, response.status_code, dict(response.headers))
                         if response.status_code >= 400:
                             body = await response.aread()
                             body_text = body.decode(errors="replace")

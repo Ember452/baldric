@@ -28,6 +28,7 @@ from baldric.ai.content import (
 )
 from baldric.ai.env import OpenAICompatibleConfig, thinking_level_from_effort
 from baldric.ai.events import AssistantMessageEvent
+from baldric.ai.hooks import apply_headers, apply_payload, observe_response
 from baldric.ai.http import create_async_client, iter_sse_lines
 from baldric.ai.http_errors import provider_http_error_message
 from baldric.ai.provider import CancellationToken
@@ -51,6 +52,7 @@ from baldric.protocol.messages import (
     assistant_content,
     message_to_user,
 )
+from baldric.protocol.provider import RequestHooks
 from baldric.protocol.tools import AgentTool, ToolCall
 from baldric.protocol.types import JSONValue
 
@@ -83,11 +85,12 @@ class MistralConversationsProvider:
         tools: list[AgentTool],
         signal: CancellationToken | None = None,
         session_id: str | None = None,
+        hooks: RequestHooks | None = None,
     ) -> AsyncIterator[AssistantMessageEvent]:
         """Stream one response as Pi-compatible assistant message events."""
         del session_id
         raw = self._stream_provider_events(
-            model=model, system=system, messages=messages, tools=tools, signal=signal
+            model=model, system=system, messages=messages, tools=tools, signal=signal, hooks=hooks
         )
         return canonicalize_provider_stream(
             raw,
@@ -105,6 +108,7 @@ class MistralConversationsProvider:
         messages: list[AgentMessage],
         tools: list[AgentTool],
         signal: CancellationToken | None = None,
+        hooks: RequestHooks | None = None,
     ) -> AsyncIterator[ProviderEvent]:
         """Stream one Mistral response as provider-neutral events."""
         payload = _build_mistral_payload(
@@ -121,6 +125,7 @@ class MistralConversationsProvider:
             url=f"{_mistral_base_url(self._config.base_url)}/chat/completions",
             payload=payload,
             signal=signal,
+            hooks=hooks,
         )
 
     def _stream(
@@ -130,18 +135,22 @@ class MistralConversationsProvider:
         url: str,
         payload: Mapping[str, JSONValue],
         signal: CancellationToken | None,
+        hooks: RequestHooks | None = None,
     ) -> AsyncIterator[ProviderEvent]:
         async def iterator() -> AsyncIterator[ProviderEvent]:
             client = self._get_client()
+            request_payload = await apply_payload(hooks, dict(payload))
             headers = {
                 **dict(self._config.headers or {}),
                 "Authorization": f"Bearer {self._config.api_key}",
             }
+            await apply_headers(hooks, headers)
             attempt = 0
             while True:
                 parser = _MistralStreamParser()
                 try:
-                    async with client.stream("POST", url, json=payload, headers=headers) as response:
+                    async with client.stream("POST", url, json=request_payload, headers=headers) as response:
+                        await observe_response(hooks, response.status_code, dict(response.headers))
                         if response.status_code >= 400:
                             body = await response.aread()
                             body_text = body.decode(errors="replace")

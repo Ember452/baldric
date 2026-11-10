@@ -314,6 +314,24 @@ class _DeadMainViewHandle:
         return False
 
 
+def _bind_markdown_transformer(runtime: Any) -> Callable[[str, str, bool], str]:
+    """Adapt the runtime's keyword-only transformer entry to the state seam.
+
+    The transcript state calls ``(markdown, message_type, is_streaming)``
+    positionally; the extension runtime exposes
+    ``transform_markdown(markdown, *, message_type, is_streaming)``. This keeps
+    the runtime API explicit while the render path stays simple.
+    """
+
+    def transform(markdown: str, message_type: str, is_streaming: bool) -> str:
+        result: str = runtime.transform_markdown(
+            markdown, message_type=message_type, is_streaming=is_streaming
+        )
+        return result
+
+    return transform
+
+
 class ExtensionComponentsMixin:
     """Extension slot/sidebar/main-view reconciliation for ``BaldricTuiApp``."""
 
@@ -338,10 +356,15 @@ class ExtensionComponentsMixin:
         runtime.set_turn_requested_callback(self._on_extension_turn_requested)
         # Let the transcript render custom messages via registered renderers.
         self.state.custom_renderer = runtime.render_custom_message
-        # Let tool calls render through their tool's render_call, if any.
-        self.state.tool_call_renderer = runtime.render_tool_call
-        # And tool results through their tool's render_result, if any.
-        self.state.tool_result_renderer = runtime.render_tool_result
+        # Let custom entries (append_entry) render via registered entry renderers.
+        self.state.entry_renderer = runtime.render_custom_entry
+        # Display-only markdown transformations (chained, load order).
+        self.state.markdown_transformer = _bind_markdown_transformer(runtime)
+        # Let tool calls render through extension resolvers, then the tool's
+        # own render_call (pi's registerToolRenderer chain).
+        self.state.tool_call_renderer = runtime.render_tool_call_via_resolvers
+        # And tool results through the resolver chain, then render_result.
+        self.state.tool_result_renderer = runtime.render_tool_result_via_resolvers
 
     def _on_extension_turn_requested(
         self: Any,

@@ -38,6 +38,7 @@ from baldric.ai.content import (
 )
 from baldric.ai.env import OpenAICompatibleConfig, thinking_level_from_effort
 from baldric.ai.events import AssistantMessageEvent
+from baldric.ai.hooks import apply_headers, apply_payload, observe_response
 from baldric.ai.http import create_async_client, iter_sse_lines
 from baldric.ai.http_errors import provider_http_error_message
 from baldric.ai.openai_cache import is_direct_openai_url, openai_prompt_cache_key
@@ -63,6 +64,7 @@ from baldric.protocol.messages import (
     assistant_content,
     message_to_user,
 )
+from baldric.protocol.provider import RequestHooks
 from baldric.protocol.tools import AgentTool, ToolCall
 from baldric.protocol.types import JSONValue
 
@@ -110,6 +112,7 @@ class OpenAICompatibleProvider:
         tools: list[AgentTool],
         signal: CancellationToken | None = None,
         session_id: str | None = None,
+        hooks: RequestHooks | None = None,
     ) -> AsyncIterator[AssistantMessageEvent]:
         """Stream one response as Pi-compatible assistant message events."""
         raw = self._stream_provider_events(
@@ -119,6 +122,7 @@ class OpenAICompatibleProvider:
             tools=tools,
             signal=signal,
             session_id=session_id,
+            hooks=hooks,
         )
         return canonicalize_provider_stream(
             raw,
@@ -141,6 +145,7 @@ class OpenAICompatibleProvider:
         tools: list[AgentTool],
         signal: CancellationToken | None = None,
         session_id: str | None = None,
+        hooks: RequestHooks | None = None,
     ) -> AsyncIterator[ProviderEvent]:
         """Stream one model response as provider-neutral events."""
         if self._config.api == "openai-responses" or (
@@ -153,6 +158,7 @@ class OpenAICompatibleProvider:
                 tools=tools,
                 signal=signal,
                 session_id=session_id,
+                hooks=hooks,
             )
         return self._stream_chat_completions(
             model=model,
@@ -161,6 +167,7 @@ class OpenAICompatibleProvider:
             tools=tools,
             signal=signal,
             session_id=session_id,
+            hooks=hooks,
         )
 
     def _stream_chat_completions(
@@ -172,6 +179,7 @@ class OpenAICompatibleProvider:
         tools: list[AgentTool],
         signal: CancellationToken | None = None,
         session_id: str | None = None,
+        hooks: RequestHooks | None = None,
     ) -> AsyncIterator[ProviderEvent]:
         """Stream one chat completion response as provider-neutral events."""
         affinity_id = openai_prompt_cache_key(session_id)
@@ -199,6 +207,7 @@ class OpenAICompatibleProvider:
             session_affinity_format=self._session_affinity_format(responses=False),
             has_images=(self._config.supports_images and messages_have_images(messages)),
             signal=signal,
+            hooks=hooks,
         )
 
     def _stream_responses(
@@ -210,6 +219,7 @@ class OpenAICompatibleProvider:
         tools: list[AgentTool],
         signal: CancellationToken | None = None,
         session_id: str | None = None,
+        hooks: RequestHooks | None = None,
     ) -> AsyncIterator[ProviderEvent]:
         """Stream one `/v1/responses` response as provider-neutral events."""
         affinity_id = openai_prompt_cache_key(session_id)
@@ -233,6 +243,7 @@ class OpenAICompatibleProvider:
             session_affinity_format=self._session_affinity_format(responses=True),
             has_images=(self._config.supports_images and messages_have_images(messages)),
             signal=signal,
+            hooks=hooks,
         )
 
     def _stream(
@@ -246,19 +257,21 @@ class OpenAICompatibleProvider:
         session_affinity_format: str | None = None,
         has_images: bool = False,
         signal: CancellationToken | None = None,
+        hooks: RequestHooks | None = None,
     ) -> AsyncIterator[ProviderEvent]:
         """Run the shared streaming POST + retry envelope for a given endpoint.
 
         The per-endpoint differences (SSE chunk handling and final-message
         assembly) live in the ``_StreamParser`` produced by ``parser_factory``;
-        everything else — HTTP, status/network retries, cancellation, the
-        opening ``response_start`` event — is identical across endpoints.
+        everything else 鈥?HTTP, status/network retries, cancellation, the
+        opening ``response_start`` event 鈥?is identical across endpoints.
         """
 
         async def iterator() -> AsyncIterator[ProviderEvent]:
             client = self._get_client()
             api_key = self._config.api_key
             request_url = url
+            request_payload = await apply_payload(hooks, dict(payload))
             headers = dict(self._config.headers or {})
             if self._config.provider_name == "github-copilot" and has_images:
                 headers["Copilot-Vision-Request"] = "true"
@@ -274,12 +287,16 @@ class OpenAICompatibleProvider:
                 if not has_authorization:
                     headers["Authorization"] = f"Bearer {api_key}"
             _apply_session_affinity_headers(headers, session_id, session_affinity_format)
+            await apply_headers(hooks, headers)
 
             attempt = 0
             while True:
                 parser = parser_factory()
                 try:
-                    async with client.stream("POST", request_url, json=payload, headers=headers) as response:
+                    async with client.stream(
+                        "POST", request_url, json=request_payload, headers=headers
+                    ) as response:
+                        await observe_response(hooks, response.status_code, dict(response.headers))
                         response_provider = _response_header_value(
                             response,
                             self._config.response_provider_header,

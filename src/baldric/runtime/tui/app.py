@@ -52,7 +52,7 @@ from baldric.protocol.messages import (
     ToolCall,
     UserMessage,
 )
-from baldric.protocol.provider import CancellationToken
+from baldric.protocol.provider import CancellationToken, RequestHooks
 from baldric.protocol.provider_events import (
     AssistantErrorEvent,
     AssistantMessageEvent,
@@ -92,6 +92,7 @@ from baldric.runtime.events import (
     CodingSessionEvent,
     CompactionEndEvent,
     CompactionStartEvent,
+    ModelSelectEvent,
     QueueUpdateEvent,
     SessionAgentEndEvent,
     SessionInfoChangedEvent,
@@ -393,6 +394,7 @@ DOM_EVENT_HANDLERS: dict[type[object], str] = {
     AutoRetryEndEvent: "_dom_auto_retry_end",
     SessionInfoChangedEvent: "_dom_session_info_changed",
     ThinkingLevelChangedEvent: "_dom_thinking_level_changed",
+    ModelSelectEvent: "_dom_model_selected",
 }
 
 
@@ -424,9 +426,10 @@ class LoginRequiredProvider:
         tools: list[AgentTool],
         signal: CancellationToken | None = None,
         session_id: str | None = None,
+        hooks: RequestHooks | None = None,
     ) -> AsyncIterator[AssistantMessageEvent]:
         """Surface a login-needed provider error."""
-        del system, messages, tools, signal, session_id
+        del system, messages, tools, signal, session_id, hooks
 
         async def iterator() -> AsyncIterator[AssistantMessageEvent]:
             error = AssistantMessage(
@@ -2127,6 +2130,17 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
     def _load_session_messages_from_session(self) -> None:
         """Load visible session messages and reseed prompt history from them."""
         self.state.load_messages(self.session.messages)
+        # Custom entries (append_entry) render as their own transcript rows via
+        # registered entry renderers; a namespace with no renderer falls back
+        # to generic JSON text so persisted data is never invisible.
+        for entry in self.session.state.custom_entries:
+            self.state.add_item(
+                "custom",
+                f"custom entry `{entry.namespace}`",
+                custom_type=entry.namespace,
+                details=dict(entry.data),
+                entry_namespace=entry.namespace,
+            )
         self._prompt_history = tuple(
             message.text
             for message in self.session.messages
@@ -2750,6 +2764,10 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
 
     async def _dom_thinking_level_changed(self, event: ThinkingLevelChangedEvent) -> None:
         """A thinking-level change updates the sidebar/model chrome, not the transcript."""
+        self._refresh_chrome()
+
+    async def _dom_model_selected(self, event: ModelSelectEvent) -> None:
+        """A model change updates the sidebar/model chrome, not the transcript."""
         self._refresh_chrome()
 
     async def _dom_refresh_chrome(self, event: CodingSessionEvent) -> None:

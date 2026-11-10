@@ -62,6 +62,7 @@ def anyio_backend() -> str:
 
 class _FakeSessionState:
     thinking_level = "medium"
+    custom_entries: tuple = ()
 
 
 class _FakeSession:

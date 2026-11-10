@@ -6,10 +6,12 @@ import asyncio
 import os
 from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
+from functools import partial
 from inspect import isawaitable
 from pathlib import Path
 from time import time_ns
 from typing import Literal, Protocol, cast
+from uuid import uuid4
 
 import httpx
 
@@ -18,7 +20,19 @@ from baldric.agent.events import AgentEvent, AgentStartEvent
 from baldric.agent.events import TurnEndEvent as AgentTurnEndEvent
 from baldric.agent.events import TurnStartEvent as AgentTurnStartEvent
 from baldric.agent.tool_calls import BeforeToolCall
+from baldric.ai.hooks import (
+    ContextHook,
+    ProviderContext,
+    ProviderHooks,
+    StreamEventHook,
+)
 from baldric.protocol.messages import AgentMessage, TextContent
+from baldric.protocol.provider import (
+    HeadersHook,
+    HookContext,
+    PayloadHook,
+    ResponseHook,
+)
 from baldric.protocol.tools import (
     AgentTool,
     AgentToolResult,
@@ -46,9 +60,14 @@ from baldric.runtime.context.system_prompt import PromptSection
 from baldric.runtime.extensions.api import (
     AGENT_EVENT_TYPES,
     AGENT_EVENT_WILDCARD,
+    EVENT_NAME_ALIASES,
     EXTENSION_API_VERSION,
     LIFECYCLE_EVENT_TYPES,
+    PROVIDER_EVENT_TYPES,
+    CompactionSummaryResult,
+    CustomEntryView,
     CustomMessageView,
+    EntryRenderer,
     ExtensionAPI,
     ExtensionCommandContext,
     ExtensionCommandHandler,
@@ -58,20 +77,32 @@ from baldric.runtime.extensions.api import (
     ExtensionHandler,
     InputEvent,
     InputHookResult,
+    MarkdownRenderContext,
+    MarkdownTransformer,
     MessageRenderer,
     MessageRenderOptions,
     NullUiBridge,
+    ProviderContextEvent,
+    ProviderHeadersEvent,
+    ProviderRequestEvent,
+    ProviderResponseEvent,
+    ProviderStreamEvent,
     RegisteredExtension,
+    SessionBeforeCompactEvent,
     SessionLifecycleReason,
     SessionShutdownEvent,
     SessionStartEvent,
     ToolCallHookEvent,
     ToolCallHookResult,
+    ToolCallResolver,
     ToolResultHookEvent,
     ToolResultHookResult,
+    ToolResultResolver,
     TurnEndEvent,
     TurnStartEvent,
     UiBridge,
+    UserBashEvent,
+    UserBashResult,
 )
 from baldric.runtime.extensions.builtin_registry import (
     BuiltInExtension,
@@ -188,6 +219,12 @@ class BoundSession(Protocol):
 
     def set_inference_provider(self, route: str | None) -> str: ...
 
+    def set_model(self, model: str) -> None: ...
+
+    async def notify_model_selected(self, previous_model: str | None) -> None: ...
+
+    async def set_thinking_level(self, level: str) -> str: ...
+
     def refresh_system_prompt(self) -> None: ...
 
 
@@ -303,6 +340,10 @@ class ExtensionRuntime:
         self._prompt_guidelines: list[tuple[str, str, str]] = []
         self._prompt_sections: list[tuple[str, str, PromptSection]] = []
         self._message_renderers: dict[str, tuple[str, str, MessageRenderer]] = {}
+        self._entry_renderers: dict[str, tuple[str, str, EntryRenderer]] = {}
+        self._tool_call_resolvers: list[tuple[str, str, ToolCallResolver]] = []
+        self._tool_result_resolvers: list[tuple[str, str, ToolResultResolver]] = []
+        self._markdown_transformers: list[tuple[str, str, MarkdownTransformer, frozenset[str]]] = []
         self._renderer_failures_reported: set[str] = set()
         self._load_diagnostics: list[ResourceDiagnostic] = []
         self._runtime_diagnostics: list[ResourceDiagnostic] = []
@@ -321,6 +362,13 @@ class ExtensionRuntime:
         # the live list must carry the same wrapped shape compose_tools
         # produces, or tool_call/tool_result hooks would bypass dynamic tools.
         self._live_wrapped: dict[str, AgentTool] = {}
+        # The unfiltered materialized list; ``set_active_tools`` rewrites the
+        # bound list from it so disabling is reversible without unregistering.
+        self._live_tools_all: list[AgentTool] | None = None
+        # ``None`` means "every tool is active"; a set restricts to exactly those
+        # names, including tools registered after the restriction was set, so a
+        # restricted mode cannot be widened by a later registration.
+        self._active_tool_names: set[str] | None = None
         self._ui: UiBridge = ui or NullUiBridge()
         self._turn_requested: TurnRequestedCallback | None = None
         self._harness_unsubscribe: Callable[[], None] | None = None
@@ -415,6 +463,10 @@ class ExtensionRuntime:
         self._prompt_guidelines.clear()
         self._prompt_sections.clear()
         self._message_renderers.clear()
+        self._entry_renderers.clear()
+        self._tool_call_resolvers.clear()
+        self._tool_result_resolvers.clear()
+        self._markdown_transformers.clear()
         self._renderer_failures_reported.clear()
         self._live_tools = None
         self._live_allowed = None
@@ -544,6 +596,14 @@ class ExtensionRuntime:
             for custom_type, registration in self._message_renderers.items()
             if registration[0] != source_id
         }
+        self._entry_renderers = {
+            custom_type: registration
+            for custom_type, registration in self._entry_renderers.items()
+            if registration[0] != source_id
+        }
+        self._tool_call_resolvers = [r for r in self._tool_call_resolvers if r[0] != source_id]
+        self._tool_result_resolvers = [r for r in self._tool_result_resolvers if r[0] != source_id]
+        self._markdown_transformers = [t for t in self._markdown_transformers if t[0] != source_id]
         self._provider_registry.unregister_source(source_id)
         self._local_backend_registry.unregister_source(source_id)
 
@@ -593,7 +653,9 @@ class ExtensionRuntime:
         if self._live_tools is not None:
             wrapped = self._wrap_tool(tool)
             self._live_wrapped[tool.name] = wrapped
-            self._live_tools.append(wrapped)
+            if self._live_tools_all is not None:
+                self._live_tools_all.append(wrapped)
+            self._apply_live_tool_filter()
 
     def unregister_tool(self, source_id: str, extension_name: str, name: str) -> None:
         """Remove this extension's tool registration; a no-op when absent.
@@ -678,6 +740,225 @@ class ExtensionRuntime:
             return
         self._message_renderers[normalized] = (source_id, extension_name, renderer)
 
+    def register_entry_renderer(
+        self,
+        source_id: str,
+        extension_name: str,
+        custom_type: str,
+        renderer: EntryRenderer,
+    ) -> None:
+        """Register a custom-entry renderer; first registration per namespace wins."""
+        normalized = custom_type.strip()
+        if not normalized:
+            self._load_diagnostics.append(
+                ResourceDiagnostic(
+                    kind="extension",
+                    name=extension_name,
+                    message="empty custom_type for entry renderer ignored",
+                )
+            )
+            return
+        existing = self._entry_renderers.get(normalized)
+        if existing is not None:
+            self._load_diagnostics.append(
+                ResourceDiagnostic(
+                    kind="extension",
+                    name=extension_name,
+                    message=(
+                        f"entry renderer for `{normalized}` already registered by"
+                        f" extension `{existing[1]}`; ignoring duplicate"
+                    ),
+                )
+            )
+            return
+        self._entry_renderers[normalized] = (source_id, extension_name, renderer)
+
+    def register_tool_renderer(
+        self,
+        source_id: str,
+        extension_name: str,
+        *,
+        render_call: ToolCallResolver | None,
+        render_result: ToolResultResolver | None,
+    ) -> None:
+        """Append tool render resolvers in extension load order (Pi's chain)."""
+        if render_call is not None:
+            self._tool_call_resolvers.append((source_id, extension_name, render_call))
+        if render_result is not None:
+            self._tool_result_resolvers.append((source_id, extension_name, render_result))
+
+    def register_markdown_transformer(
+        self,
+        source_id: str,
+        extension_name: str,
+        transformer: MarkdownTransformer,
+        *,
+        message_types: tuple[str, ...],
+    ) -> None:
+        """Append a chained markdown transformer; empty message_types = transcript default."""
+        surfaces = frozenset(message_types) or frozenset({"user", "assistant", "assistant-thinking"})
+        self._markdown_transformers.append((source_id, extension_name, transformer, surfaces))
+
+    def render_custom_entry(
+        self,
+        namespace: str,
+        data: Mapping[str, JSONValue],
+        expanded: bool,
+    ) -> str | None:
+        """Render a custom entry to markup, or ``None`` to fall back to generic text."""
+        registration = self._entry_renderers.get(namespace)
+        if registration is None:
+            return None
+        _, extension_name, renderer = registration
+        view = CustomEntryView(namespace=namespace, data=data)
+        options = MessageRenderOptions(expanded=expanded)
+        event_name = f"entry_renderer:{namespace}"
+        markup = self._render_isolated(
+            failure_key=namespace,
+            extension_label=extension_name,
+            event_name=event_name,
+            producer=lambda: renderer(view, options),
+        )
+        if not isinstance(markup, str):
+            if namespace not in self._renderer_failures_reported:
+                self._renderer_failures_reported.add(namespace)
+                self._record_bad_result(extension_name, event_name, markup)
+            return None
+        return markup
+
+    def render_tool_call_via_resolvers(
+        self,
+        name: str,
+        arguments: Mapping[str, JSONValue],
+    ) -> str | None:
+        """Resolve a tool-call line through the extension resolver chain.
+
+        Each resolver receives ``next``, which yields the next resolver's result
+        (and finally the tool's own ``render_call``). A raising resolver is
+        skipped (fail-open), matching the hook-composition contract.
+        """
+
+        def base() -> str | None:
+            return self.render_tool_call(name, arguments)
+
+        chain: Callable[[], str | None] = base
+        for _source_id, _extension_name, resolver in reversed(self._tool_call_resolvers):
+            next_call = chain
+            chain = self._chain_tool_resolver(resolver, name, next_call, arguments)
+        return chain()
+
+    def _chain_tool_resolver(
+        self,
+        resolver: ToolCallResolver,
+        name: str,
+        next_call: Callable[[], str | None],
+        arguments: Mapping[str, JSONValue],
+    ) -> Callable[[], str | None]:
+        def wrapped() -> str | None:
+            result = self._render_isolated(
+                failure_key=name,
+                extension_label=f"tool-renderer:{name}",
+                event_name=name,
+                producer=lambda: resolver(name, next_call),
+            )
+            return result if isinstance(result, str) else next_call()
+
+        return wrapped
+
+    def render_tool_result_via_resolvers(
+        self,
+        tool_name: str,
+        result: AgentToolResult,
+        expanded: bool,
+    ) -> str | None:
+        """Resolve a tool-result block through the extension resolver chain."""
+
+        def base() -> str | None:
+            return self.render_tool_result(tool_name, result, expanded)
+
+        chain: Callable[[], str | None] = base
+        for _source_id, _extension_name, resolver in reversed(self._tool_result_resolvers):
+            next_call = chain
+            chain = self._chain_tool_result_resolver(resolver, tool_name, next_call, result, expanded)
+        return chain()
+
+    def _chain_tool_result_resolver(
+        self,
+        resolver: ToolResultResolver,
+        tool_name: str,
+        next_call: Callable[[], str | None],
+        result: AgentToolResult,
+        expanded: bool,
+    ) -> Callable[[], str | None]:
+        def wrapped() -> str | None:
+            rendered = self._render_isolated(
+                failure_key=tool_name,
+                extension_label=f"tool-renderer:{tool_name}",
+                event_name=tool_name,
+                producer=lambda: resolver(tool_name, result, expanded, next_call),
+            )
+            return rendered if isinstance(rendered, str) else next_call()
+
+        return wrapped
+
+    def transform_markdown(
+        self,
+        markdown: str,
+        *,
+        message_type: str,
+        is_streaming: bool = False,
+        available_width: int | None = None,
+    ) -> str:
+        """Run the chained markdown transformers for one surface (display-only).
+
+        A raising transformer is skipped (fail-open); the markdown produced so
+        far continues down the chain. Returns the final markdown.
+        """
+        current = markdown
+        for source_id, extension_name, transformer, surfaces in self._markdown_transformers:
+            if message_type not in surfaces:
+                continue
+            context = MarkdownRenderContext(
+                message_type=message_type,
+                is_streaming=is_streaming,
+                available_width=available_width,
+            )
+            event_name = f"markdown_transformer:{message_type}"
+            transformed = self._render_isolated(
+                failure_key=f"markdown:{source_id}:{message_type}",
+                extension_label=extension_name,
+                event_name=event_name,
+                producer=partial(transformer, current, context),
+            )
+            if not isinstance(transformed, str):
+                if transformed is not None:
+                    self._record_bad_result(extension_name, event_name, transformed)
+                continue
+            current = transformed
+        return current
+
+    def _render_isolated(
+        self,
+        *,
+        failure_key: str,
+        extension_label: str,
+        event_name: str,
+        producer: Callable[[], object],
+    ) -> object | None:
+        """Run one registered renderer through the shared isolation boundary.
+
+        A renderer must never crash the frontend: a raise is recorded once per
+        ``failure_key`` (render paths re-run on every redraw) and yields ``None``
+        so the caller can fall back to its default.
+        """
+        try:
+            return producer()
+        except Exception as exc:  # noqa: BLE001 - a renderer must never crash the frontend
+            if failure_key not in self._renderer_failures_reported:
+                self._renderer_failures_reported.add(failure_key)
+                self._record_runtime_failure(extension_label, event_name, exc)
+            return None
+
     def render_custom_message(
         self,
         custom_type: str,
@@ -699,17 +980,17 @@ class ExtensionRuntime:
         _, extension_name, renderer = registration
         view = CustomMessageView(custom_type=custom_type, content=content, details=details)
         options = MessageRenderOptions(expanded=expanded)
-        try:
-            markup = renderer(view, options)
-        except Exception as exc:  # noqa: BLE001 - a renderer must never crash the frontend
-            if custom_type not in self._renderer_failures_reported:
-                self._renderer_failures_reported.add(custom_type)
-                self._record_runtime_failure(extension_name, f"message_renderer:{custom_type}", exc)
-            return None
+        event_name = f"message_renderer:{custom_type}"
+        markup = self._render_isolated(
+            failure_key=custom_type,
+            extension_label=extension_name,
+            event_name=event_name,
+            producer=lambda: renderer(view, options),
+        )
         if not isinstance(markup, str):
             if custom_type not in self._renderer_failures_reported:
                 self._renderer_failures_reported.add(custom_type)
-                self._record_bad_result(extension_name, f"message_renderer:{custom_type}", markup)
+                self._record_bad_result(extension_name, event_name, markup)
             return None
         return markup
 
@@ -840,7 +1121,13 @@ class ExtensionRuntime:
 
     def subscribe(self, source_id: str, event: str, handler: ExtensionHandler) -> None:
         """Subscribe an extension handler to a named event."""
-        known = event in AGENT_EVENT_TYPES or event in LIFECYCLE_EVENT_TYPES or event == AGENT_EVENT_WILDCARD
+        canonical = EVENT_NAME_ALIASES.get(event, event)
+        known = (
+            canonical in AGENT_EVENT_TYPES
+            or canonical in LIFECYCLE_EVENT_TYPES
+            or canonical in PROVIDER_EVENT_TYPES
+            or canonical == AGENT_EVENT_WILDCARD
+        )
         if not known:
             self._load_diagnostics.append(
                 ResourceDiagnostic(
@@ -853,7 +1140,117 @@ class ExtensionRuntime:
         extension = self._extension_by_source(source_id)
         if extension is None:
             raise ExtensionError(f"unknown extension source: {source_id}")
-        extension.handlers.setdefault(event, []).append(handler)
+        extension.handlers.setdefault(canonical, []).append(handler)
+
+    # -- provider seams (plan Task A2) ---------------------------------------
+
+    def has_provider_hooks(self) -> bool:
+        """Return whether any extension registered a provider-seam handler."""
+        return any(next(self._handlers_for(name), None) is not None for name in PROVIDER_EVENT_TYPES)
+
+    def build_provider_hooks(self) -> ProviderHooks:
+        """Adapt registered provider-seam handlers onto the AI-layer seams.
+
+        Bridges Baldric's extension events (``context`` / ``before_provider_*`` /
+        ``after_provider_response`` / ``provider_stream_event``) onto either the
+        provider-boundary seams (``HookableProvider``) or the adapter request
+        seams (``RequestHooks``), matching Pi's coding-agent -> ai bridge. Returns
+        an empty :class:`ProviderHooks` (``is_empty()``) when nothing is
+        registered, so the session can skip wrapping entirely.
+        """
+        hooks = ProviderHooks()
+        context_handlers = [*self._handlers_for("context"), *self._handlers_for("context_with_system")]
+        for owner, handler in context_handlers:
+            hooks.context.append(self._adapt_context_handler(owner, handler))
+        for owner, handler in self._handlers_for("before_provider_headers"):
+            hooks.headers.append(self._adapt_headers_handler(owner, handler))
+        for owner, handler in self._handlers_for("before_provider_request"):
+            hooks.payload.append(self._adapt_payload_handler(owner, handler))
+        for owner, handler in self._handlers_for("after_provider_response"):
+            hooks.response.append(self._adapt_response_handler(owner, handler))
+        for owner, handler in self._handlers_for("provider_stream_event"):
+            hooks.stream_event.append(self._adapt_stream_handler(owner, handler))
+        return hooks
+
+    async def _invoke_handler(
+        self, owner: RegisteredExtension, event_name: str, event: object, handler: ExtensionHandler
+    ) -> object:
+        """Run one extension handler with the shared isolation boundary.
+
+        This is the single try/except for gated/async lifecycle seams: a handler
+        (sync or async) that raises is recorded as a runtime failure and yields
+        ``_PROVIDER_HANDLER_FAILED`` so the caller can defer to its fallback.
+        Provider seams and ``user_bash`` share it, matching ``ai.hooks._guarded``.
+        """
+        try:
+            return await _resolve(handler(event, self._fresh_context(owner.source_id)))
+        except Exception as exc:  # noqa: BLE001 - extensions are an isolation boundary
+            self._record_runtime_failure(owner.name, event_name, exc)
+            return _PROVIDER_HANDLER_FAILED
+
+    def _adapt_context_handler(self, owner: RegisteredExtension, handler: ExtensionHandler) -> ContextHook:
+        async def adapted(request: ProviderContext, _ctx: HookContext) -> ProviderContext | None:
+            event = ProviderContextEvent(
+                model=request.model,
+                system=request.system,
+                messages=tuple(request.messages),
+                tools=tuple(request.tools),
+            )
+            result = await self._invoke_handler(owner, "context", event, handler)
+            if isinstance(result, ProviderContextEvent):
+                return ProviderContext(
+                    model=result.model,
+                    system=result.system,
+                    messages=list(result.messages),
+                    tools=list(result.tools),
+                    session_id=request.session_id,
+                )
+            return None
+
+        return adapted
+
+    def _adapt_headers_handler(self, owner: RegisteredExtension, handler: ExtensionHandler) -> HeadersHook:
+        async def adapted(headers: dict[str, str], _ctx: HookContext) -> None:
+            await self._invoke_handler(
+                owner, "before_provider_headers", ProviderHeadersEvent(model="", headers=headers), handler
+            )
+
+        return adapted
+
+    def _adapt_payload_handler(self, owner: RegisteredExtension, handler: ExtensionHandler) -> PayloadHook:
+        async def adapted(payload: dict[str, JSONValue], ctx: HookContext) -> dict[str, JSONValue] | None:
+            result = await self._invoke_handler(
+                owner,
+                "before_provider_request",
+                ProviderRequestEvent(model=ctx.model, payload=payload),
+                handler,
+            )
+            if isinstance(result, ProviderRequestEvent):
+                return result.payload
+            if isinstance(result, dict):
+                return result
+            return None
+
+        return adapted
+
+    def _adapt_response_handler(self, owner: RegisteredExtension, handler: ExtensionHandler) -> ResponseHook:
+        async def adapted(status: int, headers: dict[str, str], ctx: HookContext) -> None:
+            await self._invoke_handler(
+                owner,
+                "after_provider_response",
+                ProviderResponseEvent(model=ctx.model, status=status, headers=headers),
+                handler,
+            )
+
+        return adapted
+
+    def _adapt_stream_handler(self, owner: RegisteredExtension, handler: ExtensionHandler) -> StreamEventHook:
+        async def adapted(event: object, ctx: HookContext) -> None:
+            await self._invoke_handler(
+                owner, "provider_stream_event", ProviderStreamEvent(model=ctx.model, event=event), handler
+            )
+
+        return adapted
 
     # -- binding -------------------------------------------------------------
 
@@ -939,6 +1336,14 @@ class ExtensionRuntime:
     def local_backend_registry(self) -> LocalBackendRegistry:
         """Return this staged runtime generation's local-backend registry."""
         return self._local_backend_registry
+
+    async def set_model(self, model: str) -> None:
+        """Switch the bound session's model and dispatch ``model_select``."""
+        view = self.session_view
+        previous = view.model
+        view.set_model(model)
+        if previous != view.model:
+            await view.notify_model_selected(previous)
 
     @property
     def paths(self) -> BaldricPaths:
@@ -1113,8 +1518,65 @@ class ExtensionRuntime:
         mirroring ``set_ui_bridge``.
         """
         self._live_tools = tools
+        self._live_tools_all = list(tools)
         self._live_allowed = allowed
         self._live_wrapped.clear()
+        self._apply_live_tool_filter()
+
+    def set_active_tools(self, names: Sequence[str] | None) -> None:
+        """Enable only the named tools for future runs (ports Pi's setActiveTools).
+
+        ``None`` re-enables every tool. Disabling is reversible and does not
+        withdraw the registration, so an extension can gate a tool per state
+        without losing its handler. Unknown names are diagnosed. The system
+        prompt is refreshed because it lists the available tools.
+        """
+        if self._live_tools_all is None:
+            raise ExtensionError("set_active_tools requires a bound session")
+        if names is None:
+            self._active_tool_names = None
+        else:
+            requested = set(names)
+            known = {tool.name for tool in self._live_tools_all}
+            for unknown in sorted(requested - known):
+                self._load_diagnostics.append(
+                    ResourceDiagnostic(
+                        kind="extension",
+                        name="set_active_tools",
+                        message=f"unknown tool `{unknown}`; ignored",
+                    )
+                )
+            self._active_tool_names = requested
+        self._apply_live_tool_filter()
+        self.request_system_prompt_refresh()
+
+    def _apply_live_tool_filter(self) -> None:
+        """Rewrite the bound list to the tools that are currently active."""
+        if self._live_tools is None or self._live_tools_all is None:
+            return
+        active = self._active_tool_names
+        self._live_tools[:] = [tool for tool in self._live_tools_all if active is None or tool.name in active]
+
+    async def execute_tool(
+        self,
+        name: str,
+        arguments: Mapping[str, JSONValue],
+        *,
+        signal: ToolCancellationToken | None = None,
+    ) -> AgentToolResult:
+        """Run one active tool through the session's tool pipeline (ports ``ctx.executeTool``).
+
+        The call goes through the wrapped tool, so ``tool_call``/``tool_result``
+        hooks and project trust apply exactly as they do for the model. A tool
+        disabled with :meth:`set_active_tools` is not reachable here.
+        """
+        tool = next(
+            (candidate for candidate in self._live_tools or () if candidate.name == name),
+            None,
+        )
+        if tool is None:
+            raise ExtensionError(f"tool `{name}` is not active or not registered")
+        return await tool.execute(uuid4().hex, arguments, signal=signal)
 
     def request_system_prompt_refresh(self) -> None:
         """Ask the bound session to rebuild its system prompt."""
@@ -1122,11 +1584,12 @@ class ExtensionRuntime:
             self._session.refresh_system_prompt()
 
     def _drop_live_tools(self, tools: list[AgentTool]) -> None:
-        """Remove exact tool objects from the bound list, when bound."""
-        if self._live_tools is None:
-            return
+        """Remove exact tool objects from the bound (and unfiltered) lists."""
         withdrawn = {id(tool) for tool in tools}
-        self._live_tools[:] = [tool for tool in self._live_tools if id(tool) not in withdrawn]
+        if self._live_tools is not None:
+            self._live_tools[:] = [tool for tool in self._live_tools if id(tool) not in withdrawn]
+        if self._live_tools_all is not None:
+            self._live_tools_all[:] = [tool for tool in self._live_tools_all if id(tool) not in withdrawn]
 
     def _wrap_tool(self, tool: AgentTool) -> AgentTool:
         async def executor(
@@ -1344,6 +1807,41 @@ class ExtensionRuntime:
             except Exception as exc:  # noqa: BLE001 - extensions are an isolation boundary
                 self._record_runtime_failure(owner.name, event_type, exc)
 
+    async def run_user_bash(self, event: UserBashEvent) -> UserBashResult | None:
+        """Ask extensions to answer a ``!``/``!!`` command before local execution.
+
+        Gate semantics from the hook-composition contract: the first handler
+        returning a :class:`UserBashResult` wins and the shell does not run;
+        ``None`` defers to the next handler. A raising handler is skipped.
+        """
+        for owner, handler in self._handlers_for("user_bash"):
+            result = await self._invoke_handler(owner, "user_bash", event, handler)
+            if result is _PROVIDER_HANDLER_FAILED or result is None:
+                continue
+            if isinstance(result, UserBashResult):
+                return result
+            self._record_bad_result(owner.name, "user_bash", result)
+        return None
+
+    async def request_compaction_summary(self, event: SessionBeforeCompactEvent) -> str | None:
+        """Ask extensions for a compaction summary (Pi's ``session_before_compact``).
+
+        First non-empty summary wins; ``None`` falls back to the built-in
+        summarizer. ``block`` is deliberately not offered: compaction must
+        always complete, so an extension can only supply text, never veto.
+        """
+        for owner, handler in self._handlers_for("session_before_compact"):
+            result = await self._invoke_handler(owner, "session_before_compact", event, handler)
+            if result is _PROVIDER_HANDLER_FAILED or result is None:
+                continue
+            if isinstance(result, CompactionSummaryResult):
+                if result.summary.strip():
+                    return result.summary.strip()
+                self._record_bad_result(owner.name, "session_before_compact", result)
+                continue
+            self._record_bad_result(owner.name, "session_before_compact", result)
+        return None
+
     async def _on_agent_event(self, event: AgentEvent) -> None:
         """Adapt core turn events to Pi's extension-facing session metadata."""
         extension_event: object = event
@@ -1474,3 +1972,10 @@ async def _resolve(value: object) -> object:
     if isawaitable(value):
         return await value
     return value
+
+
+class _ProviderHandlerFailed:
+    """Sentinel: a provider-seam handler raised and was recorded (isolation)."""
+
+
+_PROVIDER_HANDLER_FAILED = _ProviderHandlerFailed()

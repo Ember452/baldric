@@ -808,6 +808,54 @@ baldric.send_custom_message(
   confirmed by the run (a moment after delivery), rather than instantly like a
   typed prompt's optimistic echo.
 
+### Provider seams, renderers, and lifecycle handles (API v2)
+
+API version 2 adds surfaces that mirror Pi's provider and renderer hooks. They
+are declared with the `provider_hooks` / `renderers` capabilities and keep the
+same rule as every other renderer: Rich-markup text, never a Textual widget.
+
+```python
+from baldric.runtime.extensions import CompactionSummaryResult, UserBashResult
+
+def setup(baldric):
+    # Provider request seams (observe or rewrite the outgoing request).
+    baldric.on("context", lambda event, ctx: None)                # chained messages/system rewrite
+    baldric.on("before_provider_headers", lambda e, c: e.headers.update({"X-App": "x"}))
+    baldric.on("before_provider_request", lambda e, c: {**e.payload, "x-flag": True})
+    baldric.on("after_provider_response", lambda e, c: None)      # status + headers
+    baldric.on("provider_stream_event", lambda e, c: None)        # raw parsed events
+
+    # Renderers for entries, tools, and markdown.
+    baldric.register_entry_renderer("my-ext:card", lambda view, opts: f"[b]{view.data['title']}[/b]")
+    baldric.register_tool_renderer(render_call=wrap_call, render_result=wrap_result)
+    baldric.register_markdown_transformer(lambda md, ctx: md.replace(":warning:", "!"))
+
+    # Lifecycle handles.
+    baldric.on("user_bash", lambda event, ctx: UserBashResult(output="handled remotely"))
+    baldric.on("session_before_compact", lambda e, c: CompactionSummaryResult(summary="..."))
+    baldric.set_active_tools(["read", "write"])                   # restrict what the model sees
+    result = await baldric.execute_tool("read", {"path": "README.md"})
+    await baldric.set_model("fast-model")
+    applied = await baldric.set_thinking_level("high")
+```
+
+- **Chaining and isolation.** `context` and `before_provider_request` are
+  chained (return a replacement or `None`); `before_provider_headers` mutates in
+  place; the observe seams are read-only. A raising handler is skipped and
+  diagnosed — it never breaks the run, and with no provider seam registered the
+  request path is untouched (byte-identical).
+- **Tool resolvers** receive `(tool_name, next)` / `(tool_name, result, expanded,
+  next)`; `next()` yields the lower-priority answer (other extensions, then the
+  tool's own renderer), so a resolver can wrap, defer, or take over any tool —
+  including tools registered after it.
+- **Compaction** accepts a supplied summary only; it cannot be vetoed, the text
+  is clamped to 20k characters, and a blank or failing handler falls back to the
+  built-in summarizer.
+- **Tool handles.** `set_active_tools(names)` restricts the visible tool set
+  (`None` restores all) and the restriction also holds for tools registered
+  later; `execute_tool` runs an active tool through the same pipeline as a
+  model-issued call, so `tool_call`/`tool_result` hooks and project trust apply.
+
 ## Growing and maintaining an extension
 
 Extensions have three natural sizes; each step is optional and none
@@ -873,7 +921,9 @@ See [`examples/extensions/`](https://github.com/Ember452/baldric/tree/main/examp
 
 Compared to Pi's extension system, Baldric does not yet include a complete package
 manager (the installer has no registry, dependency installation, remove, or
-package-update commands), custom entry renderers (non-context cards),
-declarative keyboard-shortcut registration, CLI flag registration,
-system-prompt replacement, or context rewriting. The architecture document
-(`dev-notes/architecture/phase-21-extensions.md`) tracks the extension design.
+package-update commands), declarative keyboard-shortcut registration, CLI flag
+registration, or system-prompt replacement. Custom entry/tool/markdown renderers,
+provider request seams, context rewriting, `user_bash` interception, and the
+dynamic tool handles are supported as of API v2 (see above). The architecture
+document (`dev-notes/architecture/phase-21-extensions.md`) tracks the extension
+design.

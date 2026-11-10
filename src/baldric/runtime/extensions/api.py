@@ -12,7 +12,7 @@ from uuid import uuid4
 
 from baldric.agent.tool_calls import BeforeToolCall
 from baldric.protocol.messages import AgentMessage, ToolResultMessage
-from baldric.protocol.tools import AgentTool, AgentToolResult
+from baldric.protocol.tools import AgentTool, AgentToolResult, ToolCancellationToken
 from baldric.protocol.types import JSONValue
 
 if TYPE_CHECKING:
@@ -59,7 +59,11 @@ AGENT_EVENT_WILDCARD = "agent_event"
 # break later against a changed runtime. Pi deliberately keeps no backward
 # compatibility and therefore has no constant; Baldric's ecosystem promise is
 # why this one exists.
-EXTENSION_API_VERSION = 1
+#
+# v2 added the provider seams, the entry/tool/markdown renderers, the dynamic
+# tool handles (set_active_tools / execute_tool), and the lifecycle events
+# (user_bash, model_select, thinking_level_select, session_before_compact).
+EXTENSION_API_VERSION = 2
 
 LIFECYCLE_EVENT_TYPES: frozenset[str] = frozenset(
     {
@@ -69,6 +73,38 @@ LIFECYCLE_EVENT_TYPES: frozenset[str] = frozenset(
         "tool_call",
         "tool_result",
         "project_trust",
+        "user_bash",
+        "model_select",
+        "thinking_level_select",
+        "session_before_compact",
+    }
+)
+
+# Extension-facing event names that map onto an existing canonical event type.
+# Pi calls the thinking-level notification `thinking_level_select`; Baldric's
+# canonical frontend event is `thinking_level_changed`, so subscribing with
+# either name delivers the same event (no duplicate emission).
+EVENT_NAME_ALIASES: Mapping[str, str] = {
+    "thinking_level_select": "thinking_level_changed",
+}
+
+# Provider-level seams (plan Task A2). These mirror Pi's provider events and are
+# bridged onto the AI-layer request hooks (RequestHooks / HookableProvider). They
+# do NOT go through emit_event; ExtensionRuntime.build_provider_hooks() wires the
+# registered handlers onto the provider during session creation.
+# - context / context_with_system: chained transform of the outgoing messages/system.
+# - before_provider_headers: in-place mutate of the outgoing HTTP headers.
+# - before_provider_request: chained transform of the outgoing payload.
+# - after_provider_response: read-only observe of status + headers.
+# - provider_stream_event: read-only observe of each parsed stream event.
+PROVIDER_EVENT_TYPES: frozenset[str] = frozenset(
+    {
+        "context",
+        "context_with_system",
+        "before_provider_headers",
+        "before_provider_request",
+        "after_provider_response",
+        "provider_stream_event",
     }
 )
 
@@ -93,6 +129,13 @@ class ExtensionCapabilities:
     ``textual.widget.Widget``/Textual event values. Extensions that only
     register tools, hooks, commands, providers, or plain-text UI never need
     Textual.
+
+    v2 adds two domains for the new surfaces: ``provider_hooks`` (the
+    provider-level seams) and ``renderers`` (entry/tool/markdown renderers).
+    Like the other fields these describe reliance, not permission: the host
+    never refuses a surface because a domain was not declared, because the
+    contract promises an ecosystem, not a sandbox (see the note on
+    ``EXTENSION_API_VERSION``).
     """
 
     ui: bool = False
@@ -100,9 +143,19 @@ class ExtensionCapabilities:
     providers: bool = False
     tools: bool = False
     hooks: bool = False
+    provider_hooks: bool = False
+    renderers: bool = False
 
     def __post_init__(self) -> None:
-        for name in ("ui", "components", "providers", "tools", "hooks"):
+        for name in (
+            "ui",
+            "components",
+            "providers",
+            "tools",
+            "hooks",
+            "provider_hooks",
+            "renderers",
+        ):
             if not isinstance(getattr(self, name), bool):
                 raise TypeError(f"Extension capability `{name}` must be a boolean")
 
@@ -162,6 +215,49 @@ ToolCallMarkup = Callable[[str, "Mapping[str, JSONValue]"], "str | None"]
 # `render_result` or ``None`` to fall back to the generic result block. Errors
 # are swallowed by the resolver, never raised into the frontend.
 ToolResultMarkup = Callable[[str, AgentToolResult, bool], "str | None"]
+
+# --- extension renderers (plan Task D) ---------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class CustomEntryView:
+    """Read-only view of a custom entry handed to an entry renderer.
+
+    Ports Pi's ``registerEntryRenderer``: the entry was created with
+    ``append_entry(namespace, data)``; ``namespace`` selects the renderer and
+    ``data`` is the stored payload. Rendered to Rich-markup text, never a Textual
+    widget (same deviation as message renderers — keeps extensions TUI-free).
+    """
+
+    namespace: str
+    data: Mapping[str, JSONValue]
+
+
+# An entry renderer returns Rich-markup (or plain) text for one custom entry.
+type EntryRenderer = Callable[[CustomEntryView, MessageRenderOptions], str]
+
+# A tool-call render resolver: Pi's ``registerToolRenderer`` shape. Receives the
+# tool name and ``next_call`` — which returns whatever lower-priority resolvers
+# and the tool's own ``render_call`` would produce (or None). Return None to
+# defer to ``next_call``; return a string to take over. Errors are swallowed.
+type ToolCallResolver = Callable[[str, "Callable[[], str | None]"], "str | None"]
+# A tool-result render resolver: same shape for the result end of the row.
+type ToolResultResolver = Callable[[str, AgentToolResult, bool, "Callable[[], str | None]"], "str | None"]
+
+# A markdown transformer: chained, display-only, runs on ``message_type`` surfaces.
+# Receives the markdown and the surface it is rendering for; returns the
+# (possibly rewritten) markdown. Pi's ``registerMarkdownTransformer``.
+type MarkdownTransformer = Callable[[str, "MarkdownRenderContext"], str]
+
+
+@dataclass(frozen=True, slots=True)
+class MarkdownRenderContext:
+    """Context handed to a markdown transformer (ports Pi's transformer context)."""
+
+    message_type: str
+    is_streaming: bool = False
+    available_width: int | None = None
+
 
 # --- component seam ---------------------------------------------------------
 # Widget-hosting capability that lets an extension mount its own Textual widgets
@@ -515,6 +611,114 @@ class InputHookResult:
     action: Literal["continue", "transform", "handled"] = "continue"
     text: str | None = None
     message: str | None = None
+
+
+# --- provider seam events (plan Task A2) --------------------------------------
+# Payloads handed to handlers registered via ``on("<provider_event>")``. Each is
+# bridged onto the AI-layer RequestHooks by ExtensionRuntime.build_provider_hooks.
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderContextEvent:
+    """Payload for ``context`` / ``context_with_system`` (chained transform).
+
+    Return a replacement :class:`ProviderContextEvent` to change the outgoing
+    request; return ``None`` to keep the previous handler's value.
+    """
+
+    model: str
+    system: str
+    messages: tuple[AgentMessage, ...]
+    tools: tuple[AgentTool, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderHeadersEvent:
+    """Payload for ``before_provider_headers`` (in-place mutate).
+
+    ``headers`` is the live dict the adapter is about to send; mutate it in place.
+    """
+
+    model: str
+    headers: dict[str, str]
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderRequestEvent:
+    """Payload for ``before_provider_request`` (chained payload transform).
+
+    ``payload`` is the live request body dict; return a replacement dict to
+    swap it (Pi's ``onPayload``), or ``None`` to keep it.
+    """
+
+    model: str
+    payload: dict[str, JSONValue]
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderResponseEvent:
+    """Payload for ``after_provider_response`` (read-only observe)."""
+
+    model: str
+    status: int
+    headers: dict[str, str]
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderStreamEvent:
+    """Payload for ``provider_stream_event`` (read-only observe of one event)."""
+
+    model: str
+    event: object
+
+
+@dataclass(frozen=True, slots=True)
+class UserBashEvent:
+    """Payload for the ``user_bash`` hook (a ``!``/``!!`` command, ports Pi).
+
+    ``exclude_from_context`` is True for ``!!`` (output is not added to the
+    model context). A handler may return a :class:`UserBashResult` to answer the
+    command itself; returning ``None`` continues to the next handler, then the
+    local shell.
+    """
+
+    command: str
+    cwd: Path
+    exclude_from_context: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class UserBashResult:
+    """A completed ``user_bash`` command supplied by an extension.
+
+    Returning this records the command as if it had run (no local execution).
+    ``cancelled`` lets an extension report an aborted remote run.
+    """
+
+    output: str = ""
+    exit_code: int | None = None
+    cancelled: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class SessionBeforeCompactEvent:
+    """Payload for ``session_before_compact`` (Pi's event, summary half only).
+
+    Baldric does not expose veto power here: a handler may return a
+    :class:`CompactionSummaryResult` to supply the summary, and returning
+    ``None`` keeps the built-in summarizer. Compaction must always succeed, so a
+    ``block``-style result is not part of this contract (see hook-composition.md).
+    """
+
+    reason: str
+    messages: tuple[AgentMessage, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class CompactionSummaryResult:
+    """A replacement compaction summary produced by an extension."""
+
+    summary: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -1176,6 +1380,25 @@ class ExtensionAPI:
         self._generation.assert_active()
         return self._runtime.session_view.set_inference_provider(route)
 
+    async def set_model(self, model: str) -> None:
+        """Switch the active session model (ports Pi's ``setModel``).
+
+        The change fires the ``model_select`` event for every extension,
+        including this one, and persists the selection the way the ``/model``
+        command does.
+        """
+        self._generation.assert_active()
+        await self._runtime.set_model(model)
+
+    async def set_thinking_level(self, level: str) -> str:
+        """Switch the active thinking level (ports Pi's ``setThinkingLevel``).
+
+        Returns the level actually applied (the runtime coerces/clamps it). The
+        change fires ``thinking_level_select``.
+        """
+        self._generation.assert_active()
+        return await self._runtime.session_view.set_thinking_level(level)
+
     def register_tool(self, tool: AgentTool) -> None:
         """Register an agent tool (first registration per name wins)."""
         self._generation.assert_active()
@@ -1185,6 +1408,32 @@ class ExtensionAPI:
         """Withdraw a tool this extension registered (silent no-op otherwise)."""
         self._generation.assert_active()
         self._runtime.unregister_tool(self._source_id, self._extension_name, name)
+
+    def set_active_tools(self, names: Sequence[str] | None) -> None:
+        """Enable only the named tools for future runs (ports Pi's ``setActiveTools``).
+
+        ``None`` re-enables every tool. Disabling is reversible and keeps the
+        registration, so an extension can gate a tool per state. The system
+        prompt is refreshed because it lists the available tools.
+        """
+        self._generation.assert_active()
+        self._runtime.set_active_tools(names)
+
+    async def execute_tool(
+        self,
+        name: str,
+        arguments: Mapping[str, JSONValue],
+        *,
+        signal: ToolCancellationToken | None = None,
+    ) -> AgentToolResult:
+        """Run an active tool through the session pipeline (ports ``ctx.executeTool``).
+
+        ``tool_call``/``tool_result`` hooks and project trust apply exactly as
+        for a model-issued call. A tool disabled with :meth:`set_active_tools`
+        (or never registered) raises :class:`ExtensionError`.
+        """
+        self._generation.assert_active()
+        return await self._runtime.execute_tool(name, arguments, signal=signal)
 
     def refresh_system_prompt(self) -> None:
         """Ask the bound session to rebuild its system prompt from registries."""
@@ -1294,6 +1543,57 @@ class ExtensionAPI:
         """
         self._generation.assert_active()
         self._runtime.register_message_renderer(self._source_id, self._extension_name, custom_type, renderer)
+
+    def register_entry_renderer(
+        self,
+        custom_type: str,
+        renderer: EntryRenderer,
+    ) -> None:
+        """Register a renderer for custom entries with this ``namespace``.
+
+        Ports Pi's ``registerEntryRenderer``: entries are created with
+        :meth:`append_entry` and render inside the transcript. The renderer
+        receives a :class:`CustomEntryView` and :class:`MessageRenderOptions` and
+        returns Rich-markup text (never a Textual widget). First registration per
+        ``custom_type`` wins.
+        """
+        self._generation.assert_active()
+        self._runtime.register_entry_renderer(self._source_id, self._extension_name, custom_type, renderer)
+
+    def register_tool_renderer(
+        self,
+        render_call: ToolCallResolver | None = None,
+        render_result: ToolResultResolver | None = None,
+    ) -> None:
+        """Register tool-call/result render resolvers covering any tool.
+
+        Ports Pi's ``registerToolRenderer``: each resolver receives the tool name
+        and a ``next`` callable yielding the lower-priority result (other
+        resolvers, then the tool's own renderer, then None). Return ``None`` to
+        defer, or a Rich-markup string to take over. At least one of
+        ``render_call``/``render_result`` must be given.
+        """
+        self._generation.assert_active()
+        self._runtime.register_tool_renderer(
+            self._source_id, self._extension_name, render_call=render_call, render_result=render_result
+        )
+
+    def register_markdown_transformer(
+        self,
+        transformer: MarkdownTransformer,
+        *,
+        message_types: Sequence[str] = (),
+    ) -> None:
+        """Register a display-only Markdown transformer (chained, applies in load order).
+
+        Ports Pi's ``registerMarkdownTransformer``. ``message_types`` selects the
+        surfaces it runs on (empty = user/assistant/assistant-thinking). The
+        transformer is display-only: the session and model context are unchanged.
+        """
+        self._generation.assert_active()
+        self._runtime.register_markdown_transformer(
+            self._source_id, self._extension_name, transformer, message_types=tuple(message_types)
+        )
 
     def send_custom_message(
         self,
