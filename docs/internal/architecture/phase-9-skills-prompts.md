@@ -1,10 +1,10 @@
 ---
-title: "Phase 9: Skills and Prompt Templates"
+title: "Phase 9：skill 与 prompt template"
 ---
 
-Phase 9 adds Baldric's first markdown resource system.
+Phase 9 加了 Baldric 第一个 markdown 资源系统。
 
-The implementation lives in:
+实现位于：
 
 ```text
 src/baldric_coding/resources.py
@@ -12,9 +12,9 @@ src/baldric_coding/skills.py
 src/baldric_coding/prompt_templates.py
 ```
 
-## What was added
+## 加了什么
 
-Baldric can now load and use markdown resources from a Baldric resource root:
+Baldric 现在能从 Baldric 资源根加载并使用 markdown 资源：
 
 ```text
 ~/.baldric/
@@ -22,20 +22,20 @@ Baldric can now load and use markdown resources from a Baldric resource root:
   prompts/
 ```
 
-This phase includes:
+本阶段包含：
 
-- resource path helpers
-- minimal markdown frontmatter parsing
-- skill loading
-- `/skill:name` prompt expansion
-- skill index generation
-- prompt template loading
-- `{{ variable }}` template rendering
-- light `CodingSession` integration for skill expansion
+- 资源路径 helper
+- 最小 markdown frontmatter 解析
+- skill 加载
+- `/skill:name` prompt 展开
+- skill 索引生成
+- prompt template 加载
+- `{{ variable }}` 模板渲染
+- `CodingSession` 的轻量 skill 展开集成
 
-## Resource paths
+## 资源路径
 
-`BaldricResourcePaths` describes where Baldric resources live:
+`BaldricResourcePaths` 描述 Baldric 资源在哪里：
 
 ```python
 from baldric_coding import BaldricResourcePaths
@@ -45,15 +45,15 @@ paths.skills_dir            # ~/.baldric/skills
 paths.prompts_dir           # ~/.baldric/prompts
 ```
 
-Tests and callers can provide a custom root:
+测试与调用者可以提供自定义根：
 
 ```python
 paths = BaldricResourcePaths(root=Path("/tmp/resources"))
 ```
 
-## Frontmatter
+## frontmatter
 
-Skills and prompt templates can include simple frontmatter:
+skill 与 prompt template 可以带简单 frontmatter：
 
 ```md
 ---
@@ -65,18 +65,18 @@ description: Write and run Python tests.
 Use pytest.
 ```
 
-The parser intentionally supports only simple `key: value` pairs. It does not execute code or implement a full YAML parser.
+解析器有意只支持简单 `key: value` 对。不执行代码、也不实现完整 YAML 解析器。
 
-## Skills
+## skill
 
-Baldric supports two skill layouts:
+Baldric 支持两种 skill 布局：
 
 ```text
 ~/.baldric/skills/python-testing/SKILL.md
 ~/.baldric/skills/git-review.md
 ```
 
-Load skills with:
+用以下方式加载 skill：
 
 ```python
 from baldric_coding import BaldricResourcePaths, load_skills
@@ -84,17 +84,17 @@ from baldric_coding import BaldricResourcePaths, load_skills
 skills = load_skills(BaldricResourcePaths())
 ```
 
-Duplicate skill names raise `ResourceError`.
+重复 skill 名抛 `ResourceError`。
 
-## Skill expansion
+## skill 展开
 
-Skill commands use the roadmap syntax:
+skill 命令使用路线图语法：
 
 ```text
 /skill:python-testing add tests for parser.py
 ```
 
-Expansion produces prompt text like:
+展开产出类似这样的 prompt 文本：
 
 ```md
 <skill name="python-testing" location="/path/to/python-testing/SKILL.md">
@@ -106,11 +106,11 @@ References are relative to /path/to/python-testing.
 add tests for parser.py
 ```
 
-`CodingSession.prompt()` expands skill commands before sending the prompt to `AgentHarness`. `/skill:name` is not consumed by `handle_command()` because it is a prompt expansion directive, not a command that ends the run.
+`CodingSession.prompt()` 在把 prompt 发给 `AgentHarness` 之前展开 skill 命令。`/skill:name` 不被 `handle_command()` 消费，因为它是 prompt 展开指令，不是结束运行的命令。
 
-## Skill index
+## skill 索引
 
-`build_skill_index()` creates a concise list of available skills for future system prompt assembly:
+`build_skill_index()` 为未来 system prompt 组装创建一份可用的 skill 简表：
 
 ```md
 Available skills:
@@ -118,49 +118,45 @@ Available skills:
 - git-review: Review git changes safely.
 ```
 
-Phase 10 can use this when building the full system prompt.
+Phase 10 构建完整 system prompt 时可以使用它。
 
-## Prompt templates
+## prompt template
 
-Prompt templates live in:
+prompt template 位于：
 
 ```text
 ~/.baldric/prompts/review.md
 .agents/prompts/review.md
 ```
 
-Baldric treats loaded prompt templates as slash-command prompt expansions. A file
-named `.agents/prompts/example.md` can be invoked with:
+Baldric 把已加载 prompt template 当作 slash 命令的 prompt 展开。名为 `.agents/prompts/example.md` 的文件可用以下方式调用：
 
 ```text
 /example src/app.py
 ```
 
-Baldric expands the command before sending the prompt to the model. Invocation text
-after the command supports Pi-compatible argument variables:
+Baldric 在把 prompt 发给模型前展开命令。命令后的调用文本支持 Pi 兼容参数变量：
 
-- `$1`, `$2`, ... for positional arguments
-- `$@` or `$ARGUMENTS` for all arguments
-- `${N:-default}` for positional defaults
-- `${@:N}` and `${@:N:L}` for simple slices
+- `$1`、`$2`…… 位置参数
+- `$@` 或 `$ARGUMENTS` 全部参数
+- `${N:-default}` 位置默认
+- `${@:N}` 与 `${@:N:L}` 简单切片
 
 ```md
 Review $@ for correctness.
 ```
 
-If the prompt template has no argument placeholder, Baldric appends the invocation
-arguments after a blank line. Legacy `{{ arguments }}` and `{{ args }}`
-placeholders remain supported. Other placeholders are left blank during
-slash-command expansion so a custom prompt can include optional fields without
-crashing the TUI.
+prompt template 没有参数占位符时，Baldric 在空行后追加调用
+参数。legacy `{{ arguments }}` 与 `{{ args }}`
+占位符继续支持。其他占位符在 slash 命令展开期间留空，自定义 prompt 因此可以带可选字段而不崩 TUI。
 
-Direct template rendering also supports simple `{{ variable }}` placeholders:
+直接模板渲染还支持简单 `{{ variable }}` 占位符：
 
 ```md
 Review {{ target }} for {{ focus }}.
 ```
 
-Render templates directly with:
+直接渲染模板：
 
 ```python
 from baldric_coding import load_prompt_templates, render_prompt_template
@@ -172,27 +168,26 @@ text = render_prompt_template(
 )
 ```
 
-Missing variables raise `ResourceError`; extra variables are ignored. This strict
-behavior applies to direct rendering. Slash-command expansion is more forgiving
-and renders missing custom variables as blank text.
+缺失变量抛 `ResourceError`；多余变量忽略。严格行为适用于直接渲染。slash 命令展开更宽容，缺失的自定义变量渲染为空文本。
 
-## Boundary
+## 边界
 
-This phase does not implement full system prompt assembly. It only adds the resource primitives and a minimal skill-expansion hook in `CodingSession`.
+本阶段不实现完整 system prompt 组装。只加资源原语与
+`CodingSession` 里的最小 skill 展开钩子。
 
-Full prompt assembly remains a later phase and will combine:
+完整 prompt 组装仍是后续阶段，将组合：
 
-- base Baldric identity
-- tools and tool guidelines
-- project instructions
-- skills index
-- prompt templates
-- extension snippets later
-- environment context
+- Baldric 基础身份
+- 工具与工具指引
+- 项目指令
+- skill 索引
+- prompt template
+- 日后的 extension 片段
+- 环境 context
 
-## Tests
+## 测试
 
-This phase is covered by:
+本阶段覆盖于：
 
 ```text
 tests/test_resources.py
@@ -201,17 +196,17 @@ tests/test_prompt_templates.py
 tests/test_coding_session.py
 ```
 
-The tests verify:
+测试验证：
 
-- resource paths
-- frontmatter parsing
-- skill loading and duplicate detection
-- skill expansion
-- skill index output
-- prompt template loading
-- template rendering
-- coding-session skill expansion
+- 资源路径
+- frontmatter 解析
+- skill 加载与重复检测
+- skill 展开
+- skill 索引输出
+- prompt template 加载
+- 模板渲染
+- coding-session 的 skill 展开
 
-## Next phase
+## 下一阶段
 
-The next roadmap phase is system prompt assembly. The resource models and loaders added here give that phase the skill and template inputs it needs.
+路线图下一阶段是 system prompt 组装。这里加的资源模型与加载器为那个阶段提供所需的 skill 与 template 输入。
