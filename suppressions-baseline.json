@@ -56,7 +56,7 @@
     "noqa:BLE001": 1
   },
   "src/baldric/runtime/extensions/runtime.py": {
-    "noqa:BLE001": 11
+    "noqa:BLE001": 12
   },
   "src/baldric/runtime/providers/config/__init__.py": {
     "noqa:F401": 4

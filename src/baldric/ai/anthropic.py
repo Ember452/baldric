@@ -178,8 +178,8 @@ class AnthropicProvider:
                 headers.setdefault("Authorization", f"Bearer {api_key}")
             else:
                 headers["x-api-key"] = api_key
-            payload = apply_payload(hooks, payload)
-            apply_headers(hooks, headers)
+            payload = await apply_payload(hooks, payload)
+            await apply_headers(hooks, headers)
             url = f"{base_url.rstrip('/')}/messages"
 
             attempt = 0
@@ -187,7 +187,7 @@ class AnthropicProvider:
                 emitted_content = False
                 try:
                     async with client.stream("POST", url, json=payload, headers=headers) as response:
-                        observe_response(hooks, response.status_code, dict(response.headers))
+                        await observe_response(hooks, response.status_code, dict(response.headers))
                         if response.status_code >= 400:
                             body = await response.aread()
                             body_text = body.decode(errors="replace")

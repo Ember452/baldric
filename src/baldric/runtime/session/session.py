@@ -14,6 +14,7 @@ from baldric.agent.events import AgentEvent
 from baldric.agent.harness import AgentHarness, AgentHarnessConfig, QueuedMessages
 from baldric.agent.tool_calls import BeforeToolCall
 from baldric.agent.tool_history import ToolHistoryRepair
+from baldric.ai.hooks import HookableProvider
 from baldric.ai.model_catalog import RuntimeModelCatalog
 from baldric.ai.model_limits import RuntimeModelLimits
 from baldric.runtime.auth.credentials import FileCredentialStore, credentials_path
@@ -878,9 +879,12 @@ class CodingSession:
             )
 
         system = config.system if config.system is not None else _build_system_prompt()
+        initial_provider = config.provider
+        if initial_provider is not None and extension_runtime.has_provider_hooks():
+            initial_provider = HookableProvider(initial_provider, extension_runtime.build_provider_hooks())
         harness = AgentHarness(
             AgentHarnessConfig(
-                provider=config.provider,
+                provider=initial_provider,
                 model=active_model,
                 system=system,
                 tools=tools,
@@ -1805,6 +1809,19 @@ class CodingSession:
 
     def _invalidate_runtime_model_limits(self) -> None:
         return _model_runtime.invalidate_runtime_model_limits(self)
+
+    def _apply_provider_hooks(self, provider: ClosableModelProvider) -> ClosableModelProvider:
+        """Wrap a provider with extension provider seams, or return it unchanged.
+
+        Every place the session assigns ``_harness.config.provider`` funnels
+        through here so an extension's provider-level hooks (context / headers /
+        payload / response / stream) are applied uniformly, independent of which
+        code path set the provider. Returns the provider untouched when no
+        extension registered a provider seam (zero overhead).
+        """
+        if not self._extension_runtime.has_provider_hooks():
+            return provider
+        return HookableProvider(provider, self._extension_runtime.build_provider_hooks())
 
     async def _refresh_runtime_model_limits(self) -> None:
         await _model_runtime.refresh_runtime_model_limits(self)

@@ -72,6 +72,26 @@ LIFECYCLE_EVENT_TYPES: frozenset[str] = frozenset(
     }
 )
 
+# Provider-level seams (plan Task A2). These mirror Pi's provider events and are
+# bridged onto the AI-layer request hooks (RequestHooks / HookableProvider). They
+# do NOT go through emit_event; ExtensionRuntime.build_provider_hooks() wires the
+# registered handlers onto the provider during session creation.
+# - context / context_with_system: chained transform of the outgoing messages/system.
+# - before_provider_headers: in-place mutate of the outgoing HTTP headers.
+# - before_provider_request: chained transform of the outgoing payload.
+# - after_provider_response: read-only observe of status + headers.
+# - provider_stream_event: read-only observe of each parsed stream event.
+PROVIDER_EVENT_TYPES: frozenset[str] = frozenset(
+    {
+        "context",
+        "context_with_system",
+        "before_provider_headers",
+        "before_provider_request",
+        "after_provider_response",
+        "provider_stream_event",
+    }
+)
+
 SessionLifecycleReason = Literal["startup", "reload", "new", "resume", "branch", "quit"]
 DeliverAs = Literal["steer", "follow_up"]
 NotifyLevel = Literal["info", "warning", "error"]
@@ -515,6 +535,65 @@ class InputHookResult:
     action: Literal["continue", "transform", "handled"] = "continue"
     text: str | None = None
     message: str | None = None
+
+
+# --- provider seam events (plan Task A2) --------------------------------------
+# Payloads handed to handlers registered via ``on("<provider_event>")``. Each is
+# bridged onto the AI-layer RequestHooks by ExtensionRuntime.build_provider_hooks.
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderContextEvent:
+    """Payload for ``context`` / ``context_with_system`` (chained transform).
+
+    Return a replacement :class:`ProviderContextEvent` to change the outgoing
+    request; return ``None`` to keep the previous handler's value.
+    """
+
+    model: str
+    system: str
+    messages: tuple[AgentMessage, ...]
+    tools: tuple[AgentTool, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderHeadersEvent:
+    """Payload for ``before_provider_headers`` (in-place mutate).
+
+    ``headers`` is the live dict the adapter is about to send; mutate it in place.
+    """
+
+    model: str
+    headers: dict[str, str]
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderRequestEvent:
+    """Payload for ``before_provider_request`` (chained payload transform).
+
+    ``payload`` is the live request body dict; return a replacement dict to
+    swap it (Pi's ``onPayload``), or ``None`` to keep it.
+    """
+
+    model: str
+    payload: dict[str, JSONValue]
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderResponseEvent:
+    """Payload for ``after_provider_response`` (read-only observe)."""
+
+    model: str
+    status: int
+    headers: dict[str, str]
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderStreamEvent:
+    """Payload for ``provider_stream_event`` (read-only observe of one event)."""
+
+    model: str
+    event: object
 
 
 @dataclass(frozen=True, slots=True)

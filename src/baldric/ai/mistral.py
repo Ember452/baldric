@@ -120,7 +120,6 @@ class MistralConversationsProvider:
             max_tokens=self._config.max_tokens,
             supports_images=self._config.supports_images,
         )
-        payload = apply_payload(hooks, payload)
         return self._stream(
             model=model,
             url=f"{_mistral_base_url(self._config.base_url)}/chat/completions",
@@ -140,17 +139,18 @@ class MistralConversationsProvider:
     ) -> AsyncIterator[ProviderEvent]:
         async def iterator() -> AsyncIterator[ProviderEvent]:
             client = self._get_client()
+            request_payload = await apply_payload(hooks, dict(payload))
             headers = {
                 **dict(self._config.headers or {}),
                 "Authorization": f"Bearer {self._config.api_key}",
             }
-            apply_headers(hooks, headers)
+            await apply_headers(hooks, headers)
             attempt = 0
             while True:
                 parser = _MistralStreamParser()
                 try:
-                    async with client.stream("POST", url, json=payload, headers=headers) as response:
-                        observe_response(hooks, response.status_code, dict(response.headers))
+                    async with client.stream("POST", url, json=request_payload, headers=headers) as response:
+                        await observe_response(hooks, response.status_code, dict(response.headers))
                         if response.status_code >= 400:
                             body = await response.aread()
                             body_text = body.decode(errors="replace")

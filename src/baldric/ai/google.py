@@ -120,7 +120,7 @@ class GoogleGenerativeAIProvider:
                 max_tokens=self._config.max_tokens,
                 supports_images=self._config.supports_images,
             )
-            payload = apply_payload(hooks, payload)
+            payload = await apply_payload(hooks, payload)
             url = (
                 f"{self._config.base_url.rstrip('/')}/models/"
                 f"{model}:streamGenerateContent?alt=sse&key={self._config.api_key}"
@@ -129,7 +129,7 @@ class GoogleGenerativeAIProvider:
                 **dict(self._config.headers or {}),
                 "content-type": "application/json",
             }
-            apply_headers(hooks, headers)
+            await apply_headers(hooks, headers)
 
             attempt = 0
             parser = _GoogleStreamParser()
@@ -137,7 +137,7 @@ class GoogleGenerativeAIProvider:
                 parser = _GoogleStreamParser()
                 try:
                     async with client.stream("POST", url, json=payload, headers=headers) as response:
-                        observe_response(hooks, response.status_code, dict(response.headers))
+                        await observe_response(hooks, response.status_code, dict(response.headers))
                         if response.status_code >= 400:
                             body = await response.aread()
                             body_text = body.decode(errors="replace")

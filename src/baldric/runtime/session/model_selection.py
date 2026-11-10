@@ -407,7 +407,7 @@ async def select_provider_model(
     old_provider = session._harness.config.provider
     assert candidate is not None
     session._owned_providers.append(candidate)
-    session._harness.config.provider = candidate
+    session._harness.config.provider = session._apply_provider_hooks(candidate)
     session._harness.config.model = choice.model
     session._provider_name = choice.provider_name
     session._inference_provider = selected_inference
@@ -679,7 +679,7 @@ def _set_provider_model(
     except RuntimeError as exc:
         raise ProviderConfigError(str(exc)) from exc
     session._owned_providers.append(provider)
-    session._harness.config.provider = provider
+    session._harness.config.provider = session._apply_provider_hooks(provider)
     session._provider_name = provider_config.name
     session._inference_provider = _configured_inference_provider(provider_config, model)
     session._inference_provider_mode = _configured_inference_provider_mode(provider_config, model)

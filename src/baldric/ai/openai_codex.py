@@ -239,7 +239,7 @@ class OpenAICodexProvider:
                 prompt_cache_key=cache_key,
                 item_ids_by_call_id=self._item_ids_by_call_id,
             )
-            payload = apply_payload(hooks, payload)
+            payload = await apply_payload(hooks, payload)
             url = _resolve_codex_url(self._config.base_url)
 
             attempt = 0
@@ -255,14 +255,14 @@ class OpenAICodexProvider:
                         originator=self._config.originator,
                         session_id=cache_key,
                     )
-                    apply_headers(hooks, headers)
+                    await apply_headers(hooks, headers)
                     async with client.stream(
                         "POST",
                         url,
                         json=payload,
                         headers=headers,
                     ) as response:
-                        observe_response(hooks, response.status_code, dict(response.headers))
+                        await observe_response(hooks, response.status_code, dict(response.headers))
                         if response.status_code >= 400:
                             body = await response.aread()
                             body_text = body.decode(errors="replace")

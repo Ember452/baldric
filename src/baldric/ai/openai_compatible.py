@@ -198,7 +198,6 @@ class OpenAICompatibleProvider:
             supports_images=self._config.supports_images,
             prompt_cache_key=cache_key,
         )
-        payload = apply_payload(hooks, payload)
         return self._stream(
             model=model,
             url=f"{self._config.base_url.rstrip('/')}/chat/completions",
@@ -235,7 +234,6 @@ class OpenAICompatibleProvider:
             supports_images=self._config.supports_images,
             prompt_cache_key=cache_key,
         )
-        payload = apply_payload(hooks, payload)
         return self._stream(
             model=model,
             url=f"{self._config.base_url.rstrip('/')}/responses",
@@ -265,14 +263,15 @@ class OpenAICompatibleProvider:
 
         The per-endpoint differences (SSE chunk handling and final-message
         assembly) live in the ``_StreamParser`` produced by ``parser_factory``;
-        everything else — HTTP, status/network retries, cancellation, the
-        opening ``response_start`` event — is identical across endpoints.
+        everything else 鈥?HTTP, status/network retries, cancellation, the
+        opening ``response_start`` event 鈥?is identical across endpoints.
         """
 
         async def iterator() -> AsyncIterator[ProviderEvent]:
             client = self._get_client()
             api_key = self._config.api_key
             request_url = url
+            request_payload = await apply_payload(hooks, dict(payload))
             headers = dict(self._config.headers or {})
             if self._config.provider_name == "github-copilot" and has_images:
                 headers["Copilot-Vision-Request"] = "true"
@@ -288,14 +287,16 @@ class OpenAICompatibleProvider:
                 if not has_authorization:
                     headers["Authorization"] = f"Bearer {api_key}"
             _apply_session_affinity_headers(headers, session_id, session_affinity_format)
-            apply_headers(hooks, headers)
+            await apply_headers(hooks, headers)
 
             attempt = 0
             while True:
                 parser = parser_factory()
                 try:
-                    async with client.stream("POST", request_url, json=payload, headers=headers) as response:
-                        observe_response(hooks, response.status_code, dict(response.headers))
+                    async with client.stream(
+                        "POST", request_url, json=request_payload, headers=headers
+                    ) as response:
+                        await observe_response(hooks, response.status_code, dict(response.headers))
                         response_provider = _response_header_value(
                             response,
                             self._config.response_provider_header,

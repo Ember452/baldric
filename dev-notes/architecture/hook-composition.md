@@ -101,3 +101,36 @@ that exist today so a refactor cannot silently regress them.
 5. Add a fake-extension test covering: normal, two-handlers-agree, two-handlers-
    conflict (per termination rule), and one-handler-raises.
 6. If it is a gate seam, add a "contract violation" test (e.g. overflow + block).
+
+## Provider seams — how they are wired (Tasks A1 + A2)
+
+Provider-level hooks follow Pi's two-layer split: the AI package exposes native
+request hooks, the extension layer bridges event names onto them.
+
+- **AI layer (A1).** `RequestHooks` (protocol) carries `payload` (chained),
+  `headers` (in-place), `response` (observe). `ai.hooks.apply_payload` /
+  `apply_headers` / `observe_response` run them with the isolation boundary and
+  await sync-or-async handlers. Each adapter invokes them at its real
+  payload-build / header-build / post-response point. Adapters only get them via
+  `stream_response(..., hooks=...)`, so an adapter with no hooks is byte-identical.
+- **Provider boundary (A1).** `HookableProvider` wraps a `ModelProvider` and
+  exposes `context` (chained), `provider_stream_event` (observe),
+  `response_start` (observe first event). It forwards its payload/headers/response
+  handlers to the wrapped adapter as `RequestHooks`.
+- **Extension bridge (A2).** `ExtensionRuntime.build_provider_hooks()` adapts
+  handlers registered with `on("context"/"context_with_system"/
+  "before_provider_headers"/"before_provider_request"/"after_provider_response"/
+  "provider_stream_event")` onto the AI seams, handing each handler a typed event
+  (`ProviderContextEvent` / `ProviderHeadersEvent` / ...). The session funnels every
+  `_harness.config.provider` assignment through `_apply_provider_hooks`, which wraps
+  the provider in a `HookableProvider` only when an extension registered a provider
+  seam (zero overhead otherwise). This is the same routing as Pi's coding-agent ->
+  ai bridge.
+
+Seam shape parity with the catalog above: `before_provider_request` = payload
+(chained), `before_provider_headers` = headers (in-place),
+`context`/`context_with_system` = context (chained), `after_provider_response` =
+response (observe), `provider_stream_event` = stream (observe). One `# noqa:
+BLE001` boundary exists in each of `ai.hooks._guarded` and
+`ExtensionRuntime._invoke_provider_handler`; both are the isolation boundary the
+contract requires, recorded as reviewed exceptions in the suppression baseline.

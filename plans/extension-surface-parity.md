@@ -1,9 +1,16 @@
 # Extension Surface Parity — 参照 Pi 的可扩展性演进计划
 
-Status: **PLAN ONLY**（不改代码）。动手前必须重新扫描确认（见 §0）。
+Status: **EXECUTING**。Task 0 / A1 / A2 已完成（commits 见下）。动手前仍须按 §0 重扫。
 参照对象：`pi-main/packages/coding-agent/docs/extensions.md`（2597 行）+ `pi-main/packages/agent`。
 目标对象：`baldric`（`src/baldric/{protocol,ai,agent,runtime,mcp}`）。
 日期：2026-11-10。作者：Lead（AI）。
+
+执行进度：
+- [x] Task 0 — Hook Composition 契约（`dev-notes/architecture/hook-composition.md` + guard 测试）
+- [x] Task A1 — ai 层 3 个 provider 原生缝（payload/headers/response，6 adapter + fake 接入）
+- [x] Task A2 — 扩展 API 层桥接（`on("before_provider_*"/context/...)` → RequestHooks/HookableProvider，session 包装接线）
+- [ ] A2-剩余：扩展 API 的 `set_model`/`set_thinking_level` 归 Task F
+- [ ] Task D / B / C / F / E / G 待做
 
 ---
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -60,11 +60,15 @@ class ModelProvider(Protocol):
 
 # Chained: receives the built payload dict, returns a replacement (or None to
 # keep the current one). Pi's ``onPayload``: `nextPayload !== undefined` replaces.
-PayloadHook = Callable[[dict[str, JSONValue], "HookContext"], "dict[str, JSONValue] | None"]
-# In-place: mutate the headers mapping. Return ignored.
-HeadersHook = Callable[[dict[str, str], "HookContext"], None]
+# Handlers may be sync or async (Pi awaits ``onPayload``).
+type PayloadHook = Callable[
+    [dict[str, JSONValue], HookContext],
+    dict[str, JSONValue] | None | Awaitable[dict[str, JSONValue] | None],
+]
+# In-place: mutate the headers mapping. Return ignored (sync or awaitable).
+type HeadersHook = Callable[[dict[str, str], HookContext], Awaitable[None] | None]
 # Read-only observe of the HTTP response (status + headers) before consumption.
-ResponseHook = Callable[[int, "dict[str, str]", "HookContext"], None]
+type ResponseHook = Callable[[int, dict[str, str], HookContext], Awaitable[None] | None]
 
 
 @dataclass(frozen=True, slots=True)

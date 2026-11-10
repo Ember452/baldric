@@ -18,7 +18,19 @@ from baldric.agent.events import AgentEvent, AgentStartEvent
 from baldric.agent.events import TurnEndEvent as AgentTurnEndEvent
 from baldric.agent.events import TurnStartEvent as AgentTurnStartEvent
 from baldric.agent.tool_calls import BeforeToolCall
+from baldric.ai.hooks import (
+    ContextHook,
+    ProviderContext,
+    ProviderHooks,
+    StreamEventHook,
+)
 from baldric.protocol.messages import AgentMessage, TextContent
+from baldric.protocol.provider import (
+    HeadersHook,
+    HookContext,
+    PayloadHook,
+    ResponseHook,
+)
 from baldric.protocol.tools import (
     AgentTool,
     AgentToolResult,
@@ -48,6 +60,7 @@ from baldric.runtime.extensions.api import (
     AGENT_EVENT_WILDCARD,
     EXTENSION_API_VERSION,
     LIFECYCLE_EVENT_TYPES,
+    PROVIDER_EVENT_TYPES,
     CustomMessageView,
     ExtensionAPI,
     ExtensionCommandContext,
@@ -61,6 +74,11 @@ from baldric.runtime.extensions.api import (
     MessageRenderer,
     MessageRenderOptions,
     NullUiBridge,
+    ProviderContextEvent,
+    ProviderHeadersEvent,
+    ProviderRequestEvent,
+    ProviderResponseEvent,
+    ProviderStreamEvent,
     RegisteredExtension,
     SessionLifecycleReason,
     SessionShutdownEvent,
@@ -840,7 +858,12 @@ class ExtensionRuntime:
 
     def subscribe(self, source_id: str, event: str, handler: ExtensionHandler) -> None:
         """Subscribe an extension handler to a named event."""
-        known = event in AGENT_EVENT_TYPES or event in LIFECYCLE_EVENT_TYPES or event == AGENT_EVENT_WILDCARD
+        known = (
+            event in AGENT_EVENT_TYPES
+            or event in LIFECYCLE_EVENT_TYPES
+            or event in PROVIDER_EVENT_TYPES
+            or event == AGENT_EVENT_WILDCARD
+        )
         if not known:
             self._load_diagnostics.append(
                 ResourceDiagnostic(
@@ -854,6 +877,116 @@ class ExtensionRuntime:
         if extension is None:
             raise ExtensionError(f"unknown extension source: {source_id}")
         extension.handlers.setdefault(event, []).append(handler)
+
+    # -- provider seams (plan Task A2) ---------------------------------------
+
+    def has_provider_hooks(self) -> bool:
+        """Return whether any extension registered a provider-seam handler."""
+        return any(next(self._handlers_for(name), None) is not None for name in PROVIDER_EVENT_TYPES)
+
+    def build_provider_hooks(self) -> ProviderHooks:
+        """Adapt registered provider-seam handlers onto the AI-layer seams.
+
+        Bridges Baldric's extension events (``context`` / ``before_provider_*`` /
+        ``after_provider_response`` / ``provider_stream_event``) onto either the
+        provider-boundary seams (``HookableProvider``) or the adapter request
+        seams (``RequestHooks``), matching Pi's coding-agent -> ai bridge. Returns
+        an empty :class:`ProviderHooks` (``is_empty()``) when nothing is
+        registered, so the session can skip wrapping entirely.
+        """
+        hooks = ProviderHooks()
+        context_handlers = [*self._handlers_for("context"), *self._handlers_for("context_with_system")]
+        for owner, handler in context_handlers:
+            hooks.context.append(self._adapt_context_handler(owner, handler))
+        for owner, handler in self._handlers_for("before_provider_headers"):
+            hooks.headers.append(self._adapt_headers_handler(owner, handler))
+        for owner, handler in self._handlers_for("before_provider_request"):
+            hooks.payload.append(self._adapt_payload_handler(owner, handler))
+        for owner, handler in self._handlers_for("after_provider_response"):
+            hooks.response.append(self._adapt_response_handler(owner, handler))
+        for owner, handler in self._handlers_for("provider_stream_event"):
+            hooks.stream_event.append(self._adapt_stream_handler(owner, handler))
+        return hooks
+
+    async def _invoke_provider_handler(
+        self, owner: RegisteredExtension, event_name: str, event: object, handler: ExtensionHandler
+    ) -> object:
+        """Run one provider-seam handler with the shared isolation boundary.
+
+        This is the single try/except for all provider seams: a handler (sync or
+        async) that raises is recorded as a runtime failure and yields
+        ``_PROVIDER_HANDLER_FAILED`` so the caller keeps the previous value. This
+        keeps the isolation in one place, matching ``ai.hooks._guarded``.
+        """
+        try:
+            return await _resolve(handler(event, self._fresh_context(owner.source_id)))
+        except Exception as exc:  # noqa: BLE001 - extensions are an isolation boundary
+            self._record_runtime_failure(owner.name, event_name, exc)
+            return _PROVIDER_HANDLER_FAILED
+
+    def _adapt_context_handler(self, owner: RegisteredExtension, handler: ExtensionHandler) -> ContextHook:
+        async def adapted(request: ProviderContext, _ctx: HookContext) -> ProviderContext | None:
+            event = ProviderContextEvent(
+                model=request.model,
+                system=request.system,
+                messages=tuple(request.messages),
+                tools=tuple(request.tools),
+            )
+            result = await self._invoke_provider_handler(owner, "context", event, handler)
+            if isinstance(result, ProviderContextEvent):
+                return ProviderContext(
+                    model=result.model,
+                    system=result.system,
+                    messages=list(result.messages),
+                    tools=list(result.tools),
+                    session_id=request.session_id,
+                )
+            return None
+
+        return adapted
+
+    def _adapt_headers_handler(self, owner: RegisteredExtension, handler: ExtensionHandler) -> HeadersHook:
+        async def adapted(headers: dict[str, str], _ctx: HookContext) -> None:
+            await self._invoke_provider_handler(
+                owner, "before_provider_headers", ProviderHeadersEvent(model="", headers=headers), handler
+            )
+
+        return adapted
+
+    def _adapt_payload_handler(self, owner: RegisteredExtension, handler: ExtensionHandler) -> PayloadHook:
+        async def adapted(payload: dict[str, JSONValue], ctx: HookContext) -> dict[str, JSONValue] | None:
+            result = await self._invoke_provider_handler(
+                owner,
+                "before_provider_request",
+                ProviderRequestEvent(model=ctx.model, payload=payload),
+                handler,
+            )
+            if isinstance(result, ProviderRequestEvent):
+                return result.payload
+            if isinstance(result, dict):
+                return result
+            return None
+
+        return adapted
+
+    def _adapt_response_handler(self, owner: RegisteredExtension, handler: ExtensionHandler) -> ResponseHook:
+        async def adapted(status: int, headers: dict[str, str], ctx: HookContext) -> None:
+            await self._invoke_provider_handler(
+                owner,
+                "after_provider_response",
+                ProviderResponseEvent(model=ctx.model, status=status, headers=headers),
+                handler,
+            )
+
+        return adapted
+
+    def _adapt_stream_handler(self, owner: RegisteredExtension, handler: ExtensionHandler) -> StreamEventHook:
+        async def adapted(event: object, ctx: HookContext) -> None:
+            await self._invoke_provider_handler(
+                owner, "provider_stream_event", ProviderStreamEvent(model=ctx.model, event=event), handler
+            )
+
+        return adapted
 
     # -- binding -------------------------------------------------------------
 
@@ -1474,3 +1607,10 @@ async def _resolve(value: object) -> object:
     if isawaitable(value):
         return await value
     return value
+
+
+class _ProviderHandlerFailed:
+    """Sentinel: a provider-seam handler raised and was recorded (isolation)."""
+
+
+_PROVIDER_HANDLER_FAILED = _ProviderHandlerFailed()
