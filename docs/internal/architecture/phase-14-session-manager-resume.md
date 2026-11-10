@@ -1,33 +1,33 @@
 ---
-title: "Phase 14: Session Manager and Resume"
+title: "Phase 14：session 管理器与恢复"
 ---
 
-Phase 14 makes Baldric sessions first-class records stored under Baldric home.
+Phase 14 让 Baldric session 成为存放在 Baldric home 之下的第一等记录。
 
-The implementation lives in:
+实现位于：
 
 ```text
 src/baldric_coding/session_manager.py
 ```
 
-## What was added
+## 加了什么
 
-Baldric now has a `SessionManager` that can:
+Baldric 现在有一个 `SessionManager`，可以：
 
-- create new sessions
-- index sessions in user-home metadata
-- list sessions newest-first
-- look up sessions by id
-- touch sessions after new messages are persisted
-- return a default project session for existing TUI behavior
+- 创建新 session
+- 把 session 索引进用户 home 元数据
+- 按最新优先列出 session
+- 按 id 查找 session
+- 新消息持久化后 touch session
+- 为既有 TUI 行为返回默认项目 session
 
-Session metadata is represented by:
+session 元数据由：
 
 ```python
 CodingSessionRecord
 ```
 
-with:
+表示，含：
 
 - `id`
 - `path`
@@ -37,135 +37,127 @@ with:
 - `created_at`
 - `updated_at`
 
-## Storage layout
+## 存储布局
 
-Session transcripts remain append-only JSONL files.
+session transcript 保持 append-only JSONL 文件。
 
-Session metadata was originally stored in a global compatibility index:
+session 元数据最初存于全局兼容索引：
 
 ```text
 ~/.baldric/sessions/index.jsonl
 ```
 
-Current session metadata and transcript files live under a project-specific
-directory:
+当前 session 元数据与 transcript 文件位于项目专属目录：
 
 ```text
 ~/.baldric/sessions/<cleaned-path-suffix>-<short-hash>/
 ```
 
-The default project session remains:
+默认项目 session 仍是：
 
 ```text
 ~/.baldric/sessions/<cleaned-path-suffix>-<short-hash>/default.jsonl
 ```
 
-but it is now indexed with a stable id:
+但现在以稳定 id 索引：
 
 ```text
 default-<cleaned-path-suffix>-<short-hash>
 ```
 
-New sessions are stored as:
+新 session 存为：
 
 ```text
 ~/.baldric/sessions/<cleaned-path-suffix>-<short-hash>/<session-id>.jsonl
 ```
 
-## CodingSession integration
+## CodingSession 集成
 
-`CodingSessionConfig` now accepts:
+`CodingSessionConfig` 现在接受：
 
 ```python
 session_id: str | None
 session_manager: SessionManager | None
 ```
 
-When a session persists new messages, it touches the session manager record so `updated_at` stays current.
+session 持久化新消息时会 touch session 管理器记录，`updated_at` 保持最新。
 
-This keeps the session transcript and session index loosely coupled: `baldric_agent` still only knows about append-only session storage, while `baldric_coding` owns user-facing session metadata.
+这让 session transcript 与 session 索引松耦合：`baldric_agent` 仍只知道 append-only session 存储，而 `baldric_coding` 拥有面向用户的 session 元数据。
 
-## TUI integration
+## TUI 集成
 
-The TUI now creates sessions through `SessionManager`.
+TUI 现在经 `SessionManager` 创建 session。
 
-Default behavior:
+默认行为：
 
 ```bash
 baldric
 ```
 
-creates a new session.
+创建新 session。
 
-The explicit new-session flag is also accepted for clarity:
+为明确起见也接受显式新 session 旗标：
 
 ```bash
 baldric --new-session
 ```
 
-Resume an indexed session:
+恢复一个已索引 session：
 
 ```bash
 baldric --resume <session-id>
 ```
 
-If the session id is unknown, Baldric exits with a clear error.
+session id 未知时，Baldric 以清晰错误退出。
 
-Later TUI polish added in-process session switching through:
+后续 TUI 打磨经以下方式增加了进程内 session 切换：
 
 ```text
 /resume <session-id>
 ```
 
-Plain `/resume` opens the project-scoped session picker. `/resume <session-id>`
-reloads the selected indexed session and rebuilds the visible transcript without
-restarting Baldric.
+纯 `/resume` 打开项目范围的 session picker。`/resume <session-id>`
+重载所选已索引 session 并重建可见 transcript，不重启 Baldric。
 
-## CLI session listing
+## CLI session 列表
 
-Baldric can list indexed sessions:
+Baldric 可以列出已索引 session：
 
 ```bash
 baldric sessions
 ```
 
-The first implementation prints tab-separated rows:
+第一版实现打印制表符分隔的行：
 
 ```text
 <id>    <title>    <model>    <cwd>
 ```
 
-The richer modal session picker now uses the same project-scoped session records
-as `/resume`.
+更丰富的弹窗 session picker 现在使用与 `/resume` 相同的项目范围 session 记录。
 
-## Interrupted tool-call repair on resume
+## resume 时的中断 tool call 修复
 
-Baldric repairs cancelled tool calls by adding a synthetic tool result:
+Baldric 通过添加合成工具结果修复被取消的 tool call：
 
 ```text
 Tool call interrupted by user
 ```
 
-This keeps OpenAI-compatible transcripts valid, because those providers reject
-any history where an assistant tool call has no matching tool output. A subtle
-resume bug existed in older builds: the repair could be added to the in-memory
-`AgentHarness`, letting the live session continue, but not written back to the
-append-only JSONL file. After `/resume`, Baldric rebuilt the branch from disk without
-that synthetic tool result, so the next provider request failed with errors like:
+这让 OpenAI 兼容 transcript 保持有效——那些 provider 拒绝任何 assistant tool call 没有匹配工具输出的历史。旧版本存在一个微妙的
+resume bug：修复可以加进内存 `AgentHarness` 让活动 session 继续，但不写回
+append-only JSONL 文件。`/resume` 后 Baldric 从磁盘重建分支时没有那条合成工具结果，下一次 provider 请求报错如：
 
 ```text
 No tool output found for function call call_...
 ```
 
-`CodingSession.load()` now checks the active branch for unmatched assistant tool
-calls before returning a resumed session. If it finds one, it appends durable
-repair entries and advances the leaf to the repaired branch. This also covers
-historical corrupted sessions where a user message was already appended after the
-dangling tool call.
+`CodingSession.load()` 现在在返回被恢复 session 之前检查活动分支上未匹配的 assistant tool
+call。发现时追加持久修复 entry 并把叶推进到修复后的分支。这也覆盖用户消息已经追加在悬空 tool call 之后的
+历史损坏 session。
 
-## Tests
+## 测试
 
-The phase is covered by:
+本阶段覆盖于：
 
 ```text
 tests/test_session_manager.py
@@ -173,15 +165,15 @@ tests/test_coding_session.py
 tests/test_cli.py
 ```
 
-The tests verify:
+测试验证：
 
-- session creation and indexing
-- default session records
-- newest-first listing
-- metadata updates after prompt persistence
-- TUI resume/new-session CLI wiring
-- session listing CLI output
+- session 创建与索引
+- 默认 session 记录
+- 最新优先列表
+- prompt 持久化后的元数据更新
+- TUI resume/new-session 的 CLI 接线
+- session 列表 CLI 输出
 
-## Next phase
+## 下一阶段
 
-The next phase should replace hardcoded slash-command handling with a command registry. That registry can then power TUI autocomplete and session commands such as `/sessions`, `/resume`, and `/new`.
+下一阶段应把硬编码的 slash 命令处理替换为命令注册表。注册表随后可以驱动 TUI 补全与 `/sessions`、`/resume`、`/new` 等 session 命令。

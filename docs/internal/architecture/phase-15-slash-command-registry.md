@@ -1,27 +1,27 @@
 ---
-title: "Phase 15: Slash Command Registry"
+title: "Phase 15：slash 命令注册表"
 ---
 
-Phase 15 replaces Baldric's hardcoded slash-command handling with a small registry in
-`baldric_coding`.
+Phase 15 把 Baldric 硬编码的 slash 命令处理替换为 `baldric_coding`
+里的一个小注册表。
 
-The implementation lives in:
+实现位于：
 
 ```text
 src/baldric_coding/commands.py
 ```
 
-## What was added
+## 加了什么
 
-Baldric now has a `CommandRegistry` that can:
+Baldric 现在有一个 `CommandRegistry`，可以：
 
-- register slash commands with names, aliases, descriptions, and usage text
-- list registered commands for generated help output
-- parse slash-command input
-- dispatch commands to handlers
-- return structured command results to UI layers
+- 以名字、别名、描述与用法文本注册 slash 命令
+- 列出已注册命令供生成的帮助输出
+- 解析 slash 命令输入
+- 把命令分发给 handler
+- 向 UI 层返回结构化的命令结果
 
-The core command types are:
+核心命令类型：
 
 ```python
 SlashCommand
@@ -30,40 +30,39 @@ CommandResult
 CommandRegistry
 ```
 
-`CodingSession.handle_command()` now delegates to the registry instead of
-hardcoding command behavior.
+`CodingSession.handle_command()` 现在委托给注册表，而不是硬编码命令行为。
 
-## Built-in commands
+## 内置命令
 
-The default registry includes:
+默认注册表包括：
 
-- `/quit` — exit the current session
-- `/new` — start a new session
-- `/compact` — replace active context with a manual summary
-- `/export` — export the current session
-- `/session` — show session info and stats
-- `/hotkeys` — show common TUI keyboard shortcuts
-- `/resume` — open previous-session selection or resume a specific session id
-- `/model` — choose or switch the current model
-- `/login` — add or refresh a built-in provider login
-- `/reload` — reload local resources and project context
-- `/name` — rename the current session
-- `/theme` — show or set the TUI theme
+- `/quit` — 退出当前 session
+- `/new` — 开始新 session
+- `/compact` — 用手动摘要替换活动 context
+- `/export` — 导出当前 session
+- `/session` — 显示 session 信息与统计
+- `/hotkeys` — 显示常用 TUI 快捷键
+- `/resume` — 打开既往 session 选择或恢复指定 session id
+- `/model` — 选择或切换当前模型
+- `/login` — 添加或刷新内置 provider 登录
+- `/reload` — 重载本地资源与项目 context
+- `/name` — 重命名当前 session
+- `/theme` — 显示或设置 TUI 主题
 
-Autocomplete also uses non-executable search terms. For example, typing
-`/clear` suggests `/new`, but search terms are not registered commands.
+补全还使用非执行的搜索词。例如输入
+`/clear` 会建议 `/new`，但搜索词不是已注册命令。
 
-## Why this belongs in `baldric_coding`
+## 为什么属于 `baldric_coding`
 
-Slash commands are coding-agent application behavior. They depend on resources,
-sessions, skills, provider/model UX, and UI expectations.
+slash 命令是编码 agent 应用行为。它们依赖资源、
+session、skill、provider/model UX 与 UI 期望。
 
-The reusable `baldric_agent` package remains independent of slash commands, Textual,
-Typer, local config directories, and Baldric-specific product behavior.
+可复用的 `baldric_agent` 包保持对 slash 命令、Textual、
+Typer、本地配置目录与 Baldric 专属产品行为独立。
 
-## Pi command alignment
+## Pi 命令对齐
 
-Pi's built-in command list includes:
+Pi 的内置命令清单包括：
 
 ```text
 settings, model, scoped-models, export, import, share, copy, name, session,
@@ -71,23 +70,20 @@ changelog, hotkeys, fork, clone, tree, login, logout, new, compact, resume,
 reload, quit
 ```
 
-Baldric mirrors the commands that map cleanly onto existing Baldric capabilities:
+Baldric 镜像能干净映射到既有 Baldric 能力的命令：
 
-- `/session` maps to Baldric's existing session status/details output.
-- `/hotkeys` reports Baldric's current common TUI shortcuts.
-- `/quit` is the only registered exit command; older Baldric-specific `/exit` and
-  `/q` aliases are intentionally not retained.
-- `/model`, `/login`, `/new`, `/compact`, `/resume`, `/reload`, `/name`,
-  `/theme`, and `/export` exist in Baldric's command registry.
+- `/session` 映射 Baldric 既有的 session 状态/详情输出。
+- `/hotkeys` 报告 Baldric 当前常用 TUI 快捷键。
+- `/quit` 是唯一注册的退出命令；旧 Baldric 专属的 `/exit` 与
+  `/q` 别名有意不保留。
+- `/model`、`/login`、`/new`、`/compact`、`/resume`、`/reload`、`/name`、
+  `/theme` 与 `/export` 存在于 Baldric 命令注册表。
 
-Baldric intentionally removes older Baldric-specific diagnostic commands from the
-registry, including `/help`, `/status`, `/skills`, `/resources`, `/context`,
-and `/thinking`. Equivalent information remains visible through
-Pi-aligned commands, persistent UI surfaces, keybindings, or the model's system
-prompt.
+Baldric 有意把更早的 Baldric 专属诊断命令移出注册表，包括 `/help`、`/status`、`/skills`、`/resources`、`/context`
+与 `/thinking`。等价信息仍可通过
+Pi 对齐命令、持久 UI 面、键位或模型 system prompt 看到。
 
-The remaining Pi commands are deferred because they require larger workflows
-outside this registry cleanup:
+其余 Pi 命令推迟——它们需要超出本次注册表清理的更大工作流：
 
 - `/settings`
 - `/scoped-models`
@@ -100,51 +96,46 @@ outside this registry cleanup:
 - `/tree`
 - `/logout`
 
-## TUI integration
+## TUI 集成
 
-The TUI still calls:
+TUI 仍调用：
 
 ```python
 session.handle_command(text)
 ```
 
-but the returned `CommandResult` can now request more than exit behavior.
+但返回的 `CommandResult` 现在可以请求退出之外的更多行为。
 
-For example, `/new` returns `new_session_requested=True`. The TUI responds by
-creating and loading a fresh indexed session without deleting older durable JSONL
-session history.
+例如 `/new` 返回 `new_session_requested=True`。TUI 响应方式是创建并加载一个全新的已索引 session，而不删除更早的持久 JSONL
+session 历史。
 
-## Prompt expansion command behavior
+## prompt 展开命令行为
 
-`/skill:<name> [request]` remains a prompt-expansion path, not a normal slash
-command.
+`/skill:<name> [request]` 仍是 prompt 展开路径，不是普通 slash
+命令。
 
-Prompt templates also behave as dynamic prompt-expansion commands. For example,
-`.agents/prompts/example.md` is invoked as `/example [arguments]` and expanded by
-`CodingSession.prompt()` before the model sees the prompt.
+prompt template 也表现为动态的 prompt 展开命令。例如
+`.agents/prompts/example.md` 以 `/example [arguments]` 调用，由
+`CodingSession.prompt()` 在模型看到 prompt 之前展开。
 
-The registry intentionally returns `handled=False` for skill and prompt-template
-expansion directives so `CodingSession.prompt()` can replace them before sending
-the prompt to the model.
+注册表对 skill 与 prompt template 展开指令有意返回 `handled=False`，让
+`CodingSession.prompt()` 在把 prompt 发给模型之前替换它们。
 
-Like Pi, Baldric also returns `handled=False` for every unregistered slash-prefixed
-input. Only recognized commands are consumed locally; unknown command-like text
-and absolute paths such as `/tmp` or `/Users/me/file.png` continue as normal
-prompts.
+与 Pi 一样，Baldric 对每条未注册的斜杠前缀输入也返回 `handled=False`。只有被识别的命令在本地消费；未知命令样式文本与 `/tmp`、`/Users/me/file.png` 之类的绝对路径继续作为普通 prompt。
 
-There is no plain `/skill` slash command in the Pi-aligned registry.
+Pi 对齐的注册表里没有纯 `/skill` slash 命令。
 
-## Future use
+## 未来用途
 
-This registry is the foundation for later phases:
+这个注册表是后续阶段的基础：
 
-- TUI slash-command autocomplete can read command metadata from the registry.
-- Extensions can eventually contribute commands.
-- A future command palette can show the same command metadata.
+- TUI slash 命令补全可以从注册表读命令元数据。
+- extension 终究可以贡献命令。
+- 未来的命令面板可以显示同一份命令元数据。
 
-## Tests
+## 测试
 
-The phase is covered by:
+本阶段覆盖于：
 
 ```text
 tests/test_commands.py
@@ -152,13 +143,13 @@ tests/test_coding_session.py
 tests/test_tui_app.py
 ```
 
-The tests verify:
+测试验证：
 
-- command parsing and dispatch
-- generated help output
-- exit and new-session control flags
-- status and skills output
-- `/skill:<name>` passthrough behavior
-- indexed session listing
-- structured `/resume <session-id>` requests
-- TUI handling for `/new`
+- 命令解析与分发
+- 生成的帮助输出
+- 退出与新 session 控制旗标
+- status 与 skills 输出
+- `/skill:<name>` 直通行为
+- 已索引 session 列表
+- 结构化的 `/resume <session-id>` 请求
+- TUI 对 `/new` 的处理
