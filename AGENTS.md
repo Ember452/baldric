@@ -221,6 +221,9 @@ Do not let Textual become a dependency of the reusable agent harness.
 
 ## Documentation Expectations
 
+Documentation is written in Chinese first; code, commands, paths, and technical
+terms stay in English (see `docs/AGENTS.md`).
+
 Each substantial phase should leave behind beginner-friendly notes under `docs/internal/` (build journals, design docs, ADRs), explaining:
 
 - what was added

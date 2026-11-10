@@ -1,25 +1,25 @@
-# <Design title>
+# <设计标题>
 
-- Status: Draft | Ready for implementation | Implemented
-- Owner: <name or agent>
-- Related ADR: <link or "none">
+- 状态：Draft | Ready for implementation | Implemented
+- 负责人：<姓名或 agent>
+- 相关 ADR：<链接或 "none">
 
-## Problem
+## 问题
 
-The user-visible or architectural problem this design solves.
+本设计要解决的用户可见或架构问题。
 
-## Constraints
+## 约束
 
-Version floors, compatibility promises, and boundaries that cannot move.
+版本下限、兼容性承诺、不能移动的边界。
 
-## Proposal
+## 方案
 
-The chosen shape: modules, data flow, and public interfaces.
+选定的形状：模块、数据流与公开接口。
 
-## Rejected alternatives
+## 被否决的替代方案
 
-Each alternative and the reason it was rejected.
+每个替代方案及被否决的原因。
 
-## Verification
+## 验证
 
-How the design will be proven correct: tests, guards, and manual checks.
+如何证明设计正确：测试、守卫与人工检查。

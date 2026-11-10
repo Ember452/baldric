@@ -1,61 +1,68 @@
-# docs/ - Documentation Standard
+# docs/ - 文档标准
 
-This file governs everything under `docs/`. The root `AGENTS.md` still applies;
-this file only adds placement and writing rules for documentation.
+本文件约束 `docs/` 下的全部内容。根目录 `AGENTS.md` 依然适用；本文件只追加
+文档的存放位置与写作规则。
 
-## Two audiences
+## 语言
 
-| Path | Audience | Published? |
+- **文档优先用中文写作。** `docs/` 下新建或改写的文档，正文一律用中文，
+  `docs/internal/` 同样适用。
+- 代码块、命令、frontmatter 键名、文件路径、链接目标保持原样，不翻译。
+- 专有技术名词保留英文原文（agent loop、provider、tool、skill、prompt
+  template、extension、session、TUI、compaction、frontend 等），行文用中文。
+- 不新建英文文档；英文原文由 git 历史保存。
+
+## 两类读者
+
+| 路径 | 读者 | 是否发布 |
 | --- | --- | --- |
-| `docs/user/` | people using Baldric | yes, by `website/` |
-| `docs/internal/` | contributors maintaining Baldric | no |
-| `docs/assets/` | the repository README and docs | no |
-| `docs/templates/` | starting points for new docs | no |
+| `docs/user/` | 使用 Baldric 的人 | 是，由 `website/` 发布 |
+| `docs/internal/` | 维护 Baldric 的贡献者 | 否 |
+| `docs/assets/` | 仓库 README 与文档 | 否 |
+| `docs/templates/` | 新文档的起点 | 否 |
 
-`src/baldric/runtime/data/docs/` is a separate tier: self-knowledge packaged
-into the wheel and read by the agent at runtime. Do not move user docs there and
-do not treat it as the documentation source.
+`src/baldric/runtime/data/docs/` 是独立的层：打包进 wheel、由 agent 在运行时
+读取的自知识。不要把用户文档移进去，也不要把它当作文档源。
 
-## Placement (one home per fact)
+## 存放位置（一个事实只有一个家）
 
-| Directory | Job | Does not belong |
+| 目录 | 职责 | 不属于这里的内容 |
 | --- | --- | --- |
-| `docs/user/tutorials/` | ordered first-run path; introduce only what the next step needs | reference tables, design rationale |
-| `docs/user/how-to/` | task recipes: goal, steps, verification | teaching sequences, architecture essays |
-| `docs/user/reference/` | lookup: commands, flags, environment variables, file formats | narrative, tutorials |
-| `docs/user/explanation/` | why the system is shaped this way; architecture and concepts | step-by-step procedures |
-| `docs/internal/adr/` | accepted or declined decisions, one per file, numbered | open work plans |
-| `docs/internal/architecture/` | as-built phase journals and subsystem notes | forward-looking proposals |
-| `docs/internal/design/` | designs written before implementation | incident stories |
-| `docs/internal/notes/` | feature build journals and investigations | current user-facing explanations |
-| `docs/internal/plans/` | executable work plans | decisions already accepted (make an ADR) |
-| `docs/internal/specs/` | detailed specifications a plan implements | running task lists |
+| `docs/user/tutorials/` | 有序的首次上手路径；只介绍下一步需要的东西 | 参考表、设计理由 |
+| `docs/user/how-to/` | 任务配方：目标、步骤、验证 | 教学序列、架构随笔 |
+| `docs/user/reference/` | 查询：命令、旗标、环境变量、文件格式 | 叙事、教程 |
+| `docs/user/explanation/` | 系统为何长成这样；架构与概念 | 分步操作 |
+| `docs/internal/adr/` | 已接受或已否决的决策，一文件一决策，统一编号 | 进行中的工作计划 |
+| `docs/internal/architecture/` | 既成事实的阶段日志与子系统笔记 | 前瞻性提案 |
+| `docs/internal/design/` | 实现前写下的设计 | 事故纪实 |
+| `docs/internal/notes/` | 功能构建日志与调查 | 现行的面向用户的解释 |
+| `docs/internal/plans/` | 可执行的工作计划 | 已被接受的决策（应写 ADR） |
+| `docs/internal/specs/` | 计划所实现的详细规格 | 流水账式任务清单 |
 
-When a fact belongs somewhere else, link to the owning document instead of
-repeating it.
+事实属于别处时，链接到拥有它的文档，不要复述。
 
-## Writing rules
+## 写作规则
 
-- `docs/user/` describes current behavior. History, rejected alternatives, and
-  implementation journals belong in `docs/internal/`.
-- Use root-relative site links in user docs: `/how-to/...`, `/reference/...`,
-  `/explanation/...`. The Astro build rewrites them for the published base path.
-- Use repository-relative Markdown links for files. Never hard-code a
-  `github.com/.../blob/main/...` URL for a file in this repository.
-- Every `docs/user/` page starts with `title` frontmatter; every multi-page site
-  section (`how-to/`, `reference/`, `explanation/`) has exactly one `_index.md`;
-  the single-page `tutorials/` section has none.
-- Reference pages are tables or definition lists. No narrative sections.
-- Commands are copy-pasteable and use `uv run` for Python.
-- Do not write status annotations ("implemented", "coming soon") in user docs.
-  Status belongs in the roadmap and release notes.
-- A new decision gets an ADR from `docs/templates/adr.md`; a new multi-step
-  effort gets a plan from `docs/templates/plan.md`.
+- `docs/user/` 描述当前行为。历史、被否决的替代方案、实现日志归
+  `docs/internal/`。
+- **正文用中文**；代码、命令、路径、专有名词按「语言」一节的规则保留。
+- 用户文档中的站内链接用根相对路径：`/how-to/...`、`/reference/...`、
+  `/explanation/...`。Astro 构建会为发布的基础路径改写它们。
+- 指向仓库文件的链接用仓库相对路径。永远不要在文档里硬编码
+  `github.com/.../blob/main/...` 这样的文件 URL。
+- 每个 `docs/user/` 页面以 `title` frontmatter 开头；多页站点分区
+  （`how-to/`、`reference/`、`explanation/`）各有恰好一个 `_index.md`；
+  单页分区 `tutorials/` 没有。
+- 参考页用表格或定义列表，不写叙事段落。
+- 命令必须可直接复制执行；Python 命令用 `uv run`。
+- 用户文档里不写状态注记（"已实现"、"即将推出"）；状态归 roadmap 与
+  release notes。
+- 新决策用 `docs/templates/adr.md` 起 ADR；新的多步工作用
+  `docs/templates/plan.md` 起计划。
 
-## Verification
+## 验证
 
-- User docs: `npm --prefix website run build && npm --prefix website test`.
-- Contributor docs: links in changed files must resolve relative to their new
-  location.
-- The published site must never contain `docs/internal/`, `docs/templates/`, or
-  `docs/assets/`: the Astro content base is exactly `docs/user`.
+- 用户文档：`npm --prefix website run build && npm --prefix website test`。
+- 贡献者文档：被改动文件里的链接必须相对其所在位置可解析。
+- 发布站点绝不能包含 `docs/internal/`、`docs/templates/`、`docs/assets/`：
+  Astro 内容基底是且仅是 `docs/user`。

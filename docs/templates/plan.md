@@ -1,25 +1,25 @@
-# <Plan title>
+# <计划标题>
 
-**Goal:** One sentence describing the finished state.
+**目标：** 一句话描述完成后的状态。
 
-**Spec:** Link to the design or spec this plan implements.
+**规格：** 链接到本计划实现的设计或规格。
 
-## Global Constraints
+## 全局约束
 
-Project-wide rules that apply to every task.
+适用于每个任务的项目级规则。
 
-## Task 1: <name>
+## 任务 1：<名称>
 
-**Files:**
-- Create: `exact/path`
-- Modify: `exact/path:line`
+**文件：**
+- 新建：`精确/路径`
+- 修改：`精确/路径:行`
 
-**Interfaces:**
-- Consumes: what this task uses from earlier tasks.
-- Produces: what later tasks rely on.
+**接口：**
+- 消费：本任务使用的前序任务产物。
+- 产出：后续任务依赖的本任务产物。
 
-- [ ] Step 1: write the failing check
-- [ ] Step 2: run it and confirm it fails
-- [ ] Step 3: implement
-- [ ] Step 4: run it and confirm it passes
-- [ ] Step 5: commit
+- [ ] 步骤 1：写会失败的检查
+- [ ] 步骤 2：运行并确认失败
+- [ ] 步骤 3：实现
+- [ ] 步骤 4：运行并确认通过
+- [ ] 步骤 5：提交

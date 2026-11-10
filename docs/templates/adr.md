@@ -1,21 +1,20 @@
-# ADR-0000: <short decision title>
+# ADR-0000：<一句话决策标题>
 
-- Status: Proposed | Accepted | Declined | Superseded by ADR-0000
-- Date: YYYY-MM-DD
+- 状态：Proposed | Accepted | Declined | Superseded（被 ADR-0000 取代）
+- 日期：YYYY-MM-DD
 
-## Context
+## 背景
 
-What forces are at play? What breaks if nothing changes?
+哪些力量在起作用？什么都不改会坏掉什么？
 
-## Decision
+## 决策
 
-The decision, stated in the present tense, with the constraints it imposes.
+用现在时陈述决策，连同它强加的约束。
 
-## Consequences
+## 后果
 
-What becomes easier, what becomes harder, and how the decision is enforced
-(tests, guards, or review rules).
+什么变得更容易、什么变得更难，以及决策如何被强制执行（测试、守卫或评审规则）。
 
-## Alternatives considered
+## 被否决的替代方案
 
-Each rejected alternative and why it lost.
+每个被否决的方案及其落选原因。
