@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator, Iterable
 from baldric.ai.events import AssistantMessageEvent
 from baldric.ai.provider import CancellationToken
 from baldric.protocol.messages import AgentMessage
+from baldric.protocol.provider import RequestHooks
 from baldric.protocol.tools import AgentTool
 
 
@@ -27,7 +28,9 @@ class FakeProvider:
         tools: list[AgentTool],
         signal: CancellationToken | None = None,
         session_id: str | None = None,
+        hooks: RequestHooks | None = None,
     ) -> AsyncIterator[AssistantMessageEvent]:
+        del hooks  # the fake has no HTTP request to seam into
         self.calls.append((model, system, list(messages), list(tools)))
         self.session_ids.append(session_id)
         stream = self._streams.pop(0) if self._streams else []

@@ -52,7 +52,7 @@ from baldric.protocol.messages import (
     ToolCall,
     UserMessage,
 )
-from baldric.protocol.provider import CancellationToken
+from baldric.protocol.provider import CancellationToken, RequestHooks
 from baldric.protocol.provider_events import (
     AssistantErrorEvent,
     AssistantMessageEvent,
@@ -424,9 +424,10 @@ class LoginRequiredProvider:
         tools: list[AgentTool],
         signal: CancellationToken | None = None,
         session_id: str | None = None,
+        hooks: RequestHooks | None = None,
     ) -> AsyncIterator[AssistantMessageEvent]:
         """Surface a login-needed provider error."""
-        del system, messages, tools, signal, session_id
+        del system, messages, tools, signal, session_id, hooks
 
         async def iterator() -> AsyncIterator[AssistantMessageEvent]:
             error = AssistantMessage(

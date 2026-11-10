@@ -5,6 +5,9 @@
   "src/baldric/agent/tool_calls.py": {
     "noqa:BLE001": 3
   },
+  "src/baldric/ai/hooks.py": {
+    "noqa:BLE001": 1
+  },
   "src/baldric/ai/openai_codex.py": {
     "noqa:BLE001": 1
   },
