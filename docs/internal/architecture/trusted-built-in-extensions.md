@@ -1,43 +1,34 @@
-# Trusted hidden built-in extensions
+# 受信任的隐藏内置 extension
 
-## What Phase 2 adds
+## Phase 2 加了什么
 
-Issue #606 adds a generic way for Baldric to run extension code bundled in the
-installed package. It does not add llama.cpp, startup provider preparation,
-`/local`, a local-backend API, or network work.
+Issue #606 加了一种通用方式，让 Baldric 运行打包进已安装包的 extension 代码。它不加 llama.cpp、启动 provider 准备、
+`/local`、本地 backend API 或网络工作。
 
-The declaration is intentionally small:
+声明刻意很小：
 
 ```python
 BuiltInExtension(name="capability", setup=setup, hidden=True)
 ```
 
-Declarations live in `baldric_coding.extensions.builtin_registry.BUILT_IN_EXTENSIONS`.
-Later phases can add product capabilities to that tuple without teaching the
-loader their names. The Phase 2 production tuple is empty; deterministic tests
-inject a minimal fake declaration.
+声明住在 `baldric_coding.extensions.builtin_registry.BUILT_IN_EXTENSIONS`。
+后续阶段可以往那个元组加产品能力，而无需教加载器它们的名字。Phase 2 的生产元组为空；确定性测试注入一个最小 fake 声明。
 
-## Why built-ins use extensions
+## built-in 为什么用 extension
 
-A bundled capability still needs normal lifecycle and failure boundaries. If it
-registered a tool, command, or provider through private host branches, reload and
-source cleanup would differ from user extensions and each capability would make
-core more provider-specific.
+打包的能力仍需要正常的生命周期与失败边界。如果它经私有的宿主分支注册工具、命令或 provider，reload 与来源清理就会与用户 extension 不同，每个能力都会让内核更 provider 专属。
 
-Instead, a built-in receives the ordinary `ExtensionAPI`. The Phase 2 fake proves
-that one setup function can register:
+改为让 built-in 接收普通的 `ExtensionAPI`。Phase 2 的 fake 证明一个 setup 函数可以注册：
 
-- an `AgentTool`;
-- a slash command;
-- a Phase 1 `DynamicProvider` layer.
+- 一个 `AgentTool`；
+- 一个 slash 命令；
+- 一个 Phase 1 `DynamicProvider` 层。
 
-The real `ExtensionRuntime` composes all three. No test-only loader bypass is
-used.
+真实 `ExtensionRuntime` 组合全部三者。不使用任何仅供测试的加载器旁路。
 
-## Load order
+## 加载顺序
 
-`ExtensionRuntime.load()` first calls its once-per-generation built-in loader,
-then performs normal filesystem discovery:
+`ExtensionRuntime.load()` 先调用其每世代一次的内置加载器，再执行正常文件系统发现：
 
 ```text
 trusted built-in declarations
@@ -46,21 +37,16 @@ trusted built-in declarations
 → trusted, opted-in project extension directory (later staged call)
 ```
 
-`include_resource_dirs=False`, which implements `--no-extensions`, skips user
-and project directory discovery but not built-ins or explicit paths. A session
-now always calls `ExtensionRuntime.load()`, even when discovery is disabled, so
-built-ins cannot accidentally disappear in that mode.
+实现 `--no-extensions` 的 `include_resource_dirs=False` 跳过用户
+与项目目录发现，但不跳过 built-in 与显式路径。session 现在总是调用 `ExtensionRuntime.load()`，即使发现被禁用，built-in 也不会在该模式下意外消失。
 
-Project extensions remain a separate post-trust load. Built-ins are direct
-installed-package callables, not filesystem candidates, so they neither add a
-protected-input category nor cause a trust prompt. They may use the existing
-pre-trust hook only when a project already has protected inputs; this phase's
-fake does not.
+项目 extension 仍是信任后的单独加载。built-in 是直接安装包内可调用物，不是文件系统候选，因此既不加受保护输入类别也不引发信任提示。只有当项目已有受保护输入时，它们才可使用既有的
+信任前 hook；本阶段的 fake 不会。
 
-## Provenance and hidden metadata
+## 来源与 hidden 元数据
 
-Filesystem discovery now labels every source as `user`, `explicit`, or
-`project`. Built-ins use:
+文件系统发现现在把每个来源标为 `user`、`explicit` 或
+`project`。built-in 用：
 
 ```text
 source      = built-in
@@ -69,95 +55,74 @@ path        = None
 hidden      = declaration.hidden
 ```
 
-The runtime retains this in immutable `ExtensionSourceMetadata`. The host-owned
-source ID, rather than the display name, owns tools, commands, handlers, and
-provider layers.
+runtime 把它保留在不可变的 `ExtensionSourceMetadata`。宿主自有的
+来源 ID（而非显示名）拥有工具、命令、handler 与 provider 层。
 
-`extension_names` remains the ordinary visible listing and omits hidden
-built-ins. `extension_metadata` is the detailed diagnostic view and includes
-both visible and hidden sources. Hidden therefore means “not advertised as an
-installed/discovered extension,” never “not loaded.”
+`extension_names` 仍是普通可见清单并省略隐藏
+built-in。`extension_metadata` 是详细诊断视图，同时包含可见与隐藏来源。hidden 因此意为"不作为已安装/被发现的 extension 宣传"，绝不是"未加载"。
 
-## Failure isolation
+## 失败隔离
 
-Built-in setup runs through the same `_setup_extension()` boundary as imported
-extensions. The runtime creates one source-scoped API, records the source, and
-then calls setup synchronously. If setup raises:
+built-in setup 走与导入 extension 相同的 `_setup_extension()` 边界。runtime 创建一个来源范围的 API、记录来源，
+然后同步调用 setup。setup 抛异常时：
 
-1. the failed source is removed from active extension metadata;
-2. its tools, commands, guidelines, renderers, and handlers are removed;
-3. all of its dynamic provider layers and refresh work are unregistered;
-4. a `built-in setup failed` extension diagnostic is retained;
-5. the next declaration and normal startup continue.
+1. 失败来源从活动 extension 元数据移除；
+2. 其工具、命令、guideline、渲染器与 handler 被移除；
+3. 其全部动态 provider 层与刷新工作被注销；
+4. 保留一条 `built-in setup failed` extension 诊断；
+5. 下一个声明与正常启动继续。
 
-This keeps built-in failures visible without turning them into host startup
-failures.
+这让 built-in 失败可见，而不变成宿主启动失败。
 
-## Generation and cleanup lifecycle
+## 世代与清理生命周期
 
-Every staged `ExtensionRuntime` snapshots the declaration tuple and creates a
-fresh `ExtensionGeneration` plus Phase 1 provider registry. Repeated `load()`
-calls on one runtime do not rerun built-in setup; this matters because project
-extensions load in a second post-trust call.
+每个 staged `ExtensionRuntime` 对声明元组做快照，并创建全新的 `ExtensionGeneration` 加 Phase 1 provider registry。同一 runtime 上重复 `load()`
+不重跑 built-in setup；这很重要，因为项目 extension 在第二次信任后调用中加载。
 
-Reload, resume, new-session, and cwd replacement already stage fresh runtimes.
-Each therefore reruns built-in setup with a fresh API and provider generation.
-When the old runtime retires, it:
+reload、resume、new-session 与 cwd 替换本就 stage 全新 runtime。
+因此每个都以全新 API 与 provider 世代重跑 built-in setup。旧 runtime 退役时：
 
-- retires and detaches every dynamic provider layer;
-- requests cancellation of owned provider refresh/discovery work;
-- invalidates every captured API/context/UI facade;
-- unsubscribes the harness listener;
-- removes extension handlers, tools, commands, guidelines, and renderers;
-- drops bound-session and turn-request callbacks.
+- 退役并分离每个动态 provider 层；
+- 请求取消自有 provider 刷新/发现工作；
+- 使全部捕获的 API/context/UI 门面失效；
+- 取消订阅 harness 监听器；
+- 移除 extension handler、工具、命令、guideline 与渲染器；
+- 丢弃绑定 session 与轮次请求回调。
 
-Replacement code clears old host UI before the successor mounts UI on the shared
-bridge. Retirement deliberately does not clear that bridge again: doing so after
-the successor's `session_start` would erase fresh widgets. Final session close has
-no successor, so it clears extension components before retiring the runtime.
+替换代码在后继者把 UI 挂上共享桥之前清空旧宿主 UI。退役刻意不再清一次桥：在后继者的 `session_start` 之后清会抹掉新组件。最终 session 关闭没有后继者，因此它在退役 runtime 前清空 extension 组件。
 
-Async close then drains cooperative provider work or reports Phase 1's bounded
-containment result. Tests start a fake built-in provider refresh, retire the
-runtime, and assert cancellation, stale API rejection, empty source metadata,
-and removal of the tool, command, and provider.
+异步 close 然后排水协作的 provider 工作或报告 Phase 1 的有界包容结果。测试启动一个 fake 内置 provider 刷新、退役 runtime，并断言取消、过期 API 拒绝、空来源元数据，以及工具、命令与 provider 的移除。
 
-## Security boundary
+## 安全边界
 
-“Trusted” means the code is reviewed and shipped inside Baldric. It does not mean a
-sandbox. Like every extension, a built-in executes Python in the Baldric process.
-Hidden status is display metadata only. Project trust remains an ambient
-project-input guard and does not sandbox built-ins, providers, tools, network,
-filesystem, credentials, or subprocesses.
+"受信任"指代码经评审并随 Baldric 发布。它不意味着沙箱。与其他所有 extension 一样，built-in 在 Baldric 进程内执行 Python。hidden
+状态只是显示元数据。项目信任仍是环境性项目输入守卫，不对 built-in、provider、工具、网络、文件系统、凭据或子进程设沙箱。
 
-## Pi alignment and intentional Baldric choices
+## Pi 对齐与 Baldric 的有意选择
 
-This follows Pi's hidden bundled-extension pattern and source invalidation on
-reload. Baldric deliberately keeps its own cwd/trust-bound fresh-runtime staging,
-source/generation-aware Phase 1 provider registry, and detailed metadata view.
-There is no process-global built-in runtime and no capability-name branch in the
-loader.
+这遵循 Pi 的隐藏打包 extension 模式与 reload 时的来源失效。Baldric 刻意保留自己的 cwd/信任绑定全新 runtime staging、
+感知来源/世代的 Phase 1 provider registry 与详细元数据视图。
+没有进程级全局 built-in runtime，加载器里也没有能力名分支。
 
-## How to verify
+## 怎么验证
 
-Focused deterministic coverage:
+聚焦确定性覆盖：
 
 ```bash
 uv run pytest tests/test_extensions.py tests/test_extension_providers.py \
   tests/test_project_trust.py
 ```
 
-The tests cover declaration validation, real runtime registration, hidden/source
-metadata, load order, `--no-extensions`, setup-once behavior, setup rollback,
-no trust prompt, fresh reload/new/resume generations, stale API invalidation,
-and provider-task retirement.
+测试覆盖声明校验、真实 runtime 注册、hidden/来源
+元数据、加载顺序、`--no-extensions`、setup 一次行为、setup 回滚、
+无信任提示、全新的 reload/new/resume 世代、过期 API 失效与 provider 任务退役。
 
-Full repository gates remain:
+全仓门仍是：
 
 ```bash
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy
-hugo --source website --minify
 uv build
 ```

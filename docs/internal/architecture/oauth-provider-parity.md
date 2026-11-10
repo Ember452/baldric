@@ -1,50 +1,46 @@
-# OAuth provider parity and login production journal
+# OAuth provider 对齐与登录生产日志
 
 Issue: [#370](https://github.com/huggingface/tau/issues/370)
 
-## What this phase adds
+## 本阶段加了什么
 
-Baldric's original OAuth code was tied directly to OpenAI Codex. This phase adds a
-small provider-neutral registry in `baldric_coding`, ports the two broadly useful Pi
-subscription providers that Baldric was missing, and adds the current OpenCode
-products using their supported API-key mechanism:
+Baldric 最初的 OAuth 代码与 OpenAI Codex 直接绑定。本阶段在 `baldric_coding` 加了一个小的 provider 中立注册表，移植了 Baldric 缺失的两个广泛有用的 Pi
+订阅 provider，并用其受支持的 API-key 机制加入当前的 OpenCode 产品：
 
-- Anthropic Claude Pro/Max OAuth (authorization code + PKCE)
-- GitHub Copilot OAuth (device authorization, including GitHub Enterprise
-  domain input)
-- existing OpenAI Codex OAuth through the same registry
-- OpenCode Go and OpenCode Zen catalog entries (`OPENCODE_API_KEY`, not OAuth)
+- Anthropic Claude Pro/Max OAuth（授权码 + PKCE）
+- GitHub Copilot OAuth（设备授权，含 GitHub Enterprise
+  域名输入）
+- 既有的 OpenAI Codex OAuth 经同一注册表
+- OpenCode Go 与 OpenCode Zen 目录条目（`OPENCODE_API_KEY`，非 OAuth）
 
-The registry can also be extended by application extensions without adding
-provider policy to `baldric_agent`.
+注册表还可以由应用 extension 扩展，而不给 `baldric_agent` 加 provider 政策。
 
-## Audited upstream snapshot
+## 审计的上游快照
 
-The parity audit is pinned to Pi commit
-[`dcfe36c79702ec240b146c45f167ab75ecddd205`](https://github.com/earendil-works/pi/commit/dcfe36c79702ec240b146c45f167ab75ecddd205),
-committed 2026-07-14. The relevant source is under
-`packages/ai/src/utils/oauth/`, while Pi's provider guide is
-[`packages/coding-agent/docs/providers.md`](https://github.com/earendil-works/pi/blob/dcfe36c79702ec240b146c45f167ab75ecddd205/packages/coding-agent/docs/providers.md).
+对齐审计钉在 Pi commit
+[`dcfe36c79702ec240b146c45f167ab75ecddd205`](https://github.com/earendil-works/pi/commit/dcfe36c79702ec240b146c45f167ab75ecddd205)，
+提交于 2026-07-14。相关源码在
+`packages/ai/src/utils/oauth/`，Pi 的 provider 指南是
+[`packages/coding-agent/docs/providers.md`](https://github.com/earendil-works/pi/blob/dcfe36c79702ec240b146c45f167ab75ecddd205/packages/coding-agent/docs/providers.md)。
 
-| Provider/product | Upstream auth | Baldric decision | Notes |
+| provider/产品 | 上游认证 | Baldric 决定 | 注记 |
 | --- | --- | --- | --- |
-| OpenAI Codex | OAuth browser callback; Pi also has device code | Ship existing browser flow through registry | Existing Baldric credentials remain compatible. Device code remains a follow-up. |
-| Anthropic Claude Pro/Max | OAuth authorization code + PKCE | Ship | OAuth requests use Bearer auth, Claude Code identity headers/betas, and the required identity system block. Anthropic currently describes third-party harness use as extra usage billed per token. |
-| GitHub Copilot | GitHub device authorization followed by Copilot token exchange | Ship | Supports github.com and a prompted GitHub Enterprise Server domain. Model availability is account policy dependent. |
-| Radius | Gateway-discovered browser/device OAuth | Exclude from Baldric core | Radius is Pi's first-party `pi-messages` gateway, not a general provider. Baldric should not bind a reusable harness to another product's gateway. |
-| OpenCode Go | API key | Ship as API-key provider | Official setup asks users to subscribe in the OpenCode console and copy an API key. |
-| OpenCode Zen | API key | Ship as API-key provider | This is pay-as-you-go gateway access; it is not OAuth login. |
-| Google Gemini API | API key | Keep existing API-key provider | Gemini CLI's consumer OAuth is a first-party-client login. This phase does not reuse undocumented consumer credentials in a third-party harness. Vertex ADC remains a possible separate ambient-auth feature. |
+| OpenAI Codex | OAuth 浏览器回调；Pi 也有设备码 | 既有浏览器流程经注册表发布 | 既有 Baldric 凭据保持兼容。设备码仍是后续项。 |
+| Anthropic Claude Pro/Max | OAuth 授权码 + PKCE | 发布 | OAuth 请求用 Bearer 认证、Claude Code 身份 headers/beta 与必需的身份系统块。Anthropic 目前把第三方 harness 使用描述为按 token 计费的额外用量。 |
+| GitHub Copilot | GitHub 设备授权后换 Copilot token | 发布 | 支持 github.com 与提示输入的 GitHub Enterprise Server 域名。模型可用性取决于账户策略。 |
+| Radius | 网关发现的浏览器/设备 OAuth | 不进 Baldric 内核 | Radius 是 Pi 的第一方 `pi-messages` 网关，不是通用 provider。Baldric 不应把可复用 harness 绑到另一个产品的网关。 |
+| OpenCode Go | API key | 以 API-key provider 发布 | 官方 setup 让用户在 OpenCode 控制台订阅并复制 API key。 |
+| OpenCode Zen | API key | 以 API-key provider 发布 | 这是按量付费的网关访问；不是 OAuth 登录。 |
+| Google Gemini API | API key | 保留既有 API-key provider | Gemini CLI 的消费级 OAuth 是第一方客户端登录。本阶段不在第三方 harness 复用未文档化的消费凭据。Vertex ADC 仍是可能单独的环境认证特性。 |
 
-The OpenCode decisions were checked against the OpenCode `dev` documentation:
+OpenCode 决策对照 OpenCode `dev` 文档核实：
 [`go.mdx`](https://github.com/sst/opencode/blob/dev/packages/web/src/content/docs/go.mdx)
-and
-[`zen.mdx`](https://github.com/sst/opencode/blob/dev/packages/web/src/content/docs/zen.mdx).
-OpenCode's newer console account OAuth dynamically returns workspace provider
-configuration, but OpenCode Go/Zen's documented portable provider credential is
-still an API key. Baldric therefore does not mislabel either product as OAuth.
+与
+[`zen.mdx`](https://github.com/sst/opencode/blob/dev/packages/web/src/content/docs/zen.mdx)。
+OpenCode 较新的控制台账户 OAuth 动态返回工作区 provider
+配置，但 OpenCode Go/Zen 文档化的可移植 provider 凭据仍是 API key。Baldric 因此不把任一产品误标为 OAuth。
 
-## Architecture
+## 架构
 
 ```text
 Textual OAuthLoginScreen
@@ -60,56 +56,43 @@ baldric_coding.auth.registry
 FileCredentialStore ── OAuthRuntimeCredentialResolver ── baldric_ai adapter
 ```
 
-Responsibilities remain aligned with Baldric's package boundaries:
+职责与 Baldric 的包边界保持对齐：
 
-- `baldric_coding` owns login UX contracts, provider registry, token refresh, local
-  credential storage, and provider setup policy.
-- `baldric_ai` only knows request-time auth material and protocol-specific header or
-  payload behavior.
-- `baldric_agent` is unchanged and knows nothing about providers, OAuth, Textual, or
-  local paths.
+- `baldric_coding` 拥有登录 UX 契约、provider 注册表、token 刷新、本地
+  凭据存储与 provider setup 政策。
+- `baldric_ai` 只知道请求时认证材料与协议特定的 header 或载荷行为。
+- `baldric_agent` 不变，对 provider、OAuth、Textual 或本地路径一无所知。
 
-`OAuthCredential` now allows an optional `account_id` and JSON-compatible
-provider metadata. Existing Codex JSON objects load unchanged. GitHub Enterprise
-stores only its normalized domain. Writes use a private temporary file and an
-atomic replace, avoiding partially written JSON.
+`OAuthCredential` 现在允许可选 `account_id` 与 JSON 兼容的
+provider 元数据。既有 Codex JSON 对象原样加载。GitHub Enterprise 只存其归一化域名。写入用私有临时文件加
+原子替换，避免写了一半的 JSON。
 
-Request-time resolvers refresh expired credentials and save replacements before
-the request. This also allows Copilot to derive a per-account API base URL from
-the short-lived token.
+请求时解析器刷新过期凭据并在请求前保存替换值。这也让 Copilot 能从短命 token 派生按账户的 API base URL。
 
-## Security choices and limitations
+## 安全选择与限制
 
-- PKCE and state validation are retained for browser callbacks.
-- Device verification URLs are accepted only with `http` or `https` schemes.
-- Device polling follows RFC 8628 defaults, `slow_down`, expiry, and
-  cancellation.
-- Provider HTTP failures do not include token response bodies, tokens, or
-  authorization codes in user-facing exceptions.
-- Credentials remain in `~/.baldric/credentials.json` with mode `0600`. OS keyring
-  or encrypted-at-rest storage is intentionally deferred; users with a stronger
-  local threat model should prefer environment variables or protect their Baldric
-  home directory.
-- `/logout` removes local credentials but does not remotely revoke a provider
-  grant. Users can revoke Baldric/CLI access in their provider account settings.
-- Copilot model support varies by plan, organization policy, and model opt-in.
-  The bundled catalog is a candidate list; provider errors should be interpreted
-  with those account restrictions in mind.
+- 浏览器回调保留 PKCE 与 state 校验。
+- 设备验证 URL 只接受 `http` 或 `https` scheme。
+- 设备轮询遵循 RFC 8628 默认、`slow_down`、过期与取消。
+- provider HTTP 失败的用户可见异常不含 token 响应体、token 或授权码。
+- 凭据留在 `~/.baldric/credentials.json`，权限 `0600`。OS keyring
+  或静态加密存储有意推迟；本地威胁模型更强的用户应优先环境变量或保护其 Baldric home 目录。
+- `/logout` 移除本地凭据但不远程撤销 provider 授权。用户可以在 provider 账户设置里撤销 Baldric/CLI 访问。
+- Copilot 模型支持随套餐、组织策略与模型选择而异。打包目录是候选清单；解读 provider 错误时应考虑那些账户限制。
 
-## Validation and release process
+## 验证与发布流程
 
-Deterministic tests use `httpx.MockTransport` and fake credentials. They cover:
+确定性测试用 `httpx.MockTransport` 与 fake 凭据。覆盖：
 
-- Anthropic refresh success and error redaction
-- Copilot device login, token exchange, Enterprise routing, untrusted URL
-  rejection, and refresh metadata
-- RFC 8628 `slow_down` and cancellation
-- registry replacement/restoration
-- legacy Codex credential loading, extensible metadata, permissions, and atomic
-  writes
-- login picker separation between OAuth and API-key methods
+- Anthropic 刷新成功与错误脱敏
+- Copilot 设备登录、token 交换、Enterprise 路由、不可信 URL
+  拒绝与刷新元数据
+- RFC 8628 `slow_down` 与取消
+- 注册表替换/还原
+- legacy Codex 凭据加载、可扩展元数据、权限与原子写入
+- 登录 picker 对 OAuth 与 API-key 方法的区分
 
-Run the production checks with:
+生产检查运行：
 
 ```bash
 uv run pytest
@@ -118,27 +101,16 @@ uv run ruff format --check .
 uv run mypy
 ```
 
-Live OAuth smoke tests are deliberately not automated because they require paid
-personal subscriptions and external browsers. Before a release, maintainers
-should manually verify each enabled flow using test accounts, including one
-headless Copilot device flow and one pasted browser callback. Sanitized results
-belong in the release PR; no token, code, callback query, JWT, or credential
-file content should be copied into GitHub.
+活动 OAuth 冒烟测试刻意不自动化——它们需要付费个人订阅与外部浏览器。发布前维护者应用测试账户手动验证每个启用的流程，包括一次无头 Copilot 设备流程与一次粘贴的浏览器回调。脱敏结果属于发布 PR；任何 token、码、回调查询、JWT 或凭据文件内容都不应拷进 GitHub。
 
-## Rollback
+## 回滚
 
-The registry and provider catalog additions can be reverted without changing
-session files. Existing API-key credentials and old Codex OAuth objects retain
-their previous format. If a provider changes an endpoint or terms, remove it
-from `auth_methods`/the built-in registry while retaining credential parsing so
-users can update or delete old local entries safely.
+registry 与 provider 目录增项可以回退而不动 session 文件。既有 API-key 凭据与旧 Codex OAuth 对象保持其先前格式。provider 更改端点或条款时，从 `auth_methods`/内置注册表移除它，同时保留凭据解析，让用户可以安全更新或删除旧的本地条目。
 
-## Follow-ups
+## 后续
 
-- Add OpenAI Codex device-code login and an explicit browser/device selector.
-- Add a frontend-neutral non-TUI login command for SSH-only use.
-- Consider process-level refresh locking if Baldric introduces concurrent processes
-  sharing one credentials file; atomic replacement protects file integrity but
-  does not serialize competing read-modify-write operations across processes.
-- Evaluate OS keyring integration and remote revocation links.
-- Consider live Copilot model discovery/filtering after login.
+- 加 OpenAI Codex 设备码登录与显式的浏览器/设备选择器。
+- 加 frontend 中立的非 TUI 登录命令供纯 SSH 使用。
+- 若 Baldric 引入共享一份凭据文件的并发进程，考虑进程级刷新锁；原子替换保护文件完整性，但不串行化跨进程竞争的读-改-写。
+- 评估 OS keyring 集成与远程撤销链接。
+- 登录后考虑活动 Copilot 模型发现/过滤。
