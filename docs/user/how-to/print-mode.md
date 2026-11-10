@@ -116,5 +116,5 @@ fi
 ```
 
 > [!TIP]
-> For interactive work, start the [TUI](/guides/tui/) instead — you get streaming,
+> For interactive work, start the [TUI](/how-to/tui/) instead — you get streaming,
 > steering, pickers, and session branching.

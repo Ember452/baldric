@@ -3,33 +3,33 @@
 - label: Use Baldric
   items:
     - label: What is Baldric?
-      path: /what-is-baldric/
+      path: /explanation/what-is-baldric/
     - label: Quickstart
-      path: /quickstart/
+      path: /tutorials/quickstart/
     - label: Core concepts
-      path: /concepts/
-- label: Guides
+      path: /explanation/concepts/
+- label: How-to guides
   items:
     - label: The interactive session
-      path: /guides/tui/
+      path: /how-to/tui/
     - label: Sessions
-      path: /guides/sessions/
+      path: /how-to/sessions/
     - label: Providers & models
-      path: /guides/providers-and-models/
+      path: /how-to/providers-and-models/
     - label: Skills & prompt templates
-      path: /guides/skills-and-prompts/
+      path: /how-to/skills-and-prompts/
     - label: Project instructions
-      path: /guides/project-instructions/
+      path: /how-to/project-instructions/
     - label: Managing context
-      path: /guides/context/
+      path: /how-to/context/
     - label: Print mode & scripting
-      path: /guides/print-mode/
+      path: /how-to/print-mode/
     - label: Extensions
-      path: /guides/extensions/
+      path: /how-to/extensions/
     - label: MCP servers
-      path: /guides/mcp/
+      path: /how-to/mcp/
     - label: Themes
-      path: /guides/themes/
+      path: /how-to/themes/
 - label: Reference
   items:
     - label: CLI
@@ -45,13 +45,13 @@
 - label: How Baldric works
   items:
     - label: Architecture overview
-      path: /internals/architecture/
+      path: /explanation/architecture/
     - label: The agent loop & events
-      path: /internals/agent-loop/
+      path: /explanation/agent-loop/
     - label: Design principles
-      path: /internals/design-principles/
+      path: /explanation/design-principles/
     - label: Build your own frontend
-      path: /internals/custom-frontend/
+      path: /explanation/custom-frontend/
 - label: Release notes
   link: /releases/
 - label: Roadmap

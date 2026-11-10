@@ -10,10 +10,10 @@ cover everything else.
 baldric [OPTIONS] [PROMPT] [COMMAND] [ARGS]
 ```
 
-- With no arguments, `baldric` opens the interactive [TUI](/guides/tui/).
+- With no arguments, `baldric` opens the interactive [TUI](/how-to/tui/).
 - A positional `PROMPT` opens the TUI and submits it as the first turn.
 - `/local` is available in the TUI for registered local backends; print mode reports that setup is interactive-only.
-- `-p/--print` (or `--mode`) runs that same positional prompt in [print mode](/guides/print-mode/) instead of the TUI.
+- `-p/--print` (or `--mode`) runs that same positional prompt in [print mode](/how-to/print-mode/) instead of the TUI.
 - Put flags before the prompt — Baldric treats everything after the last recognized flag as prompt text, including tokens that look like flags.
 
 On TUI and text print-mode startup, Baldric may show a non-blocking notice when a
@@ -48,7 +48,7 @@ features and fixes.
 | `-p, --print` | Run the positional prompt in non-interactive print mode |
 | `-m, --model TEXT` | Model to request from the provider |
 | `--provider TEXT` | Configured provider name to use |
-| `-t, --thinking LEVEL` | Initial [thinking level](/guides/context/#thinking-modes) for this run (`off`…`max`); overrides remembered defaults without persisting, errors if the model doesn't support it |
+| `-t, --thinking LEVEL` | Initial [thinking level](/how-to/context/#thinking-modes) for this run (`off`…`max`); overrides remembered defaults without persisting, errors if the model doesn't support it |
 | `--cwd PATH` | Working directory for the built-in tools |
 | `--mode [text\|json\|transcript\|rpc]` | Select headless output; `rpc` starts the JSONL subprocess protocol |
 | `--session TEXT` | Resume a session id in the TUI or print mode |
@@ -57,7 +57,7 @@ features and fixes.
 | `--system-prompt TEXT_OR_PATH` | Replace Baldric's default system-prompt base with literal text or an existing UTF-8 file |
 | `--append-system-prompt TEXT_OR_PATH` | Append literal text or an existing UTF-8 file (repeatable) |
 | `--auto-compact-threshold INT` | Auto-compact above this rough token estimate |
-| `-e, --extension PATH` | Load an [extension](/guides/extensions/) file or directory (repeatable) |
+| `-e, --extension PATH` | Load an [extension](/how-to/extensions/) file or directory (repeatable) |
 | `--no-extensions` | Disable extension directory discovery (explicit `-e` paths still load) |
 | `--project-extensions` | Also load trusted `<project>/.baldric/extensions`; project trust and this code opt-in are both required |
 | `--show-full-output` | Start the TUI with untruncated tool and `!`-command output instead of previews; **Ctrl+O** toggles the same at runtime |
@@ -67,11 +67,11 @@ features and fixes.
 
 `baldric install` accepts local Python files, local package directories, Pi-style
 `git:github.com/owner/repository[@ref]` sources, and normal HTTP/SSH Git URLs.
-See [Extensions](/guides/extensions/#install-an-extension)
+See [Extensions](/how-to/extensions/#install-an-extension)
 for package-layout, dependency, and security details.
 
 `--approve` and `--no-approve` are mutually exclusive and never write the
-trust store. See [Project trust](/guides/project-trust/)
+trust store. See [Project trust](/how-to/project-trust/)
 for interactive scopes, headless defaults, protected resources, and the
 non-sandbox boundary.
 

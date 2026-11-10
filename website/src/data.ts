@@ -20,7 +20,7 @@ export const site = {
   description: "An educational Python project for learning how coding agents are built.",
   githubUrl: "https://github.com/Ember452/baldric",
   discordUrl: "https://github.com/Ember452/baldric/discussions",
-  editRepoUrl: "https://github.com/Ember452/baldric/edit/main/website/content",
+  editRepoUrl: "https://github.com/Ember452/baldric/edit/main/docs/user",
   githubRepo: "Ember452/baldric",
 };
 export const version = (

@@ -3,7 +3,7 @@ title: Keyboard shortcuts
 description: Default keys for the Baldric TUI, and how to remap them.
 ---
 
-These are the default keys in the interactive [TUI](/guides/tui/). Run
+These are the default keys in the interactive [TUI](/how-to/tui/). Run
 `/hotkeys` in-session to see them, and remap them in `~/.baldric/tui.json` (see
 [Configuration](/reference/configuration/#tui-settings)).
 

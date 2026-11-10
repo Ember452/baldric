@@ -36,18 +36,18 @@ It's two things at once:
 ## Who is it for?
 
 - **You want a coding agent you can run and shape** — install it, point it at a
-  model, and work. Start with the [Quickstart](/quickstart/).
+  model, and work. Start with the [Quickstart](/tutorials/quickstart/).
 - **You want to understand how coding agents are built** — read the
-  [core concepts](/concepts/), then the [How Baldric works](/internals/architecture/)
+  [core concepts](/explanation/concepts/), then the [How Baldric works](/explanation/architecture/)
   section.
 
 ## Where to go next
 
-- **[Quickstart](/quickstart/)** — install Baldric and run your first session in
+- **[Quickstart](/tutorials/quickstart/)** — install Baldric and run your first session in
   a few minutes.
-- **[Core concepts](/concepts/)** — the handful of ideas (agent loop,
+- **[Core concepts](/explanation/concepts/)** — the handful of ideas (agent loop,
   providers, tools, sessions, skills) that everything else builds on.
-- **[Guides](/guides/tui/)** — task-focused how-tos for the TUI, sessions,
+- **[Guides](/how-to/tui/)** — task-focused how-tos for the TUI, sessions,
   providers, and more.
 - **[Reference](/reference/cli/)** — exact CLI commands, slash commands, and
   keyboard shortcuts.

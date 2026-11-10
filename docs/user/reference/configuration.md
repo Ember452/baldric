@@ -71,7 +71,7 @@ Baldric also reads user-level `.agents` resources: `~/.agents/skills/`,
 "never"`. It is user-global only; a project cannot choose its own trust
 policy. The default is `ask`. Interactive `ask` opens the trust modal; headless
 `ask` safely declines. `trust.json` is managed atomically by Baldric; do not add
-relative paths or unknown fields. See [Project trust](/guides/project-trust/).
+relative paths or unknown fields. See [Project trust](/how-to/project-trust/).
 
 Startup update checks cache their latest PyPI result in
 `~/.baldric/cache/update-check.json` and refresh at most once per day. A failed
@@ -163,7 +163,7 @@ stable `llama.cpp` provider ID and exact model ID; stale entries do not create
 availability or router work. For Hugging Face GGUF search, Baldric reads `HF_TOKEN`
 or standard Hugging Face token files but never stores or forwards that token to
 the llama.cpp server. The independent server needs its own `HF_TOKEN` for gated
-downloads. See the [local inference guide](/guides/local-inference/).
+downloads. See the [local inference guide](/how-to/local-inference/).
 
 Baldric intentionally reads catalog overlays only from the user-level
 `~/.baldric/catalog.toml`. There is no project-level `.baldric/catalog.toml`, so cloning a
@@ -378,7 +378,7 @@ Provider preferences live in `~/.baldric/providers.json`:
 Writes after `/login`, `/model`, or scoped-model changes reload the file first,
 apply only the requested change, write atomically, and keep a `.bak` backup.
 
-See the [Providers & models guide](/guides/providers-and-models/) for usage.
+See the [Providers & models guide](/how-to/providers-and-models/) for usage.
 
 ## Shell settings
 
@@ -457,7 +457,7 @@ The built-in frontend reads optional settings from `~/.baldric/tui.json`:
 
 Built-in themes: `baldric-dark` (default), `baldric-light`, `high-contrast`. Custom
 themes are JSON files in `~/.baldric/themes/` or a project's `.baldric/themes/` — see
-[Themes](/guides/themes/). Set one with `/theme`.
+[Themes](/how-to/themes/). Set one with `/theme`.
 Textual's native theme picker is mapped to the same Baldric themes and persists
 the same `theme` setting. A configured theme that cannot be found falls back
 to `baldric-dark` with a startup notice, without overwriting the setting. Keys use
@@ -496,13 +496,13 @@ readable but are ignored. Per-entry bookmarks are append-only `label` changes
 with `target_id` and an optional `label`; the latest change per target wins and
 `null`/empty clears it. Session display names remain `session_info.title`.
 Metadata is indexed per project. See the
-[Sessions guide](/guides/sessions/).
+[Sessions guide](/how-to/sessions/).
 
 ## Skills, prompts & project context
 
 Resource discovery order (later overrides earlier) is documented in
-[Skills & prompt templates](/guides/skills-and-prompts/) and
-[Project instructions](/guides/project-instructions/). In short: user-level
+[Skills & prompt templates](/how-to/skills-and-prompts/) and
+[Project instructions](/how-to/project-instructions/). In short: user-level
 `~/.baldric` and `~/.agents`, then project-level `.baldric` and `.agents`, with
 `AGENTS.md` discovered from the project root down to your current directory.
 
@@ -510,4 +510,4 @@ Resource discovery order (later overrides earlier) is documented in
 
 `/session` reports a rough context estimate and breakdown. Auto-compaction
 triggers near the model's context window minus a reserve; override per run with
-`--auto-compact-threshold`. Details in [Managing context](/guides/context/).
+`--auto-compact-threshold`. Details in [Managing context](/how-to/context/).

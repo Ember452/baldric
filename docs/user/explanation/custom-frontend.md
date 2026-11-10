@@ -5,8 +5,8 @@ description: Advanced — drive Baldric's coding session from your own UI by con
 
 > [!CAUTION] Advanced
 > This page is for building a *new frontend* on top of Baldric's core. If you just want
-> to use Baldric, see [The interactive session](/guides/tui/). The APIs here are
-> Python and assume you've read the [architecture overview](/internals/architecture/).
+> to use Baldric, see [The interactive session](/how-to/tui/). The APIs here are
+> Python and assume you've read the [architecture overview](/explanation/architecture/).
 
 Baldric's Textual app is one frontend, not the architecture. A custom UI plugs into
 the same primitives the built-in TUI uses:
@@ -35,7 +35,7 @@ async for event in session.prompt(user_text):
 
 The stream yields provider-neutral `CodingSessionEvent` values: portable
 `AgentEvent` values from `baldric.agent.events` plus session-level values from
-`baldric.runtime.events` (see [the agent loop](/internals/agent-loop/)).
+`baldric.runtime.events` (see [the agent loop](/explanation/agent-loop/)).
 Render from these, never from provider-specific chunks. Use `agent_start` to
 enter the running state and `agent_settled`—not merely `agent_end`—to leave it,
 because automatic compaction, retry, or queued continuation may follow an

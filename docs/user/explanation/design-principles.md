@@ -10,14 +10,14 @@ approachable as it grows.
 
 Each package has one job: `baldric.ai` streams models, `baldric.agent` runs the loop,
 `baldric.runtime` is the application. You can read and test any layer on its own
-without understanding the others. → [Architecture](/internals/architecture/)
+without understanding the others. → [Architecture](/explanation/architecture/)
 
 ## Events are the contract
 
 The agent communicates progress through a stream of provider-neutral events.
 Frontends render from those events, never from provider-specific chunks or
 internal control flow. This is what lets print mode, the TUI, and custom
-frontends share one core. → [The agent loop & events](/internals/agent-loop/)
+frontends share one core. → [The agent loop & events](/explanation/agent-loop/)
 
 ## The core stays portable
 
@@ -36,7 +36,7 @@ to read, test, and add. → [Built-in tools](/reference/tools/)
 Every conversation is an append-only JSONL transcript on disk. History is a tree
 you can resume and branch; compaction changes the *active* context without
 rewriting the record. The format is plain enough to read by hand.
-→ [Sessions](/guides/sessions/)
+→ [Sessions](/how-to/sessions/)
 
 ## Small product divergences are explicit
 

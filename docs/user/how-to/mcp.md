@@ -13,7 +13,7 @@ Baldric reads an `mcp.json` from two places:
 
 - **User level**: `~/.baldric/mcp.json` — your servers, available everywhere.
 - **Project level**: `<project>/.baldric/mcp.json` — loaded only when the
-  project is [trusted](/guides/project-trust/). A project entry with the same
+  project is [trusted](/how-to/project-trust/). A project entry with the same
   name replaces the user entry; an entry with only `"enabled"` overrides just
   that switch (handy for turning a global server off in one repository).
 

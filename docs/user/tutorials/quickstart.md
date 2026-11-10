@@ -85,7 +85,7 @@ Then run one of these inside Baldric:
 ```
 
 Baldric ships with built-in entries for OpenAI, Anthropic, OpenAI Codex,
-OpenRouter, and Hugging Face. See [Providers & models](/guides/providers-and-models/)
+OpenRouter, and Hugging Face. See [Providers & models](/how-to/providers-and-models/)
 for switching models or adding a custom/local OpenAI-compatible endpoint.
 
 ## 3. Start a session
@@ -132,7 +132,7 @@ baldric --session <session-id>
 ```
 
 …or open the picker inside the TUI with `/resume`. See
-[Sessions](/guides/sessions/) for resuming, branching, and exporting.
+[Sessions](/how-to/sessions/) for resuming, branching, and exporting.
 
 ## One-shot mode
 
@@ -143,11 +143,11 @@ scripts and pipes:
 baldric -p "summarize the changes in the last commit"
 ```
 
-More in [Print mode & scripting](/guides/print-mode/).
+More in [Print mode & scripting](/how-to/print-mode/).
 
 ## Where to go next
 
-- **[Core concepts](/concepts/)** — understand what's actually happening.
-- **[The interactive session](/guides/tui/)** — get fluent in the TUI.
-- **[Providers & models](/guides/providers-and-models/)** — switch models,
+- **[Core concepts](/explanation/concepts/)** — understand what's actually happening.
+- **[The interactive session](/how-to/tui/)** — get fluent in the TUI.
+- **[Providers & models](/how-to/providers-and-models/)** — switch models,
   add providers, use local models.

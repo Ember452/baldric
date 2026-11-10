@@ -93,7 +93,7 @@ Providers that speak the Anthropic protocol through a gateway rather than being
 Anthropic itself — `minimax`, `minimax-cn`, `fireworks`, and `vercel-ai-gateway` —
 send no cache breakpoints, since not every gateway accepts them. Watch the
 sidebar's cache hit rate to see caching working; see
-[The interactive session](/guides/tui/) for how to read it.
+[The interactive session](/how-to/tui/) for how to read it.
 
 Anthropic reports `input_tokens` as the fresh, uncached portion after the last
 cache breakpoint. Baldric preserves that value as fresh input, retains the separate
@@ -427,8 +427,8 @@ trusted built-in llama.cpp provider is the narrow scoped-model exception: Baldri
 may persist only its stable provider ID plus exact model ID. An unloaded/stale
 reference remains visible as unavailable and cannot trigger load or download.
 User and project dynamic providers cannot opt into durable references. See
-the [local backends guide](/guides/local-inference/) and
-[Extensions](/guides/extensions/#dynamic-providers).
+the [local backends guide](/how-to/local-inference/) and
+[Extensions](/how-to/extensions/#dynamic-providers).
 
 ## Adding a custom / local provider
 
@@ -483,7 +483,7 @@ The configured endpoint and safe model snapshot are stored under
 `~/.baldric/state/extensions/llama.cpp.json`; secrets stay in the credential store.
 A cached snapshot allows explicit startup during temporary server downtime.
 `/local` never scans ports or processes, stops the external server, or deletes
-model files. See the [complete llama.cpp guide](/guides/local-inference/)
+model files. See the [complete llama.cpp guide](/how-to/local-inference/)
 for endpoint precedence, Doctor, reset, and troubleshooting.
 
 An older manually configured provider named `llama-cpp` remains separate and is

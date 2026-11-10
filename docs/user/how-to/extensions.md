@@ -325,7 +325,7 @@ The backend and provider must be registered by the same source and generation.
 If another source shadows the provider, the backend can remain inspectable but
 cannot use, reset, or manage models through the shadowed layer. Retired or
 reloaded generations cancel their backend work and ignore late results. See the
-[local backends guide](/guides/local-inference/).
+[local backends guide](/how-to/local-inference/).
 
 ### Dynamic providers
 
@@ -386,7 +386,7 @@ small test-only Ollama adapter. The trusted built-in `llama.cpp` provider uses
 the same seams; no production Ollama backend is shipped. Provider discovery and
 backend status may use different protocol endpoints, and `NoAuth` is a first-
 class option. Its connection, cache, and troubleshooting behavior are covered
-in the [local inference guide](/guides/local-inference/). Router
+in the [local inference guide](/how-to/local-inference/). Router
 management and Hugging Face model mutations remain outside this phase.
 
 ### Tools

@@ -81,7 +81,7 @@ When slash-command autocomplete is open, **Enter** applies the highlighted
 suggestion without submitting it; use the arrow keys first to choose a different
 suggestion. **Tab** also applies the highlighted suggestion.
 
-The full list is in the [Slash commands reference](/reference/slash-commands/). For local inference, see the [local backends guide](/guides/local-inference/).
+The full list is in the [Slash commands reference](/reference/slash-commands/). For local inference, see the [local backends guide](/how-to/local-inference/).
 
 ### Local backends
 
@@ -106,7 +106,7 @@ server-side download instead continues in llama.cpp when `/local` closes.
 Cached model snapshots remain visible as stale during server downtime.
 State-changing actions require an idle agent. Reset does not stop llama.cpp or
 delete model files; credential deletion is separately confirmed. For explicit
-startup and troubleshooting, see the [local inference guide](/guides/local-inference/).
+startup and troubleshooting, see the [local inference guide](/how-to/local-inference/).
 
 ## Running shell commands directly
 
@@ -261,7 +261,7 @@ when you want to reduce what is sent to the model.
   `baldric-dark`, the aqua selection color is also the global accent used for
   headings, prompt activity, and other emphasized UI. `baldric-light` uses a deep
   teal accent for headings and list markers against its white background. See
-  [Themes](/guides/themes/).
+  [Themes](/how-to/themes/).
 
 ## The sidebar
 
@@ -376,6 +376,6 @@ compatibility default.
 
 ## Next
 
-- [Sessions](/guides/sessions/) — resume, branch, rename, export.
-- [Providers & models](/guides/providers-and-models/) — switch and add models.
-- [Managing context](/guides/context/) — compaction and thinking modes.
+- [Sessions](/how-to/sessions/) — resume, branch, rename, export.
+- [Providers & models](/how-to/providers-and-models/) — switch and add models.
+- [Managing context](/how-to/context/) — compaction and thinking modes.

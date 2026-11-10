@@ -3,7 +3,7 @@ title: Slash commands
 description: Every in-session slash command in the Baldric TUI.
 ---
 
-Type these inside the interactive [TUI](/guides/tui/). Open the searchable
+Type these inside the interactive [TUI](/how-to/tui/). Open the searchable
 command palette with **Ctrl+K**.
 
 | Command | Description |
@@ -54,7 +54,7 @@ shows one runtime-composed source instead of guessing.
 > `/skill:<name>` is a *prompt-expansion* path, not a normal command — Baldric expands
 > the named skill into your prompt and runs it as a turn. Its optional request may
 > start on the same line or on following lines. See
-> [Skills & prompt templates](/guides/skills-and-prompts/).
+> [Skills & prompt templates](/how-to/skills-and-prompts/).
 
 Only registered commands are consumed locally. Other slash-prefixed input, including
 absolute paths such as `/tmp` or `/Users/me/file.png`, is sent to the model as a normal
@@ -63,5 +63,5 @@ prompt.
 Related:
 
 - **Thinking mode** is keyboard-driven, not a slash command — see
-  [Keyboard shortcuts](/reference/keybindings/) and [Managing context](/guides/context/#thinking-modes).
+  [Keyboard shortcuts](/reference/keybindings/) and [Managing context](/how-to/context/#thinking-modes).
 - **Prompt templates** use slash invocations (for example, `/wt …`). Use `/prompts` to search loaded templates, insert an invocation without submitting it, or edit a selected template with **Ctrl+E**.

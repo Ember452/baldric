@@ -17,10 +17,10 @@ async function files(dir) {
 }
 
 test("all Markdown routes and static hosting artifacts exist", async () => {
-  for (const file of await files(path.resolve("content"))) {
+  for (const file of await files(path.resolve("../docs/user"))) {
     if (!file.endsWith(".md")) continue;
     const route = path
-      .relative(path.resolve("content"), file)
+      .relative(path.resolve("../docs/user"), file)
       .split(path.sep)
       .join("/")
       .replace(/\.md$/, "")
@@ -65,14 +65,14 @@ test("built HTML contains no Hugo syntax or unresolved template values, and loca
 });
 
 test("docs retain callouts, highlighting, navigation, and edit links", async () => {
-  const html = await readFile(path.join(dist, "quickstart/index.html"), "utf8");
+  const html = await readFile(path.join(dist, "tutorials/quickstart/index.html"), "utf8");
   for (const value of [
     "admonition-tip",
     "Already have a package manager?",
     "astro-code",
     "docs-sidebar",
     "docs-prevnext",
-    "/edit/main/website/content/quickstart.md",
+    "/edit/main/docs/user/tutorials/quickstart.md",
   ])
     assert.ok(html.includes(value), value);
   const home = await readFile(path.join(dist, "index.html"), "utf8");

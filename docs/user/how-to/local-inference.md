@@ -107,7 +107,7 @@ Use the optional key in one of these ways:
 
 A stored key wins over `LLAMA_API_KEY`. Without a key Baldric sends no
 `Authorization` header. Keys never enter the llama.cpp state file, sessions,
-exports, or diagnostics. See [Project trust and security](/guides/project-trust/#security-boundary).
+exports, or diagnostics. See [Project trust and security](/how-to/project-trust/#security-boundary).
 
 ## Choose a model
 
@@ -133,7 +133,7 @@ from the read tool. Reported `audio` and `video` inputs are ignored because Bald
 does not send them. For older single-model servers that report no usable inputs
 in `/v1/models`, Baldric checks `/props.modalities.vision`. If neither endpoint
 reports usable capabilities, the model is treated as text-only; declare its
-image input with a [`catalog.toml`](/guides/providers-and-models/) entry instead.
+image input with a [`catalog.toml`](/how-to/providers-and-models/) entry instead.
 
 The safe integration snapshot is stored at
 `~/.baldric/state/extensions/llama.cpp.json`. It contains only the normalized
@@ -270,7 +270,7 @@ are not shipped Baldric backends.
 Baldric never copies old fake keys, fake model IDs, catalog definitions, project
 settings, or environment endpoints into built-in state. Reset removes only
 built-in settings and safe snapshots; it never stops a server or deletes model
-files. For other OpenAI-compatible endpoints, keep using [`/login custom`](/guides/providers-and-models/#adding-a-custom--local-provider)
+files. For other OpenAI-compatible endpoints, keep using [`/login custom`](/how-to/providers-and-models/#adding-a-custom--local-provider)
 or `baldric setup`.
 
 Router management never changes the safety boundary: all mutations are explicit,

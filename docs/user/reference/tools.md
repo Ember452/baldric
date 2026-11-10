@@ -13,7 +13,7 @@ directory you launched Baldric from).
 > [!NOTE]
 > This page documents tool *behavior* — what the model can do on your machine. To
 > build a frontend or register your own tools, see
-> [Building a custom frontend](/internals/custom-frontend/).
+> [Building a custom frontend](/explanation/custom-frontend/).
 
 ## `read`
 

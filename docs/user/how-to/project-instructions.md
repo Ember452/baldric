@@ -23,7 +23,7 @@ Keep it focused — it's part of the prompt budget for every turn.
 
 Baldric discovers instruction files in this order. User files are always eligible;
 project files are included only after the active cwd's [project-trust decision]
-(/guides/project-trust/):
+(/how-to/project-trust/):
 
 ```text
 ~/.baldric/AGENTS.md

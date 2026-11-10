@@ -19,7 +19,7 @@ decision records live **in the repository**, under `dev-notes/`:
 
 These are intentionally **not** published on this site — they're contributor
 material. The published docs distill the result; see
-[How Baldric works](/internals/architecture/).
+[How Baldric works](/explanation/architecture/).
 
 ## Roadmap
 

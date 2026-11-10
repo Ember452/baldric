@@ -15,7 +15,7 @@ export async function getStaticPaths() {
 const { entry } = Astro.props;
 const { Content } = await render(entry);
 const isHome = entry.id === "_index";
-const file = entry.filePath?.replace(/^.*?content\//, "") ?? `${entry.id}.md`;
+const file = `${entry.id}.md`;
 ---
 
 <Base {...entry.data}>
