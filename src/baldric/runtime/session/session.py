@@ -2043,14 +2043,18 @@ class CodingSession:
     def _auto_compaction_plan(self) -> CompactionPlan | None:
         return _session_runtime._auto_compaction_plan(self)
 
-    async def _run_compaction_plan(self, plan: CompactionPlan) -> None:
-        return await _session_runtime._run_compaction_plan(self, plan)
+    async def _run_compaction_plan(self, plan: CompactionPlan, *, reason: str = "manual") -> None:
+        return await _session_runtime._run_compaction_plan(self, plan, reason=reason)
 
     async def _generate_compaction_summary(
-        self, messages: tuple[AgentMessage, ...], *, custom_instructions: str | None = None
+        self,
+        messages: tuple[AgentMessage, ...],
+        *,
+        custom_instructions: str | None = None,
+        reason: str = "manual",
     ) -> _GeneratedSummary:
         return await _session_runtime._generate_compaction_summary(
-            self, messages, custom_instructions=custom_instructions
+            self, messages, custom_instructions=custom_instructions, reason=reason
         )
 
     async def _summarize_branch_messages(

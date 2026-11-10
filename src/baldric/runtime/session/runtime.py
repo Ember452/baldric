@@ -45,6 +45,7 @@ from baldric.runtime.events import (
     SessionAgentEndEvent,
     SessionInfoChangedEvent,
 )
+from baldric.runtime.extensions.api import SessionBeforeCompactEvent
 from baldric.runtime.observability.diagnostics import (
     AgentCallDiagnosticContext,
     new_agent_call_run_id,
@@ -307,6 +308,12 @@ class _GeneratedSummary:
     provider: str | None = None
     model: str | None = None
     response_provider: str | None = None
+
+
+# Cap on an extension-supplied compaction summary. The summary replaces the
+# context it summarizes, so unbounded text would defeat the purpose; 20k chars
+# is ~5k tokens, comfortably inside a normal compaction budget.
+MAX_EXTENSION_COMPACTION_SUMMARY_CHARS = 20_000
 
 
 async def prompt(
@@ -1008,7 +1015,7 @@ async def _try_auto_compact(
     await session._extension_runtime.emit_event(start_event)
     yield start_event
     try:
-        await session._run_compaction_plan(plan)
+        await session._run_compaction_plan(plan, reason="threshold")
     except Exception as exc:  # noqa: BLE001 - automatic compaction must not lose a turn
         session._last_diagnostic_log_path = session._diagnostic_logger.log_exception(
             context=context,
@@ -1039,7 +1046,7 @@ async def _try_overflow_compact(session: CodingSession, *, context: AgentCallDia
         plan = session._recent_preserving_compaction_plan()
         if plan is None:
             return False
-        await session._run_compaction_plan(plan)
+        await session._run_compaction_plan(plan, reason="overflow")
         return True
     except Exception as exc:  # noqa: BLE001 - the original overflow remains visible
         session._last_diagnostic_log_path = session._diagnostic_logger.log_exception(
@@ -1147,9 +1154,11 @@ def _auto_compaction_plan(session: CodingSession) -> CompactionPlan | None:
     return session._recent_preserving_compaction_plan()
 
 
-async def _run_compaction_plan(session: CodingSession, plan: CompactionPlan) -> None:
+async def _run_compaction_plan(
+    session: CodingSession, plan: CompactionPlan, *, reason: str = "manual"
+) -> None:
     tokens_before = session.context_token_estimate
-    generated = await session._generate_compaction_summary(plan.messages_to_summarize)
+    generated = await session._generate_compaction_summary(plan.messages_to_summarize, reason=reason)
     await session._append_compaction(
         generated.text,
         first_kept_entry_id=plan.first_kept_entry_id,
@@ -1162,8 +1171,28 @@ async def _run_compaction_plan(session: CodingSession, plan: CompactionPlan) -> 
 
 
 async def _generate_compaction_summary(
-    session: CodingSession, messages: tuple[AgentMessage, ...], *, custom_instructions: str | None = None
+    session: CodingSession,
+    messages: tuple[AgentMessage, ...],
+    *,
+    custom_instructions: str | None = None,
+    reason: str = "manual",
 ) -> _GeneratedSummary:
+    # Ports Pi's session_before_compact, summary half only: an extension may
+    # supply the summary; it cannot veto compaction (compaction must always
+    # complete, see dev-notes/architecture/hook-composition.md). The text is
+    # clamped so a runaway summary cannot blow the context budget it exists to
+    # protect; an empty or failed result falls through to the built-in path.
+    extension_summary = await session._extension_runtime.request_compaction_summary(
+        SessionBeforeCompactEvent(reason=reason, messages=messages)
+    )
+    if extension_summary is not None:
+        return _GeneratedSummary(
+            text=extension_summary[:MAX_EXTENSION_COMPACTION_SUMMARY_CHARS],
+            usage=None,
+            provider=session.provider_name,
+            model=session.model,
+            response_provider=None,
+        )
     prompt = build_compaction_summary_prompt(
         messages,
         custom_instructions=custom_instructions,

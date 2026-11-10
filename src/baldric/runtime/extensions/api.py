@@ -72,6 +72,7 @@ LIFECYCLE_EVENT_TYPES: frozenset[str] = frozenset(
         "user_bash",
         "model_select",
         "thinking_level_select",
+        "session_before_compact",
     }
 )
 
@@ -676,6 +677,27 @@ class UserBashResult:
     output: str = ""
     exit_code: int | None = None
     cancelled: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class SessionBeforeCompactEvent:
+    """Payload for ``session_before_compact`` (Pi's event, summary half only).
+
+    Baldric does not expose veto power here: a handler may return a
+    :class:`CompactionSummaryResult` to supply the summary, and returning
+    ``None`` keeps the built-in summarizer. Compaction must always succeed, so a
+    ``block``-style result is not part of this contract (see hook-composition.md).
+    """
+
+    reason: str
+    messages: tuple[AgentMessage, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class CompactionSummaryResult:
+    """A replacement compaction summary produced by an extension."""
+
+    summary: str
 
 
 @dataclass(frozen=True, slots=True)

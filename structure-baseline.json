@@ -353,7 +353,7 @@
       "max_function_stmts": 0
     },
     "src/baldric/runtime/extensions/api.py": {
-      "lines": 1614,
+      "lines": 1636,
       "max_function_stmts": 9
     },
     "src/baldric/runtime/extensions/builtin_registry.py": {
@@ -489,7 +489,7 @@
       "max_function_stmts": 14
     },
     "src/baldric/runtime/extensions/runtime.py": {
-      "lines": 1960,
+      "lines": 1981,
       "max_function_stmts": 39
     },
     "src/baldric/runtime/modes/__init__.py": {
@@ -729,11 +729,11 @@
       "max_function_stmts": 5
     },
     "src/baldric/runtime/session/runtime.py": {
-      "lines": 1294,
+      "lines": 1323,
       "max_function_stmts": 22
     },
     "src/baldric/runtime/session/session.py": {
-      "lines": 2093,
+      "lines": 2097,
       "max_function_stmts": 55
     },
     "src/baldric/runtime/session/stats.py": {

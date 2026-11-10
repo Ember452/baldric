@@ -64,6 +64,7 @@ from baldric.runtime.extensions.api import (
     EXTENSION_API_VERSION,
     LIFECYCLE_EVENT_TYPES,
     PROVIDER_EVENT_TYPES,
+    CompactionSummaryResult,
     CustomEntryView,
     CustomMessageView,
     EntryRenderer,
@@ -87,6 +88,7 @@ from baldric.runtime.extensions.api import (
     ProviderResponseEvent,
     ProviderStreamEvent,
     RegisteredExtension,
+    SessionBeforeCompactEvent,
     SessionLifecycleReason,
     SessionShutdownEvent,
     SessionStartEvent,
@@ -1819,6 +1821,25 @@ class ExtensionRuntime:
             if isinstance(result, UserBashResult):
                 return result
             self._record_bad_result(owner.name, "user_bash", result)
+        return None
+
+    async def request_compaction_summary(self, event: SessionBeforeCompactEvent) -> str | None:
+        """Ask extensions for a compaction summary (Pi's ``session_before_compact``).
+
+        First non-empty summary wins; ``None`` falls back to the built-in
+        summarizer. ``block`` is deliberately not offered: compaction must
+        always complete, so an extension can only supply text, never veto.
+        """
+        for owner, handler in self._handlers_for("session_before_compact"):
+            result = await self._invoke_handler(owner, "session_before_compact", event, handler)
+            if result is _PROVIDER_HANDLER_FAILED or result is None:
+                continue
+            if isinstance(result, CompactionSummaryResult):
+                if result.summary.strip():
+                    return result.summary.strip()
+                self._record_bad_result(owner.name, "session_before_compact", result)
+                continue
+            self._record_bad_result(owner.name, "session_before_compact", result)
         return None
 
     async def _on_agent_event(self, event: AgentEvent) -> None:
