@@ -1,38 +1,25 @@
-# Multimodal read-tool results
+# read 工具的多模态结果
 
-Baldric's `read` tool now detects supported images from file magic and returns them
-as canonical `ImageContent` blocks alongside its short text note. Processed
-attachments are capped at 5 MB, and animated PNG files are not treated as
-supported static PNG attachments. Oversized static images are now normalized by
-the follow-up [bounded read-image processing](./read-image-processing.md). The
-agent loop already preserves ordered
-tool-result content, so image data remains provider-neutral until the `baldric_ai`
-serialization boundary.
+Baldric 的 `read` 工具现在从文件魔数识别受支持的图片，把它们作为规范 `ImageContent` 块与短文本提示一起返回。处理后的附件上限 5 MB，动画 PNG 不再被视为受支持的静态 PNG 附件。超大的静态图片现在由后续的[有界 read 图片处理](./read-image-processing.md)归一化。
+agent loop 本就保留有序的
+工具结果内容，所以图片数据在 `baldric_ai`
+序列化边界之前保持 provider 中立。
 
-Each provider adapter maps image blocks to its wire format:
+每个 provider 适配器把图片块映射到其 wire 格式：
 
-- Anthropic nests base64 image blocks in `tool_result.content`.
-- OpenAI Responses and Codex use `input_image` blocks in function-call output.
-- OpenAI Chat Completions and Mistral keep the textual tool result and attach
-  images in a following user message.
-- Gemini 3 uses multimodal `functionResponse.parts`; older Gemini models receive
-  a separate user image message.
+- Anthropic 把 base64 图片块嵌进 `tool_result.content`。
+- OpenAI Responses 与 Codex 在 function-call 输出里用 `input_image` 块。
+- OpenAI Chat Completions 与 Mistral 保留文本工具结果，把图片放进随后的用户消息。
+- Gemini 3 使用多模态 `functionResponse.parts`；更旧的 Gemini 模型收到单独的用户图片消息。
 
-Runtime provider configuration derives image support from the selected model's
-catalog `input` metadata. Every provider config, including the distinct
-`OpenAICodexProviderConfig`, preserves this metadata through runtime creation.
-The sparse OpenAI Codex, OpenCode Go, OpenCode Zen, and GitHub Copilot catalog
-entries now declare input modalities for every model, matching Pi's generated
-provider catalog. Text-only models receive an explicit omission marker, which
-avoids invalid provider requests and makes the missing visual context visible to
-the model. GitHub Copilot image requests also include its required
-`Copilot-Vision-Request: true` header.
+运行时 provider 配置从所选模型的目录 `input` 元数据推导图片支持。每个 provider 配置——包括独立的
+`OpenAICodexProviderConfig`——在运行时创建中保留该元数据。稀疏的 OpenAI Codex、OpenCode Go、OpenCode Zen 与 GitHub Copilot 目录条目现在为每个模型声明输入模态，与 Pi 生成的
+provider 目录一致。纯文本模型收到显式的省略标记，避免无效 provider 请求，并让缺失的视觉上下文对模型可见。GitHub Copilot 图片请求还带其必需的
+`Copilot-Vision-Request: true` header。
 
-The image base64 payload moved from tool-result `details` into `content`. This
-prevents duplicate session storage and lets all frontends continue rendering the
-small text note without exposing base64 data.
+图片 base64 载荷从工具结果 `details` 移入 `content`。这避免重复的 session 存储，并让所有 frontend 继续渲染小文本提示而不暴露 base64 数据。
 
-## Validation
+## 验证
 
 ```bash
 uv run pytest

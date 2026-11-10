@@ -1,61 +1,48 @@
-# Forward-compatible user configuration
+# 向前兼容的用户配置
 
-## What changed
+## 变更了什么
 
-Baldric now ignores fields it does not recognize in user-level runtime settings:
+Baldric 现在忽略用户级运行设置中不认识的字段：
 
-- top-level settings and nested keybinding actions in `~/.baldric/tui.json`;
-- fields in `~/.baldric/settings.json`;
-- top-level settings and nested provider-preference fields in
-  `~/.baldric/providers.json`.
+- `~/.baldric/tui.json` 的顶层设置与嵌套键位动作；
+- `~/.baldric/settings.json` 的字段；
+- `~/.baldric/providers.json` 的顶层设置与嵌套 provider 偏好字段。
 
-Recognized fields are still validated exactly as before. Invalid known values,
-malformed objects, empty known key strings, conflicting shell-prefix aliases,
-and duplicate assignments among known TUI actions remain configuration errors.
+已识别字段仍与之前完全一样严格校验。非法的已知值、
+畸形对象、空的已知键字符串、冲突的 shell 前缀别名、
+已知 TUI 动作间的重复赋值仍是配置错误。
 
-## Why
+## 为什么
 
-These JSON files are user-level state and can be shared by multiple Baldric
-installations. A newer Baldric release may add a setting and write it to one of
-those files. Previously, starting an older release could then fail before
-opening the TUI with an error such as:
+这些 JSON 文件是用户级状态，可能被多个 Baldric 安装共享。新版 Baldric 可能增加一个设置并写进其中某个文件。此前，启动旧版本可能在打开 TUI 之前就失败，报错如：
 
 ```text
 Unknown TUI settings field: turn_notification
 ```
 
-Each parser now consumes the fields its version understands and ignores future
-metadata. This follows the compatibility principle already used by session
-index records (`extra="ignore"`), credential object fields, unknown top-level
-provider settings, and orphaned provider preferences.
+每个解析器现在消费其版本理解的字段、忽略未来的元数据。这遵循 session
+索引记录（`extra="ignore"`）、凭据对象字段、未知顶层
+provider 设置与孤儿 provider 偏好已经在用的兼容原则。
 
-Unknown fields are not part of the parsed settings models and therefore are not
-emitted if that older version later rewrites a settings file. This change
-protects startup compatibility; it does not make older releases understand or
-preserve newer features.
+未知字段不属于解析后的设置模型，因此旧版本稍后改写设置文件时不会把它们发出。此变更保护启动兼容性；它不让旧版本理解或保留新特性。
 
-## Deliberately strict formats
+## 刻意严格的格式
 
-This policy does not apply to every persisted file:
+该政策不适用于每个持久化文件：
 
-- `~/.baldric/catalog.toml` remains schema-versioned and strict because it controls
-  provider endpoints, authentication routing, model capabilities, and pricing;
-- custom theme JSON remains strict so misspelled color and role names produce a
-  useful diagnostic rather than a subtly broken theme;
-- session transcript entries remain strict to protect conversation integrity.
+- `~/.baldric/catalog.toml` 保持带 schema 版本且严格，因为它控制
+  provider 端点、认证路由、模型能力与定价；
+- 自定义主题 JSON 保持严格，让拼错的颜色与角色名产生有用的诊断而不是微妙损坏的主题；
+- session transcript entry 保持严格以保护对话完整性。
 
-Credential objects and session index metadata were already tolerant of extra
-fields, so they need no parser change.
+凭据对象与 session 索引元数据本就容忍额外字段，无需改解析器。
 
-## How to test
+## 怎么测试
 
-1. Add a made-up field to each JSON settings file, such as
-   `"future_setting": true`.
-2. Add a made-up action inside `tui.json`'s `keybindings` and a made-up option
-   inside one `providers.json` provider preference.
-3. Start Baldric and confirm the TUI opens while recognized settings still apply.
-4. Give recognized settings invalid values and confirm Baldric still reports those
-   configuration errors.
+1. 给每个 JSON 设置文件加一个编造字段，如
+   `"future_setting": true`。
+2. 在 `tui.json` 的 `keybindings` 里加编造动作，在 `providers.json` 的一个 provider 偏好里加编造选项。
+3. 启动 Baldric，确认 TUI 打开且已识别设置仍然生效。
+4. 给已识别设置非法值，确认 Baldric 仍报告那些配置错误。
 
-Automated tests cover ignored fields in all three parsers alongside existing
-strict validation tests for recognized fields.
+自动化测试覆盖三个解析器的忽略字段，连同既有对已识别字段的严格校验测试。

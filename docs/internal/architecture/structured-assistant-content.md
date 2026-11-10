@@ -1,60 +1,49 @@
-# Structured assistant content and persisted thinking
+# 结构化 assistant 内容与持久化 thinking
 
-## What changed
+## 变更了什么
 
-Baldric now keeps a provider response as ordered assistant content blocks:
+Baldric 现在把 provider 响应保存为有序的 assistant 内容块：
 
-- text
+- 文本
 - thinking/reasoning
-- tool calls
+- tool call
 
-The finalized Pi-shaped `AssistantMessage.content` array is persisted in session
-JSONL. Its `text`, `thinking_text`, and `tool_calls` properties provide convenient
-views for current application and extension consumers.
+定稿的 Pi 形状 `AssistantMessage.content` 数组持久化在 session
+JSONL 里。其 `text`、`thinking_text` 与 `tool_calls` 属性为当前应用与 extension 消费者提供便捷视图。
 
-Legacy Baldric session rows that used string `content` and separate `tool_calls` are
-migrated at the JSONL storage boundary into the canonical Pi message shape.
+使用字符串 `content` 加独立 `tool_calls` 的 legacy Baldric session 行在 JSONL 存储边界迁移为规范的 Pi 消息形状。
 
-## Why
+## 为什么
 
-Thinking used to exist only as transient `ThinkingDeltaEvent` values. It could be
-shown during a live response, but was lost at `message_end`. That made resumed
-transcripts incomplete, prevented faithful export and provider replay, and forced the
-TUI to infer where thinking belonged.
+thinking 以前只以瞬态 `ThinkingDeltaEvent` 存在。它可以在活动响应期间显示，但在 `message_end` 丢失。这让被恢复的 transcript 不完整、妨碍忠实的导出与 provider 回放，并迫使
+TUI 猜测 thinking 属于哪里。
 
-Pi keeps thinking, text, and tool calls in one ordered assistant content array. Baldric
-now follows the same core invariant while retaining compatibility properties for its
-existing Python API and extension system.
+Pi 把 thinking、文本与 tool call 保持在同一条有序 assistant 内容数组里。Baldric 现在遵循同一核心不变量，同时为既有 Python API 与 extension 系统保留兼容属性。
 
-## Provider behavior
+## provider 行为
 
-Provider adapters expose Pi-compatible `AssistantMessageEvent` streams. Nested
-text/thinking updates support responsive frontends; the final response is authoritative
-and includes ordered blocks and opaque replay metadata where available:
+provider 适配器暴露 Pi 兼容的 `AssistantMessageEvent` 流。嵌套
+文本/thinking 更新支持响应式 frontend；最终响应是权威的，包含有序块与可用的不透明回放元数据：
 
-- OpenAI-compatible chat preserves the reasoning field name.
-- Responses/Codex preserve serialized reasoning items when the transport supplies
-  them.
-- Anthropic preserves thinking signatures.
-- Google preserves thought signatures.
-- Mistral preserves reasoning text.
+- OpenAI 兼容 chat 保留 reasoning 字段名。
+- Responses/Codex 在 transport 供给时保留序列化的 reasoning 项。
+- Anthropic 保留 thinking 签名。
+- Google 保留 thought 签名。
+- Mistral 保留 reasoning 文本。
 
-History serializers replay supported metadata on later tool-loop requests.
+历史序列化器在后续工具循环请求上回放受支持的元数据。
 
-## Frontend and extension behavior
+## frontend 与 extension 行为
 
-The Textual state loader projects persisted blocks in order, so resumed thinking is
-available to Ctrl+T. Live provisional rows are replaced by final structured blocks at
-`message_end` through the normal transcript redraw path. That path still resolves
-extension custom-message, tool-call, and tool-result renderers.
+Textual 状态加载器按序投影持久化块，恢复的 thinking 因此可供 Ctrl+T 使用。活动的临时行在 `message_end` 时经正常 transcript 重绘路径被最终结构化块替换。该路径仍解析
+extension 自定义消息、tool call 与工具结果渲染器。
 
-Extensions receive the same Pi-shaped messages and nested event protocol as the rest
-of Baldric. Extension-driven custom messages and TUI render hooks remain separate from
-assistant content and continue through the normal redraw path.
+extension 收到与 Baldric 其余部分相同的 Pi 形状消息与嵌套事件协议。extension 驱动的自定义消息与 TUI 渲染 hook 保持独立于
+assistant 内容，继续走正常重绘路径。
 
-## Validation
+## 验证
 
-Run:
+运行：
 
 ```bash
 uv run pytest

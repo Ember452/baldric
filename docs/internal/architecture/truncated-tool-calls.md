@@ -1,56 +1,39 @@
-# Truncated responses never execute tool calls
+# 被截断的响应绝不执行 tool call
 
-**Status:** accepted — 2026-11-06 (branch `chore/p0-contract-baselines`)
+**状态：** 已接受 —— 2026-11-06（分支 `chore/p0-contract-baselines`）
 
-## What changed
+## 变更了什么
 
-When an assistant turn stops because the output token limit was reached
-(`stop_reason == "length"`) and it carries tool calls, the loop no longer runs
-any of them. Each call is reported as a recoverable error instead:
+当 assistant 轮因输出 token 上限而停止
+（`stop_reason == "length"`）且携带 tool call 时，循环不再执行其中任何一个。每个调用改报为可恢复错误：
 
-- `tool_execution_start` / `tool_execution_end` with `is_error=true`;
-- one `ToolResultMessage` per call whose text says the call was not executed and
-  should be re-issued with complete arguments;
-- the usual `turn_end`, then another turn so the model can re-issue.
+- `tool_execution_start` / `tool_execution_end` 带 `is_error=true`；
+- 每个调用一条 `ToolResultMessage`，文本说明该调用未执行、应以完整参数重发；
+- 照常 `turn_end`，然后再来一轮让模型重发。
 
-A text-only truncated turn is unchanged: it still ends the run as before.
+纯文本的截断轮不变：仍照旧结束运行。
 
-## Why
+## 为什么
 
-Streamed tool arguments are finalized with a best-effort JSON salvage. A cut-off
-response can therefore carry arguments that parse and validate but are silently
-incomplete. Schema validation cannot catch this class of error, because the
-truncated value is still valid JSON of the right shape. The failure mode is a
-real side effect from a partial command or a partial patch, so the only safe
-default is to execute nothing.
+流式工具参数以尽力而为的 JSON 抢救定稿。被切断的响应可能携带能解析、能通过校验但悄悄不完整的参数。schema 校验抓不住这类错误，因为截断值仍是形状正确的合法 JSON。故障模式是部分命令或部分 patch 产生的真实副作用，所以唯一安全的默认是什么都不执行。
 
-## Bound
+## 界限
 
-Re-issuing is only useful if the model can produce a complete response, so the
-loop stops after three consecutive truncated tool turns. The counter resets on
-any normal turn; without the bound, a model that always truncates would loop
-forever, because a truncated turn advances no provider-failure counter.
+只有模型能产出完整响应时重发才有用，所以循环在连续三次截断工具轮之后停止。计数器在任何正常轮上重置；没有界限，总是截断的模型会永远循环，因为截断轮不推进 provider 失败计数。
 
-## Tests
+## 测试
 
-`tests/agent/test_agent_loop.py`:
+`tests/agent/test_agent_loop.py`：
 
-- `test_length_truncated_tool_calls_are_not_executed` — two calls, tool never
-  runs, both results are errors, the model gets a second request;
-- `test_length_without_tool_calls_ends_normally` — the text-only control;
-- `test_repeated_truncated_tool_turns_stop_the_run` — the bound is reached after
-  exactly three requests;
-- `test_a_normal_tool_turn_resets_the_truncation_budget` — two truncations, a
-  normal tool turn, two more truncations still allow a final request.
+- `test_length_truncated_tool_calls_are_not_executed` —— 两个调用，工具从不运行，两个结果都是错误，模型收到第二次请求；
+- `test_length_without_tool_calls_ends_normally` —— 纯文本对照；
+- `test_repeated_truncated_tool_turns_stop_the_run` —— 恰好三次请求后到达界限；
+- `test_a_normal_tool_turn_resets_the_truncation_budget` —— 两次截断、一个正常工具轮、再两次截断仍允许最后一次请求。
 
-The test builds `AssistantDoneEvent(reason="length", ...)` directly: the shared
-`assistant_done` helper maps any message with tool calls to `toolUse`, which
-would hide the case under test.
+测试直接构建 `AssistantDoneEvent(reason="length", ...)`：共享的
+`assistant_done` helper 会把任何带 tool call 的消息映射为 `toolUse`，从而掩盖被测场景。
 
-## Reference
+## 参考
 
-Pi's `failToolCallsFromTruncatedMessage` in
-`packages/agent/src/agent-loop.ts:488-513` treats the batch the same way. The
-consecutive-turn bound is Baldric-specific: Pi has no unbounded-loop guard at
-this point because its durable kernel schedules turns as tasks with their own
-limits.
+Pi 在
+`packages/agent/src/agent-loop.ts:488-513` 的 `failToolCallsFromTruncatedMessage` 对该批次同样处理。连续轮界限是 Baldric 特有的：Pi 此处没有无限循环守卫，因为其持久内核把轮次调度为有各自限额的任务。

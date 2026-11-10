@@ -1,46 +1,32 @@
-# `/resume` project navigation
+# `/resume` 项目导航
 
-## What changed
+## 变更了什么
 
-PR #669 made sessions from every working directory available in `/resume`. This
-follow-up presents that history as a two-column navigator instead of appending
-foreign sessions below the current project's sessions:
+PR #669 让每个工作目录的 session 在 `/resume` 可用。本跟进把那份历史呈现为双栏导航器，而不是把外部 session 追加在当前项目的 session 下面：
 
-- **Projects** lists compact folder names, with the current working directory
-  first, followed by other projects ordered by their most recent indexed
-  session.
-- **Recent sessions** shows only the selected project's sessions, newest first;
-  its header preserves the selected directory's full path.
-- Left moves navigation to projects; Up/Down changes the project and updates its
-  session list immediately; Right returns to sessions; Enter resumes.
-- Clicking a project opens its session list without resuming anything.
-- Search remains focused for typing and filters names/models within the selected
-  project.
+- **Projects** 列出紧凑文件夹名，当前工作目录在前，其余项目按其最近一次索引的 session 排序。
+- **Recent sessions** 只显示所选项目的 session，最新在前；其标题保留所选目录的完整路径。
+- Left 把导航移到项目栏；Up/Down 换项目并立即更新其 session 列表；Right 回到 session；Enter 恢复。
+- 点击项目打开其 session 列表，不恢复任何东西。
+- 搜索保持焦点可输入，并在所选项目内过滤名字/模型。
 
-The columns share one outer browser border and a single divider, matching
-Finder's contiguous column view rather than looking like separate panels. The
-active column gets an accent title. The current project gets a marker, project
-rows omit session counts, and the session list retains horizontal breathing
-room.
+两栏共享一条外层浏览器边框与一条分隔线，像 Finder 的连续栏视图而不是两个独立面板。活动栏有 accent 标题。当前项目有标记，项目行省略 session 计数，session 列表保留水平留白。
 
-## Architecture
+## 架构
 
-This remains entirely in `baldric_coding.tui.app.SessionPickerScreen`. Session
-storage, indexing, and the portable `baldric_agent` harness are unchanged. The
-picker derives canonical project paths from the records supplied by the session
-manager, retaining the existing current-project-first and recency ordering.
+它完全留在 `baldric_coding.tui.app.SessionPickerScreen`。session
+存储、索引与可移植的 `baldric_agent` harness 不变。picker 从 session 管理器供给的记录推导规范项目路径，保留既有的当前项目优先与按时间排序。
 
-## Verification
+## 验证
 
-Automated Textual pilot tests cover keyboard column switching, project clicks,
-project-local search, empty projects, repeated list refreshes, boundary
-navigation, and session resume.
+自动化 Textual pilot 测试覆盖键盘栏切换、项目点击、
+项目内搜索、空项目、重复列表刷新、边界
+导航与 session 恢复。
 
-Manual check:
+手动检查：
 
-1. Open `/resume` or press Ctrl+R in a project with session history elsewhere.
-2. Confirm the current project's recent sessions are visible initially.
-3. Press Left and use Up/Down to preview other projects' sessions.
-4. Press Right, choose a session, and press Enter to resume it.
-5. Confirm typing filters only the selected project's sessions and Escape closes
-   without resuming.
+1. 在一个 session 历史在别处的项目里打开 `/resume` 或按 Ctrl+R。
+2. 确认初始可见当前项目的最近 session。
+3. 按 Left 并用 Up/Down 预览其他项目的 session。
+4. 按 Right，选一个 session，按 Enter 恢复。
+5. 确认输入只过滤所选项目的 session，Escape 关闭而不恢复。
