@@ -1,4 +1,4 @@
-# ADR-0002：为什么本轮不拆 `CodingSession` / `BaldricTuiApp` 两个 god-class
+# ADR-0005：为什么本轮不拆 `CodingSession` / `BaldricTuiApp` 两个 god-class
 
 - 状态：Accepted（本轮内核重构的收尾决策）
 - 日期：2026-11-08

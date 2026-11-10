@@ -1,4 +1,4 @@
-# ADR-0003：transcript-as-truth（pi 1.5.0 的系统消息承载设计）
+# ADR-0006：transcript-as-truth（pi 1.5.0 的系统消息承载设计）
 
 - 状态：Declined（暂不采纳，含重开触发条件）
 - 日期：2026-11-08
@@ -16,7 +16,7 @@
 ## baldric 现状
 
 - 系统提示词是 `AgentHarnessConfig.system` 配置槽；工具每次请求隐式传入；transcript 的 7 角色封闭联合
-  没有 system 角色；`PROTOCOL_VERSION = 1` 冻结（ADR-0001）。
+  没有 system 角色；`PROTOCOL_VERSION = 1` 冻结（ADR-0004）。
 - session entry 体系已有变更历史的**同类先例**：`ModelChangeEntry`、`ThinkingLevelChangeEntry`
   （baldric_protocol/session/entries.py）——配置变更已经以事件形式落盘。
 

@@ -1,6 +1,6 @@
 # 内核补齐计划：baldric_agent ↔ pi packages/agent 字段级对齐
 
-> 状态：**已执行（2026-11-08，分支 `feat/agent-kernel-parity`）**——阶段 A/B/C/D 完成（各阶段执行结论已回写本文件），阶段 E 推迟（§6 决策），阶段 F 决策见 `adr-0003-transcript-as-truth.md`（暂不采纳）。`PROTOCOL_VERSION` 维持 1。
+> 状态：**已执行（2026-11-08，分支 `feat/agent-kernel-parity`）**——阶段 A/B/C/D 完成（各阶段执行结论已回写本文件），阶段 E 推迟（§6 决策），阶段 F 决策见 `../adr/0006-transcript-as-truth.md`（暂不采纳）。`PROTOCOL_VERSION` 维持 1。
 > 依据：2026-11-08 对 pi `packages/agent` v1.5.0 全文（types.ts 551 行 / agent-loop.ts 1025 行 / agent.ts 623 行）与 `baldric_agent` 重构后全文的逐字段对照。控制流已确认一致，差距全部在**扩展面与字段**。
 > 行数口径：正文引用均为**物理行**（splitlines）；loop.py 实际 260、harness.py 实际 344（早前 234/284 为非空行口径，已修正）。
 > 目标：在产品开发开始前把"该加的"一次补齐，避免功能期再做侵入式内核改动。
@@ -134,11 +134,11 @@ pi 的 `runToolCall`（agent-loop.ts:955-963）：工具调工具时走与模型
 
 ## 7. 阶段 F：transcript-as-truth 决策 ADR（只写决策，不实现）
 
-> **已完成（2026-11-08）**：决策 = **暂不采纳**，弱化替代方案为 coding 层扩展 entry 类型记录提示词/工具变更历史（零版本成本）；重开触发条件三条见 `adr-0003-transcript-as-truth.md`。
+> **已完成（2026-11-08）**：决策 = **暂不采纳**，弱化替代方案为 coding 层扩展 entry 类型记录提示词/工具变更历史（零版本成本）；重开触发条件三条见 `../adr/0006-transcript-as-truth.md`。
 
 pi 1.5.0 的核心设计分歧：SystemMessage 携带 systemPrompt 与工具声明，工具集变更以 `toolsAdded/toolsRemoved` 增量系统消息声明（agent-loop.ts:438-485，`declareToolChanges` 保证回放收敛到 `context.tools`）；`AgentState.systemPrompt` 从 transcript 回放（agent.ts:86-91）。
 
-1. 交付物：`plans/adr-0003-transcript-as-truth.md` —— 论证采纳/不采纳：
+1. 交付物：`../adr/0006-transcript-as-truth.md` —— 论证采纳/不采纳：
    - 采纳的收益：会话历史自描述（改提示词/换工具成为可重放历史而非可变槽位）、多轮工具集变更可审计、与 pi 语义完全对齐
    - 代价：会话 wire 格式新增 system 角色消息（当前 7 角色封闭联合没有 system）、`SessionState` 投影与 `model_runtime` 的提示词组装要重做、`PROTOCOL_VERSION` 需要升版（**非可加性变更**）
    - 替代方案：维持现状 + 在 coding 层用 `CustomEntry` 记录提示词/工具变更历史（弱化版）
@@ -161,5 +161,5 @@ pi 1.5.0 的核心设计分歧：SystemMessage 携带 systemPrompt 与工具声�
 | C | 三钩子各有独立测试；显式继续恰好多一轮；steering 重轮询不双投递；error 轮 continue 被忽略；全 None 回归零差异 |
 | D | 观测属性时序测试绿；continue 校验按 D-T2 执行结论（排空分支 + 空历史拒绝）；**after 钩子抛异常不炸循环**；queue_mode 运行时可切换（单一模式覆盖两队列，有意分歧：不拆 pi 的双模式）；harness 443 行为登记后的实测值（计划原目标 <400 低估了 C/D 的配置面；run_state 抽取与 tool_history 修复搬迁已完成，余量是 run 生命周期+合成+校验的内聚本体） |
 | E（可选） | `execute_tool_call` 对外行为零变化（现有测试守护）；`run_tool_call` 嵌套调用命中 before 钩子且不发事件；全部失败路径 isError 不抛；outcome 不变式注释随行 |
-| F | ADR-0003 提交，含采纳/不采纳论证与替代方案；无实现代码 |
+| F | ADR-0006 提交，含采纳/不采纳论证与替代方案；无实现代码 |
 | 全部 | CI 全绿；`baldric_coding` 零改动（runtime.py 不迁移）；guidance/structure/suppression 棘轮不涨 |

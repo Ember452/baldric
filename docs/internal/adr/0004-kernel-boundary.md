@@ -1,4 +1,4 @@
-# ADR-0001：内核边界与 `baldric_protocol` 契约包
+# ADR-0004：内核边界与 `baldric_protocol` 契约包
 
 - 状态：Accepted
 - 日期：2026-11-08
@@ -38,4 +38,4 @@ baldric_ai   baldric_agent(9 文件纯内核)   ← 互不依赖（静态 + 运�
 ## 遗留债务（记录，不隐藏）
 
 - 内建扩展直连 coding 内部实现 8 处（subagents/ui → tui.config/state/widgets、schedule_store → session.manager、llama_cpp → backends.contracts）。阶段 6 产品化时按 guard-rules-draft 的"黑名单 + 存量棘轮"方案收编；现在加 guard 只会立即产生 8 个豁免，无防护价值。
-- `CodingSession`（179 方法）/ `BaldricTuiApp`（149 方法 / 177 状态属性）两个 god-class 不做文件级拆分，见 `adr-0002-god-class-deferral.md`。
+- `CodingSession`（179 方法）/ `BaldricTuiApp`（149 方法 / 177 状态属性）两个 god-class 不做文件级拆分，见 `0005-god-class-deferral.md`。

@@ -1,9 +1,9 @@
 # 内核架构改造计划（基于 pi 源码对照 + 本项目 Python 实际）
 
 > 状态：**已执行完毕（2026-11-08，分支 `refactor/kernel-protocol-extraction`）**
-> 后续内核补齐：字段级 pi 对齐见 `agent-kernel-parity-plan.md`（已执行，分支 `feat/agent-kernel-parity`）；transcript-as-truth 决策见 `adr-0003-transcript-as-truth.md`（暂不采纳）。
-> 执行结果：阶段 0（缺陷复核，三条伪缺陷否决见 §0.2）、阶段 1（protocol 抽取 + shim + 删 shim）、阶段 2（session I/O/投影下沉，内核 9 文件零 I/O）、阶段 3（静态 + 运行时双向守卫）、阶段 4（PROTOCOL_VERSION 冻结 + golden 存在性锁）全部完成；阶段 5 收窄为 subagents 纯函数抽取（extension.py 1791→1622），两个 god-class 不拆，见 `adr-0002-god-class-deferral.md`；阶段 6（产品扩展点 guard）按计划留给产品化启动时，存量 8 处直连已记录在 `adr-0001-kernel-boundary.md`。
-> 边界与决策记录：`adr-0001-kernel-boundary.md`（D3 / D-pydantic / 包发布 / 机器守卫 / 遗留债务）。
+> 后续内核补齐：字段级 pi 对齐见 `agent-kernel-parity-plan.md`（已执行，分支 `feat/agent-kernel-parity`）；transcript-as-truth 决策见 `../adr/0006-transcript-as-truth.md`（暂不采纳）。
+> 执行结果：阶段 0（缺陷复核，三条伪缺陷否决见 §0.2）、阶段 1（protocol 抽取 + shim + 删 shim）、阶段 2（session I/O/投影下沉，内核 9 文件零 I/O）、阶段 3（静态 + 运行时双向守卫）、阶段 4（PROTOCOL_VERSION 冻结 + golden 存在性锁）全部完成；阶段 5 收窄为 subagents 纯函数抽取（extension.py 1791→1622），两个 god-class 不拆，见 `../adr/0005-god-class-deferral.md`；阶段 6（产品扩展点 guard）按计划留给产品化启动时，存量 8 处直连已记录在 `../adr/0004-kernel-boundary.md`。
+> 边界与决策记录：`../adr/0004-kernel-boundary.md`（D3 / D-pydantic / 包发布 / 机器守卫 / 遗留债务）。
 > 依据：对 `pi-main/packages/{agent,ai,schema,coding-agent}` 的源码通读 + 对 `baldric/src/{baldric_agent,baldric_ai,baldric_coding}` 的逐文件通读。
 > 目标标准：可维护、可扩展、架构漂亮（不在乎迁移工作量），将来在此之上开发大规模产品、并被第三方使用。
 > 明确不做：远程执行（`env`）、`durable`、`chord`、`codemode`、`mcp` 独立包、`telemetry`、`evals` —— 这些是 pi 的大规模产品化设施，现阶段做即过度工程；只留扩展插口。
@@ -149,7 +149,7 @@ baldric_ai    baldric_agent            ← 两层都只依赖 protocol，互不�
    - `baldric_agent` 禁止 import `baldric_coding / baldric_ai / textual / rich`（保留现有）。
    - `baldric_ai` 只允许 `baldric_protocol`（把 AI_AGENT_SURFACE 改为 protocol 白名单）。
 2. `tests/guards/test_import_boundaries.py` 同步这些规则（这个 guard 已存在，扩展即可）。
-3. 写 ADR：`plans/adr-0001-kernel-boundary.md` —— 记录"哪些进内核/哪些留层""D3 决策""契约 semver 策略"。ADR 是给人的；**边界靠上面的机器 guard 强制，不靠文档自律。**
+3. 写 ADR：`../adr/0004-kernel-boundary.md` —— 记录"哪些进内核/哪些留层""D3 决策""契约 semver 策略"。ADR 是给人的；**边界靠上面的机器 guard 强制，不靠文档自律。**
 
 ### 阶段 4：冻结 + 版本化（不是死封）
 1. `baldric_protocol` 进入"契约冻结"：破坏性变更走 major；至少保留一个 minor 的 deprecation 窗口（warning + 迁移说明 + 保留旧构造器）。

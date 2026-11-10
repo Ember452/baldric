@@ -102,13 +102,13 @@ builtin 5 套（opencode schema）─┤
 
 ### 3.3 数据真相（v0.3.0 澄清，重要）
 
-`plans/adr-0003-transcript-as-truth.md` 是 **Declined（暂不采纳）**，**transcript-as-truth 没有落地**。因此：
+`../adr/0006-transcript-as-truth.md` 是 **Declined（暂不采纳）**，**transcript-as-truth 没有落地**。因此：
 
 - 渲染状态来源仍是 **`TuiEventAdapter.apply(event)` → `TuiState` → widget**（事件投影），**不是**从持久化 transcript 回放。
 - 数据链实现点（给实现时定位用）：
   - `tui/adapter.py:74 apply()` → `tui/app.py:2510/2549 adapter.apply(event)`
   - `tui/app.py:3590 transcript.update_from_state(state, theme)` → `widgets/core.py:750` → `_redraw()` 逐条 `TranscriptMessageWidget(item, ...)`
-- **含义**：L2 的卡片/工具行/思考块只需读 `TuiState` 里的 `ChatItem` 字段（字段清单见 §5），**不需要引入新的数据层**。若日后 ADR-0003 重开并落地 wire 变更，§5 的数据来源需要重审（ADR 里已写明重开触发条件）。
+- **含义**：L2 的卡片/工具行/思考块只需读 `TuiState` 里的 `ChatItem` 字段（字段清单见 §5），**不需要引入新的数据层**。若日后 ADR-0006 重开并落地 wire 变更，§5 的数据来源需要重审（ADR 里已写明重开触发条件）。
 
 ## 4. L1：Token Schema（数据层）
 
@@ -337,7 +337,7 @@ theme_css_variables()     (:428)  textual_theme_for_tui_theme() (:408)
 | `extensions/builtins/subagents/ui/{strip,viewer}.py` | **9+9=18 处 theme.*** | 确认 | 一（自动受益，不改代码） |
 | `extensions/api.py` | 3 个工厂签名**不能变** | :183 / :193 / :196 | 一（只加不改） |
 | `baldric_protocol/`、`baldric_mcp/` | 新增两个包 | **零 Textual/rich/TuiTheme 引用；不改** | — |
-| `plans/adr-0003-transcript-as-truth.md` | 数据真相决策 | **Declined**，见 §3.3 | 一（只读，不改设计） |
+| `../adr/0006-transcript-as-truth.md` | 数据真相决策 | **Declined**，见 §3.3 | 一（只读，不改设计） |
 | 30 个 `screens/*.py` + `backends.py` + `trust.py` | L4 统一壳 | **30 个 Screen 类**（`screens/` 22 + `backends.py` 7 + `trust.py` 1） | 二 |
 | `tui/widgets/sidebar.py` | 分区样式 | **9 个分区**（含 `compaction`，且 `extensions` 出现两次，需澄清） | 二 |
 | `tests/coding/tui/test_tui_themes.py` | 主题断言会大面积变 | **408 行**（v0.2.3 是 294） | 一（重写断言到新 token） |
@@ -377,7 +377,7 @@ theme_css_variables()     (:428)  textual_theme_for_tui_theme() (:408)
 ```
 T0  动手前必读（v0.3.0 新增，不可跳过）
     - rendering/themes/__init__.py 全文（446 行，确认拆分未改语义）
-    - plans/adr-0003-transcript-as-truth.md（确认 Declined，渲染仍走事件投影）
+    - ../adr/0006-transcript-as-truth.md（确认 Declined，渲染仍走事件投影）
     - src/baldric_protocol/{__init__,messages,tools,provider_events}.py（渲染读的消息/工具/流事件类型来源）
     - src/baldric_coding/tui/adapter.py + state.py 的 ChatItem / GroupedToolCall 字段
     - scripts/check_import_graph.py（层方向红线）
@@ -407,7 +407,7 @@ T0  动手前必读（v0.3.0 新增，不可跳过）
 - 不改 `baldric_agent` / `baldric_ai`（本设计完全在 `baldric_coding` 层）。
 - **不改 `baldric_protocol` / `baldric_mcp`**（v0.3.0 新增的两个底层包；本设计不触碰，且它们不得引用 Textual/rich）。
 - 不给 `rendering/` 加 Textual 依赖（CI 强制）。
-- **不采纳 transcript-as-truth**（`plans/adr-0003-transcript-as-truth.md` 是 Declined，见 §3.3）。
+- **不采纳 transcript-as-truth**（`../adr/0006-transcript-as-truth.md` 是 Declined，见 §3.3）。
 
 ---
 
@@ -491,7 +491,7 @@ T0  动手前必读（v0.3.0 新增，不可跳过）
 | 侧栏 8 分区 | **9 分区**（多 `compaction`；`extensions` 重复出现） | §5.5、§8 已标注 |
 | spinner 未知 | **8 帧 `⣾⣽⣻⢿⡿⣟⣯⣷` / 150ms** | §6 已补实测值 |
 | 未提 `baldric_protocol` / `baldric_mcp` | **两个新包，protocol 是最底层** | §3.1 新增包分层；§8、§12 已补 |
-| 假设 transcript-as-truth | **ADR-0003 Declined，未落地** | §3.3 新增；§12 明确不做 |
+| 假设 transcript-as-truth | **ADR-0006 Declined，未落地** | §3.3 新增；§12 明确不做 |
 | `theme.*` 208 处 | **208 处**（未变） | 无需改 |
 | 3 个扩展工厂接 `TuiTheme` | **3 个，签名未变** | 无需改 |
 | HTML 导出 14 处 / 扩展 UI 18 处 | **14 / 18，未变** | 无需改 |
@@ -499,7 +499,7 @@ T0  动手前必读（v0.3.0 新增，不可跳过）
 | 布局常量 `1 1 1 0` / `0 1 0 1` / `(1,0)` | **仍在 `core.py:226/232/284`** | 无需改，已补行号 |
 | 预览常量 8/32/120 | **8/32/120 未变** | 已补行号与"分级要按工具名分派"的警告 |
 
-**方法**：所有"实际"值来自 `git grep`、`wc -l`、运行时 `dataclasses.fields()` 与 `theme_css_variables()` 实测，不是估算。三个只读考古 agent 分别核了 `baldric_protocol` 分层、`baldric_mcp`/live-registration、TUI 渲染数据链与折叠机制；ADR-0003、主题模块、版本号、布局常量由我本人核对。
+**方法**：所有"实际"值来自 `git grep`、`wc -l`、运行时 `dataclasses.fields()` 与 `theme_css_variables()` 实测，不是估算。三个只读考古 agent 分别核了 `baldric_protocol` 分层、`baldric_mcp`/live-registration、TUI 渲染数据链与折叠机制；ADR-0006、主题模块、版本号、布局常量由我本人核对。
 
 
 
