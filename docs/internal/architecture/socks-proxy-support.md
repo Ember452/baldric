@@ -1,46 +1,46 @@
-# SOCKS proxy support
+# SOCKS 代理支持
 
-Baldric uses `httpx` for provider requests, OAuth token refreshes, and startup update checks. `httpx` reads standard proxy environment variables such as `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, and `NO_PROXY`.
+Baldric 用 `httpx` 发起 provider 请求、OAuth token 刷新与启动更新检查。`httpx` 读取标准代理环境变量，如 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY` 与 `NO_PROXY`。
 
-## What changed
+## 变更了什么
 
-Issue #221 reported failures when the environment contained a generic SOCKS proxy URL such as:
+Issue #221 报告环境含通用 SOCKS 代理 URL 时失败，例如：
 
 ```bash
 ALL_PROXY=socks://127.0.0.1:1080
 ```
 
-`httpx` does not accept the generic `socks://` scheme. It accepts explicit SOCKS schemes such as `socks5://` and `socks5h://`, and those require the optional SOCKS dependency.
+`httpx` 不接受通用 `socks://` scheme。它接受 `socks5://`、`socks5h://` 这类显式 SOCKS scheme，且它们需要可选的 SOCKS 依赖。
 
-Baldric now:
+Baldric 现在：
 
-- installs `httpx[socks]` in the base package so `socksio` is available;
-- normalizes `socks://...` to `socks5://...` before constructing Baldric-owned HTTP clients;
-- routes provider clients, OAuth token refresh clients, and update-check fetches through shared helpers in `baldric_ai.http`.
+- 在基础包安装 `httpx[socks]`，使 `socksio` 可用；
+- 在构建 Baldric 自有的 HTTP 客户端之前把 `socks://...` 归一化为 `socks5://...`；
+- 把 provider 客户端、OAuth token 刷新客户端与更新检查抓取都路由经 `baldric_ai.http` 的共享 helper。
 
-## Why `socks://` maps to `socks5://`
+## 为什么 `socks://` 映射到 `socks5://`
 
-The generic scheme does not specify whether DNS lookup should happen locally or through the proxy. Baldric treats it as SOCKS5 with local DNS resolution because that is the closest explicit `httpx` scheme and avoids silently changing DNS behavior beyond making the previously invalid URL usable.
+通用 scheme 没有说明 DNS 解析应当本地做还是经代理做。Baldric 把它当作本地 DNS 解析的 SOCKS5，因为那是最接近的显式 `httpx` scheme，且除了让原本非法的 URL 可用之外，不静默改变 DNS 行为。
 
-Users who need proxy-side DNS resolution should set an explicit `socks5h://` URL.
+需要代理侧 DNS 解析的用户应设显式的 `socks5h://` URL。
 
-## Future improvement: avoid temporary environment mutation
+## 未来改进：避免临时环境改动
 
-The current helper temporarily normalizes proxy environment variables while constructing Baldric-owned `httpx` clients. For the synchronous update-check helper, the normalization currently wraps the full `httpx.get(...)` call because `httpx.get` constructs and uses a short-lived client internally.
+当前 helper 在构建 Baldric 自有 `httpx` 客户端时临时归一化代理环境变量。对同步更新检查 helper，归一化目前包裹整个 `httpx.get(...)` 调用，因为 `httpx.get` 内部构建并使用短命客户端。
 
-This is acceptable for the current low-concurrency startup update-check path, but environment variables are process-global state. If Baldric later performs more concurrent networking around this helper, another thread or task could observe the normalized proxy value while the request is in progress.
+对当前低并发的启动更新检查路径可以接受，但环境变量是进程全局状态。若 Baldric 以后在这个 helper 周围做更多并发网络操作，另一线程或任务可能在请求进行中观察到归一化后的代理值。
 
-If this becomes a concern, prefer avoiding process environment mutation for request execution:
+若成为顾虑，优先在执行请求时避免改动进程环境：
 
-1. normalize proxy values into local data;
-2. construct an explicit `httpx.Client` or `httpx.AsyncClient` with equivalent proxy configuration;
-3. perform requests through that client without changing `os.environ` during request execution.
+1. 把代理值归一化进局部数据；
+2. 以等价代理配置构建显式 `httpx.Client` 或 `httpx.AsyncClient`；
+3. 经该客户端发起请求，请求执行期间不改 `os.environ`。
 
-When implementing that, preserve `NO_PROXY` semantics. `httpx` currently handles environment proxy discovery and no-proxy matching internally, so replacing it with explicit mounts/proxy configuration should include tests for:
+实现时要保留 `NO_PROXY` 语义。`httpx` 目前在内部处理环境代理发现与 no-proxy 匹配，用显式 mounts/代理配置替换它时应包含以下测试：
 
-- `ALL_PROXY=socks://...` normalization;
-- `HTTP_PROXY` and `HTTPS_PROXY` handling;
-- lowercase proxy env vars;
-- `NO_PROXY=*` bypass;
-- host/domain/IP `NO_PROXY` entries;
-- explicit `socks5://` and `socks5h://` values staying unchanged.
+- `ALL_PROXY=socks://...` 归一化；
+- `HTTP_PROXY` 与 `HTTPS_PROXY` 处理；
+- 小写代理环境变量；
+- `NO_PROXY=*` 旁路；
+- 主机/域名/IP 的 `NO_PROXY` 条目；
+- 显式 `socks5://` 与 `socks5h://` 值保持不变。

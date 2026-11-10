@@ -1,42 +1,28 @@
-# Deferred reliability decisions (#48)
+# 推迟的可靠性决策（#48）
 
-**Status:** decisions recorded — 2026-11-06
+**状态：** 决策已记录 —— 2026-11-06
 
-These three were deferred from the reliability pass on purpose: each is a format
-or mechanism change that should land together with its first real consumer, not
-speculatively. This note records the decision so a future change starts from a
-reasoned position.
+这三项是可靠性冲刺刻意推迟的：每一项都是格式或机制变更，应与它的第一个真实消费者一起落地，而不是投机性预建。本笔记记录决策，让未来变更从有依据的立场出发。
 
-## 1. Session format version field
+## 1. session 格式版本字段
 
-- **Decision:** do not add a `v` field yet.
-- **Why:** the session format is a product contract and older data must stay
-  readable. Today's reader is forward-tolerant: unknown keys are ignored and a
-  torn tail is repaired. A version field only earns its cost when the first
-  incompatible change arrives; adding it now would be an unused wire field by the
-  same rule that removed the other dead contracts.
-- **Trigger to revisit:** the first change that cannot be expressed as an
-  additive, tolerantly-read field.
+- **决策：** 暂不加 `v` 字段。
+- **为什么：** session 格式是产品契约，旧数据必须保持可读。今天的读取器向前容忍：未知键被忽略、撕裂尾部被修复。版本字段只有在第一个不兼容变更到来时才值回成本；现在加它就是一个无用的 wire 字段——与移除其他死契约是同一条规则。
+- **重访触发：** 第一个无法表达为可加性、宽容读取字段的变更。
 
-## 2. Provider record/replay
+## 2. provider 记录/回放
 
-- **Decision:** not built. Tests use `FakeProvider` and fake HTTP payloads.
-- **Why:** deterministic agent-loop tests already avoid live calls; a
-  record/replay layer is a large surface with no failing test it would fix.
-- **Trigger:** a real provider regression that a recorded transcript would have
-  caught and a unit test could not, or the first conformance suite.
+- **决策：** 不建。测试用 `FakeProvider` 与 fake HTTP 载荷。
+- **为什么：** 确定性的 agent-loop 测试已经避免活动调用；记录/回放层是一个巨大表面，却没有一个它能修复的失败测试。
+- **触发：** 一类只有真实 provider 回归、录制的 transcript 能抓到而单元测试抓不到的情况，或第一套一致性套件。
 
-## 3. Fault injection
+## 3. 故障注入
 
-- **Decision:** not built as a product feature; failures are injected in tests by
-  fakes.
-- **Why:** the retry policy and classification are already exercised by
-  `tests/ai/test_retry_*`, and a runtime fault-injection switch would be a
-  debugging-only path with no user-facing consumer.
-- **Trigger:** a class of bug that only reproduces across the real HTTP/SSE stack
-  and cannot be modelled with fakes.
+- **决策：** 不作为产品特性构建；测试里用 fake 注入失败。
+- **为什么：** 重试策略与分类已被 `tests/ai/test_retry_*` 锻炼，运行时故障注入开关是没有用户可见消费者的纯调试路径。
+- **触发：** 只在真实 HTTP/SSE 栈上复现、无法用 fake 建模的一类 bug。
 
-## Rule
+## 规则
 
-Each item lands only with its first consumer, with a test that fails without it.
-This mirrors the contract rule in `contract-debt.md`.
+每项只随其第一个消费者落地，并带一个没有它会失败的测试。
+镜像 `contract-debt.md` 的契约规则。

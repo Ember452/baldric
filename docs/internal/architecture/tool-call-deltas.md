@@ -1,42 +1,33 @@
-# Streamed tool-call arguments
+# 流式 tool-call 参数
 
-**Status:** accepted — 2026-11-06 (branch `reliability/p3-and-followups`, #52)
+**状态：** 已接受 —— 2026-11-06（分支 `reliability/p3-and-followups`，#52）
 
-## What changed
+## 变更了什么
 
-`ToolCallDeltaEvent` (`toolcall_delta`) was in the public assistant-stream
-contract but never produced: every parser accumulated argument fragments and
-emitted one complete `ProviderToolCallEvent`, so `stream.py` yielded
-`toolcall_start` and `toolcall_end` back to back with nothing between. A
-consumer could not render arguments as they arrived.
+`ToolCallDeltaEvent`（`toolcall_delta`）在公开 assistant 流契约里却从未被生产：每个解析器累积参数片段、发出一条完整的 `ProviderToolCallEvent`，所以 `stream.py` 把
+`toolcall_start` 与 `toolcall_end` 背靠背 yield，中间什么都没有。消费者无法在参数到达时渲染它们。
 
-Pi emits `toolcall_delta` from each adapter as the fragment text streams in. The
-same information now travels through Baldric:
+Pi 的每个适配器在片段文本流入时发出 `toolcall_delta`。同样的信息现在经 Baldric 传递：
 
-- `ProviderToolCallStartEvent(index)` marks the first fragment of a call.
-- `ProviderToolCallDeltaEvent(index, delta)` carries one raw JSON fragment.
-- The complete `ProviderToolCallEvent` still ends the call.
+- `ProviderToolCallStartEvent(index)` 标记一次调用的第一个片段。
+- `ProviderToolCallDeltaEvent(index, delta)` 携带一段原始 JSON 片段。
+- 完整的 `ProviderToolCallEvent` 仍终结该调用。
 
-Adapters emit start-on-first-fragment and delta-per-fragment: OpenAI-compatible
-chat and Mistral from `tool_calls[].function.arguments`, Anthropic from
-`input_json_delta` (start at `content_block_start`), and OpenAI Codex from
-`response.function_call_arguments.delta`. Google's Gemini stream delivers the
-whole `functionCall`, so it keeps the complete-only path — absence of deltas is
-valid.
+适配器按"首片段发 start、每片段发 delta"发射：OpenAI 兼容
+chat 与 Mistral 来自 `tool_calls[].function.arguments`，Anthropic 来自
+`input_json_delta`（在 `content_block_start` 发 start），OpenAI Codex 来自
+`response.function_call_arguments.delta`。Google 的 Gemini 流一次性送达整个
+`functionCall`，因此保持仅完整路径——没有 delta 是合法的。
 
-## Stream assembly
+## 流组装
 
-`baldric_ai/stream.py` allocates a placeholder `ToolCall` block on start, appends
-each fragment to a buffer, and replaces the block with the final parsed call on
-the complete event. Multi-call responses are paired in start order with a FIFO
-queue, so interleaved calls end in the order they started even though the
-complete events carry no index.
+`baldric_ai/stream.py` 在 start 时分配占位 `ToolCall` 块，把每个片段
+追加进缓冲，在 complete 事件上用最终解析的调用替换该块。多调用响应按 start 顺序以 FIFO
+队列配对，因此交错的调用按开始顺序结束——即使 complete 事件不带索引。
 
-## Tests
+## 测试
 
-- `tests/ai/test_stream_tool_deltas.py`: a streamed call yields
-  start → deltas → end, fragments concatenate to the final arguments, the
-  complete-only path still yields start/end, and two interleaved calls pair in
-  order.
+- `tests/ai/test_stream_tool_deltas.py`：一次流式调用产出
+  start → deltas → end，片段拼接等于最终参数，仅完整路径仍产出 start/end，两个交错调用按序配对。
 - `tests/ai/test_baldric_ai.py::test_openai_compatible_provider_streams_tool_calls`
-  now asserts the adapter actually emits `toolcall_delta` between start and end.
+  现在断言适配器真的在 start 与 end 之间发出 `toolcall_delta`。

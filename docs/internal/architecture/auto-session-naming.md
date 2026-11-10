@@ -1,36 +1,36 @@
-# Automatic session naming
+# 自动 session 命名
 
-Baldric automatically gives a new managed session a short title based on the first user message.
+Baldric 依据第一条用户消息自动给新的受管 session 起一个短标题。
 
-## What was added
+## 加了什么
 
-- New managed sessions are named automatically after the first user message is durably persisted.
-- Baldric asks the currently selected provider/model for a concise title of at most four words.
-- The title is sanitized before it is stored in session metadata.
-- If the provider call fails or returns unusable text, Baldric falls back to a local title derived from the first message.
-- `/name` remains the manual override and Baldric does not replace an existing session title.
+- 新的受管 session 在第一条用户消息持久化之后自动命名。
+- Baldric 请当前选定的 provider/model 起一个至多四个词的简洁标题。
+- 标题在存入 session 元数据前经过净化。
+- provider 调用失败或返回不可用文本时，Baldric 回退到从第一条消息派生的本地标题。
+- `/name` 仍是手动覆盖，Baldric 不替换既有的 session 标题。
 
-## Why it exists
+## 为什么存在
 
-Session ids are useful for exact references, but they are hard to scan in `/resume`, `baldric sessions`, and id completions. Automatic names make saved sessions easier to recognize without requiring users to pause and name each one manually.
+session id 对精确引用有用，但在 `/resume`、`baldric sessions` 与 id 补全里难以扫读。自动名字让已存 session 更容易辨认，用户不必停下来逐个手动命名。
 
-## How it differs from Pi
+## 与 Pi 的差异
 
-This is one of Baldric's small intentional product divergences from Pi's minimalist baseline. Pi-style session persistence focuses on durable transcripts and explicit user actions. Baldric adds automatic session metadata to improve resume/discovery workflows.
+这是 Baldric 相对 Pi 极简基线的少数有意产品分歧之一。Pi 式的 session 持久化聚焦持久 transcript 与显式用户动作。Baldric 增加自动 session 元数据以改进恢复/发现流程。
 
-The divergence is kept in `baldric_coding` because it is application metadata behavior, not reusable agent-harness behavior. `baldric_agent` still only owns the portable agent loop, messages, tools, and events.
+分歧保留在 `baldric_coding`，因为它是应用元数据行为，不是可复用 agent-harness 行为。`baldric_agent` 仍只拥有可移植的 agent loop、消息、工具与事件。
 
-## Model choice
+## 模型选择
 
-Baldric uses the session's currently selected provider/model for the naming request. There is no separate title model setting yet. This keeps the implementation simple and follows the active session configuration, but it does mean the first turn may make a short extra model call before the main assistant response.
+Baldric 用 session 当前选定的 provider/model 发起命名请求。目前没有独立的标题模型设置。这让实现简单并跟随活动 session 配置，但意味着第一轮可能在主 assistant 回复之前有一次简短的额外模型调用。
 
-## Persistence behavior
+## 持久化行为
 
-Naming happens only after the first user message has been persisted. This preserves deferred indexing for newly prepared sessions: a session that is cancelled before its first durable message should not appear in the resume index just because naming started.
+命名只在第一条用户消息持久化之后发生。这保住了新准备 session 的延迟索引：在第一条持久消息之前被取消的 session，不应只因命名已开始就出现在 resume 索引里。
 
-## How to test
+## 怎么测试
 
 ```bash
 uv run pytest tests/test_coding_session.py -q
-uv run ruff check src/baldric_coding/session.py tests/test_coding_session.py website/content/guides/sessions.md
+uv run ruff check src/baldric_coding/session.py tests/test_coding_session.py docs/user/how-to/sessions.md
 ```
