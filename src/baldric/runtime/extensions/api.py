@@ -69,8 +69,19 @@ LIFECYCLE_EVENT_TYPES: frozenset[str] = frozenset(
         "tool_call",
         "tool_result",
         "project_trust",
+        "user_bash",
+        "model_select",
+        "thinking_level_select",
     }
 )
+
+# Extension-facing event names that map onto an existing canonical event type.
+# Pi calls the thinking-level notification `thinking_level_select`; Baldric's
+# canonical frontend event is `thinking_level_changed`, so subscribing with
+# either name delivers the same event (no duplicate emission).
+EVENT_NAME_ALIASES: Mapping[str, str] = {
+    "thinking_level_select": "thinking_level_changed",
+}
 
 # Provider-level seams (plan Task A2). These mirror Pi's provider events and are
 # bridged onto the AI-layer request hooks (RequestHooks / HookableProvider). They
@@ -637,6 +648,34 @@ class ProviderStreamEvent:
 
     model: str
     event: object
+
+
+@dataclass(frozen=True, slots=True)
+class UserBashEvent:
+    """Payload for the ``user_bash`` hook (a ``!``/``!!`` command, ports Pi).
+
+    ``exclude_from_context`` is True for ``!!`` (output is not added to the
+    model context). A handler may return a :class:`UserBashResult` to answer the
+    command itself; returning ``None`` continues to the next handler, then the
+    local shell.
+    """
+
+    command: str
+    cwd: Path
+    exclude_from_context: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class UserBashResult:
+    """A completed ``user_bash`` command supplied by an extension.
+
+    Returning this records the command as if it had run (no local execution).
+    ``cancelled`` lets an extension report an aborted remote run.
+    """
+
+    output: str = ""
+    exit_code: int | None = None
+    cancelled: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -1297,6 +1336,25 @@ class ExtensionAPI:
         """Select or reset the active Hugging Face session route."""
         self._generation.assert_active()
         return self._runtime.session_view.set_inference_provider(route)
+
+    async def set_model(self, model: str) -> None:
+        """Switch the active session model (ports Pi's ``setModel``).
+
+        The change fires the ``model_select`` event for every extension,
+        including this one, and persists the selection the way the ``/model``
+        command does.
+        """
+        self._generation.assert_active()
+        await self._runtime.set_model(model)
+
+    async def set_thinking_level(self, level: str) -> str:
+        """Switch the active thinking level (ports Pi's ``setThinkingLevel``).
+
+        Returns the level actually applied (the runtime coerces/clamps it). The
+        change fires ``thinking_level_select``.
+        """
+        self._generation.assert_active()
+        return await self._runtime.session_view.set_thinking_level(level)
 
     def register_tool(self, tool: AgentTool) -> None:
         """Register an agent tool (first registration per name wins)."""

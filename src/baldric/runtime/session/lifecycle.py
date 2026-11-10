@@ -32,6 +32,7 @@ from baldric.runtime.context.system_prompt import (
 from baldric.runtime.events import (
     SessionInfoChangedEvent,
 )
+from baldric.runtime.extensions.api import UserBashEvent
 from baldric.runtime.extensions.providers import DynamicProvider
 from baldric.runtime.extensions.runtime import ExtensionRuntime
 from baldric.runtime.providers.config import (
@@ -1153,6 +1154,39 @@ async def run_terminal_command(
     normalized_command = command.strip()
     if not normalized_command:
         raise ValueError("Terminal command cannot be empty")
+
+    # Ports Pi's user_bash: an extension may answer the command itself (remote
+    # shells, sandboxes). The first handler returning a result wins and the local
+    # shell never runs; None defers to the next handler, then local execution.
+    extension_result = await session._extension_runtime.run_user_bash(
+        UserBashEvent(
+            command=normalized_command,
+            cwd=session.cwd,
+            exclude_from_context=not add_to_context,
+        )
+    )
+    if extension_result is not None:
+        added = add_to_context and not extension_result.cancelled
+        if added:
+            await session._flush_pending_message_writes(context=session._diagnostic_context())
+            context_message = BashExecutionMessage(
+                command=normalized_command,
+                output=extension_result.output,
+                exit_code=extension_result.exit_code,
+            )
+            session._harness.append_message(context_message)
+            session._invalidate_context_usage_cache()
+            await session._persist_message(context_message)
+        return cast(
+            "TerminalCommandResult",
+            _session_module().TerminalCommandResult(
+                command=normalized_command,
+                output=extension_result.output,
+                exit_code=extension_result.exit_code,
+                ok=extension_result.exit_code == 0 and not extension_result.cancelled,
+                added_to_context=added,
+            ),
+        )
 
     bash_tool = create_bash_tool(
         cwd=session.cwd,

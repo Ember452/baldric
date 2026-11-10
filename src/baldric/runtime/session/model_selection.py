@@ -329,6 +329,7 @@ async def select_provider_model(
     """
     if session._harness.is_running:
         raise RuntimeError("Baldric is still working. Press Escape to interrupt before switching models.")
+    previous_model = session._harness.config.model
     if choice.provider_name == session.provider_name and choice.model == session.model:
         return ModelSelectionResult(choice, changed=False)
 
@@ -444,6 +445,10 @@ async def select_provider_model(
             await session._close_replaced_provider(old_provider)
     if selected_config is not None and persist_default:
         session._persist_default_model_choice()
+    if previous_model != choice.model:
+        # Ports Pi's model_select: fire on an explicit selection only (restores
+        # never reach this path, since they replay entries instead).
+        await session.notify_model_selected(previous_model)
     return ModelSelectionResult(choice, changed=True)
 
 
@@ -613,8 +618,12 @@ async def _commit_preview(session: CodingSession) -> None:
                 await session._append_session_entry(entry)
                 session.set_active_leaf_id(entry.id)
                 await session._refresh_persisted_state(leaf_id=entry.id)
-                session.queue_frontend_event(ThinkingLevelChangedEvent(level=thinking))
-                await session._extension_runtime.emit_event(ThinkingLevelChangedEvent(level=thinking))
+                session.queue_frontend_event(
+                    ThinkingLevelChangedEvent(level=thinking, previous_level=session._state.thinking_level)
+                )
+                await session._extension_runtime.emit_event(
+                    ThinkingLevelChangedEvent(level=thinking, previous_level=session._state.thinking_level)
+                )
     except Exception:
         session.set_preview_model(choice)
         session.set_preview_thinking(thinking)
@@ -734,8 +743,10 @@ async def set_thinking_level(session: CodingSession, level: str, *, persist_pref
     if persist_preference:
         session._persist_thinking_level_choice()
     await session._refresh_persisted_state(leaf_id=entry.id)
-    session.queue_frontend_event(ThinkingLevelChangedEvent(level=normalized))
-    await session._extension_runtime.emit_event(ThinkingLevelChangedEvent(level=normalized))
+    session.queue_frontend_event(ThinkingLevelChangedEvent(level=normalized, previous_level=previous))
+    await session._extension_runtime.emit_event(
+        ThinkingLevelChangedEvent(level=normalized, previous_level=previous)
+    )
     return f"Thinking mode: {normalized}"
 
 

@@ -49,8 +49,28 @@ class SessionInfoChangedEvent(WireModel):
 
 
 class ThinkingLevelChangedEvent(WireModel):
+    """The active thinking level changed (ports Pi's ``thinking_level_select``).
+
+    Extensions may subscribe to ``thinking_level_select`` too; the extension
+    runtime aliases that name onto this event's type.
+    """
+
     type: Literal["thinking_level_changed"] = "thinking_level_changed"
     level: str
+    previous_level: str | None = Field(None, serialization_alias="previousLevel")
+
+
+class ModelSelectEvent(WireModel):
+    """The active model changed (ports Pi's ``model_select``).
+
+    Fired only on an explicit selection, not when a session is restored; readers
+    that need the model at startup use ``session_start``'s bound context.
+    """
+
+    type: Literal["model_select"] = "model_select"
+    model: str
+    previous_model: str | None = Field(None, serialization_alias="previousModel")
+    source: str = "set"
 
 
 class AutoRetryStartEvent(WireModel):
@@ -76,6 +96,7 @@ type SessionOwnEvent = Annotated[
     | CompactionEndEvent
     | SessionInfoChangedEvent
     | ThinkingLevelChangedEvent
+    | ModelSelectEvent
     | AutoRetryStartEvent
     | AutoRetryEndEvent,
     Field(discriminator="type"),

@@ -46,6 +46,7 @@ from baldric.runtime.context.thinking import (
 from baldric.runtime.events import (
     AgentSettledEvent,
     CodingSessionEvent,
+    ModelSelectEvent,
     QueueUpdateEvent,
 )
 from baldric.runtime.extensions.providers import DynamicProvider, ProviderModel
@@ -1687,6 +1688,17 @@ class CodingSession:
 
     def set_model(self, model: str) -> None:
         return _model_selection.set_model(self, model)
+
+    async def notify_model_selected(self, previous_model: str | None) -> None:
+        """Queue and dispatch the ``model_select`` notification.
+
+        Ports Pi's model_select: fired on an explicit selection for every
+        frontend and extension. Session restores replay entries instead, so they
+        never call this.
+        """
+        event = ModelSelectEvent(model=self.model, previous_model=previous_model)
+        self.queue_frontend_event(event)
+        await self._extension_runtime.emit_event(event)
 
     async def apply_startup_model_override(self, model: str) -> None:
         return await _model_selection.apply_startup_model_override(self, model)

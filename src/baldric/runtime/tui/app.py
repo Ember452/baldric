@@ -92,6 +92,7 @@ from baldric.runtime.events import (
     CodingSessionEvent,
     CompactionEndEvent,
     CompactionStartEvent,
+    ModelSelectEvent,
     QueueUpdateEvent,
     SessionAgentEndEvent,
     SessionInfoChangedEvent,
@@ -393,6 +394,7 @@ DOM_EVENT_HANDLERS: dict[type[object], str] = {
     AutoRetryEndEvent: "_dom_auto_retry_end",
     SessionInfoChangedEvent: "_dom_session_info_changed",
     ThinkingLevelChangedEvent: "_dom_thinking_level_changed",
+    ModelSelectEvent: "_dom_model_selected",
 }
 
 
@@ -2762,6 +2764,10 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
 
     async def _dom_thinking_level_changed(self, event: ThinkingLevelChangedEvent) -> None:
         """A thinking-level change updates the sidebar/model chrome, not the transcript."""
+        self._refresh_chrome()
+
+    async def _dom_model_selected(self, event: ModelSelectEvent) -> None:
+        """A model change updates the sidebar/model chrome, not the transcript."""
         self._refresh_chrome()
 
     async def _dom_refresh_chrome(self, event: CodingSessionEvent) -> None:

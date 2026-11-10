@@ -59,6 +59,7 @@ from baldric.runtime.context.system_prompt import PromptSection
 from baldric.runtime.extensions.api import (
     AGENT_EVENT_TYPES,
     AGENT_EVENT_WILDCARD,
+    EVENT_NAME_ALIASES,
     EXTENSION_API_VERSION,
     LIFECYCLE_EVENT_TYPES,
     PROVIDER_EVENT_TYPES,
@@ -97,6 +98,8 @@ from baldric.runtime.extensions.api import (
     TurnEndEvent,
     TurnStartEvent,
     UiBridge,
+    UserBashEvent,
+    UserBashResult,
 )
 from baldric.runtime.extensions.builtin_registry import (
     BuiltInExtension,
@@ -212,6 +215,12 @@ class BoundSession(Protocol):
     async def set_label(self, target_id: str, label: str | None) -> object: ...
 
     def set_inference_provider(self, route: str | None) -> str: ...
+
+    def set_model(self, model: str) -> None: ...
+
+    async def notify_model_selected(self, previous_model: str | None) -> None: ...
+
+    async def set_thinking_level(self, level: str) -> str: ...
 
     def refresh_system_prompt(self) -> None: ...
 
@@ -1100,11 +1109,12 @@ class ExtensionRuntime:
 
     def subscribe(self, source_id: str, event: str, handler: ExtensionHandler) -> None:
         """Subscribe an extension handler to a named event."""
+        canonical = EVENT_NAME_ALIASES.get(event, event)
         known = (
-            event in AGENT_EVENT_TYPES
-            or event in LIFECYCLE_EVENT_TYPES
-            or event in PROVIDER_EVENT_TYPES
-            or event == AGENT_EVENT_WILDCARD
+            canonical in AGENT_EVENT_TYPES
+            or canonical in LIFECYCLE_EVENT_TYPES
+            or canonical in PROVIDER_EVENT_TYPES
+            or canonical == AGENT_EVENT_WILDCARD
         )
         if not known:
             self._load_diagnostics.append(
@@ -1118,7 +1128,7 @@ class ExtensionRuntime:
         extension = self._extension_by_source(source_id)
         if extension is None:
             raise ExtensionError(f"unknown extension source: {source_id}")
-        extension.handlers.setdefault(event, []).append(handler)
+        extension.handlers.setdefault(canonical, []).append(handler)
 
     # -- provider seams (plan Task A2) ---------------------------------------
 
@@ -1150,15 +1160,15 @@ class ExtensionRuntime:
             hooks.stream_event.append(self._adapt_stream_handler(owner, handler))
         return hooks
 
-    async def _invoke_provider_handler(
+    async def _invoke_handler(
         self, owner: RegisteredExtension, event_name: str, event: object, handler: ExtensionHandler
     ) -> object:
-        """Run one provider-seam handler with the shared isolation boundary.
+        """Run one extension handler with the shared isolation boundary.
 
-        This is the single try/except for all provider seams: a handler (sync or
-        async) that raises is recorded as a runtime failure and yields
-        ``_PROVIDER_HANDLER_FAILED`` so the caller keeps the previous value. This
-        keeps the isolation in one place, matching ``ai.hooks._guarded``.
+        This is the single try/except for gated/async lifecycle seams: a handler
+        (sync or async) that raises is recorded as a runtime failure and yields
+        ``_PROVIDER_HANDLER_FAILED`` so the caller can defer to its fallback.
+        Provider seams and ``user_bash`` share it, matching ``ai.hooks._guarded``.
         """
         try:
             return await _resolve(handler(event, self._fresh_context(owner.source_id)))
@@ -1174,7 +1184,7 @@ class ExtensionRuntime:
                 messages=tuple(request.messages),
                 tools=tuple(request.tools),
             )
-            result = await self._invoke_provider_handler(owner, "context", event, handler)
+            result = await self._invoke_handler(owner, "context", event, handler)
             if isinstance(result, ProviderContextEvent):
                 return ProviderContext(
                     model=result.model,
@@ -1189,7 +1199,7 @@ class ExtensionRuntime:
 
     def _adapt_headers_handler(self, owner: RegisteredExtension, handler: ExtensionHandler) -> HeadersHook:
         async def adapted(headers: dict[str, str], _ctx: HookContext) -> None:
-            await self._invoke_provider_handler(
+            await self._invoke_handler(
                 owner, "before_provider_headers", ProviderHeadersEvent(model="", headers=headers), handler
             )
 
@@ -1197,7 +1207,7 @@ class ExtensionRuntime:
 
     def _adapt_payload_handler(self, owner: RegisteredExtension, handler: ExtensionHandler) -> PayloadHook:
         async def adapted(payload: dict[str, JSONValue], ctx: HookContext) -> dict[str, JSONValue] | None:
-            result = await self._invoke_provider_handler(
+            result = await self._invoke_handler(
                 owner,
                 "before_provider_request",
                 ProviderRequestEvent(model=ctx.model, payload=payload),
@@ -1213,7 +1223,7 @@ class ExtensionRuntime:
 
     def _adapt_response_handler(self, owner: RegisteredExtension, handler: ExtensionHandler) -> ResponseHook:
         async def adapted(status: int, headers: dict[str, str], ctx: HookContext) -> None:
-            await self._invoke_provider_handler(
+            await self._invoke_handler(
                 owner,
                 "after_provider_response",
                 ProviderResponseEvent(model=ctx.model, status=status, headers=headers),
@@ -1224,7 +1234,7 @@ class ExtensionRuntime:
 
     def _adapt_stream_handler(self, owner: RegisteredExtension, handler: ExtensionHandler) -> StreamEventHook:
         async def adapted(event: object, ctx: HookContext) -> None:
-            await self._invoke_provider_handler(
+            await self._invoke_handler(
                 owner, "provider_stream_event", ProviderStreamEvent(model=ctx.model, event=event), handler
             )
 
@@ -1314,6 +1324,14 @@ class ExtensionRuntime:
     def local_backend_registry(self) -> LocalBackendRegistry:
         """Return this staged runtime generation's local-backend registry."""
         return self._local_backend_registry
+
+    async def set_model(self, model: str) -> None:
+        """Switch the bound session's model and dispatch ``model_select``."""
+        view = self.session_view
+        previous = view.model
+        view.set_model(model)
+        if previous != view.model:
+            await view.notify_model_selected(previous)
 
     @property
     def paths(self) -> BaldricPaths:
@@ -1718,6 +1736,22 @@ class ExtensionRuntime:
                 await _resolve(handler(event, self._fresh_context(owner.source_id)))
             except Exception as exc:  # noqa: BLE001 - extensions are an isolation boundary
                 self._record_runtime_failure(owner.name, event_type, exc)
+
+    async def run_user_bash(self, event: UserBashEvent) -> UserBashResult | None:
+        """Ask extensions to answer a ``!``/``!!`` command before local execution.
+
+        Gate semantics from the hook-composition contract: the first handler
+        returning a :class:`UserBashResult` wins and the shell does not run;
+        ``None`` defers to the next handler. A raising handler is skipped.
+        """
+        for owner, handler in self._handlers_for("user_bash"):
+            result = await self._invoke_handler(owner, "user_bash", event, handler)
+            if result is _PROVIDER_HANDLER_FAILED or result is None:
+                continue
+            if isinstance(result, UserBashResult):
+                return result
+            self._record_bad_result(owner.name, "user_bash", result)
+        return None
 
     async def _on_agent_event(self, event: AgentEvent) -> None:
         """Adapt core turn events to Pi's extension-facing session metadata."""
