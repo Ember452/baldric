@@ -156,7 +156,7 @@ def build_report() -> Report:
         report.files[_relative(path)] = _file_metrics(path)
     report.inheritance_depth, report.deepest_chain = _inheritance_depth(trees)
     report.module_fanout, report.widest_module = _module_fanout(
-        trees, {"baldric.agent", "baldric.ai", "baldric.coding"}
+        trees, {"baldric.agent", "baldric.ai", "baldric.runtime"}
     )
     return report
 

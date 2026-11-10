@@ -10,7 +10,7 @@ Install by copying into `~/.baldric/extensions/`, or run:
 
 import re
 
-from baldric.coding.extensions import ExtensionAPI, ToolCallHookEvent, ToolCallHookResult
+from baldric.runtime.extensions import ExtensionAPI, ToolCallHookEvent, ToolCallHookResult
 
 DANGEROUS_PATTERNS = (
     # rm with a flag cluster containing both r and f, in either order

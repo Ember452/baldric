@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from baldric.coding.providers.loader import builtin_source_catalog
-from baldric.coding.providers.stores import models_dev
-from baldric.coding.providers.stores.models_dev import (
+from baldric.runtime.providers.loader import builtin_source_catalog
+from baldric.runtime.providers.stores import models_dev
+from baldric.runtime.providers.stores.models_dev import (
     bundled_models_dev_catalog_overlay,
     models_dev_catalog_document,
     models_dev_catalog_overlay,

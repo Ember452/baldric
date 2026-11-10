@@ -102,8 +102,8 @@ that can still falsify your change; escalate when the change is cross-cutting.
 | Tier | Command | Cost (Windows, local) | When |
 | --- | --- | --- | --- |
 | Static | `uv run ruff check . && uv run ruff format --check . && uv run mypy` | ~20 s | Every edit; catches most mistakes |
-| Fast suite | `uv run pytest -q --ignore=tests/coding/tui` | ~75 s | Before every commit; 1,700+ tests, everything except the TUI |
-| TUI only | `uv run pytest -q tests/coding/tui` | ~190 s | When changing `tui/` or the rendering layer |
+| Fast suite | `uv run pytest -q --ignore=tests/runtime/tui` | ~75 s | Before every commit; 1,700+ tests, everything except the TUI |
+| TUI only | `uv run pytest -q tests/runtime/tui` | ~190 s | When changing `tui/` or the rendering layer |
 | Full | `uv run pytest` | ~4 min | Cross-package refactors, releases, or when CI disagrees with you |
 
 Why the fast suite is enough for most work: the TUI is a frontend adapter and
@@ -132,7 +132,7 @@ detects violations - a green gate that no longer fires is worse than no gate.
 ## Known Limitations (do not "fix" these)
 
 - **14 mypy errors on Windows only** (`trust/policy.py`,
-  `baldric/coding/session/storage.py`):
+  `baldric/runtime/session/storage.py`):
   `fcntl` does not exist on Windows. CI runs mypy on Linux where it is green. Do
   not add platform shims or delete the POSIX code to silence local output.
 - **121 skipped tests on Windows**: POSIX/timing semantics that run on Linux CI.
@@ -151,7 +151,7 @@ Before changing a package, read the nearest scoped instructions:
 
 - `src/baldric/ai/AGENTS.md` - provider and model streaming layer
 - `src/baldric/agent/AGENTS.md` - portable agent harness
-- `src/baldric/coding/AGENTS.md` - CLI, session, TUI, and extensions
+- `src/baldric/runtime/AGENTS.md` - CLI, session, TUI, and extensions
 
 ## Project Roadmap
 
@@ -176,7 +176,7 @@ Baldric should be organized around these layers:
 ```text
 baldric.ai      provider/model streaming layer
 baldric.agent   portable agent harness, loop, tools, events
-baldric.coding  CLI app, resources, skills, extensions, commands, TUI integration
+baldric.runtime  CLI app, resources, skills, extensions, commands, TUI integration
 ```
 
 Keep the core agent package independent of CLI, Textual, Rich rendering, session file locations, and app-specific resource loading.

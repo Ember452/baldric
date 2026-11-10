@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import time
 
-from baldric.coding.extensions.builtins.subagents.extension import AgentRun
-from baldric.coding.extensions.builtins.subagents.ui.strip import AgentStripWidget
+from baldric.runtime.extensions.builtins.subagents.extension import AgentRun
+from baldric.runtime.extensions.builtins.subagents.ui.strip import AgentStripWidget
 
 
 def _run(

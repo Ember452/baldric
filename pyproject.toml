@@ -30,7 +30,7 @@ Repository = "https://github.com/Ember452/baldric"
 Issues = "https://github.com/Ember452/baldric/issues"
 
 [project.scripts]
-baldric = "baldric.coding.cli:app"
+baldric = "baldric.runtime.cli:app"
 
 [[tool.uv.index]]
 url = "https://mirrors.aliyun.com/pypi/simple/"
@@ -49,7 +49,7 @@ dev = [
 
 [tool.coverage.run]
 source = ["src"]
-omit = ["src/baldric/coding/data/*"]
+omit = ["src/baldric/runtime/data/*"]
 
 [tool.coverage.report]
 # Ratchet floor: CI fails below this line. The committed value is deliberately

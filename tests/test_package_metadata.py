@@ -5,15 +5,15 @@ from pathlib import Path
 from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
-RELEASE_NOTES_SOURCE_PATH = ROOT / "src" / "baldric" / "coding" / "data" / "release-notes" / "releases.json"
-RELEASE_NOTES_WHEEL_PATH = "baldric/coding/data/release-notes/releases.json"
+RELEASE_NOTES_SOURCE_PATH = ROOT / "src" / "baldric" / "runtime" / "data" / "release-notes" / "releases.json"
+RELEASE_NOTES_WHEEL_PATH = "baldric/runtime/data/release-notes/releases.json"
 BUILTIN_RESOURCE_WHEEL_PATHS = {
-    "baldric/coding/data/docs/README.md",
-    "baldric/coding/data/docs/extensions.md",
-    "baldric/coding/data/examples/extensions/ask_user_question.py",
-    "baldric/coding/data/examples/extensions/hello_tool.py",
-    "baldric/coding/data/examples/extensions/prompt_section.py",
-    "baldric/coding/data/examples/extensions/sidebar_status.py",
+    "baldric/runtime/data/docs/README.md",
+    "baldric/runtime/data/docs/extensions.md",
+    "baldric/runtime/data/examples/extensions/ask_user_question.py",
+    "baldric/runtime/data/examples/extensions/hello_tool.py",
+    "baldric/runtime/data/examples/extensions/prompt_section.py",
+    "baldric/runtime/data/examples/extensions/sidebar_status.py",
 }
 
 
@@ -54,4 +54,4 @@ def test_wheel_includes_release_notes_package_data(tmp_path: Path) -> None:
 
     assert RELEASE_NOTES_WHEEL_PATH in wheel_files
     assert wheel_files >= BUILTIN_RESOURCE_WHEEL_PATHS
-    assert not any(path.startswith("baldric/coding/data/skills/") for path in wheel_files)
+    assert not any(path.startswith("baldric/runtime/data/skills/") for path in wheel_files)

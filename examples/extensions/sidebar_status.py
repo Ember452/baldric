@@ -1,6 +1,6 @@
 """Add a small, host-framed status section to Baldric's TUI sidebar."""
 
-from baldric.coding.extensions import ExtensionAPI, ExtensionContext
+from baldric.runtime.extensions import ExtensionAPI, ExtensionContext
 
 
 def setup(baldric: ExtensionAPI) -> None:

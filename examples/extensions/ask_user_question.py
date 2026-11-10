@@ -7,7 +7,6 @@ Install by copying into `~/.baldric/extensions/`, or run:
 
 from collections.abc import Mapping
 
-from baldric.coding.extensions import ExtensionAPI
 from baldric.protocol.messages import TextContent
 from baldric.protocol.tools import (
     AgentTool,
@@ -16,6 +15,7 @@ from baldric.protocol.tools import (
     ToolUpdateCallback,
 )
 from baldric.protocol.types import JSONValue
+from baldric.runtime.extensions import ExtensionAPI
 
 
 def _result(text: str, *, selected: str | None = None) -> AgentToolResult:

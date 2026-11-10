@@ -703,7 +703,7 @@ carries a Unix-millisecond `timestamp`. The runtime increments the index after
 `turn_end` and resets it on the next `agent_start`:
 
 ```python
-from baldric.coding.extensions import TurnEndEvent, TurnStartEvent
+from baldric.runtime.extensions import TurnEndEvent, TurnStartEvent
 
 
 def setup(baldric):
@@ -718,7 +718,7 @@ def setup(baldric):
         assert event.turn_index >= 0
 ```
 
-These enriched payloads are defined in `baldric.coding.extensions`. The portable
+These enriched payloads are defined in `baldric.runtime.extensions`. The portable
 `baldric.agent.events.TurnStartEvent` and `TurnEndEvent` intentionally omit session
 metadata, so reusable agent code stays independent of session policy.
 
@@ -766,7 +766,7 @@ To format an injected message instead of showing it as raw text, register a
 renderer in `setup` and send with `send_custom_message`:
 
 ```python
-from baldric.coding.extensions import CustomMessageView, MessageRenderOptions
+from baldric.runtime.extensions import CustomMessageView, MessageRenderOptions
 
 def render_status(view: CustomMessageView, options: MessageRenderOptions) -> str:
     icon = "[green]✓[/green]" if view.details and view.details.get("ok") else "[red]✗[/red]"
@@ -838,8 +838,8 @@ importing your modules directly — that exercises discovery, the synthetic
 package import, and `setup` registration exactly as a session does:
 
 ```python
-from baldric.coding import BaldricResourcePaths
-from baldric.coding.extensions import ExtensionRuntime
+from baldric.runtime import BaldricResourcePaths
+from baldric.runtime.extensions import ExtensionRuntime
 
 def test_loads(tmp_path):
     paths = BaldricResourcePaths(

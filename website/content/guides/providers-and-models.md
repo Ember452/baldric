@@ -528,7 +528,7 @@ docs_url = "https://example.test/local-gateway"
 qwen-coder = 64000
 ```
 
-Baldric loads its bundled `src/baldric/coding/data/catalog.toml` first, then overlays
+Baldric loads its bundled `src/baldric/runtime/data/catalog.toml` first, then overlays
 `~/.baldric/catalog.toml`. A user entry with the same `name` can extend or override a
 built-in provider: scalar fields replace built-in values, `models` are merged
 with your models first, and `context_windows` are merged.

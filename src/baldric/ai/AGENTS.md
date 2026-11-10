@@ -19,15 +19,15 @@ owns the wire types and the `ModelProvider` port. The arrow is
 
 - Import `baldric.protocol` only through `messages`, `provider`,
   `provider_events`, `tools`, and `types`; never `baldric.agent` or
-  `baldric.coding`.
-- No `baldric.coding`, UI, terminal, Rich, or Textual imports.
+  `baldric.runtime`.
+- No `baldric.runtime`, UI, terminal, Rich, or Textual imports.
 - Provider quirks stay in adapters; `stream.py` and `retry.py` stay neutral.
 
 ## Known Limitations (do not "fix" these)
 
 - Making adapters uniform usually breaks a provider; read the adapter first.
 - Retries are transport-level only; image rejection and overflow recovery
-  belong to `baldric.agent` / `baldric.coding`.
+  belong to `baldric.agent` / `baldric.runtime`.
 
 ## Tests
 

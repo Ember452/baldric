@@ -9,9 +9,9 @@ nor explained in ``INTENTIONAL_NOOP`` fails here.
 
 from __future__ import annotations
 
-from baldric.coding.tui.adapter import INTENTIONAL_NOOP, TuiEventAdapter
-from baldric.coding.tui.app import DOM_EVENT_HANDLERS, BaldricTuiApp
-from baldric.coding.tui.state import TuiState
+from baldric.runtime.tui.adapter import INTENTIONAL_NOOP, TuiEventAdapter
+from baldric.runtime.tui.app import DOM_EVENT_HANDLERS, BaldricTuiApp
+from baldric.runtime.tui.state import TuiState
 from tests.guards.event_union import coding_session_event_types
 
 

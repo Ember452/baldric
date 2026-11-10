@@ -27,16 +27,16 @@ def test_rules_declare_the_layer_direction() -> None:
     """The rule table must stay non-empty so the gate cannot become vacuous."""
     assert len(RULES) >= 8
     pairs = set(RULES)
-    assert ("baldric.agent", "baldric.coding") in pairs
+    assert ("baldric.agent", "baldric.runtime") in pairs
     assert ("baldric.agent", "textual") in pairs
-    assert ("baldric.ai", "baldric.coding") in pairs
-    assert ("baldric.coding.rendering", "baldric.coding.tui") in pairs
+    assert ("baldric.ai", "baldric.runtime") in pairs
+    assert ("baldric.runtime.rendering", "baldric.runtime.tui") in pairs
 
 
 def test_protocol_is_the_bottom_layer() -> None:
     """The protocol package must not depend on upper layers or platform I/O."""
     pairs = set(RULES)
-    for forbidden in ("baldric.agent", "baldric.ai", "baldric.coding", "textual", "rich", "fcntl", "msvcrt"):
+    for forbidden in ("baldric.agent", "baldric.ai", "baldric.runtime", "textual", "rich", "fcntl", "msvcrt"):
         assert ("baldric.protocol", forbidden) in pairs, f"missing protocol rule: {forbidden}"
 
 
@@ -48,7 +48,7 @@ def test_kernel_cannot_depend_on_providers() -> None:
 def test_mcp_layer_direction_is_declared() -> None:
     """The MCP core sits beside the coding app; neither may know the other."""
     pairs = set(RULES)
-    for forbidden in ("baldric.agent", "baldric.ai", "baldric.coding", "textual", "rich"):
+    for forbidden in ("baldric.agent", "baldric.ai", "baldric.runtime", "textual", "rich"):
         assert ("baldric.mcp", forbidden) in pairs, f"missing mcp rule: {forbidden}"
     assert ("baldric.agent", "baldric.mcp") in pairs
     assert ("baldric.ai", "baldric.mcp") in pairs
@@ -68,23 +68,23 @@ def test_scanner_detects_synthetic_violation(tmp_path: Path) -> None:
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
     (package / "leaky.py").write_text(
-        "import baldric.coding.tui.app  # noqa: F401\n",
+        "import baldric.runtime.tui.app  # noqa: F401\n",
         encoding="utf-8",
     )
 
     violations = scan_violations(tmp_path)
 
     assert violations == [
-        ImportViolation(module="baldric.agent.leaky", lineno=1, imported="baldric.coding.tui.app")
+        ImportViolation(module="baldric.agent.leaky", lineno=1, imported="baldric.runtime.tui.app")
     ]
 
 
 def test_scanner_ignores_allowed_directions(tmp_path: Path) -> None:
-    package = tmp_path / "src" / "baldric" / "coding"
+    package = tmp_path / "src" / "baldric" / "runtime"
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
     (package / "allowed.py").write_text(
-        "from baldric.agent.loop import run_agent_loop\nfrom baldric.coding.tui.app import BaldricTuiApp\n",
+        "from baldric.agent.loop import run_agent_loop\nfrom baldric.runtime.tui.app import BaldricTuiApp\n",
         encoding="utf-8",
     )
 
@@ -92,11 +92,11 @@ def test_scanner_ignores_allowed_directions(tmp_path: Path) -> None:
 
 
 def test_scanner_detects_rendering_importing_the_frontend(tmp_path: Path) -> None:
-    package = tmp_path / "src" / "baldric" / "coding" / "rendering"
+    package = tmp_path / "src" / "baldric" / "runtime" / "rendering"
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
     (package / "leaky.py").write_text(
-        "from baldric.coding.tui.state import TuiState  # noqa: F401\n",
+        "from baldric.runtime.tui.state import TuiState  # noqa: F401\n",
         encoding="utf-8",
     )
 
@@ -104,9 +104,9 @@ def test_scanner_detects_rendering_importing_the_frontend(tmp_path: Path) -> Non
 
     assert violations == [
         ImportViolation(
-            module="baldric.coding.rendering.leaky",
+            module="baldric.runtime.rendering.leaky",
             lineno=1,
-            imported="baldric.coding.tui.state",
+            imported="baldric.runtime.tui.state",
         )
     ]
 
@@ -207,15 +207,15 @@ def test_protocol_loads_no_upper_layer_at_runtime() -> None:
     """
     leaked = _loads_only(
         "baldric.protocol",
-        ("baldric.agent", "baldric.ai", "baldric.coding", "textual", "rich"),
+        ("baldric.agent", "baldric.ai", "baldric.runtime", "textual", "rich"),
     )
     assert leaked == [], f"baldric.protocol pulled in: {leaked}"
 
 
 def test_kernel_and_providers_do_not_load_each_other_at_runtime() -> None:
     """The agent kernel and the provider layer must stay decoupled at runtime."""
-    assert _loads_only("baldric.agent", ("baldric.ai", "baldric.coding")) == []
-    assert _loads_only("baldric.ai", ("baldric.agent", "baldric.coding")) == []
+    assert _loads_only("baldric.agent", ("baldric.ai", "baldric.runtime")) == []
+    assert _loads_only("baldric.ai", ("baldric.agent", "baldric.runtime")) == []
 
 
 def test_mcp_package_loads_no_upper_layer_at_runtime() -> None:
@@ -223,7 +223,7 @@ def test_mcp_package_loads_no_upper_layer_at_runtime() -> None:
     assert (
         _loads_only(
             "baldric.mcp",
-            ("baldric.agent", "baldric.ai", "baldric.coding", "textual", "rich"),
+            ("baldric.agent", "baldric.ai", "baldric.runtime", "textual", "rich"),
         )
         == []
     )

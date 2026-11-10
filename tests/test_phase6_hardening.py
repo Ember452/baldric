@@ -10,13 +10,13 @@ import httpx
 import pytest
 
 from baldric.agent.harness import SimpleCancellationToken
-from baldric.coding.auth.credentials import FileCredentialStore
-from baldric.coding.backends.contracts import (
+from baldric.runtime.auth.credentials import FileCredentialStore
+from baldric.runtime.backends.contracts import (
     LOCAL_OPERATION_CANCELLATION_TIMEOUT_SECONDS,
     LocalOperationResult,
 )
-from baldric.coding.config.paths import BaldricPaths
-from baldric.coding.extensions import (
+from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.extensions import (
     DynamicProvider,
     DynamicProviderRegistry,
     ExtensionRuntime,
@@ -32,10 +32,10 @@ from baldric.coding.extensions import (
     ProviderModel,
     ProviderModelSnapshot,
 )
-from baldric.coding.extensions.builtins.llama_cpp.service import (
+from baldric.runtime.extensions.builtins.llama_cpp.service import (
     LlamaCppService,
 )
-from baldric.coding.extensions.builtins.llama_cpp.state import (
+from baldric.runtime.extensions.builtins.llama_cpp.state import (
     LLAMA_CPP_CREDENTIAL_PREFIX,
     LlamaCppIntegrationState,
     LlamaCppStateError,

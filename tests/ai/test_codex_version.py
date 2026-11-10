@@ -4,8 +4,8 @@ import httpx
 import pytest
 
 from baldric.ai.openai_codex import DEFAULT_OPENAI_CODEX_CLIENT_VERSION
-from baldric.coding.config.paths import BaldricPaths
-from baldric.coding.providers.stores.codex_version import (
+from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.providers.stores.codex_version import (
     CODEX_NPM_LATEST_URL,
     CodexClientVersionResolver,
 )
