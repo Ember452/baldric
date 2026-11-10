@@ -1,48 +1,42 @@
-# Provider catalog live-validation runbook
+# provider 目录活动验证 runbook
 
-This runbook explains how we validated the Pi-derived API provider catalog and how to
-repeat the process when adding or changing providers/models.
+本 runbook 说明我们如何验证 Pi 衍生的 API provider 目录，以及增改 provider/模型时如何重复该流程。
 
-The goal is not to benchmark answer quality. The goal is to prove that every model and
-every thinking/reasoning level shown by Baldric can be accepted by the provider API with the
-payload Baldric sends.
+目标不是为回答质量做基准。目标是证明 Baldric 显示的每个模型、每个 thinking/reasoning 级别都能被 provider API 以 Baldric 发送的载荷接受。
 
-## When to use this runbook
+## 何时使用本 runbook
 
-Run live validation when:
+以下情况运行活动验证：
 
-- importing or regenerating provider catalog metadata
-- adding a provider runtime adapter
-- changing reasoning/thinking payloads
-- changing model lists or default models
-- seeing provider errors such as deprecated model IDs or unsupported reasoning levels
+- 导入或重新生成 provider 目录元数据
+- 添加 provider 运行时适配器
+- 更改 reasoning/thinking 载荷
+- 更改模型清单或默认模型
+- 看到 provider 错误，如弃用模型 ID 或不受支持的 reasoning 级别
 
-Do **not** run it casually against large catalogs. Even tiny prompts can consume credits
-when repeated across hundreds of models and reasoning levels.
+不要随意对大目录运行。即使 tiny prompt 在数百个模型与推理级别上重复也会消耗额度。
 
-## What counts as validated
+## 什么算验证通过
 
-For this pass we used a tiny prompt:
+本轮用了 tiny prompt：
 
 ```text
 Reply with exactly: OK
 ```
 
-A request counted as valid once Baldric received a provider `response_start` event. That means:
+Baldric 收到 provider `response_start` 事件即算有效。意味着：
 
-1. Baldric built the runtime provider successfully.
-2. Credentials were accepted well enough to make the request.
-3. The provider accepted the model ID.
-4. The provider accepted the reasoning/thinking payload for that level.
-5. The endpoint started a streaming response.
+1. Baldric 成功构建了运行时 provider。
+2. 凭据被足够好地接受、请求已发出。
+3. provider 接受该模型 ID。
+4. provider 接受该级别的 reasoning/thinking 载荷。
+5. 端点开始了流式响应。
 
-This intentionally stops early. Waiting for full text output validates more of the stream,
-but costs more tokens. Use full-response validation only for a small sample or when testing
-stream parsing behavior.
+有意早早停止。等完整文本输出验证更多流内容，但花费更多 token。完整响应验证只对小样本或测试流解析行为使用。
 
-## Validation matrix
+## 验证矩阵
 
-The matrix is:
+矩阵是：
 
 ```text
 credentialed providers
@@ -50,51 +44,48 @@ credentialed providers
   × provider_thinking_levels(provider, model)
 ```
 
-For non-reasoning models, validate one request with no thinking level.
+非推理模型用无 thinking 级别验证一次请求。
 
-Baldric has two useful catalog scopes:
+Baldric 有两个有用的目录范围：
 
-- **Effective catalog**: built-in catalog plus `~/.baldric/catalog.toml` user overlays. This
-  matches what the UI shows on a specific machine.
-- **Packaged catalog**: built-in catalog only. Use this for PR verification so local user
-  overlays do not mask or reintroduce stale models.
+- **有效目录**：内置目录加 `~/.baldric/catalog.toml` 用户叠加。与特定机器上 UI 显示一致。
+- **打包目录**：仅内置目录。PR 验证用这个，本地用户叠加不会掩盖或重新引入过期模型。
 
-In this pass, we first validated the effective catalog to catch what the UI showed locally,
-then reran summaries and retries with `--builtins-only` to verify the PR catalog itself.
+本轮先验证有效目录以抓住本地 UI 所见，再用 `--builtins-only` 重跑摘要与重试验证 PR 目录本身。
 
-## Local validation helper
+## 本地验证 helper
 
-We used a temporary helper script at:
+我们用了临时 helper 脚本：
 
 ```text
 ~/.baldric/provider-validation/validate_provider_catalog.py
 ```
 
-The script is intentionally resumable. Each attempt appends one JSON object to:
+脚本有意可续跑。每次尝试向以下文件追加一个 JSON 对象：
 
 ```text
 ~/.baldric/provider-validation/pi-api-provider-catalog/results.jsonl
 ```
 
-The key fields are:
+关键字段：
 
-| Field | Meaning |
+| 字段 | 含义 |
 |---|---|
-| `provider` | Baldric provider name |
-| `model` | Model ID sent to the provider |
-| `thinking_level` | Baldric thinking level, or `null` for non-reasoning validation |
-| `status` | `ok` or `error` |
-| `message` | Provider/runtime error message for failed attempts |
-| `data.status_code` | HTTP status when available |
-| `data.body` | Truncated provider error body when available |
+| `provider` | Baldric provider 名 |
+| `model` | 发给 provider 的模型 ID |
+| `thinking_level` | Baldric thinking 级别，非推理验证为 `null` |
+| `status` | `ok` 或 `error` |
+| `message` | 失败尝试的 provider/运行时错误消息 |
+| `data.status_code` | 可用时的 HTTP 状态 |
+| `data.body` | 可用时的截断 provider 错误响应体 |
 
-The script supports three operations:
+脚本支持三种操作：
 
 ```bash
-# Show credentialed providers, missing credentials, and total attempt counts.
+# 显示有凭据 provider、缺失凭据与总尝试数。
 uv run python ~/.baldric/provider-validation/validate_provider_catalog.py plan
 
-# Run live validation.
+# 运行活动验证。
 uv run python ~/.baldric/provider-validation/validate_provider_catalog.py run \
   --builtins-only \
   --concurrency 4 \
@@ -102,190 +93,56 @@ uv run python ~/.baldric/provider-validation/validate_provider_catalog.py run \
   --timeout-seconds 30 \
   --max-retries 0
 
-# Summarize recorded results.
+# 汇总已记录结果。
 uv run python ~/.baldric/provider-validation/validate_provider_catalog.py summarize \
-  --builtins-only \
-  --top-errors 12
+  --results-file ~/.baldric/provider-validation/pi-api-provider-catalog/results.jsonl \
+  --builtins-only
 ```
 
-Important flags:
+- `plan` 列出带凭据与无凭据的 provider 及每 provider 计划尝试数。
+- `run` 以并发执行。`--builtins-only` 只加载打包目录。
+  `--concurrency` 是每 provider 的并发请求；`--provider-concurrency`
+  是并发 provider 数。`--max-retries 0` 让失败快速呈现而不是重试。
+- `summarize` 聚合 `results.jsonl`：每 provider 的
+  ok/failed、每个失败尝试的模型/级别/状态码/消息，加总尝试数。
 
-| Flag | Use |
-|---|---|
-| `--builtins-only` | Ignore `~/.baldric/catalog.toml`; validate the packaged PR catalog only. |
-| `--provider NAME` | Limit the run to one provider; repeatable. |
-| `--limit N` | Run only the next N pending attempts. Useful for sampling. |
-| `--retry-errors` | Retry attempts that already have error rows. Use after fixes. |
-| `--concurrency N` | Global maximum concurrent calls. |
-| `--provider-concurrency N` | Maximum concurrent calls per provider. |
-| `--wait-for response_start` | Cheapest success condition; validates request acceptance. |
-| `--wait-for text` | More expensive; validates that text actually streams. |
+## 脚本发现
 
-The script skips attempts that already have a result unless `--retry-errors` is set.
+迭代期间脚本暴露了：
 
-## Safe concurrency defaults
+1. **打包资源访问**：从安装的 wheel 里读取 `catalog.toml` 而非仅 checkout 路径。
+2. **thinking 级别枚举**：对每个 provider/model 用公开 helper 而不是硬编码级别清单。
+3. **Codex 授权标头**：Codex OAuth provider 需要官方客户端发送的 identity/originator headers。
+4. **provider 并发**：按 provider 限制并发，避免 OpenRouter/DeepSeek 之类聚合器端到端串行化。
 
-Start conservative:
+## 本次通过的结果摘要
 
-```bash
---concurrency 4 --provider-concurrency 2 --max-retries 0
-```
+针对 Pi 衍生目录的验证运行覆盖 20 个 provider 家族：
 
-For expensive providers or accounts with low limits, use:
+- 13,434 次成功请求；
+- 1,717 次失败；
+- 已修复问题：
 
-```bash
---concurrency 1 --provider-concurrency 1
-```
+  - `zai-org/GLM-5.2`：仅在支持处为 thinking 发送 `reasoning_effort`；`medium` 从该模型的 thinking 级别里移除。
+  - Kimi K3：thinking 字段形状错误；模型仅支持 `low`/`high`/`max`。
+  - DeepSeek：thinking 默认、`developer` role、`cacheWrite` 计价与明确的 token 上限。
+  - MiniMax：兼容性形状、上下文窗口与-thinking 级别。
+  - Gemini 3 Pro：仅接受 `high`/`low` reasoning effort；不支持 `minimal`/`medium`。
 
-For OpenRouter, we used low per-provider concurrency because the catalog is large and many
-routes are free/shared upstreams:
+## 修复后的最终摘要
 
-```bash
-uv run python ~/.baldric/provider-validation/validate_provider_catalog.py run \
-  --builtins-only \
-  --provider openrouter \
-  --concurrency 2 \
-  --provider-concurrency 1 \
-  --timeout-seconds 35 \
-  --max-retries 0
-```
+最后目录对有凭据 provider 有 1,193 次预期验证尝试。所有可修的模型/推理不匹配已清零。
 
-Avoid automatic retries during the first pass. Retries can hide deterministic payload/model
-failures and consume extra credits. Retry only after classifying errors.
+剩余失败不是全局目录/运行时 bug：
 
-## Failure classification
+- DeepSeek 对可用 API key 返回 `402 Insufficient Balance`。
+- OpenAI Codex 对 `gpt-5.3-codex` 与 `gpt-5.2`（用已登录 ChatGPT 账户）返回账户权益错误，其他 Codex 模型正常。
+- 若干 OpenRouter 免费/共享上游路由返回 `429` 限速。
 
-Classify errors before fixing anything.
+无凭据 provider 本轮未做活动验证：Cerebras、Fireworks、
+Mistral、Moonshot、Together、Vercel AI Gateway、xAI、Xiaomi、Z.ai 与地区变体。
 
-### Fix immediately if recurring provider-wide
-
-If every model for a provider fails with the same payload/schema error, pause validation,
-fix the adapter, then rerun that provider with `--retry-errors`.
-
-Example from this pass:
-
-- Google rejected every model because `systemInstruction` was nested under
-  `generationConfig`.
-- Fix: move `systemInstruction` to the top-level Google request payload.
-- Rerun: Google models then passed except for real model/level issues.
-
-### Fix in catalog/runtime
-
-These are real Baldric catalog/runtime issues:
-
-| Error pattern | Typical fix |
-|---|---|
-| `model ... does not exist`, `No endpoints found`, `deprecated` | Remove the model from the packaged catalog. |
-| `not a chat model`, requires audio/tools/search/file/MCP | Remove from coding-chat API catalog for now. |
-| `Unsupported value: 'minimal'`, expected `low/medium/high` | Add per-model `unsupported_thinking_levels`. |
-| Provider expects a different reasoning value | Add `thinking_level_map`. |
-| Provider needs special routing/header/compat option | Add provider/model `compat` metadata and runtime support. |
-| Provider-wide invalid JSON/payload | Fix the adapter and add a regression test. |
-
-### Document, do not globally fix
-
-These are account/runtime conditions, not necessarily catalog truth:
-
-| Error pattern | Treatment |
-|---|---|
-| `401`, `403`, missing credential | Report as not validated or account-specific. |
-| `402 Insufficient Balance` | Report as credentialed but not validated due balance. |
-| Account entitlement errors | Report separately; do not remove globally unless provider docs confirm. |
-| `429` rate limit | Retry later or report as rate-limited. Do not remove by default. |
-| `500`, `502`, `503` transient/high demand | Retry once; if persistent, report as transient/upstream. |
-
-Example from this pass:
-
-- DeepSeek returned `402 Insufficient Balance`; we did not remove DeepSeek models.
-- OpenAI Codex rejected some models for the logged-in ChatGPT account; we did not remove
-  them globally because entitlement can vary.
-- OpenRouter free/shared routes returned `429`; we left them in the catalog and reported
-  them as upstream rate limits.
-
-## Fix/rerun loop
-
-Use this loop until all fixable errors are gone:
-
-1. Run a plan or dry run.
-2. Run a small batch for new providers.
-3. If failures are provider-wide, fix the adapter first.
-4. Run the full provider/catalog pass.
-5. Summarize errors.
-6. Apply catalog/runtime fixes.
-7. Rerun only failures:
-
-   ```bash
-   uv run python ~/.baldric/provider-validation/validate_provider_catalog.py run \
-     --builtins-only \
-     --provider PROVIDER_NAME \
-     --retry-errors \
-     --concurrency 2 \
-     --provider-concurrency 1
-   ```
-
-8. Summarize again.
-9. Repeat until remaining errors are only documented account/balance/rate-limit cases.
-
-## Updating Baldric after validation
-
-Common code/catalog changes:
-
-- Remove stale model IDs from `src/baldric_coding/data/catalog.toml`.
-- Set validated defaults for providers whose previous default was removed.
-- Add `unsupported_thinking_levels` under `providers.model_metadata.<model>`.
-- Add `thinking_level_map` for provider-specific value mapping.
-- Add model `compat` fields for adapter-specific behavior.
-- Add adapter regression tests for any provider-wide payload fixes.
-- Update stale tests that hardcoded old defaults or provider lists.
-
-For this validation pass, notable fixes were:
-
-- Google Generative AI: `systemInstruction` now lives at request top level.
-- OpenRouter: Baldric passes `compat.openrouterProvider` as OpenRouter's `provider` routing
-  option.
-- Catalog: stale/deprecated/unroutable model IDs were pruned.
-- Catalog: unsupported reasoning levels were hidden per model.
-- Anthropic: adaptive-thinking metadata was tightened for current adaptive models.
-
-## Final report format
-
-End every validation pass with a concise report containing:
-
-1. Catalog scope: effective or packaged/built-in.
-2. Prompt and success condition.
-3. Total expected attempts, recorded attempts, pending attempts.
-4. Per-provider OK/error counts.
-5. Remaining failures grouped by reason.
-6. Providers not validated because credentials were missing.
-7. Code/catalog fixes made.
-8. Final project validation commands and results.
-
-Store detailed local artifacts outside the repo:
-
-```text
-~/.baldric/provider-validation/<validation-name>/results.jsonl
-~/.baldric/provider-validation/<validation-name>/validation-summary.md
-```
-
-Do not commit raw JSONL logs. They should not contain secrets, but they can include account
-IDs, provider-specific metadata, rate-limit details, and paid-account availability clues.
-
-## Result from the Pi API provider pass
-
-After fixes, the packaged catalog had 1,193 expected validation attempts for credentialed
-providers. All fixable model/reasoning mismatches were cleared.
-
-Remaining failures were not global catalog/runtime bugs:
-
-- DeepSeek returned `402 Insufficient Balance` for the available API key.
-- OpenAI Codex returned account-entitlement errors for `gpt-5.3-codex` and `gpt-5.2` with
-  the logged-in ChatGPT account, while other Codex models worked.
-- Several OpenRouter free/shared upstream routes returned `429` rate limits.
-
-Providers without credentials were not live-validated in this pass: Cerebras, Fireworks,
-Mistral, Moonshot, Together, Vercel AI Gateway, xAI, Xiaomi, Z.ai, and regional variants.
-
-Final local project validation:
+最终本地项目验证：
 
 ```bash
 uv run pytest -q
