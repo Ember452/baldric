@@ -224,6 +224,10 @@ Do not let Textual become a dependency of the reusable agent harness.
 Documentation is written in Chinese first; code, commands, paths, and technical
 terms stay in English (see `docs/AGENTS.md`).
 
+Place new contributor docs by type: phase journals in `docs/internal/architecture/`,
+feature notes in `docs/internal/notes/`, decisions in `docs/internal/adr/`, work
+plans in `docs/internal/plans/` (full placement table in `docs/AGENTS.md`).
+
 Each substantial phase should leave behind beginner-friendly notes under `docs/internal/` (build journals, design docs, ADRs), explaining:
 
 - what was added
