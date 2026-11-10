@@ -1,13 +1,12 @@
 ---
-title: "Phase 20.3: Skill Invocation Reliability"
+title: "Phase 20.3：skill 调用可靠性"
 ---
 
-Phase 20.3 hardens how Baldric exposes and invokes markdown skills.
+Phase 20.3 加固 Baldric 暴露与调用 Markdown skill 的方式。
 
-## Automatic Skill Availability
+## 自动 skill 可用性
 
-Loaded skills are included in the system prompt when the `read` tool is
-available:
+`read` 工具可用时，已加载 skill 纳入 system prompt：
 
 ```xml
 <available_skills>
@@ -19,20 +18,17 @@ available:
 </available_skills>
 ```
 
-The prompt now uses the Pi wording:
+prompt 现在用 Pi 的措辞：
 
 ```text
 Read the full skill file when the task matches its description.
 ```
 
-This means a model can choose the relevant skill from the index, call `read` on
-the listed location, and receive the full skill markdown as a normal tool result.
+这意味着模型可以从索引选择相关 skill，对列出的位置调用 `read`，并作为普通工具结果收到完整 skill Markdown。
 
-## Manual Skill Invocation
+## 手动 skill 调用
 
-`/skill:<name> [instructions]` remains a prompt expansion directive rather than
-a slash command that ends the turn. It now expands to the same Pi-style skill
-block:
+`/skill:<name> [instructions]` 仍是 prompt 展开指令，不是结束该轮的 slash 命令。它现在展开为同样的 Pi 风格 skill 块：
 
 ```text
 <skill name="testing" location="/repo/.agents/skills/testing.md">
@@ -45,34 +41,26 @@ Run pytest.
 add parser tests
 ```
 
-The block is self-contained: it includes the source file and tells the model
-where relative references inside the skill should resolve.
+块自包含：包含源文件，并告诉模型 skill 内的相对引用应从哪里解析。
 
-## TUI Display
+## TUI 显示
 
-The session still sends and persists the full expanded skill block so the agent
-has the complete instructions. The TUI parses that structured block when
-rendering user messages and displays a compact skill item instead:
+session 仍发送并持久化完整展开的 skill 块，agent 拿到完整指令。TUI 在渲染用户消息时解析该结构化块，改为显示紧凑的 skill 项：
 
 ```text
 Using skill: testing
 ```
 
-If the original `/skill:<name>` input included additional instructions, those
-instructions render as the visible user message after the compact skill item.
-The full skill markdown is not shown in the normal conversation view.
+原始 `/skill:<name>` 输入带额外指令时，这些指令作为可见用户消息显示在紧凑 skill 项之后。完整 skill Markdown 不在正常对话视图显示。
 
-## Boundary
+## 边界
 
-Skill discovery and prompt expansion remain in `baldric_coding`. `baldric_agent` only
-sees ordinary provider-neutral messages and tool calls. The model-visible skill
-index uses the existing `read` tool instead of adding a special skill tool to
-the reusable harness. TUI parsing is presentation-only and does not change the
-stored or provider-visible message content.
+skill 发现与 prompt 展开留在 `baldric_coding`。`baldric_agent` 只看到普通的 provider 中立消息与 tool call。模型可见的
+skill 索引用既有 `read` 工具，而不是给可复用 harness 加一个特殊 skill 工具。TUI 解析仅用于呈现，不改变存储或 provider 可见的消息内容。
 
-## Tests
+## 测试
 
-The phase is covered by:
+本阶段覆盖于：
 
 ```text
 tests/test_skills.py
@@ -83,8 +71,8 @@ tests/test_tui_adapter.py
 tests/test_tui_app.py
 ```
 
-The tests verify both paths:
+测试验证两条路径：
 
-- explicit `/skill:<name>` expansion sends full skill content to the provider
-- the system prompt lists loaded skill locations, and a model-triggered `read`
-  call can load the skill file into the next provider turn
+- 显式 `/skill:<name>` 展开把完整 skill 内容发给 provider
+- system prompt 列出已加载 skill 位置，模型触发的 `read`
+  调用可以把 skill 文件装进下一次 provider 轮

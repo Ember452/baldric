@@ -1,56 +1,42 @@
-# CLI: surface bad `--model` as a clean error (issue #265)
+# CLI：把错误的 `--model` 呈现为干净错误（issue #265）
 
-## What changed
+## 变更了什么
 
-`baldric --model <bad-model>` no longer crashes with an `anyio`/`asyncio` traceback
-when the model is not declared by the selected provider. Two `except` handlers in
-`src/baldric_coding/cli.py` were broadened from `RuntimeError` to
-`(RuntimeError, ValueError)`:
+所选 provider 未声明该模型时，`baldric --model <bad-model>` 不再以 `anyio`/`asyncio` 堆栈崩溃。`src/baldric_coding/cli.py` 的两个 `except` handler 从 `RuntimeError` 放宽为
+`(RuntimeError, ValueError)`：
 
-- the **TUI** startup branch (`main()` → `anyio.run(run_openai_tui, …)`), and
-- the **print-mode** branch (`main()` → `anyio.run(run_openai_print_mode, …)`).
+- **TUI** 启动分支（`main()` → `anyio.run(run_openai_tui, …)`），与
+- **print-mode** 分支（`main()` → `anyio.run(run_openai_print_mode, …)`）。
 
-`ProviderConfigError(ValueError)` is raised by `validate_provider_model()` deep
-inside the event loop (via `resolve_provider_selection()` →
-`_resolve_tui_startup_selection()` / `run_openai_print_mode`). Because the
-handlers only caught `RuntimeError`, the `ValueError` subclass escaped as an
-unhandled exception and printed a multi-frame traceback. Catching `ValueError`
-lets `typer.BadParameter` surface the existing, friendly message verbatim:
+`ProviderConfigError(ValueError)` 由 `validate_provider_model()` 在事件循环深处抛出
+（经 `resolve_provider_selection()` →
+`_resolve_tui_startup_selection()` / `run_openai_print_mode`）。因为 handler 只捕获 `RuntimeError`，`ValueError` 子类作为未处理异常逃逸并打印多帧堆栈。捕获 `ValueError` 让 `typer.BadParameter` 原样呈现既有的友好消息：
 
 > Invalid value: Model is not configured for provider local: llama. Available
 > models: qwen
 
-The `export` command in the same file already used the correct pattern
-(`except (RuntimeError, ValueError)`) and served as the reference.
+同文件的 `export` 命令已用正确模式
+（`except (RuntimeError, ValueError)`），是参照。
 
-## Why it exists
+## 为什么存在
 
-Reported in https://github.com/huggingface/tau/issues/265. The provider catalog
-is intentionally provider-specific, so an unknown/typo'd model name is a common
-user error. The actionable message (which lists the valid models for the
-provider) already existed in `provider_config.validate_provider_model`; it just
-wasn't being surfaced cleanly through the CLI entry points.
+报告于 https://github.com/huggingface/tau/issues/265。provider 目录刻意 provider 特定，未知/拼错的模型名是常见用户错误。可执行的消息（列出该 provider 的有效模型）早已存在于 `provider_config.validate_provider_model`；只是没有经 CLI 入口干净呈现。
 
-This keeps the validation logic in `provider_config.py` as the single source of
-truth for the message and restores parity across all `--model` entry points
-(TUI, print mode, and export).
+这让校验逻辑留在 `provider_config.py` 作为消息的唯一事实来源，并恢复所有 `--model` 入口（TUI、print mode、导出）的一致性。
 
-## How it maps to the design
+## 与设计的对应
 
-This is a pure CLI-layer fix. It does not touch:
+纯 CLI 层修复。不触碰：
 
-- the portable agent harness (`baldric_agent`),
-- the provider/model streaming layer (`baldric_ai`), or
-- the Textual TUI rendering.
+- 可移植 agent harness（`baldric_agent`）、
+- provider/model 流式层（`baldric_ai`）、或
+- Textual TUI 渲染。
 
-The validation itself already lives in `baldric_coding.providers.config`; only the
-CLI's error boundary was wrong. This is consistent with the architecture
-principle that CLI error handling should consume errors from the lower layers
-rather than letting them leak as raw tracebacks.
+校验本身已住在 `baldric_coding.providers.config`；错的只是 CLI 的错误边界。这与"CLI 错误处理应消费低层错误而不是让它们以原始堆栈泄漏"的架构原则一致。
 
-## How to test
+## 怎么测试
 
-Regression tests (verified to fail before the fix and pass after):
+回归测试（验证过修复前失败、修复后通过）：
 
 ```bash
 uv run pytest tests/test_cli.py -k "bad_model" -v
@@ -59,14 +45,12 @@ uv run pytest tests/test_cli.py -k "bad_model" -v
 - `test_tui_surfaces_bad_model_as_clean_error`
 - `test_print_mode_surfaces_bad_model_as_clean_error`
 
-Both monkeypatch `load_provider_settings` (in both the `cli` and `tui.app`
-namespaces, since each imports it) to return a provider whose only model is
-`qwen`, then invoke the CLI runner with `--model llama --provider local` (TUI)
-and with `-p hello` added (print mode). They assert `exit_code == 2` (Typer's
-`BadParameter` convention) and that the output panel contains
-`"Model is not configured for provider local: llama. Available models: qwen"`.
+两者 monkeypatch `load_provider_settings`（在 `cli` 与 `tui.app`
+两个命名空间，因为各自导入了它），返回唯一模型为 `qwen` 的 provider，然后以 `--model llama --provider local`（TUI）与加 `-p hello`（print mode）调用 CLI runner。断言 `exit_code == 2`（Typer 的
+`BadParameter` 约定）且输出面板包含
+`"Model is not configured for provider local: llama. Available models: qwen"`。
 
-Full suite:
+全量：
 
 ```bash
 uv run pytest -q
@@ -74,13 +58,7 @@ uv run ruff check src/baldric_coding/cli.py tests/test_cli.py
 uv run ruff format --check src/baldric_coding/cli.py tests/test_cli.py
 ```
 
-## Notes / follow-ups
+## 注记 / 后续
 
-- The original issue draft incorrectly claimed the print-mode path already
-  handled `ValueError`; that `except (RuntimeError, ValueError)` snippet was
-  actually from the `export` command. Empirical reproduction confirmed
-  print-mode was *also* broken, so both paths were fixed together.
-- A larger follow-up (not in scope here): audit remaining `anyio.run(...)` call
-  sites and extract a shared error-handling helper so all entry points use one
-  handler and cannot drift apart again. Pre-loop validation (resolving the
-  provider/model before entering the event loop) is another optional polish.
+- 原 issue 草稿错误地声称 print mode 路径已处理 `ValueError`；那段 `except (RuntimeError, ValueError)` 其实来自 `export` 命令。实证复现确认 print mode *也*坏了，所以两条路径一起修。
+- 更大的后续（不在本范围）：审计剩余的 `anyio.run(...)` 调用点，抽一个共享错误处理 helper，让所有入口用同一个 handler、不再漂移。循环前校验（进事件循环前解析 provider/model）是另一项可选打磨。

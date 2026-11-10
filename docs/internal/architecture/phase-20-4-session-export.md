@@ -1,13 +1,13 @@
 ---
-title: "Phase 20.4: Session Export and Visualization"
+title: "Phase 20.4：session 导出与可视化"
 ---
 
-Phase 20.4 adds a durable way to inspect Baldric sessions outside the TUI.
+Phase 20.4 增加在 TUI 之外检视 Baldric session 的持久方式。
 
-## What was added
+## 加了什么
 
-Baldric can export any indexed session id or JSONL session file to a standalone
-HTML document:
+Baldric 可以把任何已索引 session id 或 JSONL session 文件导出为独立
+HTML 文档：
 
 ```bash
 baldric export <session-id>
@@ -16,63 +16,45 @@ baldric export <session-id> --format jsonl
 baldric export ~/.baldric/sessions/<project>/<session-id>.jsonl
 ```
 
-When no destination is provided, `baldric export` writes to the current working
-directory instead of Baldric's internal session storage directory. Interactive
-sessions expose the same export flow through:
+未提供目标时，`baldric export` 写到当前工作
+目录而不是 Baldric 内部 session 存储目录。交互式 session 经以下命令暴露同一导出流程：
 
 ```text
 /export [--format html|jsonl] [destination]
 ```
 
-The export contains two coordinated views:
+导出包含两个协同视图：
 
-- a session tree that preserves parent-child relationships, branches, leaf
-  pointers, and the active branch path
-- a storage-order transcript/details view for messages, tool calls, tool
-  results, compactions, labels, model changes, thinking changes, and custom
-  entries
+- 保留父子关系、分支、叶
+  指针与活动分支路径的 session 树
+- 按存储顺序的消息/详情视图：消息、tool call、工具结果、compaction、标签、模型变更、thinking 变更与自定义
+  entry
 
-The generated file is self-contained HTML, CSS, and JavaScript, so it can be
-opened without running Baldric or the Textual app. Transcript entries render as
-compact, collapsed accordion rows (icon, title, one-line preview, timestamp),
-with thinking blocks, tool-call arguments, and result details nested as inner
-accordions. Tool rows are titled `Tool: <name>`, and the session tree labels
-tool entries with just the tool name for readability. Chip-style header
-filters—with entry counts—can hide tool calls/results in both views or drop
-non-message session events for a user/assistant-focused transcript, and a
-single button expands or collapses every accordion at once. A download button
-reproduces the JSONL export from the entry data embedded (base64-encoded) in
-the page, so the HTML file alone round-trips the full session. The filters
-change only the exported view; the complete session remains embedded in the
-document.
+生成的文件自包含 HTML、CSS 与 JavaScript，不需要运行 Baldric 或 Textual 应用即可打开。transcript entry 渲染为紧凑折叠的手风琴行（图标、标题、单行预览、时间戳），
+thinking 块、tool call 参数与结果细节嵌套为内层手风琴。工具行标题为 `Tool: <name>`，session 树为可读性只用工具名标注工具 entry。芯片式头部
+过滤器带 entry 计数，可在两个视图隐藏 tool call/结果，或为聚焦用户/assistant 的 transcript 去掉非消息 session 事件；一个按钮同时展开或折叠所有手风琴。下载按钮从内嵌（base64 编码）页面的 entry 数据复现 JSONL 导出，单独的 HTML 文件即可往返完整 session。过滤器只改导出视图；完整 session 仍内嵌在文档里。
 
-## Why it exists
+## 为什么存在
 
-Baldric sessions are append-only trees, not a single flat chat log. That matters for
-future fork and branch workflows because multiple candidate branches can share
-the same root. A plain transcript would hide that shape and make it hard to
-debug replay, compaction, or branch selection.
+Baldric session 是 append-only 树，不是单一扁平聊天记录。这对未来 fork 与分支工作流很重要——多个候选分支可以共享同一根。纯 transcript 会掩盖那个形状，让回放、compaction 或分支选择难以调试。
 
-The exporter keeps the visualization in `baldric_coding` because it is an
-application workflow over persisted session data. The reusable `baldric_agent`
-session models remain provider-neutral and frontend-neutral.
+导出器把可视化留在 `baldric_coding`，因为它是持久 session 数据之上的应用工作流。可复用的 `baldric_agent`
+session 模型保持 provider 中立与 frontend 中立。
 
-## How it maps to Pi
+## 与 Pi 的对应
 
-Pi has an HTML session export flow for inspecting conversation state outside the
-interactive interface. Baldric mirrors the core product behavior while keeping the
-implementation smaller: the exporter renders static HTML from the existing
-`SessionEntry` JSONL records instead of adding a separate client-side app.
+Pi 有一个 HTML session 导出流程用于在交互界面之外检视对话状态。Baldric 镜像核心产品行为且实现更小：导出器从既有
+`SessionEntry` JSONL 记录渲染静态 HTML，而不加一个单独的客户端应用。
 
-## How to test it
+## 怎么测试
 
-Run the focused tests:
+跑聚焦测试：
 
 ```bash
 uv run pytest tests/test_session_export.py tests/test_cli.py -k export
 ```
 
-Run the full gate before shipping:
+发布前跑全量门：
 
 ```bash
 uv run pytest
