@@ -2,17 +2,17 @@
 title: "Agent Loop"
 ---
 
-Baldric's pure agent loop is implemented by `run_agent_loop()` in `baldric_agent.loop`.
+Baldric 的纯 agent loop 由 `baldric_agent.loop` 的 `run_agent_loop()` 实现。
 
-It connects:
+它连接：
 
 ```text
 transcript + tools + provider
 ```
 
-and emits agent events while appending new messages to the transcript.
+并在向 transcript 追加新消息的同时发出 agent 事件。
 
-## Minimal shape
+## 最小形状
 
 ```python
 async for event in run_agent_loop(
@@ -25,11 +25,11 @@ async for event in run_agent_loop(
     ...
 ```
 
-The loop is intentionally independent of the CLI, Rich, Textual, and session file locations.
+循环有意独立于 CLI、Rich、Textual 与 session 文件位置。
 
-The current loop also accepts optional queue-drain hooks from `AgentHarness`.
-Those hooks let the loop inject steering messages after a turn/tool batch and
-follow-up messages when a run would otherwise stop, while still emitting normal
-user message events and mutating the same transcript list.
+当前循环还接受来自 `AgentHarness` 的可选队列排水 hook。
+这些 hook 让循环在一轮/一批工具之后注入 steering 消息，
+在运行本会停止时注入 follow-up 消息，同时仍发出普通
+用户消息事件并改动同一份 transcript 列表。
 
-For a detailed architecture walkthrough, read [Phase 3: Pure Agent Loop](./architecture/phase-3-agent-loop.md).
+详细的架构走读见 [Phase 3: Pure Agent Loop](./architecture/phase-3-agent-loop.md)。

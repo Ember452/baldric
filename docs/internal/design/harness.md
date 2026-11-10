@@ -2,17 +2,17 @@
 title: "Agent Harness"
 ---
 
-`AgentHarness` is Baldric's reusable stateful agent brain.
+`AgentHarness` 是 Baldric 可复用的有状态 agent 大脑。
 
-It lives in:
+它位于：
 
 ```text
 src/baldric_agent/harness.py
 ```
 
-The harness owns a transcript and delegates execution to the pure agent loop.
+harness 拥有一份 transcript，把执行委托给纯 agent loop。
 
-## Basic shape
+## 基本形状
 
 ```python
 harness = AgentHarness(
@@ -28,38 +28,34 @@ async for event in harness.prompt("Hello"):
     ...
 ```
 
-## Responsibilities
+## 职责
 
-The harness:
+harness：
 
-- stores transcript messages
-- appends `UserMessage` objects for new prompts
-- calls `run_agent_loop()`
-- streams `AgentEvent` objects
-- exposes `continue_()` for running without a new user prompt
-- rejects overlapping `prompt()` / `continue_()` runs
-- queues steering and follow-up messages for an active run
-- supports event listeners
-- supports basic cancellation
+- 存储 transcript 消息
+- 为新 prompt 追加 `UserMessage`
+- 调用 `run_agent_loop()`
+- 流式发出 `AgentEvent`
+- 暴露 `continue_()` 以不带新用户 prompt 继续运行
+- 拒绝重叠的 `prompt()` / `continue_()` 运行
+- 为活动运行排队 steering 与 follow-up 消息
+- 支持事件监听器
+- 支持基本取消
 
-The harness does not know about CLI arguments, Textual, Rich rendering, slash commands, or session files.
+harness 对 CLI 参数、Textual、Rich 渲染、slash 命令与 session 文件一无所知。
 
-## Queues
+## 队列
 
-Use queue APIs while a run is active:
+运行进行中使用队列 API：
 
 ```python
 harness.steer("Adjust the current plan.")
 harness.follow_up("When that is done, summarize the result.")
 ```
 
-Steering messages are injected after the current assistant turn and tool batch,
-before the next provider call. Follow-up messages are injected only when the run
-would otherwise stop. `AgentHarnessConfig.queue_mode` defaults to
-`"one_at_a_time"`; set it to `"all"` to drain each queue as a full batch.
+steering 消息在当前 assistant 轮与工具批次之后、下一次 provider 调用之前注入。follow-up 消息只在运行本会停止时注入。`AgentHarnessConfig.queue_mode` 默认
+`"one_at_a_time"`；设为 `"all"` 可把每条队列整批排空。
 
-The harness emits `QueueUpdateEvent` values as queues change and as messages are
-drained. Queued messages become durable transcript messages only when they are
-injected into the loop.
+队列变化与消息排空时，harness 发出 `QueueUpdateEvent`。排队的消息只有在注入 loop 时才成为持久的 transcript 消息。
 
-For a detailed architecture walkthrough, read [Phase 4: AgentHarness](./architecture/phase-4-agent-harness.md).
+详细的架构走读见 [Phase 4: AgentHarness](./architecture/phase-4-agent-harness.md)。

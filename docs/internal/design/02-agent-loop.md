@@ -2,23 +2,23 @@
 title: "02 — Agent Loop"
 ---
 
-The agent loop is the small, reusable engine that turns messages, tools, and provider streams into progress events.
+agent loop 是那个小而可复用的引擎：把消息、工具与 provider 流变成进展事件。
 
-## Responsibilities
+## 职责
 
-1. Receive the current system prompt, transcript, tools, and model selection.
-2. Ask the provider to stream a response.
-3. Emit events as text and tool calls arrive.
-4. Collect the assistant message.
-5. Execute requested tools.
-6. Append tool results.
-7. Continue until the assistant produces no more tool calls.
+1. 接收当前 system prompt、transcript、tools 与模型选择。
+2. 请 provider 流式返回回复。
+3. 在文本与 tool 调用到达时发出事件。
+4. 收集 assistant 消息。
+5. 执行被请求的工具。
+6. 追加工具结果。
+7. 继续，直到 assistant 不再发出 tool 调用。
 
-## Non-responsibilities
+## 非职责
 
-The loop does not know about CLI arguments, Textual widgets, session file locations, or project resource discovery.
-Those belong in `baldric_coding`.
+循环对 CLI 参数、Textual 组件、session 文件位置、项目资源发现一无所知。
+它们属于 `baldric_coding`。
 
-## Event-first design
+## 事件优先的设计
 
-Every meaningful step should be observable through events so print mode, Rich rendering, and Textual can share the same core.
+每个有意义的步骤都应可通过事件观察，print mode、Rich 渲染与 Textual 因此共享同一内核。

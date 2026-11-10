@@ -1,34 +1,34 @@
 ---
-title: "01 — Architecture"
+title: "01 — 架构"
 ---
 
-Baldric keeps the reusable agent core separate from the coding-agent application and from any UI.
+Baldric 把可复用的 agent 内核与编码 agent 应用、以及任何 UI 分开。
 
-## Layers
+## 层
 
 ### `baldric_ai`
 
-Owns provider-specific model streaming. It will translate provider responses into Baldric's provider-neutral events.
+拥有 provider 特定的模型流式。它把 provider 响应翻译为 Baldric 的 provider 中立事件。
 
 ### `baldric_agent`
 
-Owns the portable agent brain: messages, tools, events, the agent loop, harness, and session primitives.
-This package must not import CLI, Rich, Textual, or application resource loading code.
+拥有可移植的 agent 大脑：消息、工具、事件、agent loop、harness 与 session 原语。
+这个包不得导入 CLI、Rich、Textual 或应用资源加载代码。
 
 ### `baldric_coding`
 
-Owns the coding-agent application: CLI commands, built-in coding tools, project instructions, skills,
-prompt templates, sessions on disk, and UI adapters.
+拥有编码 agent 应用：CLI 命令、内置编码工具、项目指令、skill、
+prompt template、磁盘上的 session 与 UI 适配器。
 
-## Dependency direction
+## 依赖方向
 
 ```text
 baldric_coding -> baldric_agent -> baldric_ai
 ```
 
-UI packages consume emitted events. The core does not render UI directly.
+UI 包消费已发出的事件。内核不直接渲染 UI。
 
-## Guiding split
+## 指导性切分
 
 ```text
 AgentHarness = reusable brain

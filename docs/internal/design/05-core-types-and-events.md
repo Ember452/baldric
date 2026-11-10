@@ -1,40 +1,40 @@
 ---
-title: "05 — Core Types and Events"
+title: "05 — 核心类型与事件"
 ---
 
-Phase 1 defines the provider-neutral objects that later Baldric phases share.
+Phase 1 定义后续 Baldric 阶段共享的 provider 中立对象。
 
-## Why these types exist
+## 这些类型为什么存在
 
-The provider layer, agent loop, harness, tools, sessions, and UI should not exchange provider-specific objects.
-Instead, they use Baldric's own message, tool, result, and event models.
+provider 层、agent loop、harness、工具、session 与 UI 不应交换 provider 特定对象。
+它们使用 Baldric 自己的 message、tool、result 与 event 模型。
 
-## Messages
+## 消息
 
-Messages live in `baldric_agent.messages`:
+消息位于 `baldric_agent.messages`：
 
-- `UserMessage` records user input.
-- `AssistantMessage` records assistant text and optional tool calls.
-- `ToolResultMessage` records the result of a specific tool call.
-- `AgentMessage` is the union of all transcript message types.
+- `UserMessage` 记录用户输入。
+- `AssistantMessage` 记录 assistant 文本与可选 tool 调用。
+- `ToolResultMessage` 记录一次具体 tool call 的结果。
+- `AgentMessage` 是所有 transcript 消息类型的联合。
 
-These are the objects that will eventually be passed to model providers and persisted in sessions.
+这些就是最终会传给模型 provider 并持久化进 session 的对象。
 
-## Tools
+## 工具
 
-Tools live in `baldric_agent.tools`:
+工具位于 `baldric_agent.tools`：
 
-- `ToolCall` is the assistant's request to execute a named tool with JSON-like arguments.
-- `AgentTool` describes an executable tool: name, description, input schema, and async executor.
-- `AgentToolResult` is the structured response from running a tool.
+- `ToolCall` 是 assistant 执行某个具名工具的请求，带类 JSON 参数。
+- `AgentTool` 描述一个可执行工具：名字、描述、输入 schema 与异步执行器。
+- `AgentToolResult` 是运行工具后的结构化响应。
 
-The core types do not implement coding tools. Built-in tools such as `read`,
-`write`, `edit`, and `bash` live under the coding-agent application layer in
-`baldric_coding`.
+内核类型不实现编码工具。`read`、
+`write`、`edit`、`bash` 等内置工具位于编码 agent 应用层的
+`baldric_coding`。
 
-## Events
+## 事件
 
-Events live in `baldric_agent.events`. They describe progress from the portable agent layer:
+事件位于 `baldric_agent.events`。它们描述可移植 agent 层的进展：
 
 - `agent_start`
 - `agent_end`
@@ -51,16 +51,15 @@ Events live in `baldric_agent.events`. They describe progress from the portable 
 - `tool_execution_end`
 - `error`
 
-Print mode, Rich renderers, JSON event streaming, and the Textual TUI all
-consume the same event stream.
+print mode、Rich 渲染器、JSON 事件流与 Textual TUI 都
+消费同一条事件流。
 
-`queue_update` reports pending steering/follow-up prompts. `retry` reports
-provider retry progress. `thinking_delta` carries optional streamed reasoning
-text from providers that expose it; frontends decide whether to show it, and it
-is not recorded as durable assistant message text.
+`queue_update` 报告待处理的 steering/follow-up prompt。`retry` 报告
+provider 重试进度。`thinking_delta` 携带暴露该能力的 provider 的可选流式推理
+文本；是否显示由 frontend 决定，它
+不会记录为持久的 assistant 消息文本。
 
-## Design boundary
+## 设计边界
 
-These models are intentionally small and provider-neutral. Provider adapters
-translate Anthropic, OpenAI-compatible, OpenAI Codex subscription, or other API
-payloads into Baldric types before the agent loop or frontends see them.
+这些模型刻意保持小而 provider 中立。provider 适配器在 agent loop 或 frontend 看到之前，把 Anthropic、OpenAI 兼容、OpenAI Codex 订阅或其他 API
+载荷翻译成 Baldric 类型。

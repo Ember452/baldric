@@ -2,19 +2,19 @@
 title: "04 — Sessions"
 ---
 
-Sessions preserve conversations and agent state across runs.
+session 跨运行保存对话与 agent 状态。
 
-## Design
+## 设计
 
-Baldric uses an append-only session tree. Instead of mutating old state, Baldric appends entries and reconstructs state by replaying them.
+Baldric 使用 append-only 的 session 树。不改写旧状态，而是追加 entry 并通过回放重建状态。
 
-The low-level implementation lives in:
+底层实现位于：
 
 ```text
 src/baldric_agent/session/
 ```
 
-## Entry types
+## entry 类型
 
 - `message`
 - `model_change`
@@ -22,45 +22,45 @@ src/baldric_agent/session/
 - `compaction`
 - `branch_summary`
 - `label`
-- `leaf` (legacy read compatibility only; never written)
+- `leaf`（仅为 legacy 读取兼容；从不写入）
 - `session_info`
 - `custom`
 
-## Current capabilities
+## 当前能力
 
-Baldric can now:
+Baldric 现在可以：
 
-- serialize and deserialize session entries as JSONL
-- append entries to local session files
-- read session files in order
-- reconstruct linear session state
-- reconstruct a root-to-leaf branch path
-- load a `baldric_coding.CodingSession` that restores messages and persists new runs
+- 把 session entry 序列化/反序列化为 JSONL
+- 向本地 session 文件追加 entry
+- 按序读取 session 文件
+- 重建线性 session 状态
+- 重建从根到叶的分支路径
+- 载入恢复消息并持久化新运行的 `baldric_coding.CodingSession`
 
-## Durable message boundary
+## 持久消息边界
 
-`CodingSession` treats `MessageEndEvent` as the durable-message boundary. Persistence is push-based: the coding session subscribes a listener to the harness, and every `message_end` notification appends that message to storage before the event reaches the consuming frontend. Persistence does not run in the event consumer, so a frontend that stops consuming (the TUI cancels its worker on Esc) cannot lose writes — including the synthetic "Tool call interrupted by user" results the harness appends and pushes to subscribers during cancelled cleanup.
+`CodingSession` 把 `MessageEndEvent` 视为持久消息边界。持久化是推送式的：coding session 向 harness 订阅一个监听器，每条 `message_end` 通知在该事件到达消费 frontend 之前就把该消息追加进存储。持久化不在事件消费者里运行，所以停止消费的 frontend（TUI 在 Esc 时取消其 worker）不可能丢写——包括 harness 在取消清理期间追加并推给订阅者的合成"Tool call interrupted by user"结果。
 
-This mirrors Pi's session model and matters for interactive UIs:
+这与 Pi 的 session 模型一致，对交互式 UI 很要紧：
 
-- the first user prompt is branchable while the assistant is still responding
-- queued steering and follow-up messages become durable when they are injected
-- cancellation or process failure preserves completed messages
-- the TUI can read tree state that matches the active run
+- assistant 还在回复时，第一条用户 prompt 已可分支
+- 排队的 steering 与 follow-up 消息在注入时变为持久
+- 取消或进程失败保住已完成的消息
+- TUI 能读到与活动运行一致的树状态
 
-A message whose `message_end` never fired is deliberately not persisted: abandoning a run before the first completed message leaves no durable trace, so an aborted first prompt does not index a new session.
+`message_end` 从未触发的消息刻意不持久化：在第一条完成消息前放弃运行不留持久痕迹，被中止的首条 prompt 不会索引出新 session。
 
-The active tip is the last non-`leaf` entry in file order. Every new entry points to the current in-memory tip, so an append both records the operation and makes its branch active. Historical `leaf` entries still deserialize but are ignored for tip selection.
+活动尖是文件顺序中最后一条非 `leaf` entry。每条新 entry 指向当前内存中的尖，因此一次追加既记录操作又使其分支成为活动分支。历史 `leaf` entry 仍可反序列化，但不参与尖选择。
 
-Empty sessions are still deferred: loading a new session prepares initial metadata in memory, but Baldric does not create the transcript file until the first durable session entry is appended. The first append materializes the pending `session_info`, model, and thinking-level entries before writing the message.
+空 session 仍然延迟创建：加载新 session 在内存里准备初始元数据，但 Baldric 直到第一条持久 session entry 追加才创建 transcript 文件。第一次追加在写入消息之前，先物化待处理的 `session_info`、model 与 thinking-level entry。
 
-## System prompt persistence
+## system prompt 持久化
 
-Baldric does not currently persist the resolved system prompt in the session JSONL file.
+Baldric 目前不把已解析的 system prompt 持久化进 session JSONL 文件。
 
-A resumed session restores the saved conversation branch, model changes, thinking-level changes, compactions, branch summaries, labels, and custom entries from the append-only session file. The system prompt is rebuilt at load time from the current coding-agent configuration and resources, including the current cwd, tools, loaded skills, context files such as `AGENTS.md`, and any custom or appended system prompt settings.
+恢复的 session 从 append-only session 文件还原已保存的对话分支、模型变更、thinking 级别变更、compaction、分支摘要、标签与自定义 entry。system prompt 在加载时从当前 coding-agent 配置与资源重建，包括当前 cwd、tools、已加载 skill、`AGENTS.md` 之类 context 文件，以及任何自定义或追加的 system prompt 设置。
 
-This means `/resume` should be understood as:
+这意味着 `/resume` 应理解为：
 
 ```text
 saved conversation branch
@@ -68,7 +68,7 @@ saved conversation branch
 current resolved system prompt
 ```
 
-not:
+而不是：
 
 ```text
 saved conversation branch
@@ -76,14 +76,14 @@ saved conversation branch
 original system prompt snapshot from session creation
 ```
 
-If system-prompt inputs change after a session was created, future turns in that resumed session may run with a different system prompt than earlier turns. This is useful when sessions should pick up improved Baldric instructions, updated project context, changed skills, or changed tool guidance. The tradeoff is that the JSONL file is not a complete audit snapshot of exactly what prompt text was sent on every historical turn.
+session 创建之后 system prompt 输入发生变化，被恢复 session 的后续轮次可能以与早前轮次不同的 system prompt 运行。当 session 应该跟上改进的 Baldric 指令、更新的项目 context、变化的 skill 或变化的工具指引时，这是有用的。代价是 JSONL 文件不是"每个历史轮确切发送了什么 prompt 文本"的完整审计快照。
 
-This matches Pi's current behavior. Pi's JSONL session schema stores the conversation tree and session state entries, but it does not store a dedicated resolved-system-prompt entry. Pi rebuilds its base system prompt from the active resource loader when creating or resuming an agent session. Pi can display/export the current runtime system prompt in some UI/export paths, but that prompt comes from live agent state rather than from a persisted JSONL snapshot.
+这与 Pi 的当前行为一致。Pi 的 JSONL session schema 存对话树与 session 状态 entry，但不存专门的已解析 system prompt entry。Pi 在创建或恢复 agent session 时从活动资源加载器重建其基底 system prompt。Pi 在某些 UI/导出路径可以显示/导出当前运行时 system prompt，但那个 prompt 来自活动的 agent 状态，不是持久化的 JSONL 快照。
 
-A future Baldric enhancement could add an explicit metadata entry for resolved system prompt snapshots or system-prompt revisions. If added, that should likely remain session metadata rather than a normal branchable transcript message, because the harness treats the system prompt separately from user, assistant, and tool messages.
+Baldric 未来可以增加显式的元数据 entry，存放已解析 system prompt 快照或 system prompt 修订。若加入，它很可能应保持为 session 元数据而非普通可分支的 transcript 消息，因为 harness 把 system prompt 与用户、assistant、工具消息分开对待。
 
-## Boundary
+## 边界
 
-Low-level session primitives belong in `baldric_agent`. File locations, slash commands, and coding-agent workflows belong in `baldric_coding`.
+底层 session 原语属于 `baldric_agent`。文件位置、slash 命令与编码 agent 工作流属于 `baldric_coding`。
 
-`CodingSession` is the first `baldric_coding` layer on top of the low-level primitives. It wires storage, `AgentHarness`, cwd, and coding tools together while leaving richer commands and resource loading for later phases.
+`CodingSession` 是底层原语之上的第一个 `baldric_coding` 层。它把存储、`AgentHarness`、cwd 与编码工具接在一起，把更丰富的命令与资源加载留给后续阶段。
