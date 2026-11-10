@@ -1,53 +1,33 @@
 ---
-title: What is Baldric?
-description: Baldric is a small, readable coding agent for your terminal — and a working example of how coding agents are built.
+title: 什么是 Baldric？
+description: Baldric 是一个运行在终端里的小而可读的编码 agent——也是一个展示编码 agent 如何构建的活例子。
 type: doc
 ---
 
-**Baldric is a coding agent that lives in your terminal.** You type what you want in
-plain English — "explain this repo", "add tests for the parser", "fix this
-stack trace" — and Baldric reads files, runs commands, and edits code to get it
-done, streaming its work as it goes.
+**Baldric 是一个运行在你终端里的编码 agent。** 你用平实的语言说出想做的事——"解释这个仓库"、"给解析器加测试"、"修复这个堆栈回溯"——Baldric 会读文件、跑命令、改代码来把它完成，并实时流式呈现它的工作。
 
-It's two things at once:
+它同时是两样东西：
 
-- **A tool you can use.** A real terminal coding agent with an interactive UI,
-  multiple model providers, durable sessions you can resume and branch, and a
-  resource system for your own skills and prompts.
-- **A project you can learn from.** Baldric is built to be *read*. Its source is
-  organized into small, honest layers so you can see exactly how a coding agent
-  works — from model streaming, to the agent loop, to tools and sessions.
+- **一个你能用的工具。** 一个真正的终端编码 agent，有交互式界面、多个模型 provider、可以恢复和分支的持久 session，以及承载你自己的 skill 与 prompt 的资源系统。
+- **一个你能读懂的项目。** Baldric 生来就是为了*被阅读*。它的源码被组织成小而诚实的层，让你看清编码 agent 的每个部分——从模型流式、到 agent loop、再到工具与 session。
 
-## What can it do?
+## 它能做什么？
 
-- Hold a conversation while **reading, writing, and editing files** and
-  **running shell commands** in your project.
-- Work in an **interactive TUI** or as a **one-shot command** for scripts and
-  pipes.
-- Talk to **OpenAI, Anthropic, OpenAI Codex, OpenRouter, Hugging Face**, or any
-  OpenAI-compatible endpoint (including local models).
-- **Remember** every session, let you **resume** it later, and **branch** from
-  any earlier point to explore a different path.
-- Stay usable in long sessions by **compacting** context automatically, and
-  expose **thinking modes** on models that support them.
-- Extend itself with your own **skills**, **prompt templates**, and per-project
-  **instructions** (`AGENTS.md`).
+- 在你的项目里**读、写、编辑文件**并**运行 shell 命令**，同时与你对话。
+- 以**交互式 TUI** 或**单条命令**（适合脚本与管道）两种方式工作。
+- 对接 **OpenAI、Anthropic、OpenAI Codex、OpenRouter、Hugging Face** 或任何 OpenAI 兼容端点（包括本地模型）。
+- **记住**每个 session，让你之后**恢复**它，并从任意更早的点**分支**去探索不同路径。
+- 通过自动 **compaction** 在长 session 中保持可用，并在支持的模型上提供 **thinking mode**。
+- 用你自己的 **skill**、**prompt template** 和项目级**指令**（`AGENTS.md`）扩展它自己。
 
-## Who is it for?
+## 它面向谁？
 
-- **You want a coding agent you can run and shape** — install it, point it at a
-  model, and work. Start with the [Quickstart](/tutorials/quickstart/).
-- **You want to understand how coding agents are built** — read the
-  [core concepts](/explanation/concepts/), then the [How Baldric works](/explanation/architecture/)
-  section.
+- **你想要一个能运行、能改造的编码 agent**——装上它、指定一个模型、开工。从[快速上手](/tutorials/quickstart/)开始。
+- **你想弄懂编码 agent 是怎么造出来的**——读[核心概念](/explanation/concepts/)，然后是 [Baldric 如何工作](/explanation/architecture/)分区。
 
-## Where to go next
+## 接下来去哪
 
-- **[Quickstart](/tutorials/quickstart/)** — install Baldric and run your first session in
-  a few minutes.
-- **[Core concepts](/explanation/concepts/)** — the handful of ideas (agent loop,
-  providers, tools, sessions, skills) that everything else builds on.
-- **[Guides](/how-to/tui/)** — task-focused how-tos for the TUI, sessions,
-  providers, and more.
-- **[Reference](/reference/cli/)** — exact CLI commands, slash commands, and
-  keyboard shortcuts.
+- **[快速上手](/tutorials/quickstart/)**——安装 Baldric，几分钟内跑起第一个 session。
+- **[核心概念](/explanation/concepts/)**——那几个一切都建立在其上的想法（agent loop、provider、tool、session、skill）。
+- **[任务配方](/how-to/tui/)**——TUI、session、provider 等主题的实操指南。
+- **[参考](/reference/cli/)**——确切的 CLI 命令、slash 命令与快捷键。

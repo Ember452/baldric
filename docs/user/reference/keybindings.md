@@ -1,56 +1,51 @@
 ---
-title: Keyboard shortcuts
-description: Default keys for the Baldric TUI, and how to remap them.
+title: 键盘快捷键
+description: Baldric TUI 的默认按键，以及如何重新映射。
 ---
 
-These are the default keys in the interactive [TUI](/how-to/tui/). Run
-`/hotkeys` in-session to see them, and remap them in `~/.baldric/tui.json` (see
-[Configuration](/reference/configuration/#tui-settings)).
+以下是交互式 [TUI](/how-to/tui/) 的默认按键。在会话内运行 `/hotkeys` 可以查看它们，并在 `~/.baldric/tui.json` 里重新映射（见[配置](/reference/configuration/#tui-设置)）。
 
-## Prompting
+## 输入
 
-| Key | Action |
+| 键 | 动作 |
 | --- | --- |
-| `Enter` | Accept a highlighted non-file completion; otherwise submit the prompt exactly as typed (including `@` file-reference text) |
-| `Shift+Enter` | Insert a newline |
-| `Esc` | Cancel the active run |
-| `Enter` (while running) | Queue text as steering for the current run |
-| `Alt+Enter` | Queue a follow-up that waits until the run would stop |
-| `Up` (empty prompt, running) | Edit the most recently queued follow-up |
+| `Enter` | 接受高亮的非文件补全；否则按输入原样提交 prompt（包括 `@` 文件引用文本） |
+| `Shift+Enter` | 插入换行 |
+| `Esc` | 取消当前运行 |
+| `Enter`（运行中） | 把文本排队为当前运行的 steering |
+| `Alt+Enter` | 排队一个 follow-up，等到运行本会结束之后执行 |
+| `Up`（空 prompt 且运行中） | 把最近排队的 follow-up 拉回输入框编辑 |
 
-## Navigation & pickers
+## 导航与 picker
 
-| Key | Action |
+| 键 | 动作 |
 | --- | --- |
-| `Ctrl+K` | Open the command palette |
-| `Ctrl+R` | Open the session picker |
-| `Tab` | Accept any highlighted completion, including `@` file references |
-| `Down` / `Up` | Move through completions |
-| `Ctrl+E` (in `/prompts`) | Edit the selected prompt template |
-| `Ctrl+S` (while editing a prompt template) | Save and reload resources |
+| `Ctrl+K` | 打开命令面板 |
+| `Ctrl+R` | 打开 session 选择器 |
+| `Tab` | 接受高亮补全，包括 `@` 文件引用 |
+| `Down` / `Up` | 在补全间移动 |
+| `Ctrl+E`（在 `/prompts` 中） | 编辑选中的 prompt template |
+| `Ctrl+S`（编辑 prompt template 时） | 保存并重新加载资源 |
 
-## Models & thinking
+## 模型与 thinking
 
-| Key | Action |
+| 键 | 动作 |
 | --- | --- |
-| `Ctrl+P` | Cycle scoped (favorite) models forward |
-| `Shift+Ctrl+P` | Cycle scoped (favorite) models backward |
-| `Shift+Tab` | Cycle the thinking mode |
-| `Ctrl+T` | Toggle display of thinking/reasoning tokens |
+| `Ctrl+P` | 向前轮换 scoped（收藏）模型 |
+| `Shift+Ctrl+P` | 向后轮换 scoped（收藏）模型 |
+| `Shift+Tab` | 轮换 thinking mode |
+| `Ctrl+T` | 切换 thinking/reasoning 内容的显示 |
 
-## Output & session
+## 输出与 session
 
-| Key | Action |
+| 键 | 动作 |
 | --- | --- |
-| `Ctrl+O` | Toggle exact tool commands and full output (vs. compact previews) |
-| `Ctrl+C` | Clear the prompt input |
-| `Ctrl+D` | Quit |
+| `Ctrl+O` | 切换确切工具命令与完整输出（对比紧凑预览） |
+| `Ctrl+C` | 清空 prompt 输入 |
+| `Ctrl+D` | 退出 |
 
-> [!NOTE] Remapping
-> Keys use Textual's syntax (`ctrl+k`, `shift+tab`, `down`, `f2`, …). Baldric rejects
-> unknown names, empty keys, and duplicate assignments so mistakes fail early. Any
-> key you don't set keeps its default. If your terminal cannot distinguish
-> `Shift+Enter` from `Enter`, choose a key it can report separately:
+> [!NOTE] 重新映射
+> 按键使用 Textual 的语法（`ctrl+k`、`shift+tab`、`down`、`f2`……）。Baldric 拒绝未知名称、空键位与重复赋值，错误尽早暴露。未设置的键保持默认。如果你的终端无法把 `Shift+Enter` 与 `Enter` 区分开，选一个它能单独上报的键：
 >
 > ```json
 > {

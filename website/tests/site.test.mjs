@@ -68,7 +68,7 @@ test("docs retain callouts, highlighting, navigation, and edit links", async () 
   const html = await readFile(path.join(dist, "tutorials/quickstart/index.html"), "utf8");
   for (const value of [
     "admonition-tip",
-    "Already have a package manager?",
+    "已经有包管理器？",
     "astro-code",
     "docs-sidebar",
     "docs-prevnext",

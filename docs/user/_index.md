@@ -1,6 +1,6 @@
 ---
 title: "Baldric"
-description: "An educational Python project for learning how coding agents are built."
+description: "一个教学向的 Python 项目，展示编码 agent 是如何构建的。"
 build:
   list: false
 ---

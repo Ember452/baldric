@@ -1,91 +1,57 @@
 ---
-title: Built-in tools
-description: The read, write, edit, and bash tools the agent uses to work in your project.
+title: 内置工具
+description: agent 用来在你的项目里干活的 read、write、edit 与 bash 工具。
 ---
 
-Tools are the actions the agent can take in your working directory. The model
-decides when to call them; Baldric executes them and streams the results back. Baldric
-ships four built-in coding tools: `read`, `write`, `edit`, and `bash`.
+工具是 agent 能在你的工作目录里采取的动作。由模型决定何时调用；Baldric 执行它们并把结果流式返回。Baldric 内置四个编码工具：`read`、`write`、`edit` 与 `bash`。
 
-All paths are resolved against the session's working directory (`--cwd`, or the
-directory you launched Baldric from).
+所有路径都相对 session 的工作目录（`--cwd`，或你启动 Baldric 的目录）解析。
 
 > [!NOTE]
-> This page documents tool *behavior* — what the model can do on your machine. To
-> build a frontend or register your own tools, see
-> [Building a custom frontend](/explanation/custom-frontend/).
+> 本页记录工具的*行为*——模型能在你的机器上做什么。要构建 frontend 或注册自己的工具，见[构建自定义 frontend](/explanation/custom-frontend/)。
 
 ## `read`
 
-Reads a file from disk.
+从磁盘读取文件。
 
 ```json
 { "path": "README.md", "offset": 1, "limit": 40 }
 ```
 
-| Argument | Required | Type | Description |
+| 参数 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- |
-| `path` | yes | string | File to read (relative to `cwd`). |
-| `offset` | no | integer | 1-indexed start line (`0` = start of file). |
-| `limit` | no | integer | Maximum number of lines to return. |
+| `path` | 是 | string | 要读的文件（相对 `cwd`）。 |
+| `offset` | 否 | integer | 1 起始的起始行（`0` = 从文件开头）。 |
+| `limit` | 否 | integer | 最多返回的行数。 |
 
-For text files, `read` returns UTF-8 content, applies `offset`/`limit`, and
-truncates to at most 2,000 lines or 50 KB (whichever comes first), appending a
-hint like `[42 more lines in file. Use offset=101 to continue.]`. Supported
-images (JPEG, static PNG, GIF, WebP, and BMP) are detected from their file
-content and sent to vision-capable models as image attachments. BMP files are
-converted to PNG. Baldric validates images and, when necessary, resizes them without
-upscaling or changing their aspect ratio. The processed attachment is limited to
-2,000 pixels on either side and 5 MB. Processing also rejects source files above
-50 MB or 40 million pixels. Animated PNG and JPEG XL inputs receive explicit
-unsupported-format notices. If decoding, conversion, or resizing cannot produce
-a safe attachment, Baldric returns a clear omission notice.
+对文本文件，`read` 返回 UTF-8 内容，应用 `offset`/`limit`，并截断到最多 2,000 行或 50 KB（以先到者为准），追加形如 `[42 more lines in file. Use offset=101 to continue.]` 的提示。受支持的图片（JPEG、静态 PNG、GIF、WebP、BMP）从文件内容识别，作为图片附件发给具备视觉能力的模型。BMP 会转换为 PNG。Baldric 校验图片，必要时在不放大、不改变宽高比的前提下缩放。处理后的附件限制为两边不超过 2,000 像素且不超过 5 MB。超过 50 MB 或 4000 万像素的源文件会被拒绝。动画 PNG 与 JPEG XL 输入会收到明确的不支持格式提示。如果解码、转换或缩放无法产出安全的附件，Baldric 返回明确的省略说明。
 
-If the provider still rejects a request immediately after an image tool result,
-Baldric retries with those images omitted and the API error included in the
-affected tool responses. The model can then try a smaller image or another
-approach, without rerunning the original tools. Recovery stops on the third
-consecutive provider failure; a successful response resets that counter.
-Provider-level network retries remain separate. Partial streamed responses and
-cancellation are not retried this way. The original image and API error remain
-in session history, but rejected attachments are omitted from subsequent model
-context.
+如果在图片工具结果之后 provider 仍立即拒绝请求，Baldric 会省略这些图片并附带 API 错误重试一次。模型随后可以换一张更小的图或另一个方案，而不必重跑原有工具。恢复在连续第三次 provider 失败时停止；成功响应会重置计数。provider 级的网络重试仍然独立。部分流式响应与取消不适用这种重试。原图与 API 错误保留在 session 历史里，但被拒附件不再进入后续的模型 context。
 
-When the active model does not accept images, `read` returns an explicit
-text-only notice that says the image contents are unavailable and recommends
-switching to a vision-capable model. It does not attach or process the image.
-Provider serialization applies the same defensive downgrade to image blocks from
-older sessions or other tools. This avoids invalid requests and reduces pressure
-on text-only models to invent a visual description.
+当活动模型不接受图片时，`read` 返回明确的纯文本提示，说明图片内容不可用并建议换用具备视觉能力的模型。它不会附加或处理图片。provider 序列化对来自旧 session 或其他工具的图片块应用同样的防御性降级。这避免无效请求，并减轻纯文本模型凭空描述图片的压力。
 
-The Textual TUI shows this notice, but does not render images inline; native
-terminal-image rendering remains outside the `read` tool's provider-neutral
-contract.
+Textual TUI 会显示这条提示，但不内联渲染图片；原生的终端图片渲染仍在 `read` 工具的 provider 中立契约之外。
 
-Fails when `path` is missing/invalid, the file doesn't exist, the path is a
-directory, `offset` is past the end, or the file is neither UTF-8 text nor a
-supported image.
+`path` 缺失/非法、文件不存在、路径是目录、`offset` 超过文件末尾，或文件既不是 UTF-8 文本也不是受支持图片时失败。
 
 ## `write`
 
-Creates or overwrites a complete UTF-8 text file.
+创建或完整覆盖一个 UTF-8 文本文件。
 
 ```json
 { "path": "src/example.py", "content": "print('hello')\n" }
 ```
 
-| Argument | Required | Type | Description |
+| 参数 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- |
-| `path` | yes | string | File to write (relative to `cwd`). |
-| `content` | yes | string | Complete file contents. |
+| `path` | 是 | string | 要写的文件（相对 `cwd`）。 |
+| `content` | 是 | string | 完整的文件内容。 |
 
-Creates missing parent directories and overwrites any existing file. Writes to
-the same path are serialized within a process, so concurrent `write`/`edit` calls
-on one file don't interleave.
+自动创建缺失的父目录并覆盖已存在的文件。对同一路径的写入在进程内串行化，所以并发的 `write`/`edit` 调用不会交错。
 
 ## `edit`
 
-Applies exact text replacements to one file.
+对一个文件应用精确的文本替换。
 
 ```json
 {
@@ -96,46 +62,34 @@ Applies exact text replacements to one file.
 }
 ```
 
-| Argument | Required | Type | Description |
+| 参数 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- |
-| `path` | yes | string | File to edit (relative to `cwd`). |
-| `edits` | yes | array | One or more `{oldText, newText}` replacements. |
+| `path` | 是 | string | 要编辑的文件（相对 `cwd`）。 |
+| `edits` | 是 | array | 一或多条 `{oldText, newText}` 替换。 |
 
-Each `oldText` must be non-empty, match exactly (whitespace included), appear
-**exactly once**, and not overlap another edit. All edits validate before
-anything is written — if any fails, the file is left unchanged. Line endings are
-normalized for matching and the original dominant ending is restored. Successful
-results include a diff, a unified patch, and the first changed line number.
+每条 `oldText` 必须非空、精确匹配（包括空白）、**恰好出现一次**，且与其他编辑不重叠。所有编辑先整体校验再写入——任何一条失败，文件保持不变。行尾在匹配时归一化，并还原为原本占主导的行尾风格。成功结果包含 diff、unified patch 与第一处变更的行号。
 
 ## `bash`
 
-Runs a shell command in the working directory.
+在工作目录里运行 shell 命令。
 
 ```json
 { "command": "pytest -q", "timeout": 30 }
 ```
 
-| Argument | Required | Type | Description |
+| 参数 | 必填 | 类型 | 说明 |
 | --- | --- | --- | --- |
-| `command` | yes | string | Shell command to run. |
-| `description` | no | string | Short summary of the command's purpose, shown as the call's label. |
-| `timeout` | no | number | Max runtime in seconds (> 0). No default. |
+| `command` | 是 | string | 要运行的 shell 命令。 |
+| `description` | 否 | string | 命令用途的短摘要，显示为该调用的标签。 |
+| `timeout` | 否 | number | 最长运行秒数（> 0）。无默认值。 |
 
-Combines stdout and stderr, succeeds on exit code `0`, and returns the **tail**
-of large output (truncated to 2,000 lines / 50 KB; the full output is written to
-a temp `.log` file whose path is included in the result).
+合并 stdout 与 stderr，退出码 `0` 视为成功，大输出返回**尾部**（截断到 2,000 行 / 50 KB；完整输出写入一个临时 `.log` 文件，路径包含在结果里）。
 
-The shell is resolved once per session and the tool description names it: on
-POSIX that is `bash` (or `sh` when bash is absent); on Windows it is PowerShell
-(`pwsh`, then Windows PowerShell, each run with `-NoProfile -NonInteractive`),
-falling back to `cmd.exe`. Write commands in that shell's syntax — on Windows the
-tool does not pretend to be bash. A timeout or cancellation terminates the whole
-process tree (process group on POSIX, `taskkill /T` on Windows), so children
-started by a pipeline or a compound command do not keep running.
+shell 每个 session 解析一次，工具描述里会写明它：POSIX 上是 `bash`（没有 bash 时用 `sh`）；Windows 上是 PowerShell（`pwsh`，然后 Windows PowerShell，均以 `-NoProfile -NonInteractive` 运行），最终回退到 `cmd.exe`。用对应 shell 的语法写命令——在 Windows 上这个工具不会假装自己是 bash。超时或取消会终止整棵进程树（POSIX 上是进程组，Windows 上 `taskkill /T`），所以管道或复合命令启动的子进程不会继续运行。
 
-## Choosing the right tool
+## 如何选工具
 
-- **`read`** — inspect files (instead of `cat`/`sed`).
-- **`write`** — new files or complete rewrites.
-- **`edit`** — precise changes to an existing file.
-- **`bash`** — tests, linters, searches, project inspection.
+- **`read`** — 查看文件（替代 `cat`/`sed`）。
+- **`write`** — 新文件或完整重写。
+- **`edit`** — 对现有文件的精确修改。
+- **`bash`** — 测试、lint、搜索、项目检视。

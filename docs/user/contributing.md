@@ -1,33 +1,26 @@
 ---
-title: Contributing
-description: How Baldric is developed, where the build journals live, and how to run the project locally.
-type: doc
+title: 贡献
+description: Baldric 如何开发、构建日志在哪里，以及如何在本地跑起来。
 ---
 
-Baldric is built in small, documented phases — partly to ship a usable agent, partly
-so the codebase reads as a teaching example of how a coding agent is assembled.
+Baldric 以小而文档化的阶段构建——一部分是为了交付可用的 agent，一部分是为了让代码库成为"编码 agent 如何组装"的教学样本。
 
-## The build journals
+## 构建日志
 
-The detailed, phase-by-phase implementation notes, design docs, and architecture
-decision records live **in the repository**, under `docs/internal/`:
+详细的逐阶段实施笔记、设计文档与架构决策记录放在**仓库内**的 `docs/internal/` 下：
 
-- `docs/internal/design/` — the high-level design docs (`00-roadmap`, `01-architecture`, …).
-- `docs/internal/architecture/` — per-phase build notes (`phase-1` … `phase-24`), each
-  answering: what was added, why it exists, how later phases use it.
-- `docs/internal/adr/` — architecture decision records.
+- `docs/internal/design/` — 高层设计文档（`00-roadmap`、`01-architecture`……）。
+- `docs/internal/architecture/` — 逐阶段构建笔记（`phase-1` … `phase-24`），每篇回答：加了什么、为什么存在、后续阶段如何使用。
+- `docs/internal/adr/` — 架构决策记录。
 
-These are intentionally **not** published on this site — they're contributor
-material. The published docs distill the result; see
-[How Baldric works](/explanation/architecture/).
+它们有意**不**发布在本站上——那是贡献者材料。已发布文档蒸馏结果；见 [Baldric 如何工作](/explanation/architecture/)。
 
-## Roadmap
+## 路线图
 
-The published, phase-by-phase roadmap and status lives on the
-[roadmap page](/roadmap/). The underlying checklist is
-tracked in [GitHub issue #2](https://github.com/Ember452/baldric/issues/2).
+已发布的逐阶段路线图与状态在[路线图页](/roadmap/)。底层清单记录在
+[GitHub issue #2](https://github.com/Ember452/baldric/issues/2)。
 
-## Running the project locally
+## 在本地运行项目
 
 ```bash
 git clone https://github.com/Ember452/baldric.git
@@ -36,7 +29,7 @@ uv sync --dev
 uv run baldric --version
 ```
 
-Checks:
+检查：
 
 ```bash
 uv run pytest
@@ -45,38 +38,31 @@ uv run ruff format --check .
 uv run mypy
 ```
 
-## The docs site
+## 文档站点
 
-The site (this site) is an [Astro](https://astro.build/) project under `website/`.
-Use Node 22.12 or newer:
+本站是一个位于 `website/` 的 [Astro](https://astro.build/) 项目。使用 Node 22.12 或更新版本：
 
 ```bash
 cd website
 npm ci
 npm run dev          # http://localhost:4321/
-npm run check        # Astro and TypeScript diagnostics
+npm run check        # Astro 与 TypeScript 诊断
 npm run format:check
-npm run build        # static output and Pagefind index in website/dist/
-npm test             # built-site and clipboard regression tests
-npm run preview      # preview the built site, including search
+npm run build        # 静态输出与 Pagefind 索引输出到 website/dist/
+npm test             # 已构建站点与剪贴板回归测试
+npm run preview      # 预览已构建站点，包括搜索
 ```
 
-Search requires the built Pagefind index: use `build` followed by `preview`,
-not the development server, to validate search.
+搜索需要构建出的 Pagefind 索引：验证搜索时用 `build` 加 `preview`，不要用开发服务器。
 
-User-facing docs live in `docs/user/`; the landing page is
-`docs/user/_index.md`, rendered by Astro components in
-`website/src/components/`. Content collections validate page
-metadata and preserve the existing trailing-slash URLs. Internal links use normal
-Markdown paths; callouts use blockquotes beginning with `[!NOTE]`, `[!TIP]`, or
-`[!CAUTION]`, optionally followed by a title. GitHub Pages still hosts the site
-at the same custom domain. Code blocks on documentation pages include a
-keyboard-focusable **Copy** button. Copy success or clipboard failures are also
-announced to assistive technology.
+面向用户的文档在 `docs/user/`；落地页是
+`docs/user/_index.md`，由 `website/src/components/` 里的 Astro 组件渲染。内容集合校验页面
+元数据并保持既有的尾斜杠 URL。内部链接使用普通 Markdown 路径；callout 使用以 `[!NOTE]`、`[!TIP]` 或
+`[!CAUTION]` 开头的引用块，后面可跟标题。GitHub Pages 仍以同一域名托管本站。文档页的代码块带一个
+可用键盘聚焦的**复制**按钮。复制成功或剪贴板失败也会播报给辅助技术。
 
-## Documentation expectations
+## 文档期望
 
-Each substantial phase should leave beginner-friendly notes in `docs/internal/`
-explaining what was added, why it exists, how it maps to [Pi](https://pi.dev)'s
-design, and how to test or use it. When a feature is user-facing, also update or
-add the relevant page under `docs/user/`.
+每个实质性阶段都应在 `docs/internal/`
+里留下面向初学者的笔记，说明加了什么、为什么存在、如何对应 [Pi](https://pi.dev) 的
+设计，以及如何测试或使用。功能面向用户时，同时更新或在 `docs/user/` 下新增相关页面。

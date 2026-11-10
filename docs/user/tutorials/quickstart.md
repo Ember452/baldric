@@ -1,153 +1,131 @@
 ---
-title: Quickstart
-description: Install Baldric, connect a model, and run your first coding session.
+title: 快速上手
+description: 安装 Baldric、连接模型，跑起你的第一个编码 session。
 type: doc
 ---
 
-This page takes you from nothing to your first Baldric session. It should take a few
-minutes.
+本页带你从零到第一个 Baldric session。应该花几分钟。
 
-## 1. Install Baldric
+## 1. 安装 Baldric
 
-Baldric is a Python tool requiring Python 3.12 or newer. Its installer uses
-[`uv`](https://docs.astral.sh/uv/) to create an isolated environment and installs
-`uv` first when it is not already available.
+Baldric 是一个需要 Python 3.12 或更新版本的 Python 工具。它的安装器用
+[`uv`](https://docs.astral.sh/uv/) 创建隔离环境，并在 `uv` 不存在时先安装它。
 
-On macOS or Linux, run:
+macOS 或 Linux 上运行：
 
 ```bash
 curl -LsSf https://ember452.github.io/baldric/install.sh | sh
 ```
 
-On Windows, run in PowerShell:
+Windows 上在 PowerShell 运行：
 
 ```powershell
 irm https://ember452.github.io/baldric/install.ps1 | iex
 ```
 
-The installer announces before installing `uv`, never uses `sudo`, verifies the
-installed `baldric` command, and tells you if you need to restart your shell for a
-`PATH` update. To review code before executing it, download and inspect
-[`install.sh`](/install.sh) or [`install.ps1`](/install.ps1) first.
+安装器会在安装 `uv` 前先行告知，绝不使用 `sudo`，验证安装好的 `baldric` 命令，并告诉你是否需要重启 shell 使 `PATH` 更新生效。想先审查代码再执行，可以先下载并检查
+[`install.sh`](/install.sh) 或 [`install.ps1`](/install.ps1)。
 
-Check it worked:
+确认装好了：
 
 ```bash
 baldric --version
 ```
 
-> [!TIP] Already have a package manager?
-> Install Baldric directly with `uv tool install baldric`, `pipx install baldric`, or
-> `python -m pip install baldric`.
+> [!TIP] 已经有包管理器？
+> 直接用 `uv tool install baldric`、`pipx install baldric` 或
+> `python -m pip install baldric` 安装。
 
-### Upgrade Baldric
+### 升级 Baldric
 
-For a normal install, let Baldric detect and reuse the installer that owns its environment:
+正常安装时，让 Baldric 检测并复用拥有其环境的那个安装器：
 
 ```bash
 baldric update
 ```
 
-Baldric reuses uv or pipx when their environment receipt is present. For uv tools,
-it installs the latest stable version explicitly so an older version pin cannot
-block the update. For ordinary Python installs, standard package metadata tells
-Baldric whether to use uv or pip, and Baldric targets the exact Python environment
-running it. It stops instead of
-switching installers for editable, direct-URL, Conda/Pixi, or unrecognized
-installations.
+Baldric 在环境凭据存在时复用 uv 或 pipx。对 uv tools，它显式安装最新稳定版，避免旧版本 pin 卡住更新。对普通 Python 安装，标准包元数据告诉 Baldric 该用 uv 还是 pip，并以正在运行 Baldric 的那个确切 Python 环境为目标。遇到 editable、直连 URL、Conda/Pixi 或无法识别的安装时，它会停下来而不是切换安装器。
 
-If you installed a local checkout with `uv tool install --editable .`, run the
-install command again after pulling changes:
+如果你用 `uv tool install --editable .` 安装了本地 checkout，拉取变更后再跑一次安装命令：
 
 ```bash
 uv tool install --editable --force .
 ```
 
-Editable installs expose source changes immediately, but installed package
-metadata (including the version), dependencies, and entry points are refreshed
-only when uv reinstalls the tool.
+editable 安装让源码变更立即生效，但已安装的包元数据（包括版本）、依赖与 entry point 只在 uv 重装时刷新。
 
-## 2. Connect a model
+## 2. 连接一个模型
 
-Baldric needs an AI model to talk to. A **provider** is the service that hosts the
-model (OpenAI, Anthropic, …). Start Baldric and use `/login` to connect one:
+Baldric 需要一个 AI 模型来对话。**provider** 是托管模型的服务（OpenAI、Anthropic……）。启动 Baldric 并用 `/login` 连接一个：
 
 ```bash
 baldric
 ```
 
-Then run one of these inside Baldric:
+然后在 Baldric 里运行：
 
 ```text
-/login              # choose a provider
-/login openai       # save an OpenAI API key
-/login openai-codex # authenticate a Codex/ChatGPT subscription
+/login              # 选择一个 provider
+/login openai       # 保存一个 OpenAI API key
+/login openai-codex # 认证 Codex/ChatGPT 订阅
 ```
 
-Baldric ships with built-in entries for OpenAI, Anthropic, OpenAI Codex,
-OpenRouter, and Hugging Face. See [Providers & models](/how-to/providers-and-models/)
-for switching models or adding a custom/local OpenAI-compatible endpoint.
+Baldric 内置 OpenAI、Anthropic、OpenAI Codex、OpenRouter 与 Hugging Face 条目。切换模型或添加自定义/本地 OpenAI 兼容端点见 [Providers & models](/how-to/providers-and-models/)。
 
-## 3. Start a session
+## 3. 开始一个 session
 
-Run Baldric from inside the project you want to work on:
+在你想工作的项目目录里运行 Baldric：
 
 ```bash
 cd my-project
 baldric
 ```
 
-This opens the interactive terminal UI. Type a request and press **Enter**:
+这会打开交互式终端 UI。输入一个请求并按 **Enter**：
 
 ```text
 explain what this project does
 ```
 
-Baldric streams its response, and when it needs to, it reads files and runs commands
-to answer you. Try something that changes code:
+Baldric 流式输出回复，并在需要时读文件、跑命令来回答。试一个会改代码的请求：
 
 ```text
 add a docstring to every function in src/utils.py
 ```
 
-You'll see each tool call (read, edit, bash) as it happens.
+你会看到每个工具调用（read、edit、bash）实时发生。
 
-> [!TIP] Useful first keys
-> **Enter** submits · **Esc** cancels the current run · **Ctrl+K** opens the
-> command palette · **Ctrl+D** quits. Full list in
-> [Keyboard shortcuts](/reference/keybindings/).
+> [!TIP] 有用的第一批按键
+> **Enter** 提交 · **Esc** 取消当前运行 · **Ctrl+K** 打开命令面板 · **Ctrl+D** 退出。完整列表见[键盘快捷键](/reference/keybindings/)。
 
-## 4. Come back later
+## 4. 之后回来
 
-Baldric saves every session. List them:
+Baldric 保存每个 session。列出它们：
 
 ```bash
 baldric sessions
 ```
 
-Resume the most recent one for this directory, or pick from a list:
+恢复本目录最近的一个，或从列表里挑选：
 
 ```bash
 baldric --session <session-id>
 ```
 
-…or open the picker inside the TUI with `/resume`. See
-[Sessions](/how-to/sessions/) for resuming, branching, and exporting.
+……或在 TUI 内用 `/resume` 打开 picker。恢复、分支与导出见 [Sessions](/how-to/sessions/)。
 
-## One-shot mode
+## 单次模式
 
-Don't need the UI? Run a single prompt and get the result on stdout — handy for
-scripts and pipes:
+不需要界面？运行单条 prompt 并把结果写到 stdout——适合脚本和管道：
 
 ```bash
 baldric -p "summarize the changes in the last commit"
 ```
 
-More in [Print mode & scripting](/how-to/print-mode/).
+更多见 [Print mode & scripting](/how-to/print-mode/)。
 
-## Where to go next
+## 接下来去哪
 
-- **[Core concepts](/explanation/concepts/)** — understand what's actually happening.
-- **[The interactive session](/how-to/tui/)** — get fluent in the TUI.
-- **[Providers & models](/how-to/providers-and-models/)** — switch models,
-  add providers, use local models.
+- **[核心概念](/explanation/concepts/)**——弄明白实际发生了什么。
+- **[交互式会话](/how-to/tui/)**——把 TUI 用熟。
+- **[Providers & models](/how-to/providers-and-models/)**——切换模型、添加 provider、使用本地模型。

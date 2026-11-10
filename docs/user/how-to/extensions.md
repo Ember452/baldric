@@ -1,16 +1,13 @@
 ---
 title: Extensions
-description: Extend Baldric with plain Python — custom tools, slash commands, hooks, dialogs, and message rendering.
+description: 用纯 Python 扩展 Baldric——自定义工具、slash 命令、hooks、对话框与消息渲染。
 ---
 
-Extensions are Python modules that customize a Baldric session: they add tools,
-slash commands, and process-local provider definitions; observe the agent event
-stream; and intercept tool calls, tool results, and user input. The design
-follows Pi's extension system, adapted to Python.
+Extension 是定制 Baldric session 的 Python 模块：它们添加工具、slash 命令与进程级 provider 定义；观察 agent 事件流；并拦截 tool 调用、工具结果与用户输入。设计遵循 Pi 的 extension 系统，适配到 Python。
 
-## Quick start
+## 快速开始
 
-Create `~/.baldric/extensions/greet.py`:
+创建 `~/.baldric/extensions/greet.py`：
 
 ```python
 from baldric.protocol.messages import TextContent
@@ -39,12 +36,11 @@ def setup(baldric):
     )
 ```
 
-Start `baldric` and the model can call `greet`. Every extension is a module
-defining `setup(baldric)`, which runs once at startup with the extension API.
+启动 `baldric`，模型就能调用 `greet`。每个 extension 都是定义了 `setup(baldric)` 的模块，`setup` 在启动时以 extension API 运行一次。
 
-## Install an extension
+## 安装 extension
 
-Install a trusted extension from Git with the same command shape as Pi:
+用与 Pi 相同的命令形状从 Git 安装受信任的 extension：
 
 ```bash
 baldric install git:github.com/owner/repository
@@ -52,135 +48,69 @@ baldric install git:github.com/owner/repository@v1.2.0
 baldric install https://github.com/owner/repository.git
 ```
 
-Baldric clones the repository into `~/.baldric/extensions/<repository>` and loads it on
-the next Baldric startup. A pinned ref may be a tag, branch, or commit. Replacing an
-existing install requires an explicit opt-in:
+Baldric 把仓库克隆进 `~/.baldric/extensions/<repository>` 并在下次启动时加载。固定 ref 可以是 tag、branch 或 commit。替换既有安装需要显式同意：
 
 ```bash
 baldric install git:github.com/owner/repository@v1.3.0 --force
 ```
 
-Local files and package directories work too:
+本地文件与包目录也可以：
 
 ```bash
 baldric install ./my_extension.py
 baldric install ./my-extension
 ```
 
-A local file is copied into `~/.baldric/extensions/`. A directory is copied and must
-contain `extension.py` or declare `[tool.baldric].extensions` in `pyproject.toml`, so
-it remains discoverable without `-e`. Local virtual environments, VCS metadata,
-and Python cache directories are not copied.
+本地文件被复制进 `~/.baldric/extensions/`。目录会被复制，且必须包含 `extension.py` 或在 `pyproject.toml` 里声明 `[tool.baldric].extensions`，这样不用 `-e` 也能被发现。本地虚拟环境、VCS 元数据与 Python 缓存目录不会被复制。
 
-The installer validates discovery metadata without importing the extension.
-It does not install Python dependencies, maintain a package registry, or provide
-remove/update commands yet. Install dependencies into Baldric's Python environment
-separately when an extension requires them. Extensions execute arbitrary Python
-with your user permissions, so review the source before installation.
+安装器在不导入 extension 的前提下校验发现元数据。它不安装 Python 依赖、不维护包注册表，也暂不提供 remove/update 命令。当 extension 需要依赖时，单独安装进 Baldric 的 Python 环境。Extension 以你的用户权限执行任意 Python，安装前请先审查源码。
 
-## Where extensions live
+## extension 放在哪里
 
-| Location | Loaded |
+| 位置 | 是否加载 |
 |---|---|
-| `~/.baldric/extensions/` | by default |
-| `<project>/.baldric/extensions/` | only after project approval **and** `--project-extensions` |
-| any file or directory | with `baldric -e PATH` (repeatable) |
+| `~/.baldric/extensions/` | 默认加载 |
+| `<project>/.baldric/extensions/` | 仅在项目获批**且**传入 `--project-extensions` 时 |
+| 任意文件或目录 | 用 `baldric -e PATH`（可重复） |
 
-### Trusted built-in extensions
+### 受信任的内置 extension
 
-Baldric may bundle product capabilities as `BuiltInExtension` declarations. A
-built-in is not a special provider or command branch: its synchronous
-`setup(baldric)` receives the normal extension API and registers tools, commands,
-process-local providers, hooks, or later extension capabilities through the
-same runtime.
+Baldric 可以把产品能力打包为 `BuiltInExtension` 声明。内置项不是特殊的 provider 或命令分支：它的同步 `setup(baldric)` 接收普通的 extension API，并通过同一 runtime 注册工具、命令、进程级 provider、hook 或后续的 extension 能力。
 
-Built-ins load once per staged runtime, before user, explicit, and trusted
-project sources. They still load with `--no-extensions`, because that flag turns
-off filesystem discovery rather than capabilities shipped in Baldric itself. Their
-code is trusted as installed package code and never counts as ambient project
-input, so a built-in alone cannot trigger project trust.
+Built-in 在每个 staged runtime 加载一次，先于用户、显式与受信任的项目来源。传 `--no-extensions` 时它们仍会加载，因为该旗标关闭的是文件系统发现，而不是 Baldric 自带的能力。它们的代码按已安装包代码对待，绝不计入环境项目输入，因此内置项自身无法触发项目信任。
 
-Declarations are hidden by default. Hidden means omitted from ordinary
-extension-name counts, not inactive: detailed runtime metadata retains the
-`built-in` source, stable `built-in:<name>` source ID, and hidden flag. Setup
-exceptions are isolated diagnostics and all partial registrations from that
-source are removed. Reload, resume, new-session, and cwd replacement use fresh
-generations; retiring an old generation invalidates captured APIs, removes its
-registrations, and cancels generation-owned provider refresh work. Generic core
-loading never checks a built-in capability's name.
+声明默认隐藏。隐藏意味着不进入普通的 extension 计数，而不是不活动：详细的运行时元数据保留 `built-in` 来源、稳定的 `built-in:<name>` 来源 ID 与隐藏标志。setup 异常被隔离为诊断，该来源的所有部分注册会被移除。reload、resume、new-session 与 cwd 替换使用全新世代；退役旧世代会使捕获的 API 失效、移除其注册并取消世代所有的 provider 刷新任务。通用内核加载从不检查内置能力的名字。
 
-Within a directory, `*.py` files are extensions, and a subdirectory
-containing `extension.py` is a package-style extension — its sibling
-modules are imported with relative imports (`from . import helper`).
-Names starting with `_` are skipped.
+目录内 `*.py` 文件都是 extension；包含 `extension.py` 的子目录是包式 extension——其兄弟模块以相对导入加载（`from . import helper`）。下划线开头的名字被跳过。
 
-Larger extensions that keep their code in a package (e.g. a `src/`
-layout) can declare their entry files in `pyproject.toml` instead of
-placing `extension.py` at the directory root:
+把代码放在包里（例如 `src/` 布局）的大型 extension 可以改为在 `pyproject.toml` 里声明入口文件，而不是把 `extension.py` 放在目录根部：
 
 ```toml
 [tool.baldric]
 extensions = ["src/my_ext/extension.py"]
 ```
 
-The manifest takes precedence over an `extension.py` in the same
-directory; each declared file loads as a package rooted at its parent
-directory, so sibling modules stay importable with relative imports. The
-extension is named after the entry's parent directory (or after the file
-itself when it isn't named `extension.py`).
+manifest 优先于同目录的 `extension.py`；每个声明文件作为以其父目录为根的包加载，兄弟模块保持可相对导入。extension 以入口的父目录命名（入口不叫 `extension.py` 时以文件本身命名）。
 
-One caveat: `baldric -e` on an entry **file** loads it standalone — no
-package, so relative imports fail. Once an extension has sibling
-modules, always pass a directory: the package directory itself, or the
-repo root when a manifest declares the entry.
+一个注意点：对入口**文件**用 `baldric -e` 是独立加载——没有包，相对导入会失败。一旦 extension 有了兄弟模块，总是传目录：包目录本身，或 manifest 声明入口时的仓库根。
 
-Before a project decision, built-in, user-global, and explicit `-e` extensions
-may handle the `project_trust` event. The event contains canonical cwd, mode,
-UI availability, and bounded category counts—never protected contents. Return
-`ExtensionTrustResult("approve" | "decline" | "defer", remember=...)`; the
-first decisive result wins, errors safely defer, and remembered results save
-only the exact cwd before project loading. Project extensions cannot approve
-themselves.
+在项目决策之前，built-in、用户全局与显式 `-e` extension 可以处理 `project_trust` 事件。事件包含规范化的 cwd、模式、UI 可用性与有界的分类计数——绝不包含受保护内容。返回 `ExtensionTrustResult("approve" | "decline" | "defer", remember=...)`；第一个决定性的结果获胜，错误安全地 defer，remember 的结果只保存确切的 cwd。项目 extension 不能给自己批准。
 
-After built-ins, filesystem extensions keep their existing precedence; on name
-conflicts (extension names, tool names, command names) the first registration
-wins. `--no-extensions` disables directory discovery (explicit `-e` paths and
-trusted built-ins still load).
-`/reload` awaits `session_shutdown(reason="reload")` on the outgoing
-extension generation, clears its UI, re-imports every extension and re-runs
-`setup`, then awaits `session_start(reason="reload")` on the new generation.
-Use those lifecycle hooks to stop and restart background work and to remount UI.
+在 built-in 之后，文件系统 extension 保持既有优先级；名字冲突（extension 名、tool 名、command 名）先注册者获胜。`--no-extensions` 禁用目录发现（显式 `-e` 路径与受信任 built-in 仍加载）。`/reload` 会对即将退场的 extension 世代 `await session_shutdown(reason="reload")`，清空其 UI，重新导入每个 extension 并重跑 `setup`，然后在新世代上 `await session_start(reason="reload")`。用这些生命周期 hook 停止并重启后台工作、重挂 UI。
 
-> **Security.** Extensions execute arbitrary Python inside your session.
-> Project extensions are therefore off by default. Trust approval and
-> `--project-extensions` are both required. Project trust is not a process,
-> filesystem, network, credential, tool, model, or prompt-injection sandbox.
+> **安全。** Extension 在你的 session 里执行任意 Python。因此项目 extension 默认关闭。信任批准与 `--project-extensions` 缺一不可。项目信任不是进程、文件系统、网络、凭据、工具、模型或 prompt 注入沙箱。
 
-In the TUI, run `/extensions` to open a searchable inventory. Each loaded
-extension shows its name, entry path, source scope (`project`, `user`,
-`explicit`, or `built-in`), and load status. Discovery, import, setup, and
-runtime diagnostics appear in the same view. The inventory is intentionally
-read-only: Baldric does not claim ownership of manually placed, project, or
-`-e` extension files and never deletes them.
+在 TUI 里运行 `/extensions` 打开可搜索的清单。每个已加载 extension 显示名字、入口路径、来源范围（`project`、`user`、`explicit` 或 `built-in`）与加载状态。发现、导入、setup 与运行时诊断出现在同一视图。清单刻意只读：Baldric 不对手工放置、项目或 `-e` 的 extension 文件声明所有权，也绝不删除它们。
 
-## Managing installed extensions
+## 管理已安装的 extension
 
-`baldric install SOURCE [--force]` copies a local file or package, or clones a
-Git repository, into `~/.baldric/extensions/` after validating that normal
-user-directory discovery will load it. Git installs record their source, ref,
-and commit in a managed-install registry so Baldric can distinguish them from
-manually placed files.
+`baldric install SOURCE [--force]` 把本地文件或包复制、或把 Git 仓库克隆进 `~/.baldric/extensions/`，安装前会校验普通用户目录发现能加载它。Git 安装在受管安装注册表里记录来源、ref 与 commit，Baldric 据此区分手工放置的文件。
 
-- `baldric extensions [list]` shows every installed extension and whether it is
-  Baldric-managed (with source, ref, and commit) or unmanaged.
-- `baldric extensions update <name> [--force]` re-clones a managed Git
-  extension from its recorded source. It refuses to silently discard a checkout
-  that no longer matches the recorded commit; pass `--force` to discard local
-  modifications.
-- `baldric extensions remove <name>` deletes a managed extension and its
-  registry entry. Unmanaged directories are never touched.
+- `baldric extensions [list]` 显示每个已安装 extension 及其是否由 Baldric 管理（含来源、ref、commit）。
+- `baldric extensions update <name> [--force]` 按记录的来源重新克隆受管 Git extension。checkout 与记录的 commit 不再一致时它拒绝静默丢弃；传 `--force` 丢弃本地修改。
+- `baldric extensions remove <name>` 删除受管 extension 及其注册表条目。非受管目录永不触碰。
 
-## The extension API
+## extension API
 
 ```python
 def setup(baldric):
@@ -229,57 +159,24 @@ def setup(baldric):
     baldric.context.ui.notify("message", "info")           # same as baldric.notify
 ```
 
-`context.available_providers` and `context.available_model_choices` expose the
-same effective runtime inventory used by Baldric's model picker. Providers without
-usable credentials are omitted. Model choices include dynamic extension
-providers and runtime-refreshed, account-specific catalogs when available. Each
-choice is a frozen `ModelChoice(provider_name, model)`, so extensions can
-filter the returned IDs without accessing provider credentials or mutable
-session internals.
+`context.available_providers` 与 `context.available_model_choices` 暴露与 Baldric 模型 picker 相同的有效运行时清单。没有可用凭据的 provider 被省略。模型选项包含动态 extension provider 与运行时刷新的账户级目录。每个选项都是冻结的 `ModelChoice(provider_name, model)`，extension 可以在接触不到 provider 凭据或可变 session 内部的情况下过滤返回的 ID。
 
-`set_inference_provider(route)` lets provider-specific extensions select a
-Hugging Face inference-provider route for the active session. A provider name
-sets `context.inference_provider_mode` to `"fixed"`, so Baldric honors the explicit
-selection and does not automatically fail over. Passing `None` selects
-`"automatic"` mode: the next successful response becomes a sticky route that
-Baldric may replace after an exhausted retryable pre-output failure. Other providers
-reject the operation. The current resolved route is available as
-`context.inference_provider`.
+`set_inference_provider(route)` 让 provider 专属的 extension 为活动 session 选择 Hugging Face inference-provider 路由。传 provider 名会把 `context.inference_provider_mode` 设为 `"fixed"`，Baldric 尊重显式选择、不做自动 failover。传 `None` 选择 `"automatic"` 模式：下一个成功响应成为粘性路由，Baldric 可能在可重试的输出前失败耗尽后替换它。其他 provider 拒绝该操作。当前已解析的路由可从 `context.inference_provider` 读取。
 
-`setup` must be a plain `def` (not `async def`). Event handlers may be sync
-or async and always receive `(event, context)`; the context is freshly created
-for each dispatch. Action methods raise `ExtensionError` if called before the session
-is bound — register handlers in `setup` and act on events instead.
+`setup` 必须是普通 `def`（不能是 `async def`）。事件 handler 可以是同步或异步，总是接收 `(event, context)`；context 每次派发都是新建的。在 session 绑定之前调用动作方法会抛 `ExtensionError`——在 `setup` 里注册 handler，通过事件行动。
 
-#### Resolved filesystem paths
+#### 解析后的文件系统路径
 
-`baldric.context.paths` is a read-only `BaldricPaths` snapshot for the active session.
-If the host supplies `BaldricResourcePaths.paths`, that object is authoritative and
-preserves custom `BaldricPaths.home` and `BaldricPaths.agents_home` locations. Otherwise
-Baldric derives one as
-`BaldricPaths(home=resource_paths.root, agents_home=resource_paths.agents_root or ~/.agents)`.
-In other words, `root`/`home` controls Baldric's user data and extension directory,
-while `agents_root`/`agents_home` controls `.agents` resources; the project
-`cwd` remains separate. `ExtensionRuntime(paths=custom_paths)` exposes its
-constructor paths immediately, before `load`; a later `load` makes its
-`BaldricResourcePaths` snapshot authoritative.
+`baldric.context.paths` 是活动 session 的只读 `BaldricPaths` 快照。若宿主提供 `BaldricResourcePaths.paths`，该对象是权威，保留自定义的 `BaldricPaths.home` 与 `BaldricPaths.agents_home`。否则 Baldric 推导
+`BaldricPaths(home=resource_paths.root, agents_home=resource_paths.agents_root or ~/.agents)`。换言之，`root`/`home` 控制 Baldric 的用户数据与 extension 目录，`agents_root`/`agents_home` 控制 `.agents` 资源；项目 `cwd` 保持独立。`ExtensionRuntime(paths=custom_paths)` 在 `load` 之前立即暴露构造路径；之后的 `load` 使其 `BaldricResourcePaths` 快照成为权威。
 
-The snapshot belongs to the extension generation. After `/reload` (and other
-fresh-generation replacement flows), a context captured from the outgoing
-generation is stale: even reading `context.paths` raises `ExtensionError`. Read
-`context.paths` again from the new generation's context.
+快照属于 extension 世代。`/reload`（及其他全新世代替换流程）之后，从旧世代捕获的 context 已过期：连读 `context.paths` 都会抛 `ExtensionError`。从新世代的 context 重新读取。
 
-#### Building child sessions
+#### 构建子 session
 
-An extension can construct its own `CodingSession`s in-process (for example a
-subagent tool) with `CodingSession.load(CodingSessionConfig(...))`. Two config
-fields are the seam for that:
+extension 可以在进程内构造自己的 `CodingSession`（例如 subagent 工具），用 `CodingSession.load(CodingSessionConfig(...))`。两个配置字段是接缝：
 
-- **Trust.** A headless child resolves project trust on its own and, with the
-  default `trust_default="ask"` / `trust_interactive=False`, lands untrusted —
-  so it silently loses the project's skills, `AGENTS.md`, and project
-  extensions even when the user already approved the repo for the parent.
-  Forward the parent's decision instead:
+- **信任。** 无头的 child 自行解析项目信任，在默认 `trust_default="ask"` / `trust_interactive=False` 下落为不受信任——即使用户已为父级批准了该仓库，子代理也会静默失去项目的 skill、`AGENTS.md` 与项目 extension。改为你转发父级的决定：
 
   ```python
   child = await CodingSession.load(
@@ -290,23 +187,13 @@ fields are the seam for that:
   )
   ```
 
-  `baldric.context.project_trust_resolution` exposes the full frozen
-  `ProjectTrustResolution` (`trusted`, `source`, `saved_path`, ...) for
-  diagnostics. Do not approve unconditionally: a repo the user declined would
-  otherwise get its project inputs loaded into every child.
+  `baldric.context.project_trust_resolution` 暴露完整的冻结 `ProjectTrustResolution`（`trusted`、`source`、`saved_path`……）供诊断。不要无条件批准：被用户拒绝的仓库否则会把它的项目输入装进每个 child。
 
-- **Tool allow-list.** `CodingSessionConfig.tools` only replaces the built-in
-  tool set; every extension-registered tool is composed on top afterwards.
-  `CodingSessionConfig.allowed_tool_names=frozenset({"read", "bash"})` filters
-  the *final* composed list by name — on initial load and again on every
-  `/reload` — so the restriction cannot be bypassed by an extension tool and
-  does not need to be re-applied by the host. `None` (the default) keeps every
-  tool; unknown names are ignored. Pair it with `skills_enabled=False` for a
-  child that should also get no skills.
+- **工具允许列表。** `CodingSessionConfig.tools` 只替换内置工具集；extension 注册的工具在此之后叠加。`CodingSessionConfig.allowed_tool_names=frozenset({"read", "bash"})` 按名字过滤*最终*组合列表——初始加载时和每次 `/reload` 时——限制无法被 extension 工具绕过，也不需要宿主重复应用。`None`（默认）保留所有工具；未知名字被忽略。搭配 `skills_enabled=False` 得到同样没有 skill 的 child。
 
-### Local-backend registrations
+### 本地 backend 注册
 
-An extension can pair a provider layer with a provider-neutral local backend:
+extension 可以把 provider 层与 provider 中立的本地 backend 配对：
 
 ```python
 def setup(baldric):
@@ -314,129 +201,37 @@ def setup(baldric):
     baldric.register_local_backend(backend)
 ```
 
-A backend declares structured text, secret, and choice fields plus asynchronous
-configuration, refresh, status, and optional doctor/reset/model-management
-operations. The host renders the values and owns confirmation, cancellation, and
-idle checks; backend code never receives Textual widgets. Configuration is one
-transaction, so validation or safe-state failure does not replace the prior
-configuration. Secrets stay out of representations and host diagnostics.
+backend 声明结构化的文本、secret 与 choice 字段，以及异步的配置、刷新、状态与可选的 doctor/reset/模型管理操作。宿主渲染值并拥有确认、取消与空闲检查；backend 代码永不接触 Textual 组件。配置是一次事务，校验或安全态失败不会替换先前的配置。secret 不进入表示与宿主诊断。
 
-The backend and provider must be registered by the same source and generation.
-If another source shadows the provider, the backend can remain inspectable but
-cannot use, reset, or manage models through the shadowed layer. Retired or
-reloaded generations cancel their backend work and ignore late results. See the
-[local backends guide](/how-to/local-inference/).
+backend 与 provider 必须由同一来源与世代注册。若另一来源遮蔽了 provider，backend 可以保持可检视，但不能通过被遮蔽的层使用、reset 或管理模型。退役或重载的世代取消其 backend 工作并忽略迟到结果。见[本地 backend 指南](/how-to/local-inference/)。
 
-### Dynamic providers
+### 动态 provider
 
-`register_provider` installs a complete `DynamicProvider` layer owned by the
-calling extension source and current runtime generation. A provider may start
-dormant with no models, and supplies exactly one runtime mechanism: an
-`OpenAICompatibleTransport` descriptor or a custom runtime factory. Use
-`ProviderModel` values for known metadata; leave unknown fields as `None`.
+`register_provider` 安装一个完整的 `DynamicProvider` 层，由调用的 extension 来源与当前运行世代拥有。provider 可以以无模型的休眠状态启动，并且只提供一种运行时机制：`OpenAICompatibleTransport` 描述符或自定义运行时工厂。已知元数据用 `ProviderModel` 值；未知字段留 `None`。
 
-Authentication is explicit: `RequiredApiKey`, `OptionalApiKey`, or `NoAuth`.
-Stored credentials win over the configured environment variable. Optional or
-absent keys omit `Authorization`; Baldric never synthesizes a local key. Static
-transport/model headers cannot provide `Authorization`; custom schemes must be
-resolved by an auth strategy at runtime. Resolved keys, headers, and arbitrary
-auth provenance stay out of provider representations and diagnostics. Runtime
-creation replaces custom auth exceptions with a categorical host error; Baldric's exact
-required-key strategy still reports its actionable missing-credential guidance.
-Nested JSON compatibility metadata is deeply frozen while registered and copied to ordinary
-JSON containers only when a runtime transport is created.
+认证是显式的：`RequiredApiKey`、`OptionalApiKey` 或 `NoAuth`。已存凭据胜过配置的环境变量。可选或缺失的 key 不发送 `Authorization`；Baldric 绝不合成假 key。静态 transport/model headers 不能提供 `Authorization`；自定义 scheme 必须由运行时的 auth strategy 解析。已解析的 key、headers 与任意 auth 来源不会进入 provider 表示与诊断。运行时创建把自定义认证异常降为类别化的宿主错误；Baldric 的 required-key 提示仍然给出可执行的缺凭据指引。嵌套的 JSON 兼容元数据在注册期间深度冻结，仅在创建运行时 transport 时拷贝到普通 JSON 容器。
 
-Discovery is snapshot-oriented. A `refresh_models` callback returns a complete
-`ProviderModelSnapshot`; the registry validates and publishes it atomically.
-Concurrent callers share work only when their layer and `allow_network` policy
-match, and each caller keeps its own timeout. Opposite network policies never
-alias. The last timeout and explicit cancellation leave the coalescing table before
-returning, so an immediate retry invokes fresh discovery. Baldric requests task
-cancellation once, then waits up to 0.25 seconds from that request without
-re-cancelling a callback's `finally` cleanup. Reload, session replacement, and final
-close await this cooperative drain. Once reload/replacement publishes its new state,
-caller cancellation is contained until outgoing cleanup finishes and the operation
-returns the adopted result; it never reports cancellation as though publication
-rolled back. Before publication, the replacement remains the explicit owner of its
-candidate providers. Cancellation or failure during outgoing shutdown or incoming
-start closes those candidates exactly once without closing the active provider;
-success transfers ownership once. Final close uses one durable close task and
-propagates cancellation only after the extension registry and every session-owned
-runtime provider have each been closed once. A callback still running at the bound is reported as contained—not
-drained—and a process-owned supervisor keeps its task and generation registry
-reachable until it actually finishes; it cannot publish after source replacement or
-retirement. Timeout, malformed output, and other failures retain the current
-snapshot.
+发现是快照导向的。`refresh_models` 回调返回完整的 `ProviderModelSnapshot`；registry 校验并原子发布。并发调用者只在层与 `allow_network` 策略一致时共享工作，且每个调用者保留自己的超时。相反的网络策略绝不互相别名。最后的超时与显式取消会在返回前离开合并表，因此立即重试触发全新的发现。Baldric 请求一次任务取消，然后在请求后等待最多 0.25 秒而不重复取消回调的 `finally` 清理。reload、session 替换与最终 close 会等待这次协作排水。一旦 reload/替换发布了新状态，调用者取消被包容，直到退场清理结束、操作返回采纳的结果；它绝不把取消报告得像发布回滚了。发布之前，替换者是其候选 provider 的显式所有者。退场关闭或进场启动期间的取消或失败，会恰好关闭一次那些候选而不关闭活动 provider；成功恰好移交一次所有权。最终 close 使用一个持久 close 任务，只在 extension registry 与每个 session 持有的运行时 provider 都各关闭一次之后传播取消。超时仍在运行的回调被报告为 contained 而非 drained——进程所有的 supervisor 保持其任务与世代注册表可达直到它真正结束；它不能在来源替换或退役之后发布。超时、畸形输出与其他失败保留当前快照。
 
-Dynamic definitions are runtime overlays—not durable configuration. Baldric never
-copies them into `catalog.toml`, `providers.json`, sessions, or generic extension
-storage. Provider source ownership comes from the canonical entry path assigned by
-the host, not the display name. The loader freezes all discovered source IDs before
-importing any extension, so import/setup code cannot change ownership by retargeting
-an entry or parent symlink. The stored ID is used for duplicate checks, every API
-registration, and complete failed-setup cleanup. Separately loaded same-name
-extensions therefore form independent provider layers; repeating the exact entry
-source in one runtime is ignored with first-loaded precedence. Tools and commands
-still use their first-registration-wins name registries. Removing a source reveals
-the preceding complete layer, including the exact durable provider baseline. The contracts are
-frontend-free and callbacks must not return Rich/Textual values.
+动态定义是运行时覆盖——不是持久配置。Baldric 绝不把它们拷贝进 `catalog.toml`、`providers.json`、session 或通用 extension 存储。provider 来源所有权来自宿主分配的规范入口路径，不是显示名。加载器在导入任何 extension 之前冻结所有发现的来源 ID，import/setup 代码无法通过改指向 entry 或父符号链接来改变所有权。存储的 ID 用于重复检查、每一次 API 注册以及完整的失败 setup 清理。分开加载的同名 extension 因此形成独立的 provider 层；在同一 runtime 重复完全相同的 entry 来源会被忽略，先加载者优先。工具与命令仍用先注册者优先的名字 registry。移除一个来源会露出前一个完整层，包括确切的持久 provider 基线。契约不含 frontend，回调不得返回 Rich/Textual 值。
 
-Phase 6 validates these contracts with a permanent second fake backend and a
-small test-only Ollama adapter. The trusted built-in `llama.cpp` provider uses
-the same seams; no production Ollama backend is shipped. Provider discovery and
-backend status may use different protocol endpoints, and `NoAuth` is a first-
-class option. Its connection, cache, and troubleshooting behavior are covered
-in the [local inference guide](/how-to/local-inference/). Router
-management and Hugging Face model mutations remain outside this phase.
+Phase 6 用一个常驻的第二 fake backend 与一个小的仅测试 Ollama 适配器验证这些契约。受信任的内置 `llama.cpp` provider 走同样的接缝；不发布生产用 Ollama backend。provider 发现与 backend 状态可以使用不同协议端点，`NoAuth` 是一等选项。它的连接、缓存与排障行为见[本地推理指南](/how-to/local-inference/)。路由管理与 Hugging Face 模型变更仍在本阶段范围之外。
 
-### Tools
+### 工具
 
-`register_tool` takes a plain `baldric.protocol.tools.AgentTool`: a name, label,
-description, a hand-written JSON-schema `parameters` mapping, and an async
-`execute_fn(tool_call_id, arguments, signal=None, on_update=None)`. Give the tool a
-`prompt_snippet` to list it in the system prompt's "Available tools"
-section, and `prompt_guidelines` for usage guidance tied to the tool.
-Registering a tool with a built-in's name (`read`, `write`, `edit`,
-`bash`) replaces the built-in.
+`register_tool` 接受普通的 `baldric.protocol.tools.AgentTool`：名字、label、描述、手写的 JSON-schema `parameters` 映射，以及异步 `execute_fn(tool_call_id, arguments, signal=None, on_update=None)`。给工具一个 `prompt_snippet`，它会列在 system prompt 的 "Available tools" 区块；`prompt_guidelines` 提供与该工具绑定的使用指引。用内置名（`read`、`write`、`edit`、`bash`）注册工具会替换内置项。
 
-Before a tool runs, the agent loop checks the call's arguments against
-`parameters`. A call that does not fit is not run: the model gets one error
-listing every problem (missing required keys, wrong types, values outside an
-`enum`, keys not declared when `additionalProperties` is `false`), with the path
-of each. The check covers `type`, `required`, `properties`,
-`additionalProperties`, `enum` and `items`, and ignores other keywords. An empty
-`parameters` mapping is not checked, and an optional argument sent as `null`
-counts as not sent. Nothing is coerced. To accept other shapes, set
-`prepare_arguments` to a function that rewrites the arguments into the declared
-shape; the loop checks its result and passes that to `execute_fn`.
+工具运行前，agent loop 依据 `parameters` 校验调用的参数。不合的调用不执行：模型收到一条错误，列出每个问题（缺失必填键、错误类型、越界 `enum` 值、`additionalProperties` 为 `false` 时未声明的键）及其路径。检查覆盖 `type`、`required`、`properties`、`additionalProperties`、`enum` 与 `items`，忽略其他关键字。空的 `parameters` 映射不校验；作为 `null` 发送的可选参数视为未发送。不做任何类型强转。要接受其他形状，把 `prepare_arguments` 设为一个把参数改写成声明形状的函数；loop 校验其结果并传给 `execute_fn`。
 
-A long-running tool can stream progress: an executor that additionally
-uses `on_update` receives a callback accepting an `AgentToolResult`; each call becomes a
-`tool_execution_update` event and drives the TUI's live progress line.
-Executors without the parameter are unaffected.
+长时间运行的工具可以流式汇报进度：额外使用 `on_update` 的执行器会收到一个接受 `AgentToolResult` 的回调；每次调用变成 `tool_execution_update` 事件，驱动 TUI 的实时进度行。没有该参数的执行器不受影响。
 
-By default the TUI shows an unrecognized tool call as `name {arguments}`
-(truncated). Give the tool a `render_call` — `(arguments) -> str | None` —
-to render a friendly one-line invocation instead (Pi's `renderCall`): for
-example a subagent tool showing its `description` argument rather than the
-raw JSON. Return `None` to fall back to the generic line. Renderer errors
-are swallowed (diagnosed once per tool) and never crash the UI.
+默认 TUI 把未识别的 tool 调用显示为 `name {arguments}`（截断）。给工具一个 `render_call`——`(arguments) -> str | None`——可以渲染友好的单行调用（Pi 的 `renderCall`）：例如 subagent 工具显示其 `description` 参数而非原始 JSON。返回 `None` 回退到通用行。渲染器错误被吞掉（每个工具诊断一次），绝不击溃 UI。
 
-While a tool is executing, the TUI animates its row: a braille spinner
-stands in for the line's leading marker (`→ ` / `▸ `) and, after the first
-second, a live elapsed time is appended (`… (1m 23s)`). Keep `render_call`
-output to a single line starting with a marker like `▸ ` so the spinner has
-something to replace.
+工具执行期间，TUI 给它的行加动画：布莱叶盲点 spinner 顶替行首标记（`→ ` / `▸ `），一秒后追加实时耗时（`… (1m 23s)`）。把 `render_call` 的输出保持为以 `▸ ` 之类标记开头的单行，spinner 才有东西可替换。
 
-For behavioral guidance not tied to any tool, `add_prompt_guideline(text)`
-adds a line to the system prompt's Guidelines section (de-duplicated at
-build time; `/reload` rebuilds the prompt when guidelines change).
+要给不绑定任何工具的行为指引，`add_prompt_guideline(text)` 向 system prompt 的 Guidelines 区块添加一行（构建时去重；guideline 变化时 `/reload` 重建 prompt）。
 
-For structured, always-on context, `add_prompt_section(title, body)` appends a
-free-form section after cumulative user and project `APPEND_SYSTEM.md` files and
-`--append-system-prompt` content. The title may be `None`; a title is rendered
-as a level-two Markdown heading. Bodies may contain paragraphs, lists, and code
-blocks without being forced into a guideline bullet:
+要注入结构化、始终在场的 context，`add_prompt_section(title, body)` 在累计的用户与项目 `APPEND_SYSTEM.md` 文件与 `--append-system-prompt` 内容之后追加自由格式区块。title 可以是 `None`；有 title 时渲染为二级 Markdown 标题。body 可以包含段落、列表与代码块而不被强行变成 guideline 条目：
 
 ````python
 def setup(baldric):
@@ -451,22 +246,15 @@ uv run pytest
     )
 ````
 
-Sections compose in extension load and registration order. Empty bodies and
-multi-line titles are ignored with a resource diagnostic. Registrations are
-source-owned, so failed setup, `/reload`, and generation retirement remove them
-along with the extension's other contributions.
+区块按 extension 加载与注册顺序组合。空 body 与多行 title 被忽略并产生资源诊断。注册由来源拥有，因此失败的 setup、`/reload` 与世代退役会把它们连同 extension 的其他贡献一起移除。
 
-### Commands
+### 命令
 
-`register_command(name, handler, *, description, usage, aliases)` adds a
-slash command. Handlers are sync, receive `(args: str, context)`, and may
-return a `str` shown to the user. Built-in commands cannot be overridden.
-Extension commands appear in the TUI autocomplete automatically.
+`register_command(name, handler, *, description, usage, aliases)` 添加 slash 命令。handler 是同步的，接收 `(args: str, context)`，可以返回展示给用户的 `str`。内置命令不可覆盖。extension 命令自动出现在 TUI 补全里。
 
-### UI dialogs
+### UI 对话框
 
-`baldric.context.ui` gives extensions host-provided interactive dialogs (Pi's
-`ctx.ui`). All three dialog methods are `async`:
+`baldric.context.ui` 给 extension 提供宿主提供的交互对话框（Pi 的 `ctx.ui`）。三个对话框方法都是 `async`：
 
 ```python
 choice = await baldric.context.ui.select("Deploy to", ["staging", "prod"])
@@ -474,24 +262,14 @@ ok     = await baldric.context.ui.confirm("Deploy?", "This ships to production."
 name   = await baldric.context.ui.input("Release name", "e.g. v1.2.0")
 ```
 
-- `select(title, options, *, timeout=None) -> str | None` — a picker;
-  returns the chosen option, or `None` if cancelled.
-- `confirm(title, message, *, timeout=None) -> bool` — a yes/no dialog;
-  returns `True` only if confirmed.
-- `input(title, placeholder="", *, timeout=None) -> str | None` — a text
-  prompt; returns the text (empty string on an empty submit), or `None` if
-  cancelled.
-- `timeout` is in **seconds**; when it elapses the dialog auto-dismisses and
-  returns the cancel default (`None`/`False`/`None`).
+- `select(title, options, *, timeout=None) -> str | None` — picker；返回所选选项，取消时 `None`。
+- `confirm(title, message, *, timeout=None) -> bool` — 是/否对话框；只有确认时返回 `True`。
+- `input(title, placeholder="", *, timeout=None) -> str | None` — 文本输入；空提交返回空串，取消时 `None`。
+- `timeout` 单位是**秒**；到期时对话框自动关闭并返回取消默认值（`None`/`False`/`None`）。
 
-Without an interactive frontend (print mode, `-p`, tests) every dialog
-returns its cancel default immediately, so extensions can call them
-unconditionally. Check `baldric.context.ui.has_ui` (or `baldric.context.has_ui`) if
-you want to branch on whether a real UI is attached.
+没有交互 frontend（print mode、`-p`、测试）时每个对话框立即返回取消默认值，extension 可以无条件调用。想按是否连接了真实 UI 分支，检查 `baldric.context.ui.has_ui`（或 `baldric.context.has_ui`）。
 
-**Driving a dialog from a slash command.** Command handlers are synchronous,
-so they cannot `await` a dialog directly. Instead, spawn a task on the
-running event loop and return immediately:
+**从 slash 命令驱动对话框。** 命令 handler 是同步的，不能直接 `await` 对话框。改为在运行中的事件循环上开任务并立即返回：
 
 ```python
 import asyncio
@@ -508,16 +286,11 @@ def setup(baldric):
     baldric.register_command("menu", _handler)
 ```
 
-The task runs on the same event loop as the session, so awaiting the dialog
-there is safe. (A tool executor, which is already `async`, can `await
-baldric.context.ui...` directly.)
+任务运行在与 session 相同的事件循环上，在那里 await 对话框是安全的。（tool 执行器本身是 `async` 的，可以直接 `await baldric.context.ui...`。）
 
-### Sidebar sections
+### 侧栏区块
 
-`baldric.context.ui.sidebar` lets an extension contribute a section to Baldric's
-interactive session sidebar without querying private widget IDs or importing
-`BaldricTuiApp`. Register sections from `session_start`, after the frontend bridge
-is attached:
+`baldric.context.ui.sidebar` 让 extension 向 Baldric 的交互 session 侧栏贡献一个区块，而无需查询私有组件 ID 或导入 `BaldricTuiApp`。在 frontend 桥接接好后的 `session_start` 里注册区块：
 
 ```python
 def setup(baldric):
@@ -549,41 +322,18 @@ def setup(baldric):
             sidebar.remove_section("turns")
 ```
 
-- Feature-detect the `sidebar` attribute with `getattr` when supporting older
-  Baldric versions. On current Baldric, `sidebar.supported` is `False` in
-  print/headless mode and when `sidebar_position` is `"off"`; calls are safe
-  no-ops without a visible sidebar.
-- `set_section(key, *, title, content)` adds or replaces this extension's key.
-  Keys are isolated by extension, so two extensions may both use `"status"`.
-  Updating a key preserves its position; removing and re-adding it places it
-  after existing extension sections.
-- `content` is either a sequence of Rich-markup display lines or a
-  `factory(theme) -> textual.widget.Widget`. Prefer lines when possible: they
-  need no Textual import and the host owns wrapping, width, scrolling, heading,
-  separator, and left/right placement. Factories are rebuilt with the live
-  theme and use the same crash isolation as other extension widgets.
-- `remove_section(key)` removes the section. The host also clears every
-  extension section on reload, session replacement, and shutdown. Responsive
-  hiding preserves sections so they return when the terminal grows.
+- 支持旧 Baldric 版本时用 `getattr` 探测 `sidebar` 属性。在当前版本上，print/无头模式与 `sidebar_position` 为 `"off"` 时 `sidebar.supported` 为 `False`；调用是安全的 no-op，不会出现可见侧栏。
+- `set_section(key, *, title, content)` 添加或替换本 extension 的 key。键按 extension 隔离，两个 extension 可以都用 `"status"`。更新既有 key 保留其位置；删除后重新添加会排在既有 extension 区块之后。
+- `content` 是一串 Rich 标记显示行，或 `factory(theme) -> textual.widget.Widget`。尽量用行：它们不需要 Textual 导入，宿主负责换行、宽度、滚动、标题、分隔线与左右放置。factory 以活动主题重建，使用与其他 extension 组件相同的崩溃隔离。
+- `remove_section(key)` 移除区块。reload、session 替换与关闭时宿主也会清空所有 extension 区块。响应式隐藏会保留区块，终端变大时恢复。
 
-See `examples/extensions/sidebar_status.py` for a complete example.
+完整示例见 `examples/extensions/sidebar_status.py`。
 
-### Component widgets
+### 组件挂载
 
-> This seam lets an extension mount its own **Textual widgets** into the TUI
-> instead of publishing string data. It deliberately makes Textual part of the
-> public extension contract (the "component" type *is*
-> `textual.widget.Widget`): extensions build against the Textual version baldric
-> pins, and a Textual major bump is a coordinated break for core and
-> extensions together. An extension that runs its own conversations (e.g.
-> subagents) builds its own agents strip and in-place conversation view with
-> this seam. Prefer strings/data (message renderers, tool renderers, string
-> slot widgets) when they are enough — they work in every frontend, including
-> print mode; reach for widgets when the extension needs live, interactive UI.
+> 这条接缝让 extension 把自己的 **Textual 组件**挂进 TUI，而不是发布字符串数据。它刻意把 Textual 纳入公开 extension 契约（"component" 类型*就是* `textual.widget.Widget`）：extension 针对 Baldric 锁定的 Textual 版本构建，Textual 大版本升级是对内核与 extension 的协同破坏。跑自己对话的 extension（如 subagent）用这条接缝构建自己的 agent 条与就地对话视图。够用就优先用字符串/数据（消息渲染器、工具渲染器、字符串槽组件）——它们在所有 frontend 包括 print mode 都工作；确需活交互 UI 时再用组件。
 
-`baldric.context.ui.components` (a `ComponentBridge`) hosts extension widgets.
-Always gate on `supports_components` first — it is `False` in print mode and on
-any host without this seam, where every call below is a safe no-op:
+`baldric.context.ui.components`（一个 `ComponentBridge`）承载 extension 挂载的组件。总是先探测 `supports_components`——print mode 与没有这条接缝的宿主上它是 `False`，下面所有调用都是安全 no-op：
 
 ```python
 def setup(baldric):
@@ -618,92 +368,49 @@ def setup(baldric):
     unsubscribe = components.register_key_interceptor(on_key)
 ```
 
-- `set_slot_widget(key, content, *, placement="above_prompt")` mounts an
-  extension widget into a prompt-adjacent slot (`"above_prompt"` — the default —
-  or `"below_prompt"`). `content` is either a `factory(theme)` callable or a
-  plain list of display lines the host renders as Rich markup (so a text-only
-  widget needs no Textual import); passing `content=None` removes that key.
-  Multiple keys per placement mount in call order.
-- `open_main_view(factory) -> handle` mounts `factory(handle, theme)` as a
-  full main-area view *in place of* the transcript (a display-toggled sibling,
-  **not** a modal screen), so your slot widgets stay visible and the prompt
-  keeps focus — embed your own composer if you want one. `handle.close()`
-  restores the transcript; `handle.is_open` reports its state.
-- `register_key_interceptor(handler) -> unsubscribe` — `handler(event,
-  prompt_text)`; return `True` to consume a key. Pre-dispatch: consulted ahead
-  of the host's priority bindings and the focused widget, for every main-screen
-  key (never while a modal is on top) — self-gate accordingly. A raising
-  interceptor is treated as "not consumed".
-- `theme` is the live `TuiTheme`; `get_prompt_text()` reads the prompt editor
-  (interceptors already receive it as their second argument);
-  `request_render()` re-renders your mounted widgets. Push live updates by
-  calling your widget's own `refresh()` (Textual) — the seam does not poll.
+- `set_slot_widget(key, content, *, placement="above_prompt")` 把 extension 组件挂进 prompt 相邻的槽（`"above_prompt"`——默认——或 `"below_prompt"`）。`content` 是 `factory(theme)` 可调用，或宿主按 Rich 标记渲染的纯显示行列表（纯文本组件因此不需要 Textual 导入）；传 `content=None` 移除该 key。同一 placement 的多个 key 按调用顺序挂载。
+- `open_main_view(factory) -> handle` 把 `factory(handle, theme)` 挂为完整主区视图，*替换*transcript（一个可切换显示的兄弟视图，**不是**模态 screen），你的槽组件保持可见、prompt 保持焦点——想带输入框就自己嵌入。`handle.close()` 恢复 transcript；`handle.is_open` 报告状态。
+- `register_key_interceptor(handler) -> unsubscribe` —— `handler(event, prompt_text)`；返回 `True` 消费该键。预派发：先于宿主优先级绑定与焦点组件，对每个主屏键生效（模态在最上方时除外）——必须自设门槛。抛异常的 interceptor 视为"未消费"。
+- `theme` 是活动 `TuiTheme`；`get_prompt_text()` 读 prompt 编辑器（interceptor 的第二个参数已是它）；`request_render()` 重渲染你挂载的组件。推送实时更新请调用组件自己的 `refresh()`（Textual）——这条接缝不轮询。
 
-The host is defensive: a factory that raises, a widget that crashes in
-`render`/`on_mount`, or a throwing interceptor is isolated (quarantined and
-diagnosed) so a broken component never takes the TUI down. All mounted widgets
-are force-cleared on session rebind (`/resume`, `/new`) and teardown; also clear
-your own on `session_shutdown`.
+宿主是防御性的：抛异常的 factory、在 `render`/`on_mount` 崩溃的组件、抛异常的 interceptor 都会被隔离（隔离并诊断），一个坏组件拖不垮 TUI。所有挂载组件在 session 重绑（`/resume`、`/new`）与 teardown 时强制清除；自己的组件也要在 `session_shutdown` 时清除。
 
-### Events
+### 事件
 
-Observation events mirror the canonical agent/session stream. Handlers receive
-`(event, context)`, run on the session event loop, and may subscribe to one
-`type` or use `agent_event` for the complete stream.
+观察事件镜像规范的 agent/session 流。handler 接收 `(event, context)`，在 session 事件循环上运行，可以订阅单个 `type` 或用 `agent_event` 接收完整流。
 
-| Event | Important payload |
+| 事件 | 重要载荷 |
 |---|---|
 | `agent_start` | — |
-| `agent_end` | `messages`, `will_retry` on the session form |
-| `agent_settled` | —; the started run has finished teardown and has no automatic retry, compaction, or continuation remaining; dispatched to extensions after interruption even if the cancelling frontend can no longer consume the streamed event |
-| `turn_start` | `turn_index`, Unix-millisecond `timestamp` |
-| `turn_end` | matching `turn_index`, `message`, `tool_results` |
-| `message_start` / `message_end` | `message`; assistant usage is at `message.usage` |
-| `provider_retry` | `attempt`, `max_attempts`, `delay_ms`, `message`; emitted before a retried provider request produces output, and paired with `auto_retry_start` / `auto_retry_end` on the coding-session stream |
-| `message_update` | `message`, nested `assistant_message_event` |
-| `tool_execution_start` | `tool_call_id`, `tool_name`, `args` |
-| `tool_execution_update` | the call fields plus `partial_result` |
-| `tool_execution_end` | the call fields plus `result`, `is_error`, `duration_ms` (absent when the tool never ran) |
-| `queue_update` | `steering`, `follow_up` |
-| `compaction_start` | `reason` (`manual`, `threshold`, or `overflow`) |
-| `compaction_end` | `reason`, `result`, `aborted`, `will_retry`, `error_message` |
-| `entry_appended` | persisted session `entry` |
-| `session_info_changed` | session `name`; emitted after automatic naming or `await session.set_session_name(...)` |
-| `thinking_level_changed` | `level`; emitted after an explicit thinking-mode change |
-| `auto_retry_start` | `attempt`, `max_attempts`, `delay_ms`, `error_message` |
-| `auto_retry_end` | `success`, `attempt`, `final_error` |
+| `agent_end` | `messages`、session 形态上的 `will_retry` |
+| `agent_settled` | —；已启动的运行完成了 teardown，且没有遗留的自动重试、compaction 或续跑；即使取消中的 frontend 已无法消费流式事件，中断后也会派发给 extension |
+| `turn_start` | `turn_index`、Unix 毫秒 `timestamp` |
+| `turn_end` | 匹配的 `turn_index`、`message`、`tool_results` |
+| `message_start` / `message_end` | `message`；assistant 用量在 `message.usage` |
+| `provider_retry` | `attempt`、`max_attempts`、`delay_ms`、`message`；在重试的 provider 请求产出之前发出，与 coding-session 流上的 `auto_retry_start` / `auto_retry_end` 成对 |
+| `message_update` | `message`、嵌套的 `assistant_message_event` |
+| `tool_execution_start` | `tool_call_id`、`tool_name`、`args` |
+| `tool_execution_update` | 调用字段加 `partial_result` |
+| `tool_execution_end` | 调用字段加 `result`、`is_error`、`duration_ms`（工具从未运行时缺失） |
+| `queue_update` | `steering`、`follow_up` |
+| `compaction_start` | `reason`（`manual`、`threshold` 或 `overflow`） |
+| `compaction_end` | `reason`、`result`、`aborted`、`will_retry`、`error_message` |
+| `entry_appended` | 持久化的 session `entry` |
+| `session_info_changed` | session `name`；自动命名或 `await session.set_session_name(...)` 之后发出 |
+| `thinking_level_changed` | `level`；显式 thinking 模式变更后发出 |
+| `auto_retry_start` | `attempt`、`max_attempts`、`delay_ms`、`error_message` |
+| `auto_retry_end` | `success`、`attempt`、`final_error` |
 
-`compaction_start` and `compaction_end` bracket the compactions the session
-performs. `threshold` is emitted when automatic compaction runs because the
-estimated context crossed the configured limit, so extensions can observe
-background compaction that happens after a turn's response has already been
-delivered. `overflow` is emitted for recovery from a provider context-overflow
-error. A failed threshold compaction still emits `compaction_end` with `aborted`
-set and `error_message` populated. Manual `/compact` runs are driven by the CLI
-and do not emit these events.
+`compaction_start` 与 `compaction_end` 界定 session 执行的 compaction。估算 context 越过配置上限、自动 compaction 运行时发出 `threshold`，extension 因此能观察到在一轮响应已送达之后发生的后台 compaction。`overflow` 用于 provider context 溢出错误的恢复。失败的 threshold compaction 仍会发出 `compaction_end`，`aborted` 置位并填充 `error_message`。手动 `/compact` 由 CLI 驱动，不发出这些事件。
 
-`message_update.assistant_message_event` is the provider-neutral incremental
-stream. Its nested `type` is one of `text_start`, `text_delta`, `text_end`,
-`thinking_start`, `thinking_delta`, `thinking_end`, `toolcall_start`,
-`toolcall_delta`, or `toolcall_end`. Terminal provider events become
-`message_end`, rather than another `message_update`.
+`message_update.assistant_message_event` 是 provider 中立的增量流。其嵌套 `type` 是 `text_start`、`text_delta`、`text_end`、`thinking_start`、`thinking_delta`、`thinking_end`、`toolcall_start`、`toolcall_delta`、`toolcall_end` 之一。终结的 provider 事件变成 `message_end`，而不是又一条 `message_update`。
 
-`context.session_name` and `context.thinking_level` provide the current values
-when an extension attaches or a replacement session starts. Their matching
-change events carry snapshots of later updates; no-op assignments do not emit.
-Model changes, `/model` and `/local` selections, scoped-model toggles,
-provider reloads, and branch/resume can coerce the active thinking level to
-what the selected model supports without an explicit `thinking_level_changed`
-event, so read the live context when handling other events instead of treating
-change events as a complete cache feed.
+`context.session_name` 与 `context.thinking_level` 提供 extension 接入或替换 session 启动时的当前值。匹配的变更事件携带后续更新的快照；无变化的赋值不发出。模型变更、`/model` 与 `/local` 选择、scoped-model 切换、provider reload 与 branch/resave 可能把活动 thinking 级别收敛为所选模型支持的值而不发显式 `thinking_level_changed` 事件，因此处理其他事件时请读实时 context，别把变更事件当作完整的缓存供给。
 
-Extension turn events are session-enriched like Pi's. `turn_start` and its
-matching `turn_end` carry the same zero-based `turn_index`; `turn_start` also
-carries a Unix-millisecond `timestamp`. The runtime increments the index after
-`turn_end` and resets it on the next `agent_start`:
+Extension 轮次事件与 Pi 一样经 session 增强。`turn_start` 与匹配的 `turn_end` 携带相同的零基 `turn_index`；`turn_start` 还携带 Unix 毫秒 `timestamp`。runtime 在 `turn_end` 后递增索引，在下一个 `agent_start` 重置：
 
 ```python
-from baldric.runtime.extensions import TurnEndEvent, TurnStartEvent
+from baldric.runtime import TurnEndEvent, TurnStartEvent
 
 
 def setup(baldric):
@@ -718,13 +425,11 @@ def setup(baldric):
         assert event.turn_index >= 0
 ```
 
-These enriched payloads are defined in `baldric.runtime.extensions`. The portable
-`baldric.agent.events.TurnStartEvent` and `TurnEndEvent` intentionally omit session
-metadata, so reusable agent code stays independent of session policy.
+这些增强载荷定义在 `baldric.runtime.extensions`。可移植的 `baldric.agent.events.TurnStartEvent` 与 `TurnEndEvent` 有意省略 session 元数据，可复用的 agent 代码保持独立于 session 政策。
 
-Lifecycle and intercepting hooks:
+生命周期与拦截 hook：
 
-| Event | Payload | Handler may return |
+| 事件 | 载荷 | handler 可返回 |
 |---|---|---|
 | `session_start` | `SessionStartEvent(reason)` | — |
 | `session_shutdown` | `SessionShutdownEvent(reason)` | — |
@@ -732,38 +437,20 @@ Lifecycle and intercepting hooks:
 | `tool_call` | `ToolCallHookEvent(tool_name, arguments)` | `ToolCallHookResult(block, reason, arguments)` |
 | `tool_result` | `ToolResultHookEvent(tool_name, arguments, result)` | `ToolResultHookResult(content, details)` |
 
-- `session_start` fires once the host frontend is attached (Pi's ordering:
-  the UI starts before extensions initialize), so handlers can call
-  `baldric.notify(...)` or open dialogs and they will actually be seen.
-- `input` runs on the raw prompt text before skill/template expansion.
-  `action="transform"` rewrites it (transforms chain), `action="handled"`
-  consumes it without an agent run and shows `message` as a notification.
-- `tool_call` runs before a tool executes. `block=True` prevents execution
-  and reports `reason` to the model; returning `arguments` rewrites the
-  call. A crashing `tool_call` handler blocks the tool (fail-safe). It runs
-  after the arguments were checked against the tool's schema, so it never sees a
-  call that check refused, and arguments it returns are not checked again.
-- `tool_result` can rewrite a result's text `content` or `details`; execution
-  error state belongs to the host's tool lifecycle rather than the result payload.
+- `session_start` 在宿主 frontend 接上后触发一次（Pi 的顺序：UI 先于 extension 初始化启动），handler 里调 `baldric.notify(...)` 或打开对话框才会真正被看到。
+- `input` 在 skill/template 展开之前对原始 prompt 文本运行。`action="transform"` 改写它（transform 链式连接），`action="handled"` 消费它、不启动 agent 运行并把 `message` 显示为通知。
+- `tool_call` 在工具执行前运行。`block=True` 阻止执行并向模型报告 `reason`；返回 `arguments` 改写调用。崩溃的 `tool_call` handler 会挡下工具（fail-safe）。它在参数对照工具 schema 校验之后运行，因此不会看到被校验拒绝的调用，且它返回的参数不会再被校验。
+- `tool_result` 可以改写结果的文本 `content` 或 `details`；执行错误状态属于宿主的工具生命周期，不属于结果载荷。
 
-All other handler failures are contained: they are recorded as diagnostics
-(visible in `/session`) and never crash the session.
+其余所有 handler 失败都被包容：记为诊断（在 `/session` 可见），绝不击溃 session。
 
-### Messages and persistence
+### 消息与持久化
 
-`send_user_message` delivers a user message into the conversation. During a
-run it queues as steering or a follow-up; when the session is idle the TUI
-starts a new turn with it — this is how background work reports back.
-`append_entry(namespace, data)` persists extension-owned data as a durable
-session entry replayed on resume. `set_label(entry_id, label)` creates, changes,
-or clears (`None`/empty) a bookmark on an existing session entry using the same
-validation and append-only storage as the `/tree` label editor. It raises for an
-unknown entry ID.
+`send_user_message` 把用户消息送进对话。运行中它排队为 steering 或 follow-up；session 空闲时 TUI 用它开始新一轮——后台工作就是这样汇报的。`append_entry(namespace, data)` 把 extension 自有数据持久化为可回放的 durable session entry。`set_label(entry_id, label)` 用与 `/tree` 标签编辑器相同的校验与 append-only 存储在既有 session entry 上创建、修改或清除（`None`/空）书签。未知 entry ID 会抛错。
 
-### Custom message rendering
+### 自定义消息渲染
 
-To format an injected message instead of showing it as raw text, register a
-renderer in `setup` and send with `send_custom_message`:
+要把注入的消息格式化而不是显示原始文本，在 `setup` 注册渲染器并用 `send_custom_message` 发送：
 
 ```python
 from baldric.runtime.extensions import CustomMessageView, MessageRenderOptions
@@ -786,33 +473,15 @@ baldric.send_custom_message(
 )
 ```
 
-- The renderer receives a `CustomMessageView(custom_type, content, details)`
-  and `MessageRenderOptions(expanded)`, and returns a **Rich-markup string**
-  (e.g. `"[bold]text[/bold]"`). Returning a Textual widget is not supported —
-  this keeps extensions free of any TUI toolkit.
+- 渲染器收到 `CustomMessageView(custom_type, content, details)` 与 `MessageRenderOptions(expanded)`，返回 **Rich 标记字符串**（如 `"[bold]text[/bold]"`）。不支持返回 Textual 组件——这保证 extension 不依赖任何 TUI 工具包。
 - `send_custom_message(content, *, custom_type, details=None,
-  deliver_as="follow_up", trigger_turn=True)` behaves like
-  `send_user_message` (the `content` still enters the model's context), but the
-  transcript renders it through the matching renderer. `trigger_turn=False`
-  queues it **in-memory** for the next run instead of starting one when idle —
-  the message is not shown or persisted until that run happens, and is lost if
-  the session exits first. Use `append_entry` alongside if you need a durable
-  record without triggering a turn.
-- First registration per `custom_type` wins. If no renderer is registered, or a
-  renderer raises or returns a non-string, the message falls back to its raw
-  `content` — a broken renderer never crashes the UI.
-- Custom rendering works in the interactive TUI and the `-p` print transcript,
-  and survives `/resume`. Baldric persists it as a first-class `custom_message`
-  session entry whose `custom_type` and `details` can be inspected without
-  parsing a generic message payload. In the TUI, a custom message appears once its user event is
-  confirmed by the run (a moment after delivery), rather than instantly like a
-  typed prompt's optimistic echo.
+  deliver_as="follow_up", trigger_turn=True)` 行为类似 `send_user_message`（`content` 仍进入模型 context），但 transcript 经匹配的渲染器渲染它。`trigger_turn=False` 把它**在内存中**排队等下一次运行，空闲时不开启新轮——消息在这次运行发生前不显示也不持久化，session 先退出就丢失。需要不触发轮次的持久记录就配合 `append_entry`。
+- 每个 `custom_type` 先注册者获胜。没有注册渲染器，或渲染器抛异常/返回非字符串时，消息回退为原始 `content`——坏渲染器不会击溃 UI。
+- 自定义渲染在交互式 TUI 与 `-p` print transcript 中都工作，并能在 `/resume` 后存活。Baldric 把它持久化为一等 `custom_message` session entry，其 `custom_type` 与 `details` 无需解析通用消息载荷即可检视。TUI 中，自定义消息在其用户事件被运行确认后出现（送达后片刻），而不是像打字 prompt 的乐观回显那样即时。
 
-### Provider seams, renderers, and lifecycle handles (API v2)
+### provider 接缝、渲染器与生命周期句柄（API v2）
 
-API version 2 adds surfaces that mirror Pi's provider and renderer hooks. They
-are declared with the `provider_hooks` / `renderers` capabilities and keep the
-same rule as every other renderer: Rich-markup text, never a Textual widget.
+API 版本 2 增加了镜像 Pi 的 provider 与渲染器 hook 的界面。它们以 `provider_hooks` / `renderers` 能力声明，并遵守与其他渲染器相同的规则：Rich 标记文本，绝不是 Textual 组件。
 
 ```python
 from baldric.runtime.extensions import CompactionSummaryResult, UserBashResult
@@ -839,51 +508,25 @@ def setup(baldric):
     applied = await baldric.set_thinking_level("high")
 ```
 
-- **Chaining and isolation.** `context` and `before_provider_request` are
-  chained (return a replacement or `None`); `before_provider_headers` mutates in
-  place; the observe seams are read-only. A raising handler is skipped and
-  diagnosed — it never breaks the run, and with no provider seam registered the
-  request path is untouched (byte-identical).
-- **Tool resolvers** receive `(tool_name, next)` / `(tool_name, result, expanded,
-  next)`; `next()` yields the lower-priority answer (other extensions, then the
-  tool's own renderer), so a resolver can wrap, defer, or take over any tool —
-  including tools registered after it.
-- **Compaction** accepts a supplied summary only; it cannot be vetoed, the text
-  is clamped to 20k characters, and a blank or failing handler falls back to the
-  built-in summarizer.
-- **Tool handles.** `set_active_tools(names)` restricts the visible tool set
-  (`None` restores all) and the restriction also holds for tools registered
-  later; `execute_tool` runs an active tool through the same pipeline as a
-  model-issued call, so `tool_call`/`tool_result` hooks and project trust apply.
+- **链接与隔离。** `context` 与 `before_provider_request` 是链接的（返回替换值或 `None`）；`before_provider_headers` 原地修改；观察接缝只读。抛异常的 handler 被跳过并诊断——绝不破坏运行；没有注册任何 provider 接缝时请求路径原封不动（逐字节一致）。
+- **工具解析器**接收 `(tool_name, next)` / `(tool_name, result, expanded, next)`；`next()` 产出更低优先级的答案（其他 extension，然后工具自己的渲染器），解析器因此能包裹、延后或接管任何工具——包括在它之后注册的工具。
+- **Compaction** 只接受供给的摘要；不能否决，文本钳到 2 万字符，空白或失败的 handler 回退内置摘要器。
+- **工具句柄。** `set_active_tools(names)` 限制可见工具集（`None` 恢复全部），限制同样约束之后注册的工具；`execute_tool` 让活动工具走与模型发起调用相同的管线，`tool_call`/`tool_result` hook 与项目信任同样适用。
 
-## Growing and maintaining an extension
+## 养护一个 extension
 
-Extensions have three natural sizes; each step is optional and none
-requires packaging:
+Extension 有三种自然尺寸；每步都可选，全都不需要打包：
 
-1. **A single file** (`greet.py`) — the quick start above. No config.
-2. **A folder with `extension.py`** — split helpers into sibling modules
-   and import them relatively (`from . import helper`). No config.
-3. **A repo with a `src/` layout** — declare the entry in
-   `pyproject.toml` under `[tool.baldric]` (see above). Baldric reads only the
-   `[tool.baldric]` table; whether the repo is also an installable Python
-   package is entirely your business (it helps IDEs resolve imports and
-   lets tests import modules directly, but Baldric never installs or
-   `pip`-imports your extension).
+1. **单文件**（`greet.py`）——上面的快速开始。零配置。
+2. **带 `extension.py` 的文件夹**——把 helper 拆进兄弟模块并相对导入（`from . import helper`）。零配置。
+3. **带 `src/` 布局的仓库**——在 `pyproject.toml` 的 `[tool.baldric]` 下声明入口（见上）。Baldric 只读 `[tool.baldric]` 表；这个仓库是否同时是可安装的 Python 包完全由你决定（它方便 IDE 解析导入、让测试直接导入模块，但 Baldric 绝不安装、也绝不 `pip` 导入你的 extension）。
 
-Two rules keep all three shapes loadable:
+两条规则让三种形态都能加载：
 
-- **Use relative imports between your own modules.** The loader imports
-  your extension under a synthetic package name (and never touches
-  `sys.path`), so `import helper` won't resolve — `from . import helper`
-  will, in every load mode.
-- **Feature-detect optional Baldric APIs** (`getattr`/`try: import`) if you
-  want the extension to load on older Baldric versions rather than fail at
-  import time.
+- **自己的模块之间用相对导入。** 加载器以合成包名导入你的 extension（并且绝不碰 `sys.path`），`import helper` 不会解析——`from . import helper` 在所有加载模式下都可以。
+- **对可选的 Baldric API 做特性探测**（`getattr`/`try: import`），让 extension 在旧版 Baldric 上加载而不是在 import 时失败。
 
-**Testing an extension.** Load it through the real runtime rather than
-importing your modules directly — that exercises discovery, the synthetic
-package import, and `setup` registration exactly as a session does:
+**测试一个 extension。** 通过真实 runtime 加载而不是直接导入你的模块——那样会像 session 一样锻炼发现、合成包导入与 `setup` 注册：
 
 ```python
 from baldric.runtime import BaldricResourcePaths
@@ -899,31 +542,18 @@ def test_loads(tmp_path):
     assert runtime.extension_names == ("my_ext",)
 ```
 
-`extra_paths` takes your extension directory (or repo root with a
-manifest); `include_resource_dirs=False` keeps the test hermetic —
-nothing from `~/.baldric/extensions` leaks in. To monkeypatch module globals
-in tests, patch the loaded synthetic module (find it in `sys.modules` by
-the `baldric_extension_` prefix), not your package's import identity — the
-runtime only sees the former.
+`extra_paths` 接收你的 extension 目录（或带 manifest 的仓库根）；`include_resource_dirs=False` 保持测试封闭——`~/.baldric/extensions` 的任何东西都不会漏进来。要在测试里 monkeypatch 模块全局，patch 被加载的合成模块（按 `baldric_extension_` 前缀在 `sys.modules` 里找），不是你包的导入身份——runtime 只看得到前者。
 
-## Example extensions
+## 示例 extension
 
-See [`examples/extensions/`](https://github.com/Ember452/baldric/tree/main/examples/extensions):
+见 [`examples/extensions/`](https://github.com/Ember452/baldric/tree/main/examples/extensions)：
 
-- **`ask_user_question.py`** — lets the agent ask one multiple-choice question through the host UI.
-- **`hello_tool.py`** — minimal custom tool.
-- **`permission_gate.py`** — blocks dangerous bash commands with the
-  `tool_call` hook.
-- **`sidebar_status.py`** — adds and updates a host-framed sidebar section.
-- **`prompt_section.py`** — appends a labeled multi-line system-prompt section.
+- **`ask_user_question.py`** — 让 agent 通过宿主 UI 问一个多选题。
+- **`hello_tool.py`** — 最小自定义工具。
+- **`permission_gate.py`** — 用 `tool_call` hook 拦截危险 bash 命令。
+- **`sidebar_status.py`** — 添加并更新宿主框定的侧栏区块。
+- **`prompt_section.py`** — 追加带标签的多行 system prompt 区块。
 
-## Not yet supported
+## 尚不支持
 
-Compared to Pi's extension system, Baldric does not yet include a complete package
-manager (the installer has no registry, dependency installation, remove, or
-package-update commands), declarative keyboard-shortcut registration, CLI flag
-registration, or system-prompt replacement. Custom entry/tool/markdown renderers,
-provider request seams, context rewriting, `user_bash` interception, and the
-dynamic tool handles are supported as of API v2 (see above). The architecture
-document (`docs/internal/architecture/phase-21-extensions.md`) tracks the extension
-design.
+对照 Pi 的 extension 系统，Baldric 尚未包含完整的包管理器（安装器没有 registry、依赖安装、remove 或 package-update 命令）、声明式快捷键注册、CLI 旗标注册或 system prompt 替换。自定义 entry/工具/markdown 渲染器、provider 请求接缝、context 改写、`user_bash` 拦截与动态工具句柄自 API v2 起支持（见上）。extension 设计的架构文档（`docs/internal/architecture/phase-21-extensions.md`）持续跟踪。

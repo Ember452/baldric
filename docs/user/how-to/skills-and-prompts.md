@@ -1,16 +1,13 @@
 ---
-title: Skills & prompt templates
-description: Teach Baldric reusable know-how with skills, and stop retyping instructions with prompt templates.
+title: Skill 与 prompt template
+description: 用 skill 教 Baldric 可复用的知识，用 prompt template 免去重复输入指令。
 ---
 
-Baldric loads two kinds of reusable Markdown from disk: **skills** (how to do a
-task) and **prompt templates** (a saved prompt you trigger by name). Both can
-live at the user level (available everywhere) or inside a project.
+Baldric 从磁盘加载两种可复用 Markdown：**skill**（怎么做一件事）和 **prompt template**（按名称触发的已保存 prompt）。两者都可以放在用户级（处处可用）或项目内。
 
-## Where the files go
+## 文件放在哪
 
-Skills are loaded from these locations, in increasing precedence (later
-overrides earlier on name clashes):
+skill 从这些位置加载，优先级递增（名字冲突时后者覆盖前者）：
 
 ```text
 ~/.baldric/skills/
@@ -19,7 +16,7 @@ overrides earlier on name clashes):
 <cwd>/.agents/skills/
 ```
 
-Prompt templates load from:
+prompt template 从这些位置加载：
 
 ```text
 ~/.baldric/prompts/
@@ -28,19 +25,13 @@ Prompt templates load from:
 <cwd>/.agents/prompts/
 ```
 
-After adding or editing files while the TUI is open, run **`/reload`** to
-rediscover them. Duplicate/overridden resources are reported as diagnostics, not
-fatal errors. At TUI startup, Baldric also shows a red transcript alert when skills or
-prompt templates in different locations share a name. The alert lists both paths
-so you can rename or remove the unintended duplicate; Baldric still uses the
-higher-precedence resource.
+TUI 打开时添加或编辑了文件，运行 **`/reload`** 重新发现它们。重复/被覆盖的资源报告为诊断，不是致命错误。TUI 启动时，不同位置的 skill 或 prompt template 同名时 Baldric 还会在 transcript 里显示红色警告。警告列出两个路径，方便你重命名或移除非预期的重复；Baldric 仍使用优先级更高的资源。
 
-## Skills
+## Skill
 
-A skill is a directory containing a `SKILL.md` file, following the
-[Agent Skills spec](https://agentskills.io/specification#directory-structure).
-The directory name is the skill name. Optional frontmatter gives it a
-description:
+skill 是包含 `SKILL.md` 文件的目录，遵循
+[Agent Skills spec](https://agentskills.io/specification#directory-structure)。
+目录名就是 skill 名。可选的 frontmatter 提供描述：
 
 ```text
 ~/.baldric/skills/security-review/SKILL.md
@@ -54,39 +45,34 @@ description: Review a diff for security issues.
 Steps to review the current diff for security problems...
 ```
 
-Any supporting files (references, snippets) can live alongside `SKILL.md`
-inside the same directory.
+支撑文件（参考、片段）可以与 `SKILL.md` 一起放在同一目录里。
 
 > [!TIP]
-> Bare `.md` files at the root of a skills directory (for example
-> `~/.baldric/skills/review.md`) are **not** loaded as skills. Baldric will surface a
-> diagnostic telling you to move them into their own directory:
+> skills 目录根下的裸 `.md` 文件（例如
+> `~/.baldric/skills/review.md`）**不会**作为 skill 加载。Baldric 会给出
+> 诊断，提示你把它们移进自己的目录：
 >
 > ```bash
 > cd ~/.baldric/skills
 > mkdir review && mv review.md review/SKILL.md
 > ```
 >
-> This matches the Agent Skills spec and applies uniformly across `.baldric/` and
-> `.agents/` locations.
+> 这符合 Agent Skills spec，并在 `.baldric/` 与
+> `.agents/` 位置统一适用。
 
-Baldric's own extension and provider workflows are packaged documentation rather
-than built-in skills. They remain available to the agent without appearing in
-your skill list, competing with your skill names, or being disabled by
-`--no-skills`.
+Baldric 自己的 extension 与 provider 工作流是打包文档，不是内置 skill。它们对 agent 保持可用，但不出现在你的 skill 列表里、不与你的 skill 名冲突、也不被
+`--no-skills` 禁用。
 
-Baldric lists loaded user and project skills in the system prompt so the model knows they exist and
-can read the full file (via the `read` tool) when relevant. Run **`/skills`** to search names and
-descriptions, then select one to insert its invocation into the prompt for further instructions.
-In the picker, **F1** opens the complete header description and **Ctrl+Enter** displays the
-full `SKILL.md` in the transcript for inspection without adding it to model context. Or invoke one
-explicitly:
+Baldric 在 system prompt 里列出已加载的用户与项目 skill，模型因此知道它们存在，并能在相关时（经 `read` 工具）读取完整文件。运行 **`/skills`** 搜索名字与
+描述，选中一个把其调用插入 prompt，再补充指令。
+在 picker 里，**F1** 打开完整的头部描述，**Ctrl+Enter** 在 transcript 里显示完整
+`SKILL.md` 供检视而不加入模型 context。或显式调用：
 
 ```text
 /skill:security-review check the changes on this branch
 ```
 
-For longer instructions, put the request on following lines:
+较长的指令把 request 放在后续行：
 
 ```text
 /skill:security-review
@@ -95,15 +81,15 @@ Check the changes on this branch.
 Pay special attention to authentication boundaries.
 ```
 
-`/skill:<name>` is a *prompt-expansion* path — Baldric expands the skill and any
-inline or multiline request into your prompt, then runs it as a normal turn.
+`/skill:<name>` 是 *prompt 展开*路径——Baldric 把 skill 与任何
+行内或多行 request 展开进你的 prompt，然后作为普通一轮运行。
 
-### Hiding a skill from the model
+### 对模型隐藏 skill
 
-Set `disable-model-invocation: true` in the frontmatter to keep a skill out of
-the system prompt. The model will not see it or invoke it on its own, but you
-can still run it explicitly with `/skill:<name>` (and it still appears in the
-`/skills` picker and autocomplete):
+在 frontmatter 设 `disable-model-invocation: true`，让 skill 不进
+system prompt。模型看不到它、也不会自行调用，但你
+仍可用 `/skill:<name>` 显式运行（它也仍出现在
+`/skills` picker 与补全里）：
 
 ```md
 ---
@@ -114,26 +100,19 @@ disable-model-invocation: true
 Steps to build the report...
 ```
 
-This is useful for user-triggered workflows that would otherwise add noise to
-the skill list or tempt the model to fire them at the wrong time.
+适合由用户触发的流程——否则它们只会给 skill 列表添乱，或诱使模型在不合适的时候触发。
 
-## Prompt templates
+## Prompt template
 
-A prompt template is a saved prompt you trigger by its filename. For example,
-`~/.agents/prompts/wt.md` is invoked with `/wt`. Run `/prompts` in the TUI to
-search every loaded template. Press **Enter** to insert its invocation without
-submitting it, or **Ctrl+E** to edit its Markdown directly. Save with **Ctrl+S**;
-Baldric reloads resources automatically. A template whose filename matches a built-in
-slash command or alias — for example `new.md`, `quit.md`, or `exit.md` — is
-reserved: Baldric ignores it at load time and reports a resource diagnostic naming
-the file and the conflicting command, so built-ins like `/new` and `/quit` stay
-reachable. Matching is case-insensitive on the filename stem. Templates use the
-same argument variables as Pi:
+prompt template 是按文件名触发的已保存 prompt。例如
+`~/.agents/prompts/wt.md` 用 `/wt` 调用。在 TUI 运行 `/prompts`
+搜索所有已加载模板。按 **Enter** 只插入调用不提交，或 **Ctrl+E** 直接编辑其 Markdown。用 **Ctrl+S** 保存；
+Baldric 自动重载资源。文件名与内置 slash 命令或别名相同的模板——例如 `new.md`、`quit.md` 或 `exit.md` ——是保留的：Baldric 加载时忽略它，并给出指名文件与冲突命令的资源诊断，让 `/new`、`/quit` 之类的内置命令保持可达。文件名主干匹配不区分大小写。template 使用与 Pi 相同的参数变量：
 
-- `$1`, `$2`, ... for positional arguments
-- `$@` or `$ARGUMENTS` for all arguments joined with spaces
-- `${1:-default}` and `${@:-default}` for defaults
-- `${@:N}` or `${@:N:L}` for simple argument slices
+- `$1`、`$2`…… 位置参数
+- `$@` 或 `$ARGUMENTS` 以空格连接的全部参数
+- `${1:-default}` 与 `${@:-default}` 默认值
+- `${@:N}` 或 `${@:N:L}` 简单的参数切片
 
 ```md
 ---
@@ -145,26 +124,18 @@ Feature: $1
 Additional instructions: ${@:2}
 ```
 
-Invoke it with `/wt add caching`. Quoted arguments are preserved as one
-positional argument, for example `/wt add "shared caching"`. Legacy
-`{{ arguments }}` and `{{ args }}` placeholders remain supported.
+用 `/wt add caching` 调用。带引号的参数保留为一个位置参数，例如 `/wt add "shared caching"`。旧式的
+`{{ arguments }}` 与 `{{ args }}` 占位符继续支持。
 
-If a template has no argument placeholder, your arguments are appended after a
-blank line.
+template 没有参数占位符时，你的参数追加在空行之后。
 
-Every built-in command name and alias is reserved, not just picker names such as
-`prompts.md` or `skills.md`. If you previously relied on a template shadowing a
-command — say `new.md` expanding a custom prompt instead of starting a new
-session — rename the file to a non-conflicting name like `new-feature.md` and
-invoke it with `/new-feature`.
+每个内置命令名与别名都保留，不只是 `prompts.md`、`skills.md` 这类 picker 名。如果你以前靠 template 遮蔽命令——比如 `new.md` 展开自定义 prompt 而不是开新
+session——把文件改名为不冲突的 `new-feature.md`，用 `/new-feature` 调用。
 
-## Skill vs. prompt template — which?
+## skill 还是 prompt template？
 
-- Use a **prompt template** when you keep typing the *same instructions* and
-  just want a shortcut (with optional fill-in variables).
-- Use a **skill** when you want to give the model *reference know-how* it can
-  pull in when a task calls for it, invoked with `/skill:<name>`.
+- 反复输入**同样的指令**、只想要个快捷方式（可带填空变量），用 **prompt template**。
+- 想给模型*参考知识*、任务需要时再取用、用 `/skill:<name>` 调用，用 **skill**。
 
 > [!TIP]
-> Keep personal, cross-project helpers in `~/.agents/`. Keep project-specific ones
-> in the repo's `.baldric/` or `.agents/` so they're shared with collaborators.
+> 个人的、跨项目的 helper 放 `~/.agents/`。项目专属的放仓库的 `.baldric/` 或 `.agents/`，与协作者共享。

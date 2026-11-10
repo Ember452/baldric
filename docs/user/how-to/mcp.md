@@ -1,24 +1,18 @@
 ---
-title: MCP servers
-description: Connect MCP servers so their tools appear alongside Baldric's built-in tools.
+title: MCP 服务器
+description: 连接 MCP 服务器，让它们的工具出现在 Baldric 内置工具旁边。
 ---
 
-**MCP** (Model Context Protocol) is an open standard for exposing tools to AI
-agents. Baldric is an MCP **client**: servers you configure contribute tools
-that appear next to the built-in ones, with no special prompting.
+**MCP**（Model Context Protocol）是向 AI agent 暴露工具的开放标准。Baldric 是 MCP **客户端**：你配置的服务器贡献工具，它们出现在内置工具旁边，无需特殊提示。
 
-## Configuring servers
+## 配置服务器
 
-Baldric reads an `mcp.json` from two places:
+Baldric 从两个位置读取 `mcp.json`：
 
-- **User level**: `~/.baldric/mcp.json` — your servers, available everywhere.
-- **Project level**: `<project>/.baldric/mcp.json` — loaded only when the
-  project is [trusted](/how-to/project-trust/). A project entry with the same
-  name replaces the user entry; an entry with only `"enabled"` overrides just
-  that switch (handy for turning a global server off in one repository).
+- **用户级**：`~/.baldric/mcp.json` —— 你的服务器，处处可用。
+- **项目级**：`<project>/.baldric/mcp.json` —— 仅在项目[受信任](/how-to/project-trust/)时加载。同名项目条目替换用户条目；只带 `"enabled"` 的条目只覆盖那一个开关（把全局服务器在某个仓库里关掉时很顺手）。
 
-Both use the same shape as Claude Desktop and other MCP clients, so existing
-configurations can be copied over:
+两者使用与 Claude Desktop 及其他 MCP 客户端相同的形状，既有配置可以直接拷过来：
 
 ```json
 {
@@ -36,65 +30,45 @@ configurations can be copied over:
 }
 ```
 
-| Field | Applies to | Meaning |
+| 字段 | 适用于 | 含义 |
 | --- | --- | --- |
-| `command`, `args`, `env`, `cwd` | stdio servers | Spawn a local program that speaks MCP over stdin/stdout |
-| `url`, `headers` | Streamable HTTP servers | Connect to a remote endpoint |
-| `type` | both | Optional (`"stdio"` or `"http"`); inferred from `command`/`url` when absent, and validated when it disagrees |
-| `timeout` | both | Per-call timeout in seconds (default 60); progress notifications reset it |
-| `description` | both | One line describing the server, shown in the system prompt |
-| `enabled` | both | `false` keeps the entry without connecting |
+| `command`、`args`、`env`、`cwd` | stdio 服务器 | 启动一个经 stdin/stdout 说 MCP 的本地程序 |
+| `url`、`headers` | Streamable HTTP 服务器 | 连接远程端点 |
+| `type` | 两者 | 可选（`"stdio"` 或 `"http"`）；缺失时从 `command`/`url` 推断，不一致时校验报错 |
+| `timeout` | 两者 | 单次调用超时秒数（默认 60）；进度通知会重置它 |
+| `description` | 两者 | 描述服务器的一行话，显示在 system prompt 里 |
+| `enabled` | 两者 | `false` 保留条目但不连接 |
 
-Values in `env`, `headers`, `command`, and `cwd` may reference environment
-variables as `${NAME}` — expanded against the environment Baldric runs in.
-Unresolvable variables produce a warning and the entry starts disabled. `~`
-expands to your home directory in `command` and `cwd`.
+`env`、`headers`、`command`、`cwd` 里的值可以引用环境变量（`${NAME}`）——按 Baldric 运行所在的环境展开。无法解析的变量产生警告且条目以禁用状态启动。`command` 与 `cwd` 里 `~` 展开为你的用户目录。
 
-## Managing servers: `/mcp`
+## 管理服务器：`/mcp`
 
 ```text
-/mcp                    # list servers: name, state, transport, tool count
-/mcp restart <name>     # re-read the config and reconnect one server
-/mcp off <name>         # disable a server for this project/user
-/mcp on <name>          # enable it again
+/mcp                    # 列出服务器：名字、状态、transport、工具数
+/mcp restart <name>     # 重读配置并重连一个服务器
+/mcp off <name>         # 为该项目/用户禁用一个服务器
+/mcp on <name>          # 重新启用
 ```
 
-`on` and `off` write the decision back into the `mcp.json` that defines the
-server (your choice is remembered across sessions), then connect or close it
-immediately.
+`on` 与 `off` 把决定写回定义该服务器的 `mcp.json`（你的选择跨 session 记住），然后立即连接或关闭。
 
-## Tool naming
+## 工具命名
 
-MCP tools appear as ordinary tools named `mcp__<server>__<tool>` — for
-example `mcp__filesystem__read_file`. Names are sanitized to letters, digits,
-and underscores; if that would overflow the 64-character limit or collide with
-another tool, a short hash suffix keeps names unique. The same naming rules
-other MCP clients use, so tools rank and group consistently.
+MCP 工具以普通工具出现，名为 `mcp__<server>__<tool>`——例如 `mcp__filesystem__read_file`。名字净化为字母、数字与下划线；若会超出 64 字符上限或与其他工具冲突，加一个短哈希后缀保持唯一。与其他 MCP 客户端相同的命名规则，工具的排序与分组因此一致。
 
-## States and reconnection
+## 状态与重连
 
-Each server moves through `connecting`, `connected`, `disconnected`,
-`needs-auth`, `failed`, or `closed`:
+每个服务器在 `connecting`、`connected`、`disconnected`、`needs-auth`、`failed`、`closed` 之间流转：
 
-- Your first message waits briefly (up to 10 seconds) for connecting servers,
-  so their tools are actually callable; startup itself is never delayed.
-- A dropped connection (say, the server process exited) is marked
-  `disconnected`; the next tool call reconnects automatically.
-- A server that fails to start is marked `failed` and its tools are withdrawn
-  until it connects again — the rest of the session keeps working.
-- An HTTP server that answers 401 is marked `needs-auth`. Baldric's MVP does
-  not include MCP OAuth; use a header with a credential instead.
+- 你的第一条消息最多等 10 秒给 connecting 中的服务器，让它们的工具真正可调用；启动本身绝不因此延迟。
+- 掉线（例如服务器进程退出）标记为 `disconnected`；下一次工具调用自动重连。
+- 启动失败的服务器标记 `failed`，其工具被撤回直到再次连接——session 其余部分继续工作。
+- 应答 401 的 HTTP 服务器标记 `needs-auth`。Baldric 的 MVP 不含 MCP OAuth；改用带凭据的 header。
 
-## Known limits
+## 已知限制
 
-- No MCP OAuth, resources, prompts, or sampling — tools only.
-- Only text and images are surfaced from tool results: images become
-  `[image: mime, N bytes]` placeholders and other content blocks (embedded
-  resources, audio) become `[unsupported content block: …]`.
-- `${NAME}` expansion is supported; pi's `!command` shell substitution is
-  deliberately not (running shells while parsing config is out of scope).
-- Servers that add tools after connecting keep their connect-time tool set
-  until you run `/mcp restart <name>`.
-- Subagent child sessions do not get MCP: each child spawning its own server
-  processes would be waste. Parent sessions share MCP tools with children
-  through delegation instead.
+- 无 MCP OAuth、resources、prompts、sampling——只有工具。
+- 工具结果只呈现文本与图片：图片变成 `[image: mime, N bytes]` 占位符，其他内容块（内嵌资源、音频）变成 `[unsupported content block: …]`。
+- 支持 `${NAME}` 展开；pi 的 `!command` shell 替换有意不支持（解析配置时跑 shell 超出范围）。
+- 连接后才添加工具的服务器保持连接时的工具集，直到你运行 `/mcp restart <name>`。
+- Subagent 子 session 不获得 MCP：每个 child 各起一套服务器进程太浪费。父 session 通过委托与子代理共享 MCP 工具。

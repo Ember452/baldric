@@ -1,107 +1,56 @@
 ---
-title: Project trust
-description: Control ambient repository inputs before Baldric loads them.
+title: 项目信任
+description: 在 Baldric 加载之前控制环境性的仓库输入。
 ---
 
-Baldric asks before loading protected inputs discovered because of the active working
-directory. The decision is keyed to the canonical, existing cwd—not a guessed
-repository root. Symlink aliases therefore share a decision, and the nearest
-saved parent decision is inherited.
+Baldric 在加载因活动工作目录而发现的受保护输入之前会先询问。决定以规范化且真实存在的 cwd 为键——不是猜测的仓库根。因此符号链接别名共享一个决定，并继承最近一个已保存的父级决定。
 
-## Protected inputs
+## 受保护输入
 
-Baldric gates project `.baldric` and `.agents` skills and prompts, `.baldric` themes,
-`SYSTEM.md` and `APPEND_SYSTEM.md`, plain and scoped `AGENTS.md`, project
-extension candidates, and project `settings.json` reserved for future support.
+Baldric 对项目的 `.baldric` 与 `.agents` skill 和 prompt、`.baldric` 主题、`SYSTEM.md` 与 `APPEND_SYSTEM.md`、普通与 scoped `AGENTS.md`、项目 extension 候选，以及预留给未来支持的项目 `settings.json` 设置门槛。
 
-Built-in local backends are trusted package code. They load independently of
-project trust and do not make an ambient endpoint, model snapshot, or credential
-into project input. Their provider/backend registrations remain owned by the
-active runtime generation; project extensions cannot reset them without the
-normal source and trust rules.
-Detection checks names and metadata only; Baldric does not read, parse, or import a
-candidate before deciding.
+内置本地 backend 是受信任的包代码。它们独立于项目信任加载，不会把环境端点、模型快照或凭据变成项目输入。其 provider/backend 注册仍由活动运行世代拥有；项目 extension 不能绕过正常的来源与信任规则重置它们。检测只查名字与元数据；Baldric 在决定之前不读取、解析或导入任何候选。
 
-User resources under `~/.baldric` and `~/.agents`, built-ins, and paths explicitly
-passed on the CLI remain eligible. Trusted built-in extensions are installed Baldric
-package code rather than cwd discovery: they load before the decision, even with
-`--no-extensions`, and their presence alone never creates a trust prompt. Trusted
-project extensions still require the additional `--project-extensions` opt-in.
+`~/.baldric` 与 `~/.agents` 下的用户资源、built-in 与 CLI 显式传入的路径保持合格。受信任内置 extension 是已安装的 Baldric 包代码而非 cwd 发现：它们在决定之前加载，`--no-extensions` 下也一样，其存在本身绝不制造信任提示。受信任项目 extension 仍需要额外的 `--project-extensions` 开关。
 
-## Decisions
+## 决定
 
-Interactive startup offers:
+交互式启动提供：
 
-- trust this exact folder and save it;
-- trust the displayed immediate parent and save it;
-- trust for this run only;
-- decline this exact folder and save it;
-- decline for this run only.
+- 信任这个确切文件夹并保存；
+- 信任显示的直接父目录并保存；
+- 仅本次运行信任；
+- 拒绝这个确切文件夹并保存；
+- 仅本次运行拒绝。
 
-Escape/cancel exits Baldric during startup without loading the project. During
-`/reload` or cross-project session replacement, cancellation preserves the
-current session snapshot and keeps Baldric open.
-Saved decisions live in `~/.baldric/trust.json`, version 1. Baldric validates the whole
-file and updates it under a lock with restrictive permissions and atomic
-replacement. A malformed, unreadable, locked, or unwritable store never grants
-saved trust. Run-only approval remains available with `--approve`.
+Esc/取消会在启动时退出 Baldric 而不加载项目。`/reload` 或跨项目 session 替换期间取消，会保留当前 session 快照并让 Baldric 保持打开。已保存决定存放在 `~/.baldric/trust.json`（版本 1）。Baldric 校验整个文件，并在锁、受限权限与原子替换下更新它。畸形、不可读、被锁或不可写的存储绝不授予已保存信任。仅本次批准仍可用 `--approve`。
 
-A child decision overrides an inherited parent decision. Parent trust is broad:
-Baldric displays the exact parent before selection. There is no automatic cleanup
-when a project moves.
+子决定覆盖继承的父决定。父信任范围很宽：Baldric 在选择前显示确切的父目录。项目移动时没有自动清理。
 
-## Headless and automation
+## 无头与自动化
 
-`--approve` (`-a`) and `--no-approve` (`-na`) are mutually exclusive, apply only
-to the invocation, and never edit the store. Print, JSON, transcript, and other
-headless paths never prompt. Their unresolved behavior follows the user-global
-`defaultProjectTrust` setting:
+`--approve`（`-a`）与 `--no-approve`（`-na`）互斥，只作用于本次调用，绝不改写存储。print、JSON、transcript 及其他无头路径从不弹提示。其未解析行为跟随用户全局的 `defaultProjectTrust` 设置：
 
-| Value | Headless result |
+| 值 | 无头结果 |
 | --- | --- |
-| `ask` (default) | decline |
-| `always` | approve |
-| `never` | decline |
+| `ask`（默认） | 拒绝 |
+| `always` | 批准 |
+| `never` | 拒绝 |
 
-Trust diagnostics use stderr in structured modes, so stdout remains machine
-readable. They report bounded category/count and decision-source information,
-not protected contents.
+信任诊断在结构化模式下走 stderr，stdout 保持机器可读。它们报告有界的类别/计数与决定来源信息，不含受保护内容。
 
-## Reload and sessions
+## reload 与 session
 
-`/reload` detects again. An initially empty project that gains protected inputs
-requires a new decision; Baldric never infers durable trust from the earlier empty
-state. Resource preparation is coherent: decline builds a global/explicit-only
-snapshot. Resume and replacement resolve the destination record's canonical cwd
-instead of reusing the source project's outcome.
+`/reload` 重新检测。最初为空、后来获得受保护输入的项目需要新的决定；Baldric 绝不从早先的空状态推断持久信任。资源准备是连贯的：拒绝会构建仅含全局/显式输入的快照。resume 与替换解析目标记录的规范 cwd，而不是复用源项目的结果。
 
-## Built-in local-backend security
+## 内置本地 backend 安全
 
-The bundled `llama.cpp` backend is trusted Baldric package code. It loads before the
-project-trust decision, including with `--no-extensions`, and never creates a
-trust prompt. After backend confirmation, `/local` probes only its entered,
-saved, `LLAMA_BASE_URL`, or default endpoint; it does not scan ports, processes,
-or the local network. Baldric never starts/stops the external server or deletes
-model files. Explicit downloads are performed by the independent llama.cpp
-router, not Baldric's filesystem code.
+打包的 `llama.cpp` backend 是受信任的 Baldric 包代码。它在项目信任决定之前加载——包括 `--no-extensions` 时——且绝不制造信任提示。backend 确认之后，`/local` 只探测其输入、已保存、`LLAMA_BASE_URL` 或默认端点；它不扫描端口、进程或本地网络。Baldric 绝不启动/停止外部服务器或删除模型文件。显式下载由独立的 llama.cpp 路由执行，而不是 Baldric 的文件系统代码。
 
-The safe integration snapshot at `~/.baldric/state/extensions/llama.cpp.json`
-contains only the normalized endpoint, exact model IDs, allowlisted metadata,
-and a timestamp. API keys are kept separately in `~/.baldric/credentials.json` or
-read from `LLAMA_API_KEY`; no key means no `Authorization` header. Secrets do
-not enter snapshots, sessions, exports, or diagnostics. Resetting settings and
-deleting a stored credential are separate confirmations. See the [local
-inference guide](/how-to/local-inference/) for troubleshooting.
+`~/.baldric/state/extensions/llama.cpp.json` 的安全集成快照只包含归一化端点、确切模型 ID、允许列表元数据与时间戳。API key 单独保存在 `~/.baldric/credentials.json` 或读自 `LLAMA_API_KEY`；没有 key 就没有 `Authorization` header。secret 不进入快照、session、导出或诊断。重置设置与删除已存凭据是两个独立确认。排障见[本地推理指南](/how-to/local-inference/)。
 
-The built-in integration does not import or rewrite an existing `llama-cpp`
-catalog entry. Configure `llama.cpp` separately through `/local`; Ollama and
-other local servers remain on the manual custom-provider path.
+内置集成不导入也不改写既有的 `llama-cpp` 目录条目。通过 `/local` 单独配置 `llama.cpp`；Ollama 与其他本地服务器仍走手工自定义 provider 路径。
 
-## Security boundary
+## 安全边界
 
-**Project trust is an input-loading guard, not a sandbox.** It does not restrict
-filesystem reads/writes, processes, shell commands, tools, network access,
-credentials, providers, models, package installation, prompt injection, or data
-exfiltration. A trusted project may still be malicious. Use an OS sandbox,
-container, VM, remote environment, and restricted credentials/network when you
-need isolation.
+**项目信任是输入加载守卫，不是沙箱。** 它不限制文件系统读写、进程、shell 命令、工具、网络访问、凭据、provider、模型、包安装、prompt 注入或数据外泄。受信任的项目仍可能是恶意的。需要隔离时，使用 OS 沙箱、容器、VM、远程环境与受限的凭据/网络。

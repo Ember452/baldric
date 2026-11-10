@@ -1,76 +1,45 @@
 ---
-title: The agent loop & events
-description: The small engine at Baldric's center, and the event stream every frontend renders.
+title: agent loop 与事件
+description: Baldric 中心的小引擎，以及每个 frontend 都在渲染的事件流。
 ---
 
-The **agent loop** is the small, reusable engine that turns messages, tools, and
-provider streams into a flow of progress **events**. It's the part that makes
-something an *agent* rather than a chat box.
+**agent loop** 是那个小而可复用的引擎：它把消息、工具和 provider 流变成一串**事件**形式的进展。正是它让一个东西成为 *agent* 而不是聊天框。
 
-## What the loop does
+## 循环做什么
 
-For each turn, the loop:
+每一轮，循环会：
 
-1. takes the current system prompt, transcript, tools, and model selection;
-2. asks the provider to stream a response;
-3. emits events as text and tool calls arrive;
-4. collects the assistant message;
-5. executes any requested tools;
-6. appends the tool results to the transcript;
-7. repeats until the assistant produces no more tool calls.
+1. 取当前的 system prompt、transcript、tools 和模型选择；
+2. 请 provider 流式返回一个回复；
+3. 在文本与 tool 调用到达时发出事件；
+4. 收集 assistant 消息；
+5. 执行所有被请求的工具；
+6. 把工具结果追加进 transcript；
+7. 重复，直到 assistant 不再发起 tool 调用。
 
-That "call a tool, feed the result back, continue" cycle is what lets the model
-read a file, see its contents, and then decide what to edit.
+那个"调用工具、把结果喂回去、继续"的循环，就是让模型能读一个文件、看到内容、然后决定怎么编辑的原因。
 
-## What the loop does *not* do
+## 循环*不*做什么
 
-The loop knows nothing about CLI arguments, Textual widgets, session file
-locations, or resource discovery. Those belong to `baldric.runtime`. Keeping them out
-is what makes the loop reusable across every frontend.
+循环对 CLI 参数、Textual 组件、session 文件位置、资源发现一无所知。它们属于 `baldric.runtime`。把它们排除在外，正是循环能在每个 frontend 复用的原因。
 
-## Event-first design
+## 事件优先的设计
 
-Every meaningful step is observable as an event, so print mode, Rich rendering,
-and the Textual TUI all share the same core. Frontends render from these
-provider-neutral events — never from raw provider chunks. The portable `baldric.agent.events.AgentEvent` stream contains:
+每个有意义的步骤都可以作为事件被观察，所以 print mode、Rich 渲染和 Textual TUI 共享同一个内核。frontend 从这些 provider 中立的事件渲染——绝不从原始 provider 分块渲染。可移植的 `baldric.agent.events.AgentEvent` 流包含：
 
-- `AgentStartEvent` / `AgentEndEvent` — a run begins / ends
-- `TurnStartEvent` / `TurnEndEvent` — one assistant response and its tool results
-- `MessageStartEvent` / `MessageUpdateEvent` / `MessageEndEvent` — a message's
-  Pi-compatible lifecycle
+- `AgentStartEvent` / `AgentEndEvent` — 一次运行开始 / 结束
+- `TurnStartEvent` / `TurnEndEvent` — 一次 assistant 回复及其工具结果
+- `MessageStartEvent` / `MessageUpdateEvent` / `MessageEndEvent` — 一条消息的
+  Pi 兼容生命周期
 - `ToolExecutionStartEvent` / `ToolExecutionUpdateEvent` / `ToolExecutionEndEvent`
-  — a tool runs
+  — 一个工具在运行
 
-Streaming detail is nested under
-`MessageUpdateEvent.assistant_message_event`. Those provider-neutral nested
-events cover text, thinking, and tool-call start/delta/end updates. Provider
-completion or failure is represented by the final assistant message delivered
-through `MessageEndEvent`.
+流式细节嵌套在 `MessageUpdateEvent.assistant_message_event` 之下。这些 provider 中立的嵌套事件覆盖文本、thinking 与 tool 调用的 start/delta/end 更新。provider 的完成或失败由通过 `MessageEndEvent` 送达的最终 assistant 消息表达。
 
-`baldric.runtime.events.CodingSessionEvent` extends that portable stream for
-frontends and SDK users with `agent_settled`, queue updates, compaction,
-session-entry/session-info changes, thinking-level changes, and automatic-retry
-events. Extensions observe those same event names, but the session-to-extension
-adapter enriches `turn_start` with a zero-based `turn_index` and millisecond
-`timestamp`, and `turn_end` with the matching index. See
-[Extensions](/how-to/extensions/#events) for their complete
-payload table.
+`baldric.runtime.events.CodingSessionEvent` 为 frontend 与 SDK 用户扩展了这条可移植流：`agent_settled`、队列更新、compaction、session entry/session 信息变更、thinking 级别变更与自动重试事件。Extension 观察相同的事件名，但 session 到 extension 的适配器会给 `turn_start` 附加零基的 `turn_index` 与毫秒 `timestamp`，给 `turn_end` 附上匹配的索引。完整的载荷表见 [Extensions](/how-to/extensions/#事件)。
 
-The final `AssistantMessage` is authoritative: it persists text, thinking, and tool
-calls as ordered content blocks. Nested update events provide responsive rendering,
-while saved sessions and provider history replay use the finalized structured message.
-It also carries optional monotonic response timing: accumulated time awaiting
-provider events through completion and through the first text, thinking, or
-tool-call output. Measuring only provider-event awaits excludes frontend rendering
-and persistence work between stream pulls. Saved usage and timing remain paired for
-effective output-speed and TTFT statistics.
-Its `provider` field names Baldric's configured provider. When a gateway reports a
-more specific backend, `response_provider` records the backend that served that
-request. For example, Hugging Face responses expose the selected Inference
-Provider there while `provider` remains `huggingface`.
+最终态的 `AssistantMessage` 是权威：它把文本、thinking 与 tool 调用按序持久化为内容块。嵌套的更新事件提供响应式渲染，而已保存 session 与 provider 历史回放使用定稿的结构化消息。它还携带可选的单调响应计时：等待 provider 事件直到完成、以及直到第一个文本/thinking/工具调用输出的累计时间。只计量 provider 事件的等待，排除了流拉取之间的 frontend 渲染与持久化工作。已保存的用量与计时保持配对，用于有效输出速度与 TTFT 统计。它的 `provider` 字段记录 Baldric 配置的 provider。当网关报告更具体的后端时，`response_provider` 记录实际服务该请求的后端。例如 Hugging Face 的响应在那里暴露被选中的 Inference Provider，而 `provider` 保持 `huggingface`。
 
-Because the contract is *events*, a frontend's job is reduced to: send a prompt,
-consume the stream, draw what you see.
+因为契约是*事件*，frontend 的职责被缩减为：发送 prompt、消费流、画你所见。
 
-→ See [Build your own frontend](/explanation/custom-frontend/) for the concrete API, and
-[Architecture overview](/explanation/architecture/) for where the loop sits.
+→ 见[构建你自己的 frontend](/explanation/custom-frontend/) 了解具体 API，[架构总览](/explanation/architecture/) 了解循环所在的位置。

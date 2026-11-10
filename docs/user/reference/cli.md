@@ -1,86 +1,68 @@
 ---
-title: CLI reference
-description: Every Baldric command-line command and flag.
+title: CLI 参考
+description: Baldric 的全部命令行命令与旗标。
 ---
 
-The `baldric` command launches the interactive TUI by default; subcommands and flags
-cover everything else.
+`baldric` 命令默认启动交互式 TUI；子命令与旗标覆盖其余一切。
 
 ```text
 baldric [OPTIONS] [PROMPT] [COMMAND] [ARGS]
 ```
 
-- With no arguments, `baldric` opens the interactive [TUI](/how-to/tui/).
-- A positional `PROMPT` opens the TUI and submits it as the first turn.
-- `/local` is available in the TUI for registered local backends; print mode reports that setup is interactive-only.
-- `-p/--print` (or `--mode`) runs that same positional prompt in [print mode](/how-to/print-mode/) instead of the TUI.
-- Put flags before the prompt — Baldric treats everything after the last recognized flag as prompt text, including tokens that look like flags.
+- 不带参数时，`baldric` 打开交互式 [TUI](/how-to/tui/)。
+- 位置参数 `PROMPT` 打开 TUI 并把它作为第一轮提交。
+- `/local` 在 TUI 中可用于已注册的本地 backend；print mode 会提示该设置仅限交互模式。
+- `-p/--print`（或 `--mode`）把同一条位置 prompt 以 [print mode](/how-to/print-mode/) 运行而不是 TUI。
+- 旗标放在 prompt 之前——Baldric 把最后一个可识别旗标之后的一切都当作 prompt 文本，包括看起来像旗标的 token。
 
-On TUI and text print-mode startup, Baldric may show a non-blocking notice when a
-newer `baldric` release is available on PyPI. In the TUI, a cached result is the
-first transcript item and appears in bright yellow; when the daily check is due,
-it runs in the background after the TUI opens and the notice is added once PyPI
-answers. Run `baldric update` to upgrade. Disable
-the check with `BALDRIC_NO_UPDATE_CHECK=1`; utility commands such as `baldric --version`,
-`baldric update`, `baldric sessions`, and `baldric export` do not run it. After an upgrade,
-the TUI also adds a one-time release-notes message to the transcript with the new
-features and fixes.
+在 TUI 与 text print-mode 启动时，若 PyPI 上有更新的 `baldric` 版本，Baldric 可能显示一条非阻塞提示。TUI 中，缓存的结果是第一条 transcript 项并以亮黄色显示；当日检查到期时，它在 TUI 打开后于后台运行，PyPI 应答后提示才追加。运行 `baldric update` 升级。用 `BALDRIC_NO_UPDATE_CHECK=1` 禁用检查；`baldric --version`、`baldric update`、`baldric sessions`、`baldric export` 这类工具命令不运行它。升级后，TUI 还会把一次性 release-notes 消息加进 transcript，介绍新功能与修复。
 
-## Commands
+## 命令
 
-| Command | What it does |
+| 命令 | 作用 |
 | --- | --- |
-| `baldric` | Open the interactive TUI |
-| `baldric "<prompt>"` | Open the TUI with an initial prompt |
-| `baldric update` | Upgrade Baldric with the installer that owns its environment. Windows uv-tool updates are handed off and begin after Baldric exits; follow the printed log path for the final result. |
-| `baldric update --models` | Force-refresh models.dev catalogs and cache them in `~/.baldric/models-store.json` without upgrading Baldric. |
-| `baldric install <source> [--force]` | Install a trusted local or Git extension under `~/.baldric/extensions/`; `--force` replaces an existing install. |
-| `baldric sessions` | List indexed sessions (id, title, model, cwd) |
-| `baldric export <ref> [dest] [--format html\|jsonl]` | Export a session id or JSONL path (HTML default) |
-| `baldric --export <ref> [dest]` | Same as `baldric export`, as a top-level flag |
-| `baldric providers` | List configured providers and how each authenticates |
-| `baldric [setup options] setup` | Create/update an OpenAI-compatible provider |
+| `baldric` | 打开交互式 TUI |
+| `baldric "<prompt>"` | 打开 TUI 并附带初始 prompt |
+| `baldric update` | 用拥有当前环境的安装器升级 Baldric。Windows 上 uv-tool 的更新会被移交并在 Baldric 退出后开始；按打印的日志路径查看最终结果。 |
+| `baldric update --models` | 强制刷新 models.dev 目录并缓存到 `~/.baldric/models-store.json`，不升级 Baldric。 |
+| `baldric install <source> [--force]` | 在 `~/.baldric/extensions/` 安装受信任的本地或 Git extension；`--force` 替换已存在的安装。 |
+| `baldric sessions` | 列出已索引的 session（id、标题、model、cwd） |
+| `baldric export <ref> [dest] [--format html\|jsonl]` | 按 session id 或 JSONL 路径导出（默认 HTML） |
+| `baldric --export <ref> [dest]` | 与 `baldric export` 相同，作为顶级旗标 |
+| `baldric providers` | 列出已配置的 provider 及各自的认证方式 |
+| `baldric [setup options] setup` | 创建/更新一个 OpenAI 兼容 provider |
 
-## Options
+## 选项
 
-| Flag | Description |
+| 旗标 | 说明 |
 | --- | --- |
-| `-p, --print` | Run the positional prompt in non-interactive print mode |
-| `-m, --model TEXT` | Model to request from the provider |
-| `--provider TEXT` | Configured provider name to use |
-| `-t, --thinking LEVEL` | Initial [thinking level](/how-to/context/#thinking-modes) for this run (`off`…`max`); overrides remembered defaults without persisting, errors if the model doesn't support it |
-| `--cwd PATH` | Working directory for the built-in tools |
-| `--mode [text\|json\|transcript\|rpc]` | Select headless output; `rpc` starts the JSONL subprocess protocol |
-| `--session TEXT` | Resume a session id in the TUI or print mode |
-| `--new-session` | Start a new session instead of resuming the default |
-| `--session-id TEXT` | Set the exact id for a newly created print-mode session; errors if it already exists |
-| `--system-prompt TEXT_OR_PATH` | Replace Baldric's default system-prompt base with literal text or an existing UTF-8 file |
-| `--append-system-prompt TEXT_OR_PATH` | Append literal text or an existing UTF-8 file (repeatable) |
-| `--auto-compact-threshold INT` | Auto-compact above this rough token estimate |
-| `-e, --extension PATH` | Load an [extension](/how-to/extensions/) file or directory (repeatable) |
-| `--no-extensions` | Disable extension directory discovery (explicit `-e` paths still load) |
-| `--project-extensions` | Also load trusted `<project>/.baldric/extensions`; project trust and this code opt-in are both required |
-| `--show-full-output` | Start the TUI with untruncated tool and `!`-command output instead of previews; **Ctrl+O** toggles the same at runtime |
-| `-a, --approve` | Trust protected project inputs for this invocation only |
-| `-na, --no-approve` | Decline protected project inputs for this invocation only |
-| `-v, --version` | Print the version and exit |
+| `-p, --print` | 以非交互 print mode 运行位置 prompt |
+| `-m, --model TEXT` | 向 provider 请求的模型 |
+| `--provider TEXT` | 要使用的已配置 provider 名称 |
+| `-t, --thinking LEVEL` | 本次运行的初始 [thinking 级别](/how-to/context/#thinking-mode)（`off`…`max`）；覆盖已记住的默认值而不持久化，模型不支持时报错 |
+| `--cwd PATH` | 内置工具的工作目录 |
+| `--mode [text\|json\|transcript\|rpc]` | 选择无头输出；`rpc` 启动 JSONL 子进程协议 |
+| `--session TEXT` | 在 TUI 或 print mode 恢复一个 session id |
+| `--new-session` | 开始新 session 而不是恢复默认 |
+| `--session-id TEXT` | 为新建的 print-mode session 设定确切 id；已存在时报错 |
+| `--system-prompt TEXT_OR_PATH` | 用字面文本或存在的 UTF-8 文件替换 Baldric 的默认 system prompt 基底 |
+| `--append-system-prompt TEXT_OR_PATH` | 追加字面文本或存在的 UTF-8 文件（可重复） |
+| `--auto-compact-threshold INT` | 超过这个粗估 token 数就自动 compact |
+| `-e, --extension PATH` | 加载一个 [extension](/how-to/extensions/) 文件或目录（可重复） |
+| `--no-extensions` | 禁用 extension 目录发现（显式 `-e` 路径仍加载） |
+| `--project-extensions` | 同时加载受信任的 `<project>/.baldric/extensions`；项目信任与这个显式开关都必须满足 |
+| `--show-full-output` | 以不截断的工具与 `!` 命令输出启动 TUI（替代预览）；运行时 **Ctrl+O** 切换同样的效果 |
+| `-a, --approve` | 仅本次调用信任受保护的项目输入 |
+| `-na, --no-approve` | 仅本次调用拒绝受保护的项目输入 |
+| `-v, --version` | 打印版本并退出 |
 
-`baldric install` accepts local Python files, local package directories, Pi-style
-`git:github.com/owner/repository[@ref]` sources, and normal HTTP/SSH Git URLs.
-See [Extensions](/how-to/extensions/#install-an-extension)
-for package-layout, dependency, and security details.
+`baldric install` 接受本地 Python 文件、本地包目录、Pi 风格的 `git:github.com/owner/repository[@ref]` 源，以及普通的 HTTP/SSH Git URL。包布局、依赖与安全细节见 [Extensions](/how-to/extensions/#安装-extension)。
 
-`--approve` and `--no-approve` are mutually exclusive and never write the
-trust store. See [Project trust](/how-to/project-trust/)
-for interactive scopes, headless defaults, protected resources, and the
-non-sandbox boundary.
+`--approve` 与 `--no-approve` 互斥，且从不写信任库。交互范围、无头默认、受保护资源与非沙箱边界见[项目信任](/how-to/project-trust/)。
 
-### System prompt input
+### system prompt 输入
 
-`--system-prompt` replaces Baldric's default base prompt. Repeat
-`--append-system-prompt` to add sections in command-line order; Baldric separates each
-resolved value with exactly one blank line. Put these flags before the positional
-prompt, like other recognized options:
+`--system-prompt` 替换 Baldric 的默认基底 prompt。重复 `--append-system-prompt` 按命令行顺序追加区块；Baldric 用恰好一个空行分隔每个值。这些旗标像其他可识别选项一样放在位置 prompt 之前：
 
 ```bash
 baldric --system-prompt "You are a focused reviewer." \
@@ -89,72 +71,46 @@ baldric --system-prompt "You are a focused reviewer." \
   -p "review this repository"
 ```
 
-For either option, Baldric reads the value as a UTF-8 file when that path exists.
-Otherwise it uses the value verbatim, so a nonexistent path is literal prompt
-text. Existing directories, unreadable files, and invalid UTF-8 files stop
-startup with an error naming the option and path. `~` is expanded when checking
-for a file.
+对这两个选项，Baldric 在路径存在时按 UTF-8 文件读取；否则原样使用该值，所以不存在的路径就是字面 prompt 文本。已存在的目录、不可读文件与无效 UTF-8 文件会以指出选项与路径的错误终止启动。`~` 在检查文件时展开。
 
-A custom base still receives appended text, discovered project instructions,
-eligible skills when the `read` tool is enabled, the current date, and the
-working directory. The options apply to print mode and interactive startup;
-when used with `--session`, they configure the resumed session's next provider
-request. They are startup controls and are not stored in session history, so
-pass them again on a later resume when needed.
+自定义基底仍会收到追加文本、发现的项目指令、启用 `read` 工具时合格的 skill、当前日期与工作目录。这些选项对 print mode 与交互启动都生效；与 `--session` 同用时它们配置被恢复 session 的下一次 provider 请求。它们是启动控制项，不存入 session 历史，之后再恢复时需要重新传入。
 
-Baldric also discovers `SYSTEM.md` and `APPEND_SYSTEM.md` under the project or user
-`.baldric` directory. A CLI replacement wins over trusted project and user
-`SYSTEM.md` files. Append content is cumulative: user `APPEND_SYSTEM.md`, then
-trusted project `APPEND_SYSTEM.md`, then repeated CLI values. Use `/reload` after
-changing a file. These are Baldric-specific configuration files, not `.agents`
-resources. See
-[Configuration & files](/reference/configuration/#system-prompt-files)
-for paths, precedence, diagnostics, and the project-resource security warning.
+Baldric 也在项目或用户 `.baldric` 目录下发现 `SYSTEM.md` 与 `APPEND_SYSTEM.md`。CLI 替换值优先于受信任的项目与用户 `SYSTEM.md` 文件。追加内容是累计的：用户 `APPEND_SYSTEM.md`，然后受信任项目 `APPEND_SYSTEM.md`，然后按 CLI 顺序的重复值。改完文件用 `/reload`。这些是 Baldric 专属配置文件，不是 `.agents` 资源。路径、优先级、诊断与项目资源安全警告见 [Configuration & files](/reference/configuration/#system-prompt-文件)。
 
-### Resume in print mode
+### print mode 恢复
 
-Use `--print` and `--session` together to append a non-interactive follow-up to
-an existing conversation. Baldric loads the session's saved working directory,
-provider, model, and conversation history:
+`--print` 与 `--session` 同用可向既有对话追加一次非交互 follow-up。Baldric 加载该 session 已保存的工作目录、provider、model 与对话历史：
 
 ```bash
 baldric --print --session <session-id> "Follow-up message"
 ```
 
-Explicit `--provider`, `--model`, and system-prompt options override the saved
-startup choices for this invocation. After configuring a local backend in the
-TUI, pass its provider and exact discovered model explicitly in print mode:
+显式的 `--provider`、`--model` 与 system-prompt 选项为本次调用覆盖已保存的启动选择。在 TUI 配置好本地 backend 后，在 print mode 里显式传入它的 provider 与确切发现的模型：
 
 ```bash
 baldric --provider llama.cpp --model <model-id> --print "summarize this project"
 ```
 
-Baldric does not run `/local` setup or select a model implicitly headlessly. An
-endpoint-keyed safe snapshot can let an explicit local startup continue while
-llama.cpp is temporarily down; a first-time explicit model still needs discovery.
-`--session` cannot be combined with
-`--new-session` or `--session-id`. An unknown session id exits with an error.
+Baldric 不会在无头模式下运行 `/local` 设置或隐式选择模型。按端点键控的安全快照可以在 llama.cpp 暂时宕机时支撑显式启动；首次的显式模型仍需发现。`--session` 不能与 `--new-session` 或 `--session-id` 组合。未知 session id 以错误退出。
 
-`--resume`, `--prompt`, `-o/--output`, and `-x` are removed; each now exits
-with an error naming its replacement (`--session`, `--print`, `--mode`, and
-`-e/--extension`, respectively).
+`--resume`、`--prompt`、`-o/--output` 与 `-x` 已移除；现在各自以错误退出并指名替代项（分别是 `--session`、`--print`、`--mode` 与 `-e/--extension`）。
 
-### Provider setup options
+### provider setup 选项
 
-Baldric's setup mode registers an OpenAI-compatible provider. Put these flags before the final `setup` argument:
+Baldric 的 setup 模式注册一个 OpenAI 兼容 provider。这些旗标放在最后的 `setup` 参数之前：
 
-| Flag | Default | Description |
+| 旗标 | 默认 | 说明 |
 | --- | --- | --- |
-| `--provider TEXT` | `openai` | Provider name to create/update |
-| `--model TEXT` | default model | Default model for the provider |
-| `--base-url TEXT` | OpenAI URL | OpenAI-compatible base URL |
-| `--api-key-env TEXT` | `OPENAI_API_KEY` | Env var holding the API key |
-| `--timeout-seconds FLOAT` | `60.0` | HTTP timeout |
-| `--max-retries INT` | `2` | Retry count for transient failures |
-| `--max-retry-delay-seconds FLOAT` | `1.0` | Delay between retries |
-| `--set-default / --no-set-default` | set-default | Make this the default provider |
+| `--provider TEXT` | `openai` | 要创建/更新的 provider 名称 |
+| `--model TEXT` | 默认模型 | 该 provider 的默认模型 |
+| `--base-url TEXT` | OpenAI URL | OpenAI 兼容 base URL |
+| `--api-key-env TEXT` | `OPENAI_API_KEY` | 存放 API key 的环境变量名 |
+| `--timeout-seconds FLOAT` | `60.0` | HTTP 超时 |
+| `--max-retries INT` | `2` | 瞬时失败的重试次数 |
+| `--max-retry-delay-seconds FLOAT` | `1.0` | 重试间隔 |
+| `--set-default / --no-set-default` | set-default | 设为默认 provider |
 
-Example:
+示例：
 
 ```bash
 baldric --provider local \
@@ -164,5 +120,4 @@ baldric --provider local \
   setup
 ```
 
-See also: [RPC protocol](/reference/rpc/), [Slash commands](/reference/slash-commands/) (in-session), and
-[Keyboard shortcuts](/reference/keybindings/).
+另见：[RPC 协议](/reference/rpc/)、[slash 命令](/reference/slash-commands/)（会话内）、[键盘快捷键](/reference/keybindings/)。

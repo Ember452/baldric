@@ -1,251 +1,161 @@
 ---
 title: Sessions
-description: Resume past conversations, branch from any point in history, rename sessions, and export them.
+description: 恢复过去的对话、从历史任意点分支、重命名 session 并导出它们。
 ---
 
-Every Baldric conversation is a **session**, saved to disk so you can come back to
-it. Sessions are stored as append-only JSONL under `~/.baldric/sessions/`, organized
-per working directory, so resume flows focus on the project you're in.
+每段 Baldric 对话都是一个 **session**，保存到磁盘以便之后回来。session 以 append-only JSONL 存放在 `~/.baldric/sessions/` 下，按工作目录组织，恢复流程聚焦于你当前所在的项目。
 
-## Listing sessions
+## 列出 session
 
 ```bash
 baldric sessions
 ```
 
-Each row shows the session id, title, model, and working directory.
+每行显示 session id、标题、model 与工作目录。
 
-## Resuming
+## 恢复
 
-From the shell:
+从 shell：
 
 ```bash
 baldric --session <session-id>
 ```
 
-From inside the TUI:
+在 TUI 内：
 
 ```text
-/resume            # open a picker of past sessions
-/resume <id>       # resume a specific session
+/resume            # 打开过往 session 的 picker
+/resume <id>       # 恢复指定的 session
 ```
 
-The `/resume` picker presents projects and recent sessions as contiguous
-Finder-style columns in one browser. The project column uses compact folder
-names without session counts; the selected project's full path appears above
-the session column. Its shell opens immediately, then the current project and
-other project indexes load in the background. Press
-**Left** to move to the project column, use **Up/Down** to choose another
-project, then press **Right** to return to its sessions. Press **Enter** (or
-click) to resume one. Press **Ctrl+Enter** to archive the highlighted session.
-When the project column is active, **Ctrl+Enter** archives that whole project.
-Choose
-the **Archived** tab above the picker to review archived projects and sessions.
-Press **F2** anywhere in the picker to open that tab; press **Enter** on an
-archived session to restore it, or on an archived project
-to restore all of its sessions. Restored items return to the **Active** tab.
-Archiving never deletes session files or project directories.
+`/resume` picker 把项目与最近 session 呈现为连续的 Finder 式栏位浏览器。项目栏用不带 session 计数的紧凑文件夹名；所选项目的完整路径显示在 session 栏上方。其 shell 立即打开，当前项目与其他项目索引随后在后台加载。按
+**Left** 移到项目栏，用 **Up/Down** 选另一个
+项目，再按 **Right** 回到其 session。按 **Enter**（或点击）恢复一个。按 **Ctrl+Enter** 归档高亮的 session。
+项目栏活动时，**Ctrl+Enter** 归档整个项目。选
+picker 上方的 **Archived** 标签页检视已归档的项目与 session。
+在 picker 任意处按 **F2** 打开该标签页；对已归档 session 按 **Enter** 恢复它，对已归档项目按 **Enter**
+恢复其全部 session。恢复的条目回到 **Active** 标签页。
+归档从不删除 session 文件或项目目录。
 
-The search field filters session names and models within the selected project.
+搜索框在所选项目内过滤 session 名与模型。
 
-To deliberately start fresh instead of resuming, use `baldric --new-session` (or
-`/new` in the TUI).
+想有意重新开始而不是恢复，用 `baldric --new-session`（TUI 里是
+`/new`）。
 
-When you quit the TUI and the session was persisted, Baldric prints a reminder of
-the exact command to resume it:
+退出 TUI 且 session 已持久化时，Baldric 打印恢复它的确切命令作为提醒：
 
 ```text
 To resume this session: baldric --session <session-id>
 ```
 
-## Branching from history (`/tree`)
+## 从历史分支（`/tree`）
 
-A session is a *tree*, not just a line — so you can go back and try a different
-path without losing what you had.
+session 是一棵*树*，不只是一条线——你可以回到过去尝试不同的路径，而不丢掉已有的东西。
 
-Run `/tree` to open the session tree, then select an earlier entry. At each
-fork, the child with the longest history is shown as the main branch. Alternate
-branches appear immediately after the parent, indented at the branch point,
-before the unindented main history continues.
+运行 `/tree` 打开 session 树，然后选择一个更早的 entry。每个分叉点上，历史最长的子分支显示为主分支。交替分支紧跟父节点之后、在分支点缩进显示，然后未缩进的主历史继续。
 
-- **Enter** — continue from that point, preserving the existing branch.
-- **S** — ask the active model for a structured summary of the messages you're
-  leaving behind before moving the active point.
-- **C** — provide custom focus instructions for that one summary.
-- **L** — create or edit a bookmark label on the highlighted entry. Submit an
-  empty label to clear it.
-- **Ctrl+F** — toggle a view containing only labeled entries.
-- **Ctrl+L** — show or hide when each visible label was last changed.
-- **Ctrl+T** — show or hide tool-call rows.
+- **Enter** — 从该点继续，保留既有分支。
+- **S** — 移动活动点之前，请活动模型为你要离开的消息生成结构化摘要。
+- **C** — 为这一次摘要提供自定义焦点指令。
+- **L** — 为高亮 entry 创建或编辑书签标签。提交空标签清除它。
+- **Ctrl+F** — 切换到只含带标签 entry 的视图。
+- **Ctrl+L** — 显示或隐藏每个可见标签的最近修改时间。
+- **Ctrl+T** — 显示或隐藏 tool-call 行。
 
-Labels render as `[label]` before the entry. They are per-entry bookmarks and
-remain attached to their entry across branches; they do not rename the session.
-Use `/name` for the separate session display title.
+标签渲染为 entry 前的 `[label]`。它们是每 entry 的书签，跨分支跟随其 entry；它们不重命名 session。session 的显示标题用 `/name` 单独设置。
 
-If a summary request fails, Baldric falls back to a deterministic summary.
+摘要请求失败时，Baldric 回退到确定性摘要。
 
-The active branch tip is the last session entry written. Plain **Enter**
-navigation is in-memory only: quitting before another action and reopening will
-return to the last non-legacy-leaf entry in file order. Your next message or
-state change uses the selected point as its parent, making the new branch the
-active persisted tip. **S** writes its branch summary immediately, so summarized
-navigation survives a restart even before another message.
+活动分支尖是最后写入的 session entry。纯 **Enter**
+导航只在内存中：在下一个动作前退出再重开，会回到文件顺序中最后一条非 legacy-leaf entry。你的下一条消息或状态变更以所选点为父，使新分支成为持久化的活动尖。**S** 立即写入其分支摘要，因此总结过的导航在重启后仍然有效，哪怕之后没再发消息。
 
-## Recovering older sessions
+## 恢复较旧的 session
 
-Older Baldric versions could leave malformed tool-call history when a run was
-interrupted. Providers reject that history, so every prompt in the resumed
-session could fail with a 400 error about a missing tool call or tool output.
+旧版 Baldric 可能在运行被中断时留下畸形的 tool-call 历史。provider 拒绝这种历史，被恢复 session 里的每个 prompt 都可能因缺失 tool call 或 tool 输出而报 400 错误。
 
-Baldric validates the active branch during resume and after `/tree` navigation. It
-repairs missing, misplaced, duplicate, or orphaned tool results by appending a
-provider-safe branch while preserving the original JSONL entries. A durable
-session diagnostic records what changed. Repeating resume is idempotent and does
-not append another repair when history is already valid.
+Baldric 在恢复时与 `/tree` 导航后校验活动分支。它通过追加 provider 安全的分支修复缺失、错位、重复或孤立的工具结果，同时保留原始 JSONL entry。持久的 session 诊断记录改了什么。重复恢复是幂等的，历史已有效时不会追加另一次修复。
 
-A crash can also leave a partial final line in a transcript, which used to make
-the session unreadable. Baldric now drops only that incomplete line and keeps
-every complete record before it; corruption anywhere else still fails loudly.
-Reads never rewrite a transcript: the torn tail is repaired the next time
-something is appended. The session index behaves the same way — a damaged record
-is skipped, reported, and the index is rewritten from the surviving entries, so
-one bad line cannot hide every session in that project.
+崩溃还可能在 transcript 里留下残缺的最后一行，这曾让 session 不可读。Baldric 现在只丢弃那条不完整的行，保留其前每条完整记录；其他任何位置的损坏仍然响亮失败。读操作从不改写 transcript：撕裂的尾部在下一次追加时修复。session 索引行为相同——损坏的记录被跳过并报告，索引从幸存 entry 重写，一条坏行藏不住该项目里的所有 session。
 
-## Renaming
+## 重命名
 
-New sessions are automatically given a short name from the first message when
-Baldric can generate one. Baldric shows the confirmed message first—including the
-expanded text from a prompt-template slash command—then sends the naming request
-alongside the agent's reply, so naming delays neither the transcript nor the
-response. The name appears anywhere session names are already shown, including
-the `/resume` picker and id completions.
+Baldric 能生成时，新 session 会自动从第一条消息获得短名。Baldric 先显示已确认的消息——包括经 prompt-template slash 命令展开的文本——再与 agent 回复并行发送命名请求，命名不拖延 transcript 也不拖延响应。名字出现在一切已显示 session 名的地方，包括
+`/resume` picker 与 id 补全。
 
-Auto-naming makes one high-level provider request. The provider adapter may retry
-transient failures according to its configured `max_retries`. If those attempts
-are exhausted, or the response is not a usable title, Baldric does not start another
-naming request: the session continues normally and uses a short local fallback
-when possible.
+自动命名发一次高层 provider 请求。provider 适配器可按其配置的 `max_retries` 重试瞬时失败。重试耗尽或响应不是可用标题时，Baldric 不再发起另一次命名请求：session 正常继续，并在可能时使用短的本地回退。
 
 ```text
 /name My refactor session
 ```
 
-Use `/name` at any time to manually override the automatic name. Baldric will not
-replace a name you set yourself.
+随时用 `/name` 手动覆盖自动名。Baldric 不会替换你自己设的名字。
 
-## Exporting
+## 导出
 
-Export a session to a shareable file:
+把 session 导出为可分享的文件：
 
 ```text
-/export                              # HTML, into the current directory
-/export --format jsonl               # raw JSONL
-/export --format html report.html    # explicit destination
+/export                              # HTML，输出到当前目录
+/export --format jsonl               # 原始 JSONL
+/export --format html report.html    # 显式目标
 ```
 
-Or from the shell:
+或从 shell：
 
 ```bash
-baldric export <session-id>                     # HTML (default)
+baldric export <session-id>                     # HTML（默认）
 baldric export <session-id> session.html
 baldric export <session-id> --format jsonl
 ```
 
-The source can be an indexed session id **or** a path to a JSONL session file.
-After a successful `/export`, Baldric shows the destination in the TUI transcript.
-This status is display-only: it is not saved to session history or sent to the
-model as context.
+来源可以是已索引的 session id **或** JSONL session 文件的路径。`/export` 成功后，Baldric 在 TUI transcript 里显示目标路径。该状态仅用于显示：不保存进 session 历史，也不作为 context 发给模型。
 
-HTML exports are self-contained and include two tabs: **Transcript** preserves
-the session tree and entries in storage order, while **Usage** summarizes the
-active branch's model requests, including the requests that generate compaction
-and branch summaries, prompt caching, output and reasoning tokens, estimated
-API-rate cost, tool calls, and compactions. Summary-generation requests are
-labeled separately in the request table rather than blended into assistant turns.
-Usage charts are
-interactive—hover for exact values and select a legend item to hide a
-series—and can be downloaded as static PNG images with white backgrounds. The
-export follows Baldric's themes: baldric-light in light mode and baldric-dark in dark mode,
-with charts recoloring live when you toggle the theme. When `/export` creates
-HTML from the live session, it also includes the current
-system prompt in a separate, collapsed **System Prompt** section. Review that
-section before sharing: the prompt may expose project instructions, skill
-guidance, paths, or other local context. Offline
-`baldric export` of an indexed session or arbitrary JSONL file omits this section
-because session JSONL does not persist the prompt.
+HTML 导出自包含并含两个标签页：**Transcript** 按存储顺序保留 session 树与 entry，**Usage** 汇总活动分支的模型请求，包括生成 compaction 与分支摘要的请求、prompt 缓存、输出与 reasoning token、估算的 API 费率成本、tool 调用与 compaction。摘要生成请求在请求表中单独标注，不混入 assistant 轮次。用量图表是
+交互式的——悬停看确切数值，点图例可隐藏一条曲线——并可下载为白底静态 PNG。导出跟随 Baldric 的主题：浅色模式用 baldric-light、深色模式用 baldric-dark，切换主题时图表实时重新着色。`/export` 从活动 session 生成 HTML 时，还会在单独折叠的 **System Prompt** 区块里包含当前
+system prompt。分享前请检查该区块：prompt 可能暴露项目指令、skill
+指引、路径或其他本地 context。对已索引 session 或任意 JSONL 文件的离线
+`baldric export` 省略该区块，因为 session JSONL 不持久化 prompt。
 
-The system prompt is display-only export metadata, not a transcript entry.
-Direct JSONL exports and JSONL downloaded from the HTML remain entry-only and do
-not contain it.
+system prompt 是仅显示的导出元数据，不是 transcript entry。
+直接 JSONL 导出与从 HTML 下载的 JSONL 仍只含 entry，不包含它。
 
-New compaction entries store a `first_kept_entry_id` boundary: replay inserts the
-summary, then keeps that active-path entry and everything after it. This is a fixed-size,
-Pi-compatible replacement for older Baldric files' `replaces_entry_ids` arrays. Older arrays
-remain readable and take precedence during replay, so exporting or resuming a legacy
-session does not change its message history. HTML entry details show the first-kept
-boundary for modern compactions and identify unavailable legacy boundaries.
+新的 compaction entry 存储 `first_kept_entry_id` 边界：回放插入摘要，然后保留该活动路径 entry 及其后的一切。这是对旧版 Baldric 文件 `replaces_entry_ids` 数组的定长、Pi 兼容替代。旧数组保持可读并在回放时优先，导出或恢复 legacy session 不改变其消息历史。HTML 的 entry 细节为现代 compaction 显示 first-kept 边界，并标出不可用的 legacy 边界。
 
-The export header starts with a compact summary of total entries, messages,
-tools, session events, and elapsed duration. A timestamp timeline below the
-summary groups message, tool, and event markers into separate lanes; selecting
-a marker jumps to that entry. Every transcript entry is a compact accordion row
-(icon, title, one-line preview, timestamp) that expands to reveal the full
-content; thinking blocks, tool-call arguments, and tool-result details are
-nested accordions. The export header includes controls to:
+导出头部以总 entry、消息、工具、session 事件与耗时的紧凑摘要开始。摘要下方的时间戳时间线把消息、工具与事件标记分入独立泳道；选中标记跳到该 entry。每条 transcript entry 是一行紧凑的手风琴行（图标、标题、单行预览、时间戳），展开可见完整内容；thinking 块、tool-call 参数与工具结果细节是嵌套手风琴。导出头部提供控件：
 
-- show or hide tool calls and tool results in both the transcript and session
-  tree—the chip filters show how many entries of each kind the session contains
-- expand or collapse every accordion in the transcript with one button
-- hide session events—such as session info, model and thinking changes,
-  compactions, labels, and custom entries—to focus on user and assistant messages
-- download the session as a JSONL file—the complete entry data is embedded in
-  the page, so the download works offline and includes every entry (including
-  historical `leaf` records from older Baldric versions)
+- 在 transcript 与 session 树中显示或隐藏 tool call 与 tool result——芯片过滤器显示 session 含每类多少 entry
+- 一个按钮展开或折叠 transcript 里所有手风琴
+- 隐藏 session 事件——session 信息、模型与 thinking 变更、compaction、标签、自定义 entry——聚焦用户与 assistant 消息
+- 把 session 下载为 JSONL 文件——完整 entry 数据内嵌在页面里，下载可离线工作并包含每条 entry（包括旧版 Baldric 的历史 `leaf` 记录）
 
-Tool rows are titled `Tool: <name>` (for example, `Tool: read`), and the
-session tree labels tool entries with just the tool name for readability.
-Resolved bookmark labels also appear as `[label]` prefixes on their target tree
-nodes; label change entries remain available in the entry stream for auditing.
+工具行标题为 `Tool: <name>`（例如 `Tool: read`），session 树为可读性只用工具名标注工具 entry。已解析的书签标签也以 `[label]` 前缀出现在其目标树节点上；标签变更 entry 仍在 entry 流中可审计。
 
-Extension-injected model context is stored as a first-class `custom_message`
-entry. Its `custom_type` identifies the extension, while `content`, `details`,
-and `display` preserve its payload and presentation choice. `display: false`
-keeps the content in model context but hides it from the TUI and the visible
-HTML transcript; the complete entry remains in JSONL exports. Older Baldric files
-that stored these as a generic `message` with `role: "custom"`, or as a Baldric-v1
-user message with `custom_type`, are normalized when loaded and replay the same
-context.
+Extension 注入的模型 context 存为一等 `custom_message`
+entry。其 `custom_type` 标识 extension，`content`、`details`
+与 `display` 保留载荷与呈现选择。`display: false` 让内容保留在模型 context 中，但在 TUI 与可见的
+HTML transcript 中隐藏；完整 entry 保留在 JSONL 导出中。把它存为通用 `role: "custom"` `message`、或存为带 `custom_type` 的 Baldric-v1 用户消息的旧文件，加载时被归一化并回放相同 context。
 
-Baldric's persisted entry wrappers use snake_case names such as `parent_id` and
-`custom_type`. The Pi-compatible RPC inspection API projects those fields as
-`parentId` and `customType`; see the [RPC reference](/reference/rpc/).
+Baldric 持久化的 entry 包装字段用 snake_case，如 `parent_id` 与
+`custom_type`。Pi 兼容的 RPC 检视 API 把这些字段投影为
+`parentId` 与 `customType`；见 [RPC 参考](/reference/rpc/)。
 
-## Where sessions live
+## session 存放在哪里
 
 ```text
 ~/.baldric/sessions/<cleaned-path>-<short-hash>/
 ```
 
-For example, `/Users/you/repos/baldric` becomes something like
-`repos-baldric-a1b2c3`. The original JSONL is append-only. New Baldric versions do not
-write separate `leaf` pointer records; the last non-`leaf` entry in file order
-is the active tip. Older files containing `leaf` records remain readable, but
-those records do not override file-order tip selection. Compaction and
-branching change the *active* view, never the recorded history. A label change
-is stored as `{"type":"label","target_id":"<entry-id>","label":"checkpoint"}`;
-`null` or an empty label clears the target's bookmark. Pre-bookmark Baldric files
-whose label entries lack `target_id` load deterministically as a bookmark on the
-earliest branchable entry.
+例如 `/Users/you/repos/baldric` 变成类似
+`repos-baldric-a1b2c3`。原始 JSONL 是 append-only 的。新版 Baldric 不再写单独的 `leaf` 指针记录；文件顺序中最后一条非 `leaf` entry
+是活动尖。包含 `leaf` 记录的旧文件保持可读，但这些记录不覆盖文件顺序的尖选择。compaction 与
+分支只改变*活动*视图，从不改变已记录历史。标签变更存为 `{"type":"label","target_id":"<entry-id>","label":"checkpoint"}`；
+`null` 或空标签清除目标的书签。书签功能之前、label entry 缺 `target_id` 的 Baldric 文件，确定性地加载为最早可分支 entry 上的书签。
 
-New compaction and branch-summary entries include optional `usage`, `provider`,
-`model`, and `response_provider` fields for the model call that generated the
-summary. `response_provider` identifies the resolved backend when a routing
-service reports one. The `usage` field uses the same shape as assistant messages (`input`, `output`,
-`cacheRead`, `cacheWrite`, optional `cacheWrite1H` and `reasoning`, `totalTokens`,
-and `cost`). If more than one completion contributes to a summary, Baldric stores
-the field-wise total. Older entries and heuristic branch-summary fallbacks omit
-`usage`; they continue to load normally and do not add a zero-cost request to
-usage analytics.
+新的 compaction 与 branch-summary entry 为生成摘要的那次模型调用携带可选的 `usage`、`provider`、
+`model` 与 `response_provider` 字段。路由服务上报时，`response_provider` 标识解析出的后端。`usage` 字段形状与 assistant 消息相同（`input`、`output`、
+`cacheRead`、`cacheWrite`、可选 `cacheWrite1H` 与 `reasoning`、`totalTokens`、
+`cost`）。多个 completion 共同贡献一个摘要时，Baldric 存逐字段总和。旧 entry 与启发式 branch-summary 回退省略
+`usage`；它们照常加载，且不往用量分析里加零成本请求。
 
-See
-[Configuration](/reference/configuration/#sessions) for the exact layout.
+确切布局见
+[Configuration](/reference/configuration/#sessions)。
