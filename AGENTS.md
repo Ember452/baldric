@@ -152,6 +152,7 @@ Before changing a package, read the nearest scoped instructions:
 - `src/baldric/ai/AGENTS.md` - provider and model streaming layer
 - `src/baldric/agent/AGENTS.md` - portable agent harness
 - `src/baldric/runtime/AGENTS.md` - CLI, session, TUI, and extensions
+- `docs/AGENTS.md` - documentation placement and writing rules
 
 ## Project Roadmap
 
@@ -220,7 +221,7 @@ Do not let Textual become a dependency of the reusable agent harness.
 
 ## Documentation Expectations
 
-Each substantial phase should leave behind beginner-friendly notes under `dev-notes/` (build journals, design docs, ADRs), explaining:
+Each substantial phase should leave behind beginner-friendly notes under `docs/internal/` (build journals, design docs, ADRs), explaining:
 
 - what was added
 - why it exists
@@ -228,5 +229,5 @@ Each substantial phase should leave behind beginner-friendly notes under `dev-no
 - how to test or use it
 
 When a phase adds or changes user-facing behavior, also update the published docs
-under `website/content/` (the "Use Baldric" guides and reference).
+under `docs/user/` (the "Use Baldric" guides and reference).
 
