@@ -1,14 +1,14 @@
 ---
-title: "Phase 1: Core Types and Events"
+title: "Phase 1：核心类型与事件"
 ---
 
-Phase 1 creates the shared vocabulary for Baldric's future agent loop.
+Phase 1 创建 Baldric 未来 agent loop 的共享词汇。
 
-Before Baldric can talk to a model, execute tools, save sessions, or render a UI, every layer needs to agree on the shape of the data flowing through the system. That is what the core message, tool, JSON, and event types provide.
+在 Baldric 能与模型对话、执行工具、保存 session 或渲染 UI 之前，每个层需要就流经系统的数据形状达成一致。这就是核心 message、tool、JSON 与 event 类型提供的东西。
 
-## What was added
+## 加了什么
 
-Phase 1 added four modules in `baldric_agent`:
+Phase 1 在 `baldric_agent` 加了四个模块：
 
 ```text
 src/baldric_agent/types.py      JSON-like shared type aliases
@@ -17,13 +17,13 @@ src/baldric_agent/tools.py      tool calls, tools, and tool results
 src/baldric_agent/events.py     event models emitted by the agent layer
 ```
 
-These modules are provider-neutral and UI-neutral. They do not mention Anthropic, OpenAI, Rich, Textual, Typer, local files, or terminal rendering.
+这些模块 provider 中立、UI 中立。不提 Anthropic、OpenAI、Rich、Textual、Typer、本地文件或终端渲染。
 
-## Why messages exist
+## 消息为什么存在
 
-Messages represent the transcript: the conversation state that the agent and model work with.
+消息代表 transcript：agent 与模型协作的对话状态。
 
-Baldric currently defines:
+Baldric 目前定义：
 
 - `UserMessage`
 - `AssistantMessage`
@@ -32,17 +32,17 @@ Baldric currently defines:
 
 ### `UserMessage`
 
-A `UserMessage` stores text written by the user.
+`UserMessage` 存储用户写的文本。
 
 ```python
 UserMessage(content="Read README.md")
 ```
 
-Later, the harness will append one of these whenever a user submits a prompt.
+之后，harness 会在用户提交 prompt 时追加一条。
 
 ### `AssistantMessage`
 
-An `AssistantMessage` stores assistant text and optional tool calls.
+`AssistantMessage` 存储 assistant 文本与可选 tool call。
 
 ```python
 AssistantMessage(
@@ -51,17 +51,17 @@ AssistantMessage(
 )
 ```
 
-This is important because assistants can do two things in one turn:
+这很重要，因为 assistant 一轮可以做两件事：
 
-1. produce visible text
-2. request tool execution
+1. 产出可见文本
+2. 请求工具执行
 
-The future agent loop will collect streamed model output into an `AssistantMessage`.
-If the message has tool calls, the loop will execute those tools and continue.
+未来的 agent loop 会把流式模型输出收集进 `AssistantMessage`。
+消息带 tool call 时，循环执行那些工具并继续。
 
 ### `ToolResultMessage`
 
-A `ToolResultMessage` stores the result of a specific tool call.
+`ToolResultMessage` 存储一次具体 tool call 的结果。
 
 ```python
 ToolResultMessage(
@@ -72,7 +72,7 @@ ToolResultMessage(
 )
 ```
 
-The model needs tool results in the transcript so it can continue reasoning after a tool runs. For example:
+模型需要 transcript 里的工具结果，才能在工具运行后继续推理。例如：
 
 ```text
 User asks to read README.md
@@ -84,19 +84,19 @@ Assistant sees file contents and answers
 
 ### `AgentMessage`
 
-`AgentMessage` is the union of all message types. It lets later APIs accept a transcript as:
+`AgentMessage` 是所有消息类型的联合。它让后续 API 以
 
 ```python
 list[AgentMessage]
 ```
 
-without caring whether each item is from the user, assistant, or a tool.
+接受 transcript，而不必关心每条来自用户、assistant 还是工具。
 
-## Why tool types exist
+## 工具类型为什么存在
 
-Tools are how the assistant asks Baldric to interact with the environment.
+工具是 assistant 请 Baldric 与环境交互的方式。
 
-Baldric currently defines:
+Baldric 目前定义：
 
 - `ToolCall`
 - `AgentTool`
@@ -104,7 +104,7 @@ Baldric currently defines:
 
 ### `ToolCall`
 
-A `ToolCall` is not the tool itself. It is a request to run a named tool with JSON-like arguments.
+`ToolCall` 不是工具本身。它是用类 JSON 参数运行某个具名工具的请求。
 
 ```python
 ToolCall(
@@ -114,31 +114,31 @@ ToolCall(
 )
 ```
 
-Future provider adapters will translate provider-specific tool call payloads into this neutral Baldric shape.
+未来的 provider 适配器把 provider 特定的 tool call 载荷翻译成这个中立的 Baldric 形状。
 
 ### `AgentTool`
 
-An `AgentTool` describes a tool Baldric can expose to a model.
+`AgentTool` 描述一个 Baldric 可以暴露给模型的工具。
 
-It contains:
+它包含：
 
-- a `name`
-- a human-readable `description`
-- an `input_schema`
-- an async `executor`
+- `name`
+- 人类可读的 `description`
+- `input_schema`
+- 异步 `executor`
 
-The coding-agent layer will later register built-in tools like:
+编码 agent 层之后会注册内置工具：
 
 - `read`
 - `write`
 - `edit`
 - `bash`
 
-But the portable agent loop only needs to know that an `AgentTool` can be executed with arguments and returns an `AgentToolResult`.
+但可移植的 agent loop 只需要知道 `AgentTool` 能带参数执行并返回 `AgentToolResult`。
 
 ### `AgentToolResult`
 
-An `AgentToolResult` is the structured output from a tool execution.
+`AgentToolResult` 是工具执行的结构化输出。
 
 ```python
 AgentToolResult(
@@ -149,25 +149,25 @@ AgentToolResult(
 )
 ```
 
-Later, the loop will convert tool results into `ToolResultMessage` objects and append them to the transcript.
+之后，loop 把工具结果转成 `ToolResultMessage` 并追加进 transcript。
 
-## Why JSON types exist
+## JSON 类型为什么存在
 
-Tool arguments and provider payloads need to be JSON-like because model APIs exchange structured data as JSON.
+工具参数与 provider 载荷需要类 JSON，因为模型 API 以 JSON 交换结构化数据。
 
-Baldric defines shared aliases for:
+Baldric 定义共享别名：
 
 - `JSONPrimitive`
 - `JSONValue`
 - `JSONObject`
 
-These keep tool schemas, tool arguments, event data, and provider-neutral payloads type-safe without tying them to a specific provider SDK.
+这让工具 schema、工具参数、事件数据与 provider 中立载荷保持类型安全，而不绑定特定 provider SDK。
 
-## Why events exist
+## 事件为什么存在
 
-Events are how the reusable agent layer reports progress without knowing who is listening.
+事件是可复用 agent 层报告进展、却不知道谁在监听的方式。
 
-This is the key design:
+这是关键设计：
 
 ```text
 Agent loop emits events
@@ -178,17 +178,17 @@ Textual TUI consumes events
 Tests can inspect events
 ```
 
-Baldric currently defines events for:
+Baldric 目前为以下内容定义事件：
 
 - agent start/end
 - turn start/end
-- assistant message start/delta/end
-- tool execution start/update/end
-- errors
+- assistant 消息 start/delta/end
+- 工具执行 start/update/end
+- 错误
 
-## How events will flow in the future
+## 事件未来如何流动
 
-A future prompt run might produce this sequence:
+未来的一次 prompt 运行可能产生这样的序列：
 
 ```text
 agent_start
@@ -207,43 +207,43 @@ turn_end
 agent_end
 ```
 
-The important part is that the same event stream can power multiple frontends.
-The core loop does not need `print()`, Rich panels, or Textual widgets.
+要点是同一条事件流可以驱动多个 frontend。
+内核循环不需要 `print()`、Rich 面板或 Textual 组件。
 
-## How Phase 1 supports later phases
+## Phase 1 如何支撑后续阶段
 
-### Phase 2: provider layer
+### Phase 2：provider 层
 
-Providers translate external model streams into Baldric messages, tool calls, and
-provider-neutral events.
+provider 把外部模型流翻译成 Baldric 消息、tool call 与
+provider 中立事件。
 
-### Phase 3: pure agent loop
+### Phase 3：纯 agent loop
 
-The loop uses these types to:
+loop 用这些类型：
 
-1. send messages to a provider
-2. collect assistant output
-3. detect tool calls
-4. execute `AgentTool`s
-5. append `ToolResultMessage`s
-6. emit `AgentEvent`s throughout
+1. 向 provider 发送消息
+2. 收集 assistant 输出
+3. 检测 tool call
+4. 执行 `AgentTool`
+5. 追加 `ToolResultMessage`
+6. 全程发出 `AgentEvent`
 
-### Phase 4: harness
+### Phase 4：harness
 
-The harness maintains a transcript of `AgentMessage` objects and exposes
-higher-level methods like `prompt()` and `continue_()`.
+harness 维护一份 `AgentMessage` transcript 并暴露
+`prompt()` 与 `continue_()` 这类更高层方法。
 
-### Phase 6 and beyond: UI
+### Phase 6 及以后：UI
 
-Print mode, Rich rendering, JSON event streaming, and Textual consume
-`AgentEvent`s rather than reaching into loop, provider, or harness internals.
+print mode、Rich 渲染、JSON 事件流与 Textual 消费
+`AgentEvent`，而不伸进 loop、provider 或 harness 内部。
 
-### Phase 7: sessions
+### Phase 7：session
 
-Session persistence saves and replays message objects and related state changes.
-The message models give that persistence layer a stable base.
+session 持久化保存并回放消息对象与相关状态变更。
+消息模型给那层持久化一个稳定基底。
 
-## Design rule
+## 设计规则
 
-If a type belongs to the reusable agent brain, it lives in `baldric_agent`.
-If a type knows about command-line behavior, project files, slash commands, prompts, or UI rendering, it belongs outside the core agent package.
+类型属于可复用 agent 大脑，就住在 `baldric_agent`。
+类型知道命令行行为、项目文件、slash 命令、prompt 或 UI 渲染，就属于内核 agent 包之外。

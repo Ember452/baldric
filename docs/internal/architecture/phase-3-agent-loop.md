@@ -1,48 +1,48 @@
 ---
-title: "Phase 3: Pure Agent Loop"
+title: "Phase 3：纯 agent loop"
 ---
 
-Phase 3 adds Baldric's first real agent engine: a pure loop that connects a model provider, a transcript, and a set of tools.
+Phase 3 加了 Baldric 第一个真正的 agent 引擎：一条连接模型 provider、transcript 与一组工具的纯循环。
 
-The loop lives in:
+循环住在：
 
 ```text
 src/baldric_agent/loop.py
 ```
 
-It is called “pure” because it does not know about the CLI, Rich, Textual, slash commands, local session files, or project-specific resources. It only works with provider-neutral Baldric types.
+它叫"纯"，因为不知道 CLI、Rich、Textual、slash 命令、本地 session 文件或项目专属资源。它只与 provider 中立的 Baldric 类型协作。
 
-## What was added
+## 加了什么
 
-Phase 3 added:
+Phase 3 加了：
 
 - `run_agent_loop()`
-- transcript mutation for assistant messages and tool results
-- provider-event to agent-event conversion
-- sequential tool execution
-- unknown-tool handling
-- tool-exception handling
-- provider-error handling
-- optional max-turn protection
+- assistant 消息与工具结果的 transcript 变更
+- provider 事件到 agent 事件的转换
+- 顺序工具执行
+- 未知工具处理
+- 工具异常处理
+- provider 错误处理
+- 可选 max-turn 保护
 
-Later hardening added queue-drain hooks for steering/follow-up prompts and
-provider-neutral forwarding for retry and thinking/reasoning progress events.
+后续加固增加了 steering/follow-up prompt 的队列排水 hook，以及重试与 thinking/reasoning 进度事件的
+provider 中立转发。
 
-## The loop's inputs
+## 循环的输入
 
-`run_agent_loop()` receives:
+`run_agent_loop()` 接收：
 
-- a `ModelProvider`
-- a model name
-- a system prompt
-- a mutable list of `AgentMessage` objects
-- a list of registered `AgentTool` objects
-- an optional maximum turn count
-- an optional cancellation token
-- optional steering/follow-up queue drain callbacks
-- an optional queue-state callback for `QueueUpdateEvent`
+- 一个 `ModelProvider`
+- 模型名
+- system prompt
+- 可变的 `AgentMessage` 列表
+- 已注册 `AgentTool` 列表
+- 可选最大轮数
+- 可选取消 token
+- 可选 steering/follow-up 队列排水回调
+- 可选的 `QueueUpdateEvent` 队列状态回调
 
-Conceptually:
+概念上：
 
 ```python
 async for event in run_agent_loop(
@@ -55,11 +55,11 @@ async for event in run_agent_loop(
     ...
 ```
 
-The caller owns the transcript. The loop appends to that transcript as work completes.
+调用者拥有 transcript。循环在工作完成时向该 transcript 追加。
 
-## Basic text-only flow
+## 基本纯文本流程
 
-For a normal response with no tool calls, the flow is:
+无 tool call 的普通响应流程：
 
 ```text
 agent_start
@@ -72,19 +72,19 @@ turn_end
 agent_end
 ```
 
-Internally:
+内部：
 
-1. The loop asks the provider to stream a model response.
-2. Provider text deltas become `MessageDeltaEvent`s.
-3. The final provider response becomes an `AssistantMessage`.
-4. The assistant message is appended to the transcript.
-5. The loop stops because there are no tool calls.
+1. 循环请 provider 流式返回模型响应。
+2. provider 文本 delta 变成 `MessageDeltaEvent`。
+3. 最终 provider 响应变成 `AssistantMessage`。
+4. assistant 消息追加进 transcript。
+5. 没有 tool call，循环停止。
 
-## Tool-call flow
+## tool-call 流程
 
-If the assistant asks for tools, the loop executes them before stopping.
+assistant 请求工具时，循环在停止前执行它们。
 
-Example assistant message:
+assistant 消息示例：
 
 ```python
 AssistantMessage(
@@ -95,16 +95,16 @@ AssistantMessage(
 )
 ```
 
-The loop then:
+循环随后：
 
-1. finds the registered `AgentTool` named `read`
-2. emits `tool_execution_start`
-3. executes the tool asynchronously
-4. emits `tool_execution_end`
-5. appends a `ToolResultMessage`
-6. starts another model turn
+1. 找到名为 `read` 的已注册 `AgentTool`
+2. 发出 `tool_execution_start`
+3. 异步执行工具
+4. 发出 `tool_execution_end`
+5. 追加 `ToolResultMessage`
+6. 开始又一轮模型调用
 
-That second model turn sees the updated transcript:
+第二次模型轮看到更新后的 transcript：
 
 ```text
 UserMessage
@@ -112,24 +112,24 @@ AssistantMessage with tool call
 ToolResultMessage
 ```
 
-and can produce a final answer.
+并能产出最终答案。
 
-## Why the loop mutates the transcript
+## 循环为什么改 transcript
 
-The loop accepts a mutable `messages` list and appends new messages to it.
+循环接受可变的 `messages` 列表并向其追加新消息。
 
-This keeps the loop mostly stateless. Later, `AgentHarness` can own the transcript and pass it into the loop. The loop does not need to know where messages came from or how they will be persisted.
+这让循环几乎无状态。之后 `AgentHarness` 可以拥有 transcript 并传入循环。循环不需要知道消息从哪来、如何持久化。
 
-## Provider events vs agent events
+## provider 事件 vs agent 事件
 
-Phase 2 introduced provider events such as:
+Phase 2 引入了 provider 事件：
 
 - `response_start`
 - `text_delta`
 - `response_end`
 - `error`
 
-Phase 3 converts those into higher-level agent events:
+Phase 3 把它们转成更高层的 agent 事件：
 
 ```text
 ProviderResponseStartEvent  -> MessageStartEvent
@@ -138,68 +138,64 @@ ProviderResponseEndEvent    -> MessageEndEvent
 ProviderErrorEvent          -> ErrorEvent
 ```
 
-This means UI layers can listen to agent events without knowing about provider internals.
+UI 层因此可以监听 agent 事件而不了解 provider 内部。
 
-Later provider adapters also translate:
+后续 provider 适配器还翻译：
 
 ```text
 ProviderRetryEvent         -> RetryEvent
 ProviderThinkingDeltaEvent -> ThinkingDeltaEvent
 ```
 
-The loop forwards those events without embedding provider-specific payloads in
-the portable agent layer.
+loop 转发那些事件而不把 provider 特定载荷嵌进可移植 agent 层。
 
-## Queued steering and follow-ups
+## 排队的 steering 与 follow-up
 
-`AgentHarness` owns prompt queues, but `run_agent_loop()` owns the injection
-point. When queue callbacks are provided:
+`AgentHarness` 拥有 prompt 队列，但 `run_agent_loop()` 拥有注入点。提供队列回调时：
 
-- steering messages drain after the current assistant turn and any tool batch
-- follow-up messages drain when the run would otherwise stop
-- drained messages are appended to the transcript as normal user messages
-- the loop emits `MessageStartEvent(message_role="user")` and `MessageEndEvent`
-  for each injected user message before the next provider call
-- the loop emits a `QueueUpdateEvent` after draining so frontends can update
-  pending-message status
+- steering 消息在当前 assistant 轮与工具批次之后排水
+- follow-up 消息在运行本会停止时排水
+- 排水的消息作为普通用户消息追加进 transcript
+- 循环在下一次 provider 调用前为每条注入的用户消息发出 `MessageStartEvent(message_role="user")` 与 `MessageEndEvent`
+- 排水后循环发出 `QueueUpdateEvent`，frontend 得以更新待处理消息状态
 
-Direct callers that do not pass queue callbacks keep the original behavior.
+不传队列回调的直接调用者保持原始行为。
 
-## Error handling
+## 错误处理
 
-The loop currently handles common failure cases explicitly.
+循环显式处理常见失败场景。
 
-### Unknown tools
+### 未知工具
 
-If the model requests a tool that was not registered, the loop records a failed tool result:
+模型请求未注册的工具时，循环记录失败的工具结果：
 
 ```text
 Unknown tool: tool_name
 ```
 
-This result is appended as a `ToolResultMessage`, so the model can recover on a later turn.
+该结果作为 `ToolResultMessage` 追加，模型可以在后续轮恢复。
 
-### Tool exceptions
+### 工具异常
 
-If a tool raises an exception, the loop catches it and turns it into a failed `AgentToolResult`.
+工具抛异常时，循环捕获并转为失败的 `AgentToolResult`。
 
-Tools are an isolation boundary. A broken tool should not crash the whole loop by default.
+工具是隔离边界。坏工具默认不应崩溃整个循环。
 
-### Provider errors
+### provider 错误
 
-If the provider emits an error, the loop emits an agent `error` event and stops the run.
+provider 发出错误时，循环发出 agent `error` 事件并停止运行。
 
-### Max turns
+### 最大轮数
 
-Like Pi, Baldric's loop does not impose a default turn limit. It continues until the assistant stops requesting tools or another normal stop condition occurs.
+与 Pi 一样，Baldric 的循环不施加默认轮数限制。一直继续，直到 assistant 停止请求工具或出现其他正常停止条件。
 
-Callers that want a safety cap can pass `max_turns`. If that configured limit is reached, the loop emits a recoverable error.
+想要安全上限的调用者可传 `max_turns`。达到配置限额时，循环发出可恢复错误。
 
-## Important boundary
+## 重要边界
 
-The loop executes registered tools, but it does not define coding tools itself.
+循环执行已注册的工具，但自己不定义编码工具。
 
-That means:
+也就是说：
 
 ```text
 baldric_agent.loop:
@@ -209,35 +205,31 @@ baldric_coding tools:
   know how to read files, write files, edit files, or run bash
 ```
 
-This keeps Baldric's reusable agent package independent from coding-agent-specific behavior.
+这让 Baldric 的可复用 agent 包独立于编码 agent 专属行为。
 
-## How Phase 3 supports the later layers
+## Phase 3 如何支撑后续层
 
 ### AgentHarness
 
-The harness owns the transcript, cancellation token, listeners, and queued
-steering/follow-up prompts. It calls `run_agent_loop()` from methods like
-`prompt()` and `continue_()`.
+harness 拥有 transcript、取消 token、监听器与排队的
+steering/follow-up prompt。它在 `prompt()` 与 `continue_()` 等方法里调用 `run_agent_loop()`。
 
-### Built-in coding tools
+### 内置编码工具
 
-The coding tools are `AgentTool` instances. The loop executes them without
-knowing whether a tool reads files, writes files, edits files, or runs a shell
-command.
+编码工具是 `AgentTool` 实例。循环执行它们，
+不知道工具是读文件、写文件、编辑文件还是跑 shell 命令。
 
-### Print-mode CLI and TUI
+### print-mode CLI 与 TUI
 
-Renderers and the Textual TUI consume `AgentEvent`s from the loop and decide how
-to display streamed text, tool activity, retry status, thinking deltas, queue
-state, and errors.
+渲染器与 Textual TUI 消费循环的 `AgentEvent`，决定如何
+显示流式文本、工具活动、重试状态、thinking delta、队列状态与错误。
 
-### Sessions
+### session
 
-Session storage persists the transcript messages that the loop appends, including
-tool results and queued user prompts after they are injected.
+session 存储持久化循环追加的 transcript 消息，包括工具结果与注入后的排队用户 prompt。
 
-## Design rule
+## 设计规则
 
-The agent loop should only coordinate provider streams, messages, tools, and events.
+agent loop 只协调 provider 流、消息、工具与事件。
 
-If behavior requires CLI flags, terminal rendering, local config paths, slash commands, or project resources, it belongs outside `baldric_agent.loop`.
+行为需要 CLI 旗标、终端渲染、本地配置路径、slash 命令或项目资源时，属于 `baldric_agent.loop` 之外。
