@@ -12,7 +12,7 @@ from uuid import uuid4
 
 from baldric.agent.tool_calls import BeforeToolCall
 from baldric.protocol.messages import AgentMessage, ToolResultMessage
-from baldric.protocol.tools import AgentTool, AgentToolResult
+from baldric.protocol.tools import AgentTool, AgentToolResult, ToolCancellationToken
 from baldric.protocol.types import JSONValue
 
 if TYPE_CHECKING:
@@ -1365,6 +1365,32 @@ class ExtensionAPI:
         """Withdraw a tool this extension registered (silent no-op otherwise)."""
         self._generation.assert_active()
         self._runtime.unregister_tool(self._source_id, self._extension_name, name)
+
+    def set_active_tools(self, names: Sequence[str] | None) -> None:
+        """Enable only the named tools for future runs (ports Pi's ``setActiveTools``).
+
+        ``None`` re-enables every tool. Disabling is reversible and keeps the
+        registration, so an extension can gate a tool per state. The system
+        prompt is refreshed because it lists the available tools.
+        """
+        self._generation.assert_active()
+        self._runtime.set_active_tools(names)
+
+    async def execute_tool(
+        self,
+        name: str,
+        arguments: Mapping[str, JSONValue],
+        *,
+        signal: ToolCancellationToken | None = None,
+    ) -> AgentToolResult:
+        """Run an active tool through the session pipeline (ports ``ctx.executeTool``).
+
+        ``tool_call``/``tool_result`` hooks and project trust apply exactly as
+        for a model-issued call. A tool disabled with :meth:`set_active_tools`
+        (or never registered) raises :class:`ExtensionError`.
+        """
+        self._generation.assert_active()
+        return await self._runtime.execute_tool(name, arguments, signal=signal)
 
     def refresh_system_prompt(self) -> None:
         """Ask the bound session to rebuild its system prompt from registries."""

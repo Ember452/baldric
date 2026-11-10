@@ -353,7 +353,7 @@
       "max_function_stmts": 0
     },
     "src/baldric/runtime/extensions/api.py": {
-      "lines": 1588,
+      "lines": 1614,
       "max_function_stmts": 9
     },
     "src/baldric/runtime/extensions/builtin_registry.py": {
@@ -489,8 +489,8 @@
       "max_function_stmts": 14
     },
     "src/baldric/runtime/extensions/runtime.py": {
-      "lines": 1892,
-      "max_function_stmts": 37
+      "lines": 1960,
+      "max_function_stmts": 39
     },
     "src/baldric/runtime/modes/__init__.py": {
       "lines": 1,

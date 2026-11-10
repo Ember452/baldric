@@ -11,6 +11,7 @@ from inspect import isawaitable
 from pathlib import Path
 from time import time_ns
 from typing import Literal, Protocol, cast
+from uuid import uuid4
 
 import httpx
 
@@ -359,6 +360,13 @@ class ExtensionRuntime:
         # the live list must carry the same wrapped shape compose_tools
         # produces, or tool_call/tool_result hooks would bypass dynamic tools.
         self._live_wrapped: dict[str, AgentTool] = {}
+        # The unfiltered materialized list; ``set_active_tools`` rewrites the
+        # bound list from it so disabling is reversible without unregistering.
+        self._live_tools_all: list[AgentTool] | None = None
+        # ``None`` means "every tool is active"; a set restricts to exactly those
+        # names, including tools registered after the restriction was set, so a
+        # restricted mode cannot be widened by a later registration.
+        self._active_tool_names: set[str] | None = None
         self._ui: UiBridge = ui or NullUiBridge()
         self._turn_requested: TurnRequestedCallback | None = None
         self._harness_unsubscribe: Callable[[], None] | None = None
@@ -643,7 +651,9 @@ class ExtensionRuntime:
         if self._live_tools is not None:
             wrapped = self._wrap_tool(tool)
             self._live_wrapped[tool.name] = wrapped
-            self._live_tools.append(wrapped)
+            if self._live_tools_all is not None:
+                self._live_tools_all.append(wrapped)
+            self._apply_live_tool_filter()
 
     def unregister_tool(self, source_id: str, extension_name: str, name: str) -> None:
         """Remove this extension's tool registration; a no-op when absent.
@@ -1506,8 +1516,65 @@ class ExtensionRuntime:
         mirroring ``set_ui_bridge``.
         """
         self._live_tools = tools
+        self._live_tools_all = list(tools)
         self._live_allowed = allowed
         self._live_wrapped.clear()
+        self._apply_live_tool_filter()
+
+    def set_active_tools(self, names: Sequence[str] | None) -> None:
+        """Enable only the named tools for future runs (ports Pi's setActiveTools).
+
+        ``None`` re-enables every tool. Disabling is reversible and does not
+        withdraw the registration, so an extension can gate a tool per state
+        without losing its handler. Unknown names are diagnosed. The system
+        prompt is refreshed because it lists the available tools.
+        """
+        if self._live_tools_all is None:
+            raise ExtensionError("set_active_tools requires a bound session")
+        if names is None:
+            self._active_tool_names = None
+        else:
+            requested = set(names)
+            known = {tool.name for tool in self._live_tools_all}
+            for unknown in sorted(requested - known):
+                self._load_diagnostics.append(
+                    ResourceDiagnostic(
+                        kind="extension",
+                        name="set_active_tools",
+                        message=f"unknown tool `{unknown}`; ignored",
+                    )
+                )
+            self._active_tool_names = requested
+        self._apply_live_tool_filter()
+        self.request_system_prompt_refresh()
+
+    def _apply_live_tool_filter(self) -> None:
+        """Rewrite the bound list to the tools that are currently active."""
+        if self._live_tools is None or self._live_tools_all is None:
+            return
+        active = self._active_tool_names
+        self._live_tools[:] = [tool for tool in self._live_tools_all if active is None or tool.name in active]
+
+    async def execute_tool(
+        self,
+        name: str,
+        arguments: Mapping[str, JSONValue],
+        *,
+        signal: ToolCancellationToken | None = None,
+    ) -> AgentToolResult:
+        """Run one active tool through the session's tool pipeline (ports ``ctx.executeTool``).
+
+        The call goes through the wrapped tool, so ``tool_call``/``tool_result``
+        hooks and project trust apply exactly as they do for the model. A tool
+        disabled with :meth:`set_active_tools` is not reachable here.
+        """
+        tool = next(
+            (candidate for candidate in self._live_tools or () if candidate.name == name),
+            None,
+        )
+        if tool is None:
+            raise ExtensionError(f"tool `{name}` is not active or not registered")
+        return await tool.execute(uuid4().hex, arguments, signal=signal)
 
     def request_system_prompt_refresh(self) -> None:
         """Ask the bound session to rebuild its system prompt."""
@@ -1515,11 +1582,12 @@ class ExtensionRuntime:
             self._session.refresh_system_prompt()
 
     def _drop_live_tools(self, tools: list[AgentTool]) -> None:
-        """Remove exact tool objects from the bound list, when bound."""
-        if self._live_tools is None:
-            return
+        """Remove exact tool objects from the bound (and unfiltered) lists."""
         withdrawn = {id(tool) for tool in tools}
-        self._live_tools[:] = [tool for tool in self._live_tools if id(tool) not in withdrawn]
+        if self._live_tools is not None:
+            self._live_tools[:] = [tool for tool in self._live_tools if id(tool) not in withdrawn]
+        if self._live_tools_all is not None:
+            self._live_tools_all[:] = [tool for tool in self._live_tools_all if id(tool) not in withdrawn]
 
     def _wrap_tool(self, tool: AgentTool) -> AgentTool:
         async def executor(
