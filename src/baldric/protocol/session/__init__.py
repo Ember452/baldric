@@ -1,7 +1,7 @@
 """Persisted session wire contract: entry shape, tree traversal, and JSONL format.
 
 `memory` (SessionState projection) and `storage` (file I/O) deliberately live in
-`baldric.coding`, not here: the projection carries session-application semantics
+`baldric.runtime`, not here: the projection carries session-application semantics
 and storage carries platform I/O, neither of which belongs in the pure contract.
 """
 

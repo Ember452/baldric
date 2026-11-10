@@ -10,7 +10,7 @@ paths, or rendering. Everything app-specific wraps around it.
 ## Four packages
 
 ```text
-baldric.coding  →  { baldric.agent, baldric.ai }  →  baldric.protocol
+baldric.runtime  →  { baldric.agent, baldric.ai }  →  baldric.protocol
 ```
 
 ### `baldric.protocol` — the shared wire contract
@@ -35,7 +35,7 @@ harness, event emission, and tool-call orchestration, all built on the
 must **not** import CLI, Rich, Textual, or resource-loading code. That's what
 keeps it portable.
 
-### `baldric.coding` — the coding application
+### `baldric.runtime` — the coding application
 
 Owns everything that makes Baldric a *coding agent you run*: the CLI, the built-in
 [tools](/reference/tools/), [project instructions](/guides/project-instructions/),
@@ -45,7 +45,7 @@ Textual TUI.
 
 ### Local-backend boundary
 
-Local inference belongs to `baldric.coding`, not the portable agent core. A staged
+Local inference belongs to `baldric.runtime`, not the portable agent core. A staged
 extension runtime owns a source- and generation-aware local-backend registry
 beside its provider registry. Backends return typed configuration, status,
 progress, diagnostics, and capability values; the Textual adapter renders them
@@ -69,7 +69,7 @@ downtime without making the local backend an implicit fallback.
 
 ## Dependency direction
 
-Dependencies only point one way: `baldric.coding → {baldric.agent, baldric.ai} → baldric.protocol`,
+Dependencies only point one way: `baldric.runtime → {baldric.agent, baldric.ai} → baldric.protocol`,
 and `baldric.protocol` depends on nothing but pydantic. UI code
 *consumes* events; the core never reaches up to render anything. In one line:
 

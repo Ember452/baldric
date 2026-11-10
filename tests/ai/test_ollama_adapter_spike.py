@@ -7,7 +7,7 @@ import json
 import httpx
 import pytest
 
-from baldric.coding.extensions import DynamicProviderRegistry, LocalBackendRegistry
+from baldric.runtime.extensions import DynamicProviderRegistry, LocalBackendRegistry
 from tests.fixtures.ollama_adapter_spike import OllamaAdapterSpike, context
 
 pytestmark = pytest.mark.anyio

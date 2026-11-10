@@ -6,7 +6,7 @@ description: Restyle the Baldric TUI with JSON theme files, from single colors t
 Baldric's TUI themes are JSON files. The built-in themes (`baldric-dark`, `baldric-light`,
 `high-contrast`) ship as JSON inside the package and load through the same
 parser as custom themes, so they double as reference examples:
-[`src/baldric/coding/tui/themes/`](https://github.com/Ember452/baldric/tree/main/src/baldric/coding/tui/themes).
+[`src/baldric/runtime/tui/themes/`](https://github.com/Ember452/baldric/tree/main/src/baldric/runtime/tui/themes).
 
 ## Adding a custom theme
 
@@ -62,7 +62,7 @@ see [Configuration](/reference/configuration/#tui-settings).
 - `colors` (required) — every field of the theme palette, including the
   `success` / `error` status tokens and the `tool_success_text` /
   `tool_error_text` colors for tool invocation text. The full list is
-  `THEME_COLOR_FIELDS` in `src/baldric/coding/tui/themes/__init__.py`; the
+  `THEME_COLOR_FIELDS` in `src/baldric/runtime/tui/themes/__init__.py`; the
   built-in theme JSON files show them all in context.
   Most colors are rendered by both Rich and Textual, so stick to formats both
   accept — six-digit hex like `#94e2d5` is always safe. Library-specific

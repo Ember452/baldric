@@ -5,8 +5,8 @@ import pytest
 
 from baldric.ai.model_catalog import RuntimeModel, RuntimeModelCatalog
 from baldric.ai.model_limits import RuntimeModelLimits
-from baldric.coding.config.paths import BaldricPaths
-from baldric.coding.providers.stores.codex_model_store import (
+from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.providers.stores.codex_model_store import (
     cached_codex_model_catalog,
     save_codex_model_catalog,
 )

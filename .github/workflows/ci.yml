@@ -244,7 +244,7 @@ jobs:
         run: >
           uv run pytest
           tests/agent tests/ai tests/guards tests/invariants
-          tests/coding/commands tests/coding/cli tests/coding/providers
+          tests/runtime/commands tests/runtime/cli tests/runtime/providers
 
   # One required check instead of enumerating jobs in branch protection.
   #

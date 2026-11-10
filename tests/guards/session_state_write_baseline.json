@@ -1,6 +1,6 @@
 {
   "files": {
-    "src/baldric/coding/session/lifecycle.py": {
+    "src/baldric/runtime/session/lifecycle.py": {
       "_append_system_prompt": 2,
       "_append_system_prompt_paths": 2,
       "_append_system_prompts": 2,
@@ -41,7 +41,7 @@
       "_skills": 2,
       "_state": 1
     },
-    "src/baldric/coding/session/model_runtime.py": {
+    "src/baldric/runtime/session/model_runtime.py": {
       "_config": 2,
       "_inference_provider": 2,
       "_last_diagnostic_log_path": 2,
@@ -50,7 +50,7 @@
       "_runtime_model_limits_key": 2,
       "_runtime_provider_config": 1
     },
-    "src/baldric/coding/session/model_selection.py": {
+    "src/baldric/runtime/session/model_selection.py": {
       "_config": 2,
       "_durable_provider_settings": 3,
       "_inference_provider": 5,
@@ -60,7 +60,7 @@
       "_resource_diagnostics": 1,
       "_runtime_provider_config": 2
     },
-    "src/baldric/coding/session/runtime.py": {
+    "src/baldric/runtime/session/runtime.py": {
       "_config": 1,
       "_context_usage_cache": 1,
       "_last_diagnostic_log_path": 11,

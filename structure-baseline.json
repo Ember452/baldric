@@ -128,814 +128,6 @@
       "lines": 24,
       "max_function_stmts": 4
     },
-    "src/baldric/coding/__init__.py": {
-      "lines": 317,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/auth/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/auth/credentials.py": {
-      "lines": 260,
-      "max_function_stmts": 13
-    },
-    "src/baldric/coding/auth/flows/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/auth/flows/anthropic.py": {
-      "lines": 285,
-      "max_function_stmts": 12
-    },
-    "src/baldric/coding/auth/flows/device.py": {
-      "lines": 109,
-      "max_function_stmts": 11
-    },
-    "src/baldric/coding/auth/flows/github_copilot.py": {
-      "lines": 285,
-      "max_function_stmts": 11
-    },
-    "src/baldric/coding/auth/oauth.py": {
-      "lines": 523,
-      "max_function_stmts": 9
-    },
-    "src/baldric/coding/auth/registry.py": {
-      "lines": 55,
-      "max_function_stmts": 3
-    },
-    "src/baldric/coding/auth/types.py": {
-      "lines": 127,
-      "max_function_stmts": 4
-    },
-    "src/baldric/coding/backends/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/backends/contracts.py": {
-      "lines": 1276,
-      "max_function_stmts": 15
-    },
-    "src/baldric/coding/cli.py": {
-      "lines": 1539,
-      "max_function_stmts": 44
-    },
-    "src/baldric/coding/commands/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/commands/base.py": {
-      "lines": 304,
-      "max_function_stmts": 10
-    },
-    "src/baldric/coding/commands/config.py": {
-      "lines": 198,
-      "max_function_stmts": 7
-    },
-    "src/baldric/coding/commands/core.py": {
-      "lines": 125,
-      "max_function_stmts": 15
-    },
-    "src/baldric/coding/commands/formatting.py": {
-      "lines": 76,
-      "max_function_stmts": 5
-    },
-    "src/baldric/coding/commands/registry.py": {
-      "lines": 314,
-      "max_function_stmts": 31
-    },
-    "src/baldric/coding/commands/resources.py": {
-      "lines": 104,
-      "max_function_stmts": 6
-    },
-    "src/baldric/coding/commands/session.py": {
-      "lines": 88,
-      "max_function_stmts": 7
-    },
-    "src/baldric/coding/config/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/config/paths.py": {
-      "lines": 234,
-      "max_function_stmts": 9
-    },
-    "src/baldric/coding/config/shell_config.py": {
-      "lines": 85,
-      "max_function_stmts": 11
-    },
-    "src/baldric/coding/context/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/context/gitignore.py": {
-      "lines": 98,
-      "max_function_stmts": 9
-    },
-    "src/baldric/coding/context/project.py": {
-      "lines": 95,
-      "max_function_stmts": 6
-    },
-    "src/baldric/coding/context/prompts.py": {
-      "lines": 306,
-      "max_function_stmts": 13
-    },
-    "src/baldric/coding/context/resources.py": {
-      "lines": 371,
-      "max_function_stmts": 12
-    },
-    "src/baldric/coding/context/skills/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/context/skills/skills.py": {
-      "lines": 253,
-      "max_function_stmts": 13
-    },
-    "src/baldric/coding/context/system_prompt.py": {
-      "lines": 378,
-      "max_function_stmts": 20
-    },
-    "src/baldric/coding/context/thinking.py": {
-      "lines": 93,
-      "max_function_stmts": 6
-    },
-    "src/baldric/coding/data/examples/extensions/ask_user_question.py": {
-      "lines": 95,
-      "max_function_stmts": 11
-    },
-    "src/baldric/coding/data/examples/extensions/hello_tool.py": {
-      "lines": 41,
-      "max_function_stmts": 3
-    },
-    "src/baldric/coding/data/examples/extensions/prompt_section.py": {
-      "lines": 19,
-      "max_function_stmts": 2
-    },
-    "src/baldric/coding/data/examples/extensions/sidebar_status.py": {
-      "lines": 39,
-      "max_function_stmts": 9
-    },
-    "src/baldric/coding/events.py": {
-      "lines": 84,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/events_dispatch.py": {
-      "lines": 58,
-      "max_function_stmts": 4
-    },
-    "src/baldric/coding/extensions/__init__.py": {
-      "lines": 249,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/extensions/api.py": {
-      "lines": 1357,
-      "max_function_stmts": 9
-    },
-    "src/baldric/coding/extensions/builtin_registry.py": {
-      "lines": 147,
-      "max_function_stmts": 7
-    },
-    "src/baldric/coding/extensions/builtins/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/extensions/builtins/llama_cpp/__init__.py": {
-      "lines": 87,
-      "max_function_stmts": 5
-    },
-    "src/baldric/coding/extensions/builtins/llama_cpp/huggingface.py": {
-      "lines": 211,
-      "max_function_stmts": 13
-    },
-    "src/baldric/coding/extensions/builtins/llama_cpp/router.py": {
-      "lines": 331,
-      "max_function_stmts": 12
-    },
-    "src/baldric/coding/extensions/builtins/llama_cpp/service.py": {
-      "lines": 1734,
-      "max_function_stmts": 24
-    },
-    "src/baldric/coding/extensions/builtins/llama_cpp/state.py": {
-      "lines": 405,
-      "max_function_stmts": 14
-    },
-    "src/baldric/coding/extensions/builtins/mcp/__init__.py": {
-      "lines": 7,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/extensions/builtins/mcp/extension.py": {
-      "lines": 307,
-      "max_function_stmts": 12
-    },
-    "src/baldric/coding/extensions/builtins/subagents/__init__.py": {
-      "lines": 8,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/extensions/builtins/subagents/agents.py": {
-      "lines": 187,
-      "max_function_stmts": 7
-    },
-    "src/baldric/coding/extensions/builtins/subagents/agents_menu.py": {
-      "lines": 289,
-      "max_function_stmts": 12
-    },
-    "src/baldric/coding/extensions/builtins/subagents/cron.py": {
-      "lines": 168,
-      "max_function_stmts": 8
-    },
-    "src/baldric/coding/extensions/builtins/subagents/extension.py": {
-      "lines": 1673,
-      "max_function_stmts": 32
-    },
-    "src/baldric/coding/extensions/builtins/subagents/fork.py": {
-      "lines": 129,
-      "max_function_stmts": 6
-    },
-    "src/baldric/coding/extensions/builtins/subagents/group_join.py": {
-      "lines": 121,
-      "max_function_stmts": 9
-    },
-    "src/baldric/coding/extensions/builtins/subagents/memory.py": {
-      "lines": 161,
-      "max_function_stmts": 7
-    },
-    "src/baldric/coding/extensions/builtins/subagents/notification_format.py": {
-      "lines": 203,
-      "max_function_stmts": 8
-    },
-    "src/baldric/coding/extensions/builtins/subagents/notification_render.py": {
-      "lines": 200,
-      "max_function_stmts": 12
-    },
-    "src/baldric/coding/extensions/builtins/subagents/output_file.py": {
-      "lines": 195,
-      "max_function_stmts": 9
-    },
-    "src/baldric/coding/extensions/builtins/subagents/prompts.py": {
-      "lines": 208,
-      "max_function_stmts": 7
-    },
-    "src/baldric/coding/extensions/builtins/subagents/schedule.py": {
-      "lines": 368,
-      "max_function_stmts": 13
-    },
-    "src/baldric/coding/extensions/builtins/subagents/schedule_store.py": {
-      "lines": 231,
-      "max_function_stmts": 6
-    },
-    "src/baldric/coding/extensions/builtins/subagents/settings.py": {
-      "lines": 100,
-      "max_function_stmts": 12
-    },
-    "src/baldric/coding/extensions/builtins/subagents/ui/__init__.py": {
-      "lines": 16,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/extensions/builtins/subagents/ui/controller.py": {
-      "lines": 205,
-      "max_function_stmts": 14
-    },
-    "src/baldric/coding/extensions/builtins/subagents/ui/strip.py": {
-      "lines": 304,
-      "max_function_stmts": 19
-    },
-    "src/baldric/coding/extensions/builtins/subagents/ui/viewer.py": {
-      "lines": 443,
-      "max_function_stmts": 23
-    },
-    "src/baldric/coding/extensions/builtins/subagents/worktree.py": {
-      "lines": 177,
-      "max_function_stmts": 13
-    },
-    "src/baldric/coding/extensions/installer.py": {
-      "lines": 428,
-      "max_function_stmts": 12
-    },
-    "src/baldric/coding/extensions/loader.py": {
-      "lines": 473,
-      "max_function_stmts": 17
-    },
-    "src/baldric/coding/extensions/provider_registry.py": {
-      "lines": 665,
-      "max_function_stmts": 16
-    },
-    "src/baldric/coding/extensions/providers.py": {
-      "lines": 646,
-      "max_function_stmts": 14
-    },
-    "src/baldric/coding/extensions/runtime.py": {
-      "lines": 1476,
-      "max_function_stmts": 33
-    },
-    "src/baldric/coding/modes/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/modes/rpc/__init__.py": {
-      "lines": 6,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/modes/rpc/server.py": {
-      "lines": 455,
-      "max_function_stmts": 6
-    },
-    "src/baldric/coding/modes/rpc/session.py": {
-      "lines": 120,
-      "max_function_stmts": 1
-    },
-    "src/baldric/coding/modes/rpc/wire.py": {
-      "lines": 271,
-      "max_function_stmts": 13
-    },
-    "src/baldric/coding/observability/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/observability/diagnostics.py": {
-      "lines": 203,
-      "max_function_stmts": 11
-    },
-    "src/baldric/coding/observability/doctor.py": {
-      "lines": 115,
-      "max_function_stmts": 19
-    },
-    "src/baldric/coding/observability/watchdog.py": {
-      "lines": 114,
-      "max_function_stmts": 8
-    },
-    "src/baldric/coding/providers/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/providers/catalog.py": {
-      "lines": 111,
-      "max_function_stmts": 4
-    },
-    "src/baldric/coding/providers/config/__init__.py": {
-      "lines": 108,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/providers/config/catalog.py": {
-      "lines": 339,
-      "max_function_stmts": 15
-    },
-    "src/baldric/coding/providers/config/credentials.py": {
-      "lines": 57,
-      "max_function_stmts": 5
-    },
-    "src/baldric/coding/providers/config/models.py": {
-      "lines": 698,
-      "max_function_stmts": 8
-    },
-    "src/baldric/coding/providers/config/selection.py": {
-      "lines": 554,
-      "max_function_stmts": 14
-    },
-    "src/baldric/coding/providers/config/settings.py": {
-      "lines": 412,
-      "max_function_stmts": 10
-    },
-    "src/baldric/coding/providers/config/validation.py": {
-      "lines": 704,
-      "max_function_stmts": 26
-    },
-    "src/baldric/coding/providers/loader.py": {
-      "lines": 779,
-      "max_function_stmts": 17
-    },
-    "src/baldric/coding/providers/runtime.py": {
-      "lines": 503,
-      "max_function_stmts": 14
-    },
-    "src/baldric/coding/providers/stores/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/providers/stores/codex_model_store.py": {
-      "lines": 203,
-      "max_function_stmts": 18
-    },
-    "src/baldric/coding/providers/stores/codex_version.py": {
-      "lines": 143,
-      "max_function_stmts": 8
-    },
-    "src/baldric/coding/providers/stores/models_dev.py": {
-      "lines": 318,
-      "max_function_stmts": 11
-    },
-    "src/baldric/coding/providers/stores/models_dev_store.py": {
-      "lines": 204,
-      "max_function_stmts": 10
-    },
-    "src/baldric/coding/rendering/__init__.py": {
-      "lines": 35,
-      "max_function_stmts": 4
-    },
-    "src/baldric/coding/rendering/activity.py": {
-      "lines": 99,
-      "max_function_stmts": 10
-    },
-    "src/baldric/coding/rendering/approval_card.py": {
-      "lines": 54,
-      "max_function_stmts": 9
-    },
-    "src/baldric/coding/rendering/base.py": {
-      "lines": 43,
-      "max_function_stmts": 2
-    },
-    "src/baldric/coding/rendering/diffs.py": {
-      "lines": 326,
-      "max_function_stmts": 13
-    },
-    "src/baldric/coding/rendering/grouping.py": {
-      "lines": 24,
-      "max_function_stmts": 3
-    },
-    "src/baldric/coding/rendering/json.py": {
-      "lines": 28,
-      "max_function_stmts": 3
-    },
-    "src/baldric/coding/rendering/plain.py": {
-      "lines": 43,
-      "max_function_stmts": 5
-    },
-    "src/baldric/coding/rendering/theme_schema.py": {
-      "lines": 239,
-      "max_function_stmts": 13
-    },
-    "src/baldric/coding/rendering/themes/__init__.py": {
-      "lines": 643,
-      "max_function_stmts": 13
-    },
-    "src/baldric/coding/rendering/thinking.py": {
-      "lines": 30,
-      "max_function_stmts": 7
-    },
-    "src/baldric/coding/rendering/tool_calls.py": {
-      "lines": 128,
-      "max_function_stmts": 7
-    },
-    "src/baldric/coding/rendering/tool_preview.py": {
-      "lines": 28,
-      "max_function_stmts": 4
-    },
-    "src/baldric/coding/rendering/tool_state.py": {
-      "lines": 104,
-      "max_function_stmts": 7
-    },
-    "src/baldric/coding/rendering/transcript.py": {
-      "lines": 118,
-      "max_function_stmts": 9
-    },
-    "src/baldric/coding/rendering/widths.py": {
-      "lines": 55,
-      "max_function_stmts": 9
-    },
-    "src/baldric/coding/session/__init__.py": {
-      "lines": 22,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/session/branch_summary.py": {
-      "lines": 217,
-      "max_function_stmts": 9
-    },
-    "src/baldric/coding/session/branching.py": {
-      "lines": 193,
-      "max_function_stmts": 26
-    },
-    "src/baldric/coding/session/compaction/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/session/compaction/context_window.py": {
-      "lines": 347,
-      "max_function_stmts": 9
-    },
-    "src/baldric/coding/session/export/__init__.py": {
-      "lines": 25,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/session/export/html.py": {
-      "lines": 1846,
-      "max_function_stmts": 24
-    },
-    "src/baldric/coding/session/export/jsonl.py": {
-      "lines": 13,
-      "max_function_stmts": 3
-    },
-    "src/baldric/coding/session/export/writer.py": {
-      "lines": 94,
-      "max_function_stmts": 5
-    },
-    "src/baldric/coding/session/lifecycle.py": {
-      "lines": 1188,
-      "max_function_stmts": 61
-    },
-    "src/baldric/coding/session/manager.py": {
-      "lines": 542,
-      "max_function_stmts": 11
-    },
-    "src/baldric/coding/session/memory.py": {
-      "lines": 242,
-      "max_function_stmts": 14
-    },
-    "src/baldric/coding/session/model_runtime.py": {
-      "lines": 316,
-      "max_function_stmts": 14
-    },
-    "src/baldric/coding/session/model_selection.py": {
-      "lines": 879,
-      "max_function_stmts": 30
-    },
-    "src/baldric/coding/session/prepare.py": {
-      "lines": 88,
-      "max_function_stmts": 7
-    },
-    "src/baldric/coding/session/provider_helpers.py": {
-      "lines": 484,
-      "max_function_stmts": 17
-    },
-    "src/baldric/coding/session/resource_helpers.py": {
-      "lines": 399,
-      "max_function_stmts": 7
-    },
-    "src/baldric/coding/session/retry_events.py": {
-      "lines": 53,
-      "max_function_stmts": 5
-    },
-    "src/baldric/coding/session/runtime.py": {
-      "lines": 1294,
-      "max_function_stmts": 22
-    },
-    "src/baldric/coding/session/session.py": {
-      "lines": 2064,
-      "max_function_stmts": 55
-    },
-    "src/baldric/coding/session/stats.py": {
-      "lines": 206,
-      "max_function_stmts": 20
-    },
-    "src/baldric/coding/session/storage.py": {
-      "lines": 368,
-      "max_function_stmts": 9
-    },
-    "src/baldric/coding/session/tree_helpers.py": {
-      "lines": 391,
-      "max_function_stmts": 17
-    },
-    "src/baldric/coding/session/usage.py": {
-      "lines": 972,
-      "max_function_stmts": 24
-    },
-    "src/baldric/coding/tools/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/tools/base.py": {
-      "lines": 195,
-      "max_function_stmts": 5
-    },
-    "src/baldric/coding/tools/bash.py": {
-      "lines": 243,
-      "max_function_stmts": 18
-    },
-    "src/baldric/coding/tools/edit.py": {
-      "lines": 329,
-      "max_function_stmts": 10
-    },
-    "src/baldric/coding/tools/image_processing.py": {
-      "lines": 250,
-      "max_function_stmts": 16
-    },
-    "src/baldric/coding/tools/output_accumulator.py": {
-      "lines": 39,
-      "max_function_stmts": 3
-    },
-    "src/baldric/coding/tools/read.py": {
-      "lines": 291,
-      "max_function_stmts": 25
-    },
-    "src/baldric/coding/tools/registry.py": {
-      "lines": 55,
-      "max_function_stmts": 3
-    },
-    "src/baldric/coding/tools/shell.py": {
-      "lines": 166,
-      "max_function_stmts": 9
-    },
-    "src/baldric/coding/tools/truncate.py": {
-      "lines": 137,
-      "max_function_stmts": 12
-    },
-    "src/baldric/coding/tools/write.py": {
-      "lines": 88,
-      "max_function_stmts": 7
-    },
-    "src/baldric/coding/trust/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/trust/approvals.py": {
-      "lines": 213,
-      "max_function_stmts": 11
-    },
-    "src/baldric/coding/trust/policy.py": {
-      "lines": 686,
-      "max_function_stmts": 24
-    },
-    "src/baldric/coding/tui/__init__.py": {
-      "lines": 69,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/tui/adapter.py": {
-      "lines": 355,
-      "max_function_stmts": 16
-    },
-    "src/baldric/coding/tui/app.py": {
-      "lines": 4556,
-      "max_function_stmts": 63
-    },
-    "src/baldric/coding/tui/autocomplete.py": {
-      "lines": 658,
-      "max_function_stmts": 16
-    },
-    "src/baldric/coding/tui/backends.py": {
-      "lines": 1285,
-      "max_function_stmts": 22
-    },
-    "src/baldric/coding/tui/config.py": {
-      "lines": 241,
-      "max_function_stmts": 10
-    },
-    "src/baldric/coding/tui/editor.py": {
-      "lines": 141,
-      "max_function_stmts": 7
-    },
-    "src/baldric/coding/tui/extension_components.py": {
-      "lines": 957,
-      "max_function_stmts": 18
-    },
-    "src/baldric/coding/tui/file_drop.py": {
-      "lines": 83,
-      "max_function_stmts": 10
-    },
-    "src/baldric/coding/tui/login_providers.py": {
-      "lines": 62,
-      "max_function_stmts": 2
-    },
-    "src/baldric/coding/tui/pickers.py": {
-      "lines": 125,
-      "max_function_stmts": 6
-    },
-    "src/baldric/coding/tui/screens/__init__.py": {
-      "lines": 87,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/tui/screens/approval.py": {
-      "lines": 100,
-      "max_function_stmts": 4
-    },
-    "src/baldric/coding/tui/screens/command_output.py": {
-      "lines": 106,
-      "max_function_stmts": 5
-    },
-    "src/baldric/coding/tui/screens/extension.py": {
-      "lines": 223,
-      "max_function_stmts": 5
-    },
-    "src/baldric/coding/tui/screens/extensions.py": {
-      "lines": 99,
-      "max_function_stmts": 8
-    },
-    "src/baldric/coding/tui/screens/login.py": {
-      "lines": 687,
-      "max_function_stmts": 17
-    },
-    "src/baldric/coding/tui/screens/model_picker.py": {
-      "lines": 334,
-      "max_function_stmts": 16
-    },
-    "src/baldric/coding/tui/screens/prompt_templates.py": {
-      "lines": 170,
-      "max_function_stmts": 6
-    },
-    "src/baldric/coding/tui/screens/session_picker.py": {
-      "lines": 561,
-      "max_function_stmts": 15
-    },
-    "src/baldric/coding/tui/screens/sidebar.py": {
-      "lines": 201,
-      "max_function_stmts": 9
-    },
-    "src/baldric/coding/tui/screens/skill_picker.py": {
-      "lines": 210,
-      "max_function_stmts": 8
-    },
-    "src/baldric/coding/tui/screens/support.py": {
-      "lines": 209,
-      "max_function_stmts": 11
-    },
-    "src/baldric/coding/tui/screens/theme.py": {
-      "lines": 111,
-      "max_function_stmts": 4
-    },
-    "src/baldric/coding/tui/screens/tools_reference.py": {
-      "lines": 212,
-      "max_function_stmts": 7
-    },
-    "src/baldric/coding/tui/screens/tree_picker.py": {
-      "lines": 372,
-      "max_function_stmts": 7
-    },
-    "src/baldric/coding/tui/session_pickers.py": {
-      "lines": 307,
-      "max_function_stmts": 6
-    },
-    "src/baldric/coding/tui/session_records.py": {
-      "lines": 87,
-      "max_function_stmts": 8
-    },
-    "src/baldric/coding/tui/state.py": {
-      "lines": 1055,
-      "max_function_stmts": 15
-    },
-    "src/baldric/coding/tui/terminal_notification.py": {
-      "lines": 115,
-      "max_function_stmts": 7
-    },
-    "src/baldric/coding/tui/terminal_title.py": {
-      "lines": 122,
-      "max_function_stmts": 7
-    },
-    "src/baldric/coding/tui/text_utils.py": {
-      "lines": 11,
-      "max_function_stmts": 3
-    },
-    "src/baldric/coding/tui/trust.py": {
-      "lines": 189,
-      "max_function_stmts": 5
-    },
-    "src/baldric/coding/tui/widgets/__init__.py": {
-      "lines": 592,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/tui/widgets/core.py": {
-      "lines": 1860,
-      "max_function_stmts": 26
-    },
-    "src/baldric/coding/tui/widgets/markdown.py": {
-      "lines": 599,
-      "max_function_stmts": 9
-    },
-    "src/baldric/coding/tui/widgets/markdown_stream.py": {
-      "lines": 61,
-      "max_function_stmts": 6
-    },
-    "src/baldric/coding/tui/widgets/prompt_input.py": {
-      "lines": 591,
-      "max_function_stmts": 8
-    },
-    "src/baldric/coding/tui/widgets/sidebar.py": {
-      "lines": 1037,
-      "max_function_stmts": 24
-    },
-    "src/baldric/coding/tui/widgets/system_prompt.py": {
-      "lines": 123,
-      "max_function_stmts": 8
-    },
-    "src/baldric/coding/update/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/update/check.py": {
-      "lines": 419,
-      "max_function_stmts": 10
-    },
-    "src/baldric/coding/update/reload.py": {
-      "lines": 31,
-      "max_function_stmts": 2
-    },
-    "src/baldric/coding/update/updater.py": {
-      "lines": 387,
-      "max_function_stmts": 15
-    },
-    "src/baldric/coding/utils/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/coding/utils/atomic.py": {
-      "lines": 38,
-      "max_function_stmts": 4
-    },
-    "src/baldric/coding/utils/self_docs.py": {
-      "lines": 23,
-      "max_function_stmts": 2
-    },
-    "src/baldric/coding/version.py": {
-      "lines": 16,
-      "max_function_stmts": 2
-    },
     "src/baldric/mcp/__init__.py": {
       "lines": 8,
       "max_function_stmts": 0
@@ -995,6 +187,814 @@
     "src/baldric/protocol/types.py": {
       "lines": 8,
       "max_function_stmts": 0
+    },
+    "src/baldric/runtime/__init__.py": {
+      "lines": 317,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/auth/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/auth/credentials.py": {
+      "lines": 260,
+      "max_function_stmts": 13
+    },
+    "src/baldric/runtime/auth/flows/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/auth/flows/anthropic.py": {
+      "lines": 285,
+      "max_function_stmts": 12
+    },
+    "src/baldric/runtime/auth/flows/device.py": {
+      "lines": 109,
+      "max_function_stmts": 11
+    },
+    "src/baldric/runtime/auth/flows/github_copilot.py": {
+      "lines": 285,
+      "max_function_stmts": 11
+    },
+    "src/baldric/runtime/auth/oauth.py": {
+      "lines": 523,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/auth/registry.py": {
+      "lines": 55,
+      "max_function_stmts": 3
+    },
+    "src/baldric/runtime/auth/types.py": {
+      "lines": 127,
+      "max_function_stmts": 4
+    },
+    "src/baldric/runtime/backends/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/backends/contracts.py": {
+      "lines": 1276,
+      "max_function_stmts": 15
+    },
+    "src/baldric/runtime/cli.py": {
+      "lines": 1539,
+      "max_function_stmts": 44
+    },
+    "src/baldric/runtime/commands/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/commands/base.py": {
+      "lines": 304,
+      "max_function_stmts": 10
+    },
+    "src/baldric/runtime/commands/config.py": {
+      "lines": 198,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/commands/core.py": {
+      "lines": 125,
+      "max_function_stmts": 15
+    },
+    "src/baldric/runtime/commands/formatting.py": {
+      "lines": 76,
+      "max_function_stmts": 5
+    },
+    "src/baldric/runtime/commands/registry.py": {
+      "lines": 314,
+      "max_function_stmts": 31
+    },
+    "src/baldric/runtime/commands/resources.py": {
+      "lines": 104,
+      "max_function_stmts": 6
+    },
+    "src/baldric/runtime/commands/session.py": {
+      "lines": 88,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/config/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/config/paths.py": {
+      "lines": 234,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/config/shell_config.py": {
+      "lines": 85,
+      "max_function_stmts": 11
+    },
+    "src/baldric/runtime/context/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/context/gitignore.py": {
+      "lines": 98,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/context/project.py": {
+      "lines": 95,
+      "max_function_stmts": 6
+    },
+    "src/baldric/runtime/context/prompts.py": {
+      "lines": 306,
+      "max_function_stmts": 13
+    },
+    "src/baldric/runtime/context/resources.py": {
+      "lines": 371,
+      "max_function_stmts": 12
+    },
+    "src/baldric/runtime/context/skills/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/context/skills/skills.py": {
+      "lines": 253,
+      "max_function_stmts": 13
+    },
+    "src/baldric/runtime/context/system_prompt.py": {
+      "lines": 378,
+      "max_function_stmts": 20
+    },
+    "src/baldric/runtime/context/thinking.py": {
+      "lines": 93,
+      "max_function_stmts": 6
+    },
+    "src/baldric/runtime/data/examples/extensions/ask_user_question.py": {
+      "lines": 95,
+      "max_function_stmts": 11
+    },
+    "src/baldric/runtime/data/examples/extensions/hello_tool.py": {
+      "lines": 41,
+      "max_function_stmts": 3
+    },
+    "src/baldric/runtime/data/examples/extensions/prompt_section.py": {
+      "lines": 19,
+      "max_function_stmts": 2
+    },
+    "src/baldric/runtime/data/examples/extensions/sidebar_status.py": {
+      "lines": 39,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/events.py": {
+      "lines": 84,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/events_dispatch.py": {
+      "lines": 58,
+      "max_function_stmts": 4
+    },
+    "src/baldric/runtime/extensions/__init__.py": {
+      "lines": 249,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/extensions/api.py": {
+      "lines": 1357,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/extensions/builtin_registry.py": {
+      "lines": 147,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/extensions/builtins/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/extensions/builtins/llama_cpp/__init__.py": {
+      "lines": 87,
+      "max_function_stmts": 5
+    },
+    "src/baldric/runtime/extensions/builtins/llama_cpp/huggingface.py": {
+      "lines": 211,
+      "max_function_stmts": 13
+    },
+    "src/baldric/runtime/extensions/builtins/llama_cpp/router.py": {
+      "lines": 331,
+      "max_function_stmts": 12
+    },
+    "src/baldric/runtime/extensions/builtins/llama_cpp/service.py": {
+      "lines": 1734,
+      "max_function_stmts": 24
+    },
+    "src/baldric/runtime/extensions/builtins/llama_cpp/state.py": {
+      "lines": 405,
+      "max_function_stmts": 14
+    },
+    "src/baldric/runtime/extensions/builtins/mcp/__init__.py": {
+      "lines": 7,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/extensions/builtins/mcp/extension.py": {
+      "lines": 307,
+      "max_function_stmts": 12
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/__init__.py": {
+      "lines": 8,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/agents.py": {
+      "lines": 187,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/agents_menu.py": {
+      "lines": 289,
+      "max_function_stmts": 12
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/cron.py": {
+      "lines": 168,
+      "max_function_stmts": 8
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/extension.py": {
+      "lines": 1673,
+      "max_function_stmts": 32
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/fork.py": {
+      "lines": 129,
+      "max_function_stmts": 6
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/group_join.py": {
+      "lines": 121,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/memory.py": {
+      "lines": 161,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/notification_format.py": {
+      "lines": 203,
+      "max_function_stmts": 8
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/notification_render.py": {
+      "lines": 200,
+      "max_function_stmts": 12
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/output_file.py": {
+      "lines": 195,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/prompts.py": {
+      "lines": 208,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/schedule.py": {
+      "lines": 368,
+      "max_function_stmts": 13
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/schedule_store.py": {
+      "lines": 231,
+      "max_function_stmts": 6
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/settings.py": {
+      "lines": 100,
+      "max_function_stmts": 12
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/ui/__init__.py": {
+      "lines": 16,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/ui/controller.py": {
+      "lines": 205,
+      "max_function_stmts": 14
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/ui/strip.py": {
+      "lines": 304,
+      "max_function_stmts": 19
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/ui/viewer.py": {
+      "lines": 444,
+      "max_function_stmts": 23
+    },
+    "src/baldric/runtime/extensions/builtins/subagents/worktree.py": {
+      "lines": 177,
+      "max_function_stmts": 13
+    },
+    "src/baldric/runtime/extensions/installer.py": {
+      "lines": 428,
+      "max_function_stmts": 12
+    },
+    "src/baldric/runtime/extensions/loader.py": {
+      "lines": 473,
+      "max_function_stmts": 17
+    },
+    "src/baldric/runtime/extensions/provider_registry.py": {
+      "lines": 665,
+      "max_function_stmts": 16
+    },
+    "src/baldric/runtime/extensions/providers.py": {
+      "lines": 646,
+      "max_function_stmts": 14
+    },
+    "src/baldric/runtime/extensions/runtime.py": {
+      "lines": 1476,
+      "max_function_stmts": 33
+    },
+    "src/baldric/runtime/modes/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/modes/rpc/__init__.py": {
+      "lines": 6,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/modes/rpc/server.py": {
+      "lines": 455,
+      "max_function_stmts": 6
+    },
+    "src/baldric/runtime/modes/rpc/session.py": {
+      "lines": 120,
+      "max_function_stmts": 1
+    },
+    "src/baldric/runtime/modes/rpc/wire.py": {
+      "lines": 271,
+      "max_function_stmts": 13
+    },
+    "src/baldric/runtime/observability/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/observability/diagnostics.py": {
+      "lines": 203,
+      "max_function_stmts": 11
+    },
+    "src/baldric/runtime/observability/doctor.py": {
+      "lines": 115,
+      "max_function_stmts": 19
+    },
+    "src/baldric/runtime/observability/watchdog.py": {
+      "lines": 114,
+      "max_function_stmts": 8
+    },
+    "src/baldric/runtime/providers/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/providers/catalog.py": {
+      "lines": 111,
+      "max_function_stmts": 4
+    },
+    "src/baldric/runtime/providers/config/__init__.py": {
+      "lines": 108,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/providers/config/catalog.py": {
+      "lines": 339,
+      "max_function_stmts": 15
+    },
+    "src/baldric/runtime/providers/config/credentials.py": {
+      "lines": 57,
+      "max_function_stmts": 5
+    },
+    "src/baldric/runtime/providers/config/models.py": {
+      "lines": 698,
+      "max_function_stmts": 8
+    },
+    "src/baldric/runtime/providers/config/selection.py": {
+      "lines": 554,
+      "max_function_stmts": 14
+    },
+    "src/baldric/runtime/providers/config/settings.py": {
+      "lines": 412,
+      "max_function_stmts": 10
+    },
+    "src/baldric/runtime/providers/config/validation.py": {
+      "lines": 704,
+      "max_function_stmts": 26
+    },
+    "src/baldric/runtime/providers/loader.py": {
+      "lines": 779,
+      "max_function_stmts": 17
+    },
+    "src/baldric/runtime/providers/runtime.py": {
+      "lines": 503,
+      "max_function_stmts": 14
+    },
+    "src/baldric/runtime/providers/stores/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/providers/stores/codex_model_store.py": {
+      "lines": 203,
+      "max_function_stmts": 18
+    },
+    "src/baldric/runtime/providers/stores/codex_version.py": {
+      "lines": 143,
+      "max_function_stmts": 8
+    },
+    "src/baldric/runtime/providers/stores/models_dev.py": {
+      "lines": 318,
+      "max_function_stmts": 11
+    },
+    "src/baldric/runtime/providers/stores/models_dev_store.py": {
+      "lines": 204,
+      "max_function_stmts": 10
+    },
+    "src/baldric/runtime/rendering/__init__.py": {
+      "lines": 35,
+      "max_function_stmts": 4
+    },
+    "src/baldric/runtime/rendering/activity.py": {
+      "lines": 99,
+      "max_function_stmts": 10
+    },
+    "src/baldric/runtime/rendering/approval_card.py": {
+      "lines": 54,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/rendering/base.py": {
+      "lines": 43,
+      "max_function_stmts": 2
+    },
+    "src/baldric/runtime/rendering/diffs.py": {
+      "lines": 326,
+      "max_function_stmts": 13
+    },
+    "src/baldric/runtime/rendering/grouping.py": {
+      "lines": 24,
+      "max_function_stmts": 3
+    },
+    "src/baldric/runtime/rendering/json.py": {
+      "lines": 28,
+      "max_function_stmts": 3
+    },
+    "src/baldric/runtime/rendering/plain.py": {
+      "lines": 43,
+      "max_function_stmts": 5
+    },
+    "src/baldric/runtime/rendering/theme_schema.py": {
+      "lines": 239,
+      "max_function_stmts": 13
+    },
+    "src/baldric/runtime/rendering/themes/__init__.py": {
+      "lines": 643,
+      "max_function_stmts": 13
+    },
+    "src/baldric/runtime/rendering/thinking.py": {
+      "lines": 30,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/rendering/tool_calls.py": {
+      "lines": 128,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/rendering/tool_preview.py": {
+      "lines": 28,
+      "max_function_stmts": 4
+    },
+    "src/baldric/runtime/rendering/tool_state.py": {
+      "lines": 104,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/rendering/transcript.py": {
+      "lines": 118,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/rendering/widths.py": {
+      "lines": 55,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/session/__init__.py": {
+      "lines": 22,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/session/branch_summary.py": {
+      "lines": 217,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/session/branching.py": {
+      "lines": 193,
+      "max_function_stmts": 26
+    },
+    "src/baldric/runtime/session/compaction/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/session/compaction/context_window.py": {
+      "lines": 347,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/session/export/__init__.py": {
+      "lines": 25,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/session/export/html.py": {
+      "lines": 1846,
+      "max_function_stmts": 24
+    },
+    "src/baldric/runtime/session/export/jsonl.py": {
+      "lines": 13,
+      "max_function_stmts": 3
+    },
+    "src/baldric/runtime/session/export/writer.py": {
+      "lines": 94,
+      "max_function_stmts": 5
+    },
+    "src/baldric/runtime/session/lifecycle.py": {
+      "lines": 1188,
+      "max_function_stmts": 61
+    },
+    "src/baldric/runtime/session/manager.py": {
+      "lines": 542,
+      "max_function_stmts": 11
+    },
+    "src/baldric/runtime/session/memory.py": {
+      "lines": 242,
+      "max_function_stmts": 14
+    },
+    "src/baldric/runtime/session/model_runtime.py": {
+      "lines": 316,
+      "max_function_stmts": 14
+    },
+    "src/baldric/runtime/session/model_selection.py": {
+      "lines": 879,
+      "max_function_stmts": 30
+    },
+    "src/baldric/runtime/session/prepare.py": {
+      "lines": 88,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/session/provider_helpers.py": {
+      "lines": 484,
+      "max_function_stmts": 17
+    },
+    "src/baldric/runtime/session/resource_helpers.py": {
+      "lines": 399,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/session/retry_events.py": {
+      "lines": 53,
+      "max_function_stmts": 5
+    },
+    "src/baldric/runtime/session/runtime.py": {
+      "lines": 1294,
+      "max_function_stmts": 22
+    },
+    "src/baldric/runtime/session/session.py": {
+      "lines": 2064,
+      "max_function_stmts": 55
+    },
+    "src/baldric/runtime/session/stats.py": {
+      "lines": 206,
+      "max_function_stmts": 20
+    },
+    "src/baldric/runtime/session/storage.py": {
+      "lines": 368,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/session/tree_helpers.py": {
+      "lines": 391,
+      "max_function_stmts": 17
+    },
+    "src/baldric/runtime/session/usage.py": {
+      "lines": 972,
+      "max_function_stmts": 24
+    },
+    "src/baldric/runtime/tools/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/tools/base.py": {
+      "lines": 195,
+      "max_function_stmts": 5
+    },
+    "src/baldric/runtime/tools/bash.py": {
+      "lines": 243,
+      "max_function_stmts": 18
+    },
+    "src/baldric/runtime/tools/edit.py": {
+      "lines": 329,
+      "max_function_stmts": 10
+    },
+    "src/baldric/runtime/tools/image_processing.py": {
+      "lines": 250,
+      "max_function_stmts": 16
+    },
+    "src/baldric/runtime/tools/output_accumulator.py": {
+      "lines": 39,
+      "max_function_stmts": 3
+    },
+    "src/baldric/runtime/tools/read.py": {
+      "lines": 291,
+      "max_function_stmts": 25
+    },
+    "src/baldric/runtime/tools/registry.py": {
+      "lines": 55,
+      "max_function_stmts": 3
+    },
+    "src/baldric/runtime/tools/shell.py": {
+      "lines": 166,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/tools/truncate.py": {
+      "lines": 137,
+      "max_function_stmts": 12
+    },
+    "src/baldric/runtime/tools/write.py": {
+      "lines": 88,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/trust/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/trust/approvals.py": {
+      "lines": 213,
+      "max_function_stmts": 11
+    },
+    "src/baldric/runtime/trust/policy.py": {
+      "lines": 686,
+      "max_function_stmts": 24
+    },
+    "src/baldric/runtime/tui/__init__.py": {
+      "lines": 69,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/tui/adapter.py": {
+      "lines": 355,
+      "max_function_stmts": 16
+    },
+    "src/baldric/runtime/tui/app.py": {
+      "lines": 4556,
+      "max_function_stmts": 63
+    },
+    "src/baldric/runtime/tui/autocomplete.py": {
+      "lines": 658,
+      "max_function_stmts": 16
+    },
+    "src/baldric/runtime/tui/backends.py": {
+      "lines": 1285,
+      "max_function_stmts": 22
+    },
+    "src/baldric/runtime/tui/config.py": {
+      "lines": 241,
+      "max_function_stmts": 10
+    },
+    "src/baldric/runtime/tui/editor.py": {
+      "lines": 141,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/tui/extension_components.py": {
+      "lines": 957,
+      "max_function_stmts": 18
+    },
+    "src/baldric/runtime/tui/file_drop.py": {
+      "lines": 83,
+      "max_function_stmts": 10
+    },
+    "src/baldric/runtime/tui/login_providers.py": {
+      "lines": 62,
+      "max_function_stmts": 2
+    },
+    "src/baldric/runtime/tui/pickers.py": {
+      "lines": 125,
+      "max_function_stmts": 6
+    },
+    "src/baldric/runtime/tui/screens/__init__.py": {
+      "lines": 87,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/tui/screens/approval.py": {
+      "lines": 100,
+      "max_function_stmts": 4
+    },
+    "src/baldric/runtime/tui/screens/command_output.py": {
+      "lines": 106,
+      "max_function_stmts": 5
+    },
+    "src/baldric/runtime/tui/screens/extension.py": {
+      "lines": 223,
+      "max_function_stmts": 5
+    },
+    "src/baldric/runtime/tui/screens/extensions.py": {
+      "lines": 99,
+      "max_function_stmts": 8
+    },
+    "src/baldric/runtime/tui/screens/login.py": {
+      "lines": 687,
+      "max_function_stmts": 17
+    },
+    "src/baldric/runtime/tui/screens/model_picker.py": {
+      "lines": 334,
+      "max_function_stmts": 16
+    },
+    "src/baldric/runtime/tui/screens/prompt_templates.py": {
+      "lines": 170,
+      "max_function_stmts": 6
+    },
+    "src/baldric/runtime/tui/screens/session_picker.py": {
+      "lines": 561,
+      "max_function_stmts": 15
+    },
+    "src/baldric/runtime/tui/screens/sidebar.py": {
+      "lines": 201,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/tui/screens/skill_picker.py": {
+      "lines": 210,
+      "max_function_stmts": 8
+    },
+    "src/baldric/runtime/tui/screens/support.py": {
+      "lines": 209,
+      "max_function_stmts": 11
+    },
+    "src/baldric/runtime/tui/screens/theme.py": {
+      "lines": 111,
+      "max_function_stmts": 4
+    },
+    "src/baldric/runtime/tui/screens/tools_reference.py": {
+      "lines": 212,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/tui/screens/tree_picker.py": {
+      "lines": 372,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/tui/session_pickers.py": {
+      "lines": 307,
+      "max_function_stmts": 6
+    },
+    "src/baldric/runtime/tui/session_records.py": {
+      "lines": 87,
+      "max_function_stmts": 8
+    },
+    "src/baldric/runtime/tui/state.py": {
+      "lines": 1055,
+      "max_function_stmts": 15
+    },
+    "src/baldric/runtime/tui/terminal_notification.py": {
+      "lines": 115,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/tui/terminal_title.py": {
+      "lines": 122,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/tui/text_utils.py": {
+      "lines": 11,
+      "max_function_stmts": 3
+    },
+    "src/baldric/runtime/tui/trust.py": {
+      "lines": 189,
+      "max_function_stmts": 5
+    },
+    "src/baldric/runtime/tui/widgets/__init__.py": {
+      "lines": 592,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/tui/widgets/core.py": {
+      "lines": 1860,
+      "max_function_stmts": 26
+    },
+    "src/baldric/runtime/tui/widgets/markdown.py": {
+      "lines": 599,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/tui/widgets/markdown_stream.py": {
+      "lines": 61,
+      "max_function_stmts": 6
+    },
+    "src/baldric/runtime/tui/widgets/prompt_input.py": {
+      "lines": 591,
+      "max_function_stmts": 8
+    },
+    "src/baldric/runtime/tui/widgets/sidebar.py": {
+      "lines": 1037,
+      "max_function_stmts": 24
+    },
+    "src/baldric/runtime/tui/widgets/system_prompt.py": {
+      "lines": 123,
+      "max_function_stmts": 8
+    },
+    "src/baldric/runtime/update/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/update/check.py": {
+      "lines": 419,
+      "max_function_stmts": 10
+    },
+    "src/baldric/runtime/update/reload.py": {
+      "lines": 31,
+      "max_function_stmts": 2
+    },
+    "src/baldric/runtime/update/updater.py": {
+      "lines": 387,
+      "max_function_stmts": 15
+    },
+    "src/baldric/runtime/utils/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/utils/atomic.py": {
+      "lines": 38,
+      "max_function_stmts": 4
+    },
+    "src/baldric/runtime/utils/self_docs.py": {
+      "lines": 23,
+      "max_function_stmts": 2
+    },
+    "src/baldric/runtime/version.py": {
+      "lines": 16,
+      "max_function_stmts": 2
     }
   },
   "global": {

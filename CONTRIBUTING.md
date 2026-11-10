@@ -9,7 +9,7 @@ Baldric is organized around three layers:
 ```text
 baldric.ai      provider/model streaming layer
 baldric.agent   portable agent harness, loop, tools, events, sessions
-baldric.coding  CLI app, resources, skills, extensions, commands, TUI integration
+baldric.runtime  CLI app, resources, skills, extensions, commands, TUI integration
 ```
 
 The key boundary is:
@@ -83,7 +83,7 @@ Use the layer boundaries to decide where code should live:
 
 - Provider integrations, model adapters, and provider-neutral streaming belong in `baldric.ai`.
 - Agent loop behavior, tool abstractions, events, messages, harnesses, and portable session primitives belong in `baldric.agent`.
-- CLI behavior, slash commands, TUI integration, local config, resources, skills, prompt templates, and coding-specific tools belong in `baldric.coding`.
+- CLI behavior, slash commands, TUI integration, local config, resources, skills, prompt templates, and coding-specific tools belong in `baldric.runtime`.
 - Textual-specific code should stay behind the TUI layer.
 - Rich rendering should not leak into the reusable agent harness.
 
@@ -92,7 +92,7 @@ If a change crosses layers, prefer adding a small typed boundary instead of impo
 ## Adding a provider or model
 
 The built-in provider catalog is data, not code: edit
-`src/baldric/coding/data/catalog.toml` and open a PR — no Python changes needed.
+`src/baldric/runtime/data/catalog.toml` and open a PR — no Python changes needed.
 Each `[[providers]]` table declares the provider's name, kind
 (`openai-compatible`, `anthropic`, or `openai-codex`), base URL, models,
 default model, context windows, and thinking configuration. Validation happens

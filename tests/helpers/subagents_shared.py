@@ -12,16 +12,16 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from baldric.ai import AssistantDoneEvent, AssistantStartEvent
-from baldric.coding import BaldricResourcePaths
-from baldric.coding.config.paths import BaldricPaths
-from baldric.coding.extensions import ExtensionRuntime
 from baldric.protocol.messages import AssistantMessage
+from baldric.runtime import BaldricResourcePaths
+from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.extensions import ExtensionRuntime
 
 EXTENSION_DIR = (
     Path(__file__).resolve().parents[2]
     / "src"
     / "baldric"
-    / "coding"
+    / "runtime"
     / "extensions"
     / "builtins"
     / "subagents"

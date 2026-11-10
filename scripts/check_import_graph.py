@@ -27,7 +27,7 @@ RULES: tuple[tuple[str, str], ...] = (
     # runtime, provider adapters, or coding app, and may not touch platform I/O.
     ("baldric.protocol", "baldric.agent"),
     ("baldric.protocol", "baldric.ai"),
-    ("baldric.protocol", "baldric.coding"),
+    ("baldric.protocol", "baldric.runtime"),
     ("baldric.protocol", "textual"),
     ("baldric.protocol", "rich"),
     ("baldric.protocol", "fcntl"),
@@ -36,31 +36,31 @@ RULES: tuple[tuple[str, str], ...] = (
     # The agent kernel must not depend on provider implementations (the reverse
     # direction of the provider surface below).
     ("baldric.agent", "baldric.ai"),
-    ("baldric.agent", "baldric.coding"),
+    ("baldric.agent", "baldric.runtime"),
     ("baldric.agent", "textual"),
     ("baldric.agent", "rich"),
     # The provider layer now depends on the protocol contract, not the harness.
     ("baldric.ai", "baldric.agent"),
-    ("baldric.ai", "baldric.coding"),
+    ("baldric.ai", "baldric.runtime"),
     # The MCP client core is an application-layer package beside the coding
     # app: it delegates protocol work to the official `mcp` SDK and must stay
     # importable without the harness, providers, or the TUI stack.
     ("baldric.mcp", "baldric.agent"),
     ("baldric.mcp", "baldric.ai"),
-    ("baldric.mcp", "baldric.coding"),
+    ("baldric.mcp", "baldric.runtime"),
     ("baldric.mcp", "textual"),
     ("baldric.mcp", "rich"),
     # The harness and providers must not learn MCP exists; the coding app
     # reaches MCP only through its built-in extension.
     ("baldric.agent", "baldric.mcp"),
     ("baldric.ai", "baldric.mcp"),
-    ("baldric.coding.session", "baldric.coding.tui"),
-    ("baldric.coding.tools", "baldric.coding.tui"),
-    ("baldric.coding.backends", "baldric.coding.tui"),
-    ("baldric.coding.trust", "baldric.coding.tui"),
-    ("baldric.coding.context", "baldric.coding.tui"),
-    ("baldric.coding.providers", "baldric.coding.tui"),
-    ("baldric.coding.rendering", "baldric.coding.tui"),
+    ("baldric.runtime.session", "baldric.runtime.tui"),
+    ("baldric.runtime.tools", "baldric.runtime.tui"),
+    ("baldric.runtime.backends", "baldric.runtime.tui"),
+    ("baldric.runtime.trust", "baldric.runtime.tui"),
+    ("baldric.runtime.context", "baldric.runtime.tui"),
+    ("baldric.runtime.providers", "baldric.runtime.tui"),
+    ("baldric.runtime.rendering", "baldric.runtime.tui"),
 )
 
 # The provider layer depends on the protocol contract only. It may not import the

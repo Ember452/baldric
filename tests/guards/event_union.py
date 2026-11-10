@@ -13,12 +13,12 @@ import ast
 from pathlib import Path
 
 import baldric.agent.events as agent_events
-import baldric.coding.events as coding_events
+import baldric.runtime.events as coding_events
 
 ROOT = Path(__file__).resolve().parents[2]
 EVENT_SOURCES = (
     ROOT / "src" / "baldric" / "agent" / "events.py",
-    ROOT / "src" / "baldric" / "coding" / "events.py",
+    ROOT / "src" / "baldric" / "runtime" / "events.py",
 )
 
 

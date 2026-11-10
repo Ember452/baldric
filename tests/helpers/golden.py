@@ -4,7 +4,7 @@ The committed files under ``tests/expected/`` are the source of truth. Tests
 only read them; rewriting requires an explicit environment flag so a passing
 suite can never silently move the goalposts:
 
-    UPDATE_EXPECTED=1 uv run pytest tests/coding/test_expected_outputs.py
+    UPDATE_EXPECTED=1 uv run pytest tests/runtime/test_expected_outputs.py
 
 An update prints the unified diff it is about to accept so the change is
 visible in CI logs even when nobody asks for it.

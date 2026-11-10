@@ -14,7 +14,7 @@ nothing above it.
 
 ## Boundaries
 
-- Do not import `baldric.coding`, `textual`, or `rich`;
+- Do not import `baldric.runtime`, `textual`, or `rich`;
   `scripts/check_import_graph.py` and `tests/guards/` enforce it.
 - Events are the contract: model-visible behavior needs a new event or
   documented message field, not a frontend callback.
