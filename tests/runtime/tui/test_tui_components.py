@@ -16,11 +16,11 @@ from rich.style import Style as RichStyle
 from textual.containers import Container
 from textual.widgets import Collapsible, Static
 
+from baldric.runtime.frontends.tui.app import BaldricTuiApp, PromptInput
+from baldric.runtime.frontends.tui.config import TuiSettings
+from baldric.runtime.frontends.tui.widgets import SessionSidebar, TranscriptView
 from baldric.runtime.platform import ExtensionRuntime
 from baldric.runtime.rendering.themes import get_tui_theme
-from baldric.runtime.tui.app import BaldricTuiApp, PromptInput
-from baldric.runtime.tui.config import TuiSettings
-from baldric.runtime.tui.widgets import SessionSidebar, TranscriptView
 from tests.helpers.conftest_utils import isolate_home
 from tests.helpers.tui_helpers import FakeSession, _component_bridge
 

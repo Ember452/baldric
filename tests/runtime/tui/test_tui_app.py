@@ -78,42 +78,10 @@ from baldric.runtime.events import (
     CompactionStartEvent,
     SessionAgentEndEvent,
 )
-from baldric.runtime.platform import (
-    DynamicProvider,
-    DynamicProviderRegistry,
-    LocalBackend,
-    LocalBackendRegistry,
-    LocalBackendStatus,
-    LocalConfigureResult,
-    LocalConfigureSpec,
-    LocalModel,
-    NoAuth,
-    OpenAICompatibleTransport,
-    ProviderModel,
-)
-from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
-from baldric.runtime.providers.config import (
-    OpenAICodexProviderConfig,
-    OpenAICompatibleProviderConfig,
-    ProviderSelection,
-    ProviderSettings,
-    ScopedModelConfig,
-    save_provider_settings,
-)
-from baldric.runtime.providers.loader import user_catalog_path
-from baldric.runtime.rendering.activity import THINKING_LEVEL_COLORS
-from baldric.runtime.rendering.diffs import DiffPalette
-from baldric.runtime.session.manager import CodingSessionRecord
-from baldric.runtime.session.session import (
-    ModelChoice,
-    SessionTreeBranchResult,
-    TerminalCommandResult,
-)
-from baldric.runtime.session.stats import SessionStats
-from baldric.runtime.tui import app as tui_app
-from baldric.runtime.tui import session_pickers
-from baldric.runtime.tui.adapter import TuiEventAdapter
-from baldric.runtime.tui.app import (
+from baldric.runtime.frontends.tui import app as tui_app
+from baldric.runtime.frontends.tui import session_pickers
+from baldric.runtime.frontends.tui.adapter import TuiEventAdapter
+from baldric.runtime.frontends.tui.app import (
     COMPLETION_MAX_VISIBLE_LINES,
     PASTE_DISPLAY_THRESHOLD,
     BaldricTuiApp,
@@ -151,13 +119,13 @@ from baldric.runtime.tui.app import (
     _TuiExtensionUiBridge,
     _visible_completion_state,
 )
-from baldric.runtime.tui.autocomplete import (
+from baldric.runtime.frontends.tui.autocomplete import (
     CompletionItem,
     CompletionKind,
     CompletionState,
 )
-from baldric.runtime.tui.backends import LocalBackendScreen, LocalConfirmScreen
-from baldric.runtime.tui.config import (
+from baldric.runtime.frontends.tui.backends import LocalBackendScreen, LocalConfirmScreen
+from baldric.runtime.frontends.tui.config import (
     BALDRIC_DARK_THEME,
     BALDRIC_LIGHT_THEME,
     HIGH_CONTRAST_THEME,
@@ -166,13 +134,13 @@ from baldric.runtime.tui.config import (
     TuiTheme,
     tui_settings_path,
 )
-from baldric.runtime.tui.state import ChatItem, TuiState
-from baldric.runtime.tui.terminal_notification import TerminalNotificationController
-from baldric.runtime.tui.terminal_title import (
+from baldric.runtime.frontends.tui.state import ChatItem, TuiState
+from baldric.runtime.frontends.tui.terminal_notification import TerminalNotificationController
+from baldric.runtime.frontends.tui.terminal_title import (
     RUNNING_TITLE_FRAMES,
     TerminalTitleController,
 )
-from baldric.runtime.tui.widgets import (
+from baldric.runtime.frontends.tui.widgets import (
     TRANSCRIPT_WINDOW_ITEMS,
     TRANSCRIPT_WINDOW_OVERSCAN_ITEMS,
     BaldricMarkdownBlock,
@@ -202,6 +170,38 @@ from baldric.runtime.tui.widgets import (
     render_session_sidebar,
     transcript_item_selection_text,
 )
+from baldric.runtime.platform import (
+    DynamicProvider,
+    DynamicProviderRegistry,
+    LocalBackend,
+    LocalBackendRegistry,
+    LocalBackendStatus,
+    LocalConfigureResult,
+    LocalConfigureSpec,
+    LocalModel,
+    NoAuth,
+    OpenAICompatibleTransport,
+    ProviderModel,
+)
+from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
+from baldric.runtime.providers.config import (
+    OpenAICodexProviderConfig,
+    OpenAICompatibleProviderConfig,
+    ProviderSelection,
+    ProviderSettings,
+    ScopedModelConfig,
+    save_provider_settings,
+)
+from baldric.runtime.providers.loader import user_catalog_path
+from baldric.runtime.rendering.activity import THINKING_LEVEL_COLORS
+from baldric.runtime.rendering.diffs import DiffPalette
+from baldric.runtime.session.manager import CodingSessionRecord
+from baldric.runtime.session.session import (
+    ModelChoice,
+    SessionTreeBranchResult,
+    TerminalCommandResult,
+)
+from baldric.runtime.session.stats import SessionStats
 from baldric.runtime.version import current_version
 from tests.helpers.conftest_utils import isolate_home
 from tests.helpers.tui_helpers import (
@@ -792,8 +792,8 @@ def test_git_branch_refreshes_in_background_after_head_changes(
 ) -> None:
     from subprocess import CompletedProcess
 
-    from baldric.runtime.tui import widgets as tui_widgets
-    from baldric.runtime.tui.widgets import sidebar as tui_sidebar
+    from baldric.runtime.frontends.tui import widgets as tui_widgets
+    from baldric.runtime.frontends.tui.widgets import sidebar as tui_sidebar
 
     head = tmp_path / ".git" / "HEAD"
     head.parent.mkdir()
@@ -1872,7 +1872,7 @@ async def test_tool_run_stops_at_the_row_limit(
     arguments: dict[str, str],
 ) -> None:
     """A long run starts a fresh block, for file groups as well as batches."""
-    monkeypatch.setattr("baldric.runtime.tui.state.TOOL_RUN_ROW_LIMIT", 2)
+    monkeypatch.setattr("baldric.runtime.frontends.tui.state.TOOL_RUN_ROW_LIMIT", 2)
     messages: list[AssistantMessage | ToolResultMessage] = []
     for index in range(3):
         call_arguments = {
@@ -2833,7 +2833,7 @@ async def test_assistant_message_renders_without_role_block() -> None:
 async def test_long_transcript_mounts_bounded_latest_window_and_pages_earlier(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from baldric.runtime.tui import widgets as tui_widgets
+    from baldric.runtime.frontends.tui import widgets as tui_widgets
 
     monkeypatch.setattr(tui_widgets, "TRANSCRIPT_WINDOW_ITEMS", 6)
     monkeypatch.setattr(tui_widgets, "TRANSCRIPT_WINDOW_PAGE_ITEMS", 2)
@@ -2872,7 +2872,7 @@ async def test_tool_only_message_keeps_a_paged_back_window(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Ending a tool-only message must not remount the window under the user."""
-    from baldric.runtime.tui import widgets as tui_widgets
+    from baldric.runtime.frontends.tui import widgets as tui_widgets
 
     monkeypatch.setattr(tui_widgets, "TRANSCRIPT_WINDOW_ITEMS", 6)
     monkeypatch.setattr(tui_widgets, "TRANSCRIPT_WINDOW_PAGE_ITEMS", 2)
@@ -6649,7 +6649,7 @@ async def test_tui_app_refuses_session_resume_while_busy() -> None:
 async def test_wait_for_open_session_picker_gives_up_after_deadline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from baldric.runtime.tui import session_pickers
+    from baldric.runtime.frontends.tui import session_pickers
 
     app = BaldricTuiApp(FakeSession())
 

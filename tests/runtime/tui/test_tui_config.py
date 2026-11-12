@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from baldric.runtime.config.paths import BaldricPaths
-from baldric.runtime.tui.config import (
+from baldric.runtime.frontends.tui.config import (
     HIGH_CONTRAST_THEME,
     TuiConfigError,
     TuiKeybindings,

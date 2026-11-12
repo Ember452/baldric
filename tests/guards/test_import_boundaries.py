@@ -34,7 +34,7 @@ def test_rules_declare_the_layer_direction() -> None:
     assert ("baldric.agent", "baldric.runtime") in pairs
     assert ("baldric.agent", "textual") in pairs
     assert ("baldric.ai", "baldric.runtime") in pairs
-    assert ("baldric.runtime.rendering", "baldric.runtime.tui") in pairs
+    assert ("baldric.runtime.rendering", "baldric.runtime.frontends.tui") in pairs
 
 
 def test_protocol_is_the_bottom_layer() -> None:
@@ -72,14 +72,14 @@ def test_scanner_detects_synthetic_violation(tmp_path: Path) -> None:
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
     (package / "leaky.py").write_text(
-        "import baldric.runtime.tui.app  # noqa: F401\n",
+        "import baldric.runtime.frontends.tui.app  # noqa: F401\n",
         encoding="utf-8",
     )
 
     violations = scan_violations(tmp_path)
 
     assert violations == [
-        ImportViolation(module="baldric.agent.leaky", lineno=1, imported="baldric.runtime.tui.app")
+        ImportViolation(module="baldric.agent.leaky", lineno=1, imported="baldric.runtime.frontends.tui.app")
     ]
 
 
@@ -88,7 +88,8 @@ def test_scanner_ignores_allowed_directions(tmp_path: Path) -> None:
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
     (package / "allowed.py").write_text(
-        "from baldric.agent.loop import run_agent_loop\nfrom baldric.runtime.tui.app import BaldricTuiApp\n",
+        "from baldric.agent.loop import run_agent_loop\n"
+        "from baldric.runtime.frontends.tui.app import BaldricTuiApp\n",
         encoding="utf-8",
     )
 
@@ -100,7 +101,7 @@ def test_scanner_detects_rendering_importing_the_frontend(tmp_path: Path) -> Non
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
     (package / "leaky.py").write_text(
-        "from baldric.runtime.tui.state import TuiState  # noqa: F401\n",
+        "from baldric.runtime.frontends.tui.state import TuiState  # noqa: F401\n",
         encoding="utf-8",
     )
 
@@ -110,7 +111,7 @@ def test_scanner_detects_rendering_importing_the_frontend(tmp_path: Path) -> Non
         ImportViolation(
             module="baldric.runtime.rendering.leaky",
             lineno=1,
-            imported="baldric.runtime.tui.state",
+            imported="baldric.runtime.frontends.tui.state",
         )
     ]
 

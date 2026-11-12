@@ -7,9 +7,9 @@ from types import SimpleNamespace
 import pytest
 from textual.widgets import Input, Static
 
-from baldric.runtime.tui.app import BaldricTuiApp
-from baldric.runtime.tui.config import BALDRIC_DARK_THEME
-from baldric.runtime.tui.screens.extensions import ExtensionsScreen
+from baldric.runtime.frontends.tui.app import BaldricTuiApp
+from baldric.runtime.frontends.tui.config import BALDRIC_DARK_THEME
+from baldric.runtime.frontends.tui.screens.extensions import ExtensionsScreen
 from tests.helpers.tui_helpers import FakeSession
 
 

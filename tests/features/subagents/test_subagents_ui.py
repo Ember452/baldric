@@ -32,9 +32,9 @@ from baldric.runtime.features.subagents.extension import AgentRun, SubagentManag
 from baldric.runtime.features.subagents.ui.controller import STRIP_KEY, SubagentUiController
 from baldric.runtime.features.subagents.ui.strip import AgentStripWidget
 from baldric.runtime.features.subagents.ui.viewer import ConversationViewer
-from baldric.runtime.tui.app import _theme_css_variables
-from baldric.runtime.tui.config import BALDRIC_DARK_THEME
-from baldric.runtime.tui.widgets import TranscriptMessageWidget
+from baldric.runtime.frontends.tui.app import _theme_css_variables
+from baldric.runtime.frontends.tui.config import BALDRIC_DARK_THEME
+from baldric.runtime.frontends.tui.widgets import TranscriptMessageWidget
 
 # Sibling test module (pytest prepend import mode puts tests/ on sys.path).
 from tests.helpers.subagents_shared import RecordingSession, _load_runtime

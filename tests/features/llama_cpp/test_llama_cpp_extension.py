@@ -905,7 +905,7 @@ async def test_tui_explicit_dynamic_startup_uses_cached_state_during_downtime(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from baldric.runtime import SessionManager
-    from baldric.runtime.tui import app as tui_app
+    from baldric.runtime.frontends.tui import app as tui_app
 
     isolate_home(monkeypatch, tmp_path)
     paths = BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents")

@@ -24,6 +24,7 @@ from baldric.runtime.context.resources import (
     resource_paths_with_cwd,
     resource_paths_with_project_trust,
 )
+from baldric.runtime.frontends.tui.trust import ProjectTrustScreen, _ProjectTrustApp
 from baldric.runtime.rendering.themes import BALDRIC_DARK_THEME, textual_theme_for_tui_theme
 from baldric.runtime.session.session import CodingSession, CodingSessionConfig
 from baldric.runtime.trust import policy as project_trust_module
@@ -37,7 +38,6 @@ from baldric.runtime.trust.policy import (
     canonicalize_project_path,
     format_trust_diagnostic,
 )
-from baldric.runtime.tui.trust import ProjectTrustScreen, _ProjectTrustApp
 
 
 def _paths(tmp_path: Path) -> BaldricPaths:

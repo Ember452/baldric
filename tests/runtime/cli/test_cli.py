@@ -1804,7 +1804,7 @@ def test_tui_surfaces_bad_model_as_clean_error(monkeypatch: pytest.MonkeyPatch, 
     ``ValueError`` subclass) raised while resolving the provider/model selection
     escaped the ``anyio`` event loop as an unhandled traceback.
     """
-    import baldric.runtime.tui.app as tui_app
+    import baldric.runtime.frontends.tui.app as tui_app
 
     settings = _constrained_provider_settings()
 
@@ -1833,7 +1833,7 @@ def test_print_mode_surfaces_bad_model_as_clean_error(
     likewise only caught ``RuntimeError``, so it also dumped a
     ``ProviderConfigError`` traceback instead of a friendly message.
     """
-    import baldric.runtime.tui.app as tui_app
+    import baldric.runtime.frontends.tui.app as tui_app
 
     settings = _constrained_provider_settings()
 

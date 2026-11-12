@@ -2,7 +2,7 @@
 
 Every other UI test in this repo drives the widgets against a
 ``FakeComponentBridge`` and runtime stubs. This test closes that gap: it builds
-the actual :class:`baldric.runtime.tui.app.BaldricTuiApp` around a minimal fake session,
+the actual :class:`baldric.runtime.frontends.tui.app.BaldricTuiApp` around a minimal fake session,
 hands it a REAL :class:`~baldric.runtime.platform.ExtensionRuntime` that has loaded
 the REAL ``baldric.runtime.features.subagents`` extension, runs it under
 ``run_test()``, and asserts
@@ -34,12 +34,12 @@ from baldric.runtime.context.system_prompt import ProjectContextFile
 from baldric.runtime.events import QueueUpdateEvent
 from baldric.runtime.features.subagents.ui.strip import AgentStripWidget
 from baldric.runtime.features.subagents.ui.viewer import ConversationViewer
+from baldric.runtime.frontends.tui.app import BaldricTuiApp, PromptInput
+from baldric.runtime.frontends.tui.widgets import TranscriptMessageWidget, TranscriptView
 from baldric.runtime.session.session import ModelChoice, TerminalCommandResult
 from baldric.runtime.session.stats import SessionStats
 from baldric.runtime.tools.registry import create_coding_tools
 from baldric.runtime.trust.policy import ProjectTrustResolution
-from baldric.runtime.tui.app import BaldricTuiApp, PromptInput
-from baldric.runtime.tui.widgets import TranscriptMessageWidget, TranscriptView
 
 # Sibling test modules (pytest prepend import mode puts tests/ on sys.path).
 from tests.helpers.subagents_shared import (

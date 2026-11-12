@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from textual import events
 
-from baldric.runtime.tui.app import BaldricTuiApp, PromptInput
-from baldric.runtime.tui.file_drop import normalize_dropped_paths
+from baldric.runtime.frontends.tui.app import BaldricTuiApp, PromptInput
+from baldric.runtime.frontends.tui.file_drop import normalize_dropped_paths
 
 
 def _escaped(path: Path) -> str:

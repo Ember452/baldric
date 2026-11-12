@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from baldric.runtime.tui.editor import (
+from baldric.runtime.frontends.tui.editor import (
     EditorError,
     edit_prompt_text,
     resolve_editor_command,

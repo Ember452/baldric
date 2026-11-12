@@ -20,7 +20,7 @@ def prevent_browser_open(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture(autouse=True)
 def skip_idle_garbage_collection(monkeypatch: pytest.MonkeyPatch) -> None:
     """Stub out the TUI's idle-time GC; it acts on the whole pytest process."""
-    monkeypatch.setattr("baldric.runtime.tui.app._collect_garbage_while_idle", lambda: None)
+    monkeypatch.setattr("baldric.runtime.frontends.tui.app._collect_garbage_while_idle", lambda: None)
 
 
 @pytest.fixture(autouse=True)

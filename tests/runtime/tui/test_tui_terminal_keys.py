@@ -7,7 +7,7 @@ from textual import events
 from textual._xterm_parser import XTermParser
 from textual.app import App, ComposeResult
 
-from baldric.runtime.tui.app import PromptInput
+from baldric.runtime.frontends.tui.app import PromptInput
 
 
 @pytest.mark.parametrize(

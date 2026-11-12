@@ -28,6 +28,7 @@ from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.config.shell_config import load_shell_settings
 from baldric.runtime.context.resources import BaldricResourcePaths
 from baldric.runtime.context.thinking import THINKING_LEVELS, ThinkingLevel, normalize_thinking_level
+from baldric.runtime.frontends.tui import run_tui_app
 from baldric.runtime.modes.rpc import RpcServer
 from baldric.runtime.observability.doctor import render_doctor_report
 from baldric.runtime.platform import StderrUiBridge
@@ -79,7 +80,6 @@ from baldric.runtime.session.session import (
     parse_terminal_command,
 )
 from baldric.runtime.trust.policy import TrustDefault, TrustOverride
-from baldric.runtime.tui import run_tui_app
 from baldric.runtime.update.check import (
     UpdateNotice,
     cached_update_notice,

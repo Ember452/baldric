@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from baldric.runtime.context.resources import BaldricResourcePaths
+from baldric.runtime.frontends.tui.config import TuiSettings
 from baldric.runtime.rendering.themes import (
     BALDRIC_DARK_THEME,
     BALDRIC_LIGHT_THEME,
@@ -22,7 +23,6 @@ from baldric.runtime.rendering.themes import (
     set_custom_tui_themes,
     theme_css_variables,
 )
-from baldric.runtime.tui.config import TuiSettings
 
 
 @pytest.fixture(autouse=True)
@@ -223,8 +223,8 @@ def test_parse_theme_rejects_var_values_that_are_not_colors() -> None:
 
 
 def test_transcript_roles_are_shared_with_tui_state() -> None:
+    from baldric.runtime.frontends.tui.state import ChatItemRole
     from baldric.runtime.rendering.themes import TranscriptRole
-    from baldric.runtime.tui.state import ChatItemRole
 
     assert ChatItemRole is TranscriptRole
 
@@ -360,8 +360,8 @@ def test_load_custom_themes_ignores_missing_dirs_and_non_json(tmp_path: Path) ->
 def test_tool_result_accents_derive_from_theme() -> None:
     from rich.console import Console
 
-    from baldric.runtime.tui.state import ChatItem
-    from baldric.runtime.tui.widgets import render_chat_item
+    from baldric.runtime.frontends.tui.state import ChatItem
+    from baldric.runtime.frontends.tui.widgets import render_chat_item
 
     data = _theme_data(vars={"base": "#1e1e2e"})
     data["colors"]["tool_success_text"] = "#00fa9a"

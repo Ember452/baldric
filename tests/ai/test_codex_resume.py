@@ -16,10 +16,10 @@ from baldric.runtime import (
     ProviderSettings,
 )
 from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.frontends.tui import app as tui_app
 from baldric.runtime.session import JsonlSessionStorage
 from baldric.runtime.session import session as session_module
 from baldric.runtime.session.manager import SessionManager
-from baldric.runtime.tui import app as tui_app
 
 
 class CatalogProvider(FakeProvider):

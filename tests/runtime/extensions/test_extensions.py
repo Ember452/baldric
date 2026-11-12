@@ -1759,7 +1759,7 @@ class RecordingUiBridge:
 
     @property
     def theme(self):  # noqa: ANN202 - TuiTheme, imported lazily by the default
-        from baldric.runtime.tui.config import BALDRIC_DARK_THEME
+        from baldric.runtime.frontends.tui.config import BALDRIC_DARK_THEME
 
         return BALDRIC_DARK_THEME
 

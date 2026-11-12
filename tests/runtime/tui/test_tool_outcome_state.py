@@ -11,14 +11,14 @@ import time
 
 from baldric.protocol.messages import TextContent
 from baldric.protocol.tools import AgentToolResult
-from baldric.runtime.rendering.themes import BALDRIC_DARK_THEME
-from baldric.runtime.rendering.tool_state import tool_state_background
-from baldric.runtime.tui.state import ChatItem, TuiState
-from baldric.runtime.tui.widgets.core import (
+from baldric.runtime.frontends.tui.state import ChatItem, TuiState
+from baldric.runtime.frontends.tui.widgets.core import (
     TranscriptMessageWidget,
     _chat_item_role_style,
     _tool_batch_row_invocation,
 )
+from baldric.runtime.rendering.themes import BALDRIC_DARK_THEME
+from baldric.runtime.rendering.tool_state import tool_state_background
 
 
 def _result(text: str = "ok") -> AgentToolResult:

@@ -5,8 +5,8 @@ via ``context.ui.components.open_main_view`` (an in-tree, display-toggled main
 view — NOT a modal — so the fleet strip stays visible for peripheral awareness).
 
 Rendering deliberately REUSES baldric core's own transcript internals rather than
-reinventing them: it feeds a :class:`baldric.runtime.tui.state.TuiState` (via
-``load_messages``) into a :class:`baldric.runtime.tui.widgets.TranscriptView` and
+reinventing them: it feeds a :class:`baldric.runtime.frontends.tui.state.TuiState` (via
+``load_messages``) into a :class:`baldric.runtime.frontends.tui.widgets.TranscriptView` and
 calls ``update_from_state``, so subagent transcripts render pixel-identical to
 the main chat. Importing those host internals is a deliberate coupling; it is
 called out here because it is non-obvious.
@@ -34,17 +34,17 @@ from baldric.protocol.messages import AgentMessage, UserMessage
 # Host-internal rendering reuse (the measured coupling): the viewer renders an
 # agent's conversation through the very same state + transcript widget the host
 # uses for the main chat, so message/tool/thinking formatting stays identical.
-from baldric.runtime.tui.config import TuiKeybindings
-from baldric.runtime.tui.state import TuiState
-from baldric.runtime.tui.widgets import TranscriptView
+from baldric.runtime.frontends.tui.config import TuiKeybindings
+from baldric.runtime.frontends.tui.state import TuiState
+from baldric.runtime.frontends.tui.widgets import TranscriptView
 
 from ..agents_menu import run_snapshot_messages, steer_run, stop_run
 
 if TYPE_CHECKING:
     from textual import events
 
+    from baldric.runtime.frontends.tui.config import TuiTheme
     from baldric.runtime.platform import MainViewHandle
-    from baldric.runtime.tui.config import TuiTheme
 
     from ..extension import AgentRun, SubagentManager
 

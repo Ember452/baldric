@@ -33,7 +33,7 @@ from textual.widgets import Static
 if TYPE_CHECKING:
     from textual import events
 
-    from baldric.runtime.tui.config import TuiTheme
+    from baldric.runtime.frontends.tui.config import TuiTheme
 
     from ..extension import AgentRun, SubagentManager
 

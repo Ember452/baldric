@@ -20,13 +20,13 @@ if TYPE_CHECKING:
     from textual.widget import Widget
 
     from baldric.runtime.config.paths import BaldricPaths
+    from baldric.runtime.frontends.tui.config import TuiTheme
     from baldric.runtime.platform.provider_registry import DynamicProviderRegistry
     from baldric.runtime.platform.providers import DynamicProvider
     from baldric.runtime.platform.runtime import ExtensionRuntime
     from baldric.runtime.providers.backends.contracts import LocalBackend
     from baldric.runtime.session.session import ModelChoice
     from baldric.runtime.trust.policy import ProjectTrustResolution
-    from baldric.runtime.tui.config import TuiTheme
 
 # Pure contract shapes (event payloads, capabilities, type aliases, and event
 # constants) live in ``baldric.protocol.extension`` so any layer can depend on
@@ -211,7 +211,7 @@ def _default_theme() -> TuiTheme:
     """
     global _DEFAULT_THEME
     if _DEFAULT_THEME is None:
-        from baldric.runtime.tui.config import BALDRIC_DARK_THEME
+        from baldric.runtime.frontends.tui.config import BALDRIC_DARK_THEME
 
         _DEFAULT_THEME = BALDRIC_DARK_THEME
     return _DEFAULT_THEME

@@ -61,7 +61,7 @@ result = session.handle_command(text)
 
 - 用 `session.cancel()` 取消——持续消费事件直到流结束。
 - 直接从 session 读取 picker 数据：`command_registry.list_commands()`、`skills`、`prompt_templates`、`available_model_choices`、`available_models`、`available_providers`、`thinking_level`、`available_thinking_levels`、`session_manager`。来自其他 provider 的模型变更，先调 `set_provider(...)` 再 `set_model(...)`。
-- 键位与主题是 **frontend 政策**。内置应用通过 `baldric.runtime.tui.load_tui_settings()` 读 `~/.baldric/tui.json`，你的 UI 可以无视它。
+- 键位与主题是 **frontend 政策**。内置应用通过 `baldric.runtime.frontends.tui.load_tui_settings()` 读 `~/.baldric/tui.json`，你的 UI 可以无视它。
 
 ## 不要依赖什么
 

@@ -54,13 +54,12 @@ RULES: tuple[tuple[str, str], ...] = (
     # reaches MCP only through its built-in extension.
     ("baldric.agent", "baldric.mcp"),
     ("baldric.ai", "baldric.mcp"),
-    ("baldric.runtime.session", "baldric.runtime.tui"),
-    ("baldric.runtime.tools", "baldric.runtime.tui"),
-    ("baldric.runtime.backends", "baldric.runtime.tui"),
-    ("baldric.runtime.trust", "baldric.runtime.tui"),
-    ("baldric.runtime.context", "baldric.runtime.tui"),
-    ("baldric.runtime.providers", "baldric.runtime.tui"),
-    ("baldric.runtime.rendering", "baldric.runtime.tui"),
+    ("baldric.runtime.session", "baldric.runtime.frontends.tui"),
+    ("baldric.runtime.tools", "baldric.runtime.frontends.tui"),
+    ("baldric.runtime.trust", "baldric.runtime.frontends.tui"),
+    ("baldric.runtime.context", "baldric.runtime.frontends.tui"),
+    ("baldric.runtime.providers", "baldric.runtime.frontends.tui"),
+    ("baldric.runtime.rendering", "baldric.runtime.frontends.tui"),
 )
 
 # The provider layer depends on the protocol contract only. It may not import the
