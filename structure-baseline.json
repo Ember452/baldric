@@ -25,7 +25,7 @@
       "max_function_stmts": 10
     },
     "src/baldric/agent/loop.py": {
-      "lines": 396,
+      "lines": 397,
       "max_function_stmts": 19
     },
     "src/baldric/agent/run_state.py": {
@@ -77,7 +77,7 @@
       "max_function_stmts": 6
     },
     "src/baldric/ai/google.py": {
-      "lines": 597,
+      "lines": 599,
       "max_function_stmts": 17
     },
     "src/baldric/ai/hooks.py": {
@@ -93,7 +93,7 @@
       "max_function_stmts": 6
     },
     "src/baldric/ai/mistral.py": {
-      "lines": 594,
+      "lines": 601,
       "max_function_stmts": 15
     },
     "src/baldric/ai/model_catalog.py": {
@@ -141,11 +141,11 @@
       "max_function_stmts": 14
     },
     "src/baldric/mcp/client.py": {
-      "lines": 413,
+      "lines": 419,
       "max_function_stmts": 14
     },
     "src/baldric/mcp/config.py": {
-      "lines": 386,
+      "lines": 413,
       "max_function_stmts": 21
     },
     "src/baldric/mcp/supervisor.py": {
@@ -201,7 +201,7 @@
       "max_function_stmts": 0
     },
     "src/baldric/runtime/auth/credentials.py": {
-      "lines": 260,
+      "lines": 261,
       "max_function_stmts": 13
     },
     "src/baldric/runtime/auth/flows/__init__.py": {
@@ -377,7 +377,7 @@
       "max_function_stmts": 12
     },
     "src/baldric/runtime/extensions/builtins/llama_cpp/service.py": {
-      "lines": 1734,
+      "lines": 1737,
       "max_function_stmts": 24
     },
     "src/baldric/runtime/extensions/builtins/llama_cpp/state.py": {
@@ -557,7 +557,7 @@
       "max_function_stmts": 14
     },
     "src/baldric/runtime/providers/config/settings.py": {
-      "lines": 412,
+      "lines": 456,
       "max_function_stmts": 10
     },
     "src/baldric/runtime/providers/config/validation.py": {
@@ -565,7 +565,7 @@
       "max_function_stmts": 26
     },
     "src/baldric/runtime/providers/loader.py": {
-      "lines": 779,
+      "lines": 760,
       "max_function_stmts": 17
     },
     "src/baldric/runtime/providers/runtime.py": {
@@ -989,7 +989,7 @@
       "max_function_stmts": 0
     },
     "src/baldric/runtime/utils/atomic.py": {
-      "lines": 38,
+      "lines": 46,
       "max_function_stmts": 4
     },
     "src/baldric/runtime/utils/self_docs.py": {
