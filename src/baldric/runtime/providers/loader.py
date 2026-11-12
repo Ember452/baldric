@@ -5,11 +5,9 @@ from __future__ import annotations
 import json
 import tomllib
 from collections.abc import Iterable, Mapping
-from contextlib import suppress
 from functools import cache
 from importlib.resources import files
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from typing import Annotated, Any, Literal
 
 from pydantic import (
@@ -34,6 +32,7 @@ from baldric.runtime.providers.catalog import (
     ProviderCatalogEntry,
     ProviderKind,
 )
+from baldric.runtime.utils.atomic import atomic_write_text
 
 CATALOG_SCHEMA_VERSION = 1
 USER_CATALOG_FILENAME = "catalog.toml"
@@ -758,22 +757,4 @@ def _toml_value(value: object) -> str:
 
 
 def _atomic_write_text(path: Path, text: str) -> None:
-    temp_path: Path | None = None
-    try:
-        with NamedTemporaryFile(
-            "w",
-            dir=path.parent,
-            encoding="utf-8",
-            prefix=f".{path.name}.",
-            suffix=".tmp",
-            delete=False,
-        ) as temp_file:
-            temp_path = Path(temp_file.name)
-            temp_file.write(text)
-            temp_file.flush()
-        temp_path.replace(path)
-    except Exception:
-        if temp_path is not None:
-            with suppress(OSError):
-                temp_path.unlink()
-        raise
+    atomic_write_text(path, text)

@@ -1,3 +1,5 @@
+import logging
+from pathlib import Path
 from stat import S_IMODE
 
 import pytest
@@ -100,3 +102,39 @@ def test_file_credential_store_loads_legacy_codex_oauth_shape(tmp_path) -> None:
         expires=123,
         account_id="account",
     )
+
+
+def test_corrupt_credentials_file_is_quarantined_and_store_starts_empty(
+    tmp_path, caplog: pytest.LogCaptureFixture
+) -> None:
+    path = tmp_path / "credentials.json"
+    path.write_text('{"openai": "trunca', encoding="utf-8")
+    store = FileCredentialStore(path)
+
+    with caplog.at_level(logging.WARNING):
+        assert store.get("openai") is None
+
+    assert store.names() == ()
+    assert Path(str(path) + ".corrupt").read_text(encoding="utf-8") == '{"openai": "trunca'
+    assert not path.exists()
+    assert "credentials.json" in caplog.text
+
+    store.set("openai", "new-key")
+    assert store.get("openai") == "new-key"
+
+
+def test_credential_save_fsyncs_before_replace(tmp_path, monkeypatch) -> None:
+    import baldric.runtime.utils.atomic as atomic_module
+
+    order: list[str] = []
+    real_fsync = atomic_module.os.fsync
+    real_replace = atomic_module.os.replace
+    monkeypatch.setattr(atomic_module.os, "fsync", lambda fd: (order.append("fsync"), real_fsync(fd))[1])
+    monkeypatch.setattr(
+        atomic_module.os, "replace", lambda src, dst: (order.append("replace"), real_replace(src, dst))[1]
+    )
+    store = FileCredentialStore(tmp_path / "credentials.json")
+
+    store.set("openai", "test-key")
+
+    assert order == ["fsync", "replace"]

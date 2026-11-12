@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from contextlib import suppress
 from dataclasses import replace
 from json import dumps, loads
 from pathlib import Path
-from tempfile import NamedTemporaryFile
+from shutil import copy2
 from typing import Any
 
 from baldric.runtime.config.paths import BaldricPaths
@@ -43,6 +44,9 @@ from baldric.runtime.providers.config.validation import (
     provider_settings_from_json,
 )
 from baldric.runtime.providers.loader import effective_catalog
+from baldric.runtime.utils.atomic import atomic_write_text
+
+logger = logging.getLogger(__name__)
 
 
 def _provider_config_module() -> Any:
@@ -62,7 +66,9 @@ def load_provider_settings(paths: BaldricPaths | None = None) -> ProviderSetting
     path = provider_settings_path(resolved_paths)
     if not path.exists():
         return ProviderSettings(providers=_effective_provider_configs(resolved_paths))
-    raw = loads(path.read_text(encoding="utf-8"))
+    raw = _load_provider_settings_json(path)
+    if raw is _UNREADABLE:
+        return ProviderSettings(providers=_effective_provider_configs(resolved_paths))
     if not isinstance(raw, dict):
         raise ProviderConfigError("Provider settings must be a JSON object")
     settings = provider_settings_from_json(raw, paths=resolved_paths)
@@ -71,6 +77,51 @@ def load_provider_settings(paths: BaldricPaths | None = None) -> ProviderSetting
         _save_migrated_provider_settings(settings, paths=resolved_paths)
         return settings
     return _with_builtin_catalog_models(settings, paths=resolved_paths)
+
+
+_UNREADABLE = object()
+"""Sentinel distinguishing an unreadable file from a valid JSON ``null``."""
+
+
+def _load_provider_settings_json(path: Path) -> Any:
+    """Parse providers.json, recovering from the .bak when the file is torn.
+
+    Every write keeps the previous file as ``.bak``, so a torn main file is
+    first healed from that backup; without a readable backup the torn file is
+    quarantined and defaults apply. Startup must survive a power-loss tear.
+
+    Returns the parsed JSON, or ``_UNREADABLE`` when recovery failed. A valid
+    ``null`` document is returned as ``None`` (and then rejected by the caller's
+    object check), so it is not confused with an unrecoverable file.
+    """
+    try:
+        return loads(path.read_text(encoding="utf-8"))
+    except ValueError as exc:
+        backup_path = path.with_suffix(path.suffix + ".bak")
+        try:
+            backup = loads(backup_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            backup = None
+        if backup is not None:
+            logger.warning(
+                "Corrupt %s recovered from %s (%s).",
+                path,
+                backup_path,
+                exc,
+            )
+            with suppress(OSError):
+                copy2(backup_path, path)
+            return backup
+        quarantine = Path(str(path) + ".corrupt")
+        with suppress(OSError):
+            path.replace(quarantine)
+        logger.warning(
+            "Corrupt %s quarantined to %s (%s); provider preferences reset to defaults.",
+            path,
+            quarantine,
+            exc,
+        )
+        return _UNREADABLE
 
 
 def save_provider_settings(settings: ProviderSettings, paths: BaldricPaths | None = None) -> Path:
@@ -363,14 +414,30 @@ def _save_migrated_provider_settings(settings: ProviderSettings, *, paths: Baldr
 
 
 def _backup_provider_settings(path: Path, *, strict: bool) -> None:
-    """Copy existing settings to the recovery path, optionally requiring success."""
+    """Copy existing settings to the recovery path, optionally requiring success.
+
+    A corrupt main file is never copied over a good ``.bak``: otherwise a failed
+    heal (main still corrupt) followed by the next save would overwrite the only
+    good backup with garbage. Unreadable main is skipped regardless of ``strict``.
+    """
     if not path.exists():
+        return
+    if not _is_readable_json_file(path):
         return
     if strict:
         _provider_config_module().copy2(path, path.with_suffix(path.suffix + ".bak"))
         return
     with suppress(OSError):
         _provider_config_module().copy2(path, path.with_suffix(path.suffix + ".bak"))
+
+
+def _is_readable_json_file(path: Path) -> bool:
+    """Return whether ``path`` currently holds parseable JSON."""
+    try:
+        loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return True
 
 
 def _write_provider_settings(
@@ -383,30 +450,7 @@ def _write_provider_settings(
     path.parent.mkdir(parents=True, exist_ok=True)
     if backup:
         _backup_provider_settings(path, strict=False)
-    _atomic_write_text(path, dumps(settings.to_json(), indent=2, sort_keys=True) + "\n")
+    atomic_write_text(path, dumps(settings.to_json(), indent=2, sort_keys=True) + "\n")
 
 
 _EFFECTIVE_PROVIDER_CONFIGS: tuple[tuple[ProviderCatalogEntry, ...], tuple[ProviderConfig, ...]] | None = None
-
-
-def _atomic_write_text(path: Path, text: str) -> None:
-    """Write text through a sibling temp file and atomically replace the target."""
-    temp_path: Path | None = None
-    try:
-        with NamedTemporaryFile(
-            "w",
-            dir=path.parent,
-            encoding="utf-8",
-            prefix=f".{path.name}.",
-            suffix=".tmp",
-            delete=False,
-        ) as temp_file:
-            temp_path = Path(temp_file.name)
-            temp_file.write(text)
-            temp_file.flush()
-        temp_path.replace(path)
-    except Exception:
-        if temp_path is not None:
-            with suppress(OSError):
-                temp_path.unlink()
-        raise

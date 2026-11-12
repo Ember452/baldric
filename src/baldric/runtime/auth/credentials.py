@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import logging
+from contextlib import suppress
 from dataclasses import dataclass, field
 from json import dumps, loads
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from typing import Any, Literal, Protocol
 
 from baldric.protocol.types import JSONValue
 from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.utils.atomic import atomic_write_text
+
+logger = logging.getLogger(__name__)
 
 
 class CredentialStoreError(ValueError):
@@ -133,9 +137,24 @@ class FileCredentialStore:
     def _load(self) -> dict[str, StoredCredential]:
         if not self.path.exists():
             return {}
-        raw = loads(self.path.read_text(encoding="utf-8"))
-        if not isinstance(raw, dict):
-            raise CredentialStoreError("Baldric credentials must be a JSON object")
+        try:
+            raw = loads(self.path.read_text(encoding="utf-8"))
+            if not isinstance(raw, dict):
+                raise ValueError("credentials file must be a JSON object")
+        except ValueError as exc:
+            # A torn or wrong-shape credentials file must not wedge startup:
+            # quarantine it for manual recovery and start from an empty store;
+            # re-auth recovers.
+            quarantine = Path(str(self.path) + ".corrupt")
+            with suppress(OSError):
+                self.path.replace(quarantine)
+            logger.warning(
+                "Corrupt credential store %s quarantined to %s (%s); re-authenticate to restore access.",
+                self.path,
+                quarantine,
+                exc,
+            )
+            return {}
         credentials: dict[str, StoredCredential] = {}
         for key, value in raw.items():
             if not isinstance(key, str):
@@ -144,27 +163,9 @@ class FileCredentialStore:
         return credentials
 
     def _save(self, data: dict[str, StoredCredential]) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
         raw = {key: _credential_to_json(value) for key, value in data.items()}
         content = dumps(raw, indent=2, sort_keys=True) + "\n"
-        temporary_path: Path | None = None
-        try:
-            with NamedTemporaryFile(
-                "w",
-                encoding="utf-8",
-                dir=self.path.parent,
-                prefix=f".{self.path.name}.",
-                delete=False,
-            ) as handle:
-                temporary_path = Path(handle.name)
-                temporary_path.chmod(0o600)
-                handle.write(content)
-                handle.flush()
-            temporary_path.replace(self.path)
-            self.path.chmod(0o600)
-        finally:
-            if temporary_path is not None and temporary_path.exists():
-                temporary_path.unlink()
+        atomic_write_text(self.path, content, mode=0o600)
 
 
 def credentials_path(paths: BaldricPaths | None = None) -> Path:

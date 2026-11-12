@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 
 import pytest
@@ -1889,3 +1890,109 @@ def test_openai_compatible_provider_config_rejects_invalid_retries() -> None:
         OpenAICompatibleProviderConfig(name="local", max_retries=-1)
     with pytest.raises(ProviderConfigError, match="0 or greater"):
         OpenAICompatibleProviderConfig(name="local", max_retry_delay_seconds=-1)
+
+
+def _write_providers_json(baldric_home: Path, text: str) -> Path:
+    baldric_home.mkdir(parents=True, exist_ok=True)
+    path = baldric_home / "providers.json"
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+_GOOD_V2_SETTINGS = json.dumps(
+    {
+        "schema_version": 2,
+        "default_provider": "openai-codex",
+        "provider_preferences": {"openai-codex": {"default_model": "gpt-5.5"}},
+        "scoped_models": [],
+    }
+)
+
+
+def test_corrupt_providers_json_recovers_from_the_backup(tmp_path: Path) -> None:
+    baldric_home = tmp_path / ".baldric"
+    _write_providers_json(baldric_home, _GOOD_V2_SETTINGS)
+    (baldric_home / "providers.json.bak").write_text(_GOOD_V2_SETTINGS, encoding="utf-8")
+    _write_providers_json(baldric_home, '{"schema_version": 2, "trunc')
+
+    settings = load_provider_settings(BaldricPaths(home=baldric_home))
+
+    assert settings.default_provider == "openai-codex"
+    healed = json.loads((baldric_home / "providers.json").read_text(encoding="utf-8"))
+    assert healed["default_provider"] == "openai-codex"
+
+
+def test_corrupt_providers_json_without_backup_falls_back_to_defaults(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    baldric_home = tmp_path / ".baldric"
+    _write_providers_json(baldric_home, "{ not json")
+
+    with caplog.at_level(logging.WARNING):
+        settings = load_provider_settings(BaldricPaths(home=baldric_home))
+
+    assert settings.default_provider == "openai"
+    assert Path(str(baldric_home / "providers.json") + ".corrupt").exists()
+    assert not (baldric_home / "providers.json").exists()
+    assert "providers.json" in caplog.text
+
+
+def test_provider_settings_save_fsyncs_before_replace(tmp_path: Path, monkeypatch) -> None:
+    import baldric.runtime.utils.atomic as atomic_module
+
+    order: list[str] = []
+    real_fsync = atomic_module.os.fsync
+    real_replace = atomic_module.os.replace
+    monkeypatch.setattr(atomic_module.os, "fsync", lambda fd: (order.append("fsync"), real_fsync(fd))[1])
+    monkeypatch.setattr(
+        atomic_module.os, "replace", lambda src, dst: (order.append("replace"), real_replace(src, dst))[1]
+    )
+    baldric_home = tmp_path / ".baldric"
+
+    save_provider_settings(
+        ProviderSettings(
+            providers=(OpenAICompatibleProviderConfig(name="custom", models=("m",), default_model="m"),),
+        ),
+        BaldricPaths(home=baldric_home),
+    )
+
+    # save_provider_settings may write more than one file; every replace must be
+    # immediately preceded by an fsync of that file's temp handle.
+    assert "replace" in order
+    for index, event in enumerate(order):
+        if event == "replace":
+            assert index > 0 and order[index - 1] == "fsync"
+
+
+def test_valid_json_null_is_rejected_not_treated_as_corrupt(tmp_path: Path) -> None:
+    """A valid ``null`` document is a shape error, not an unreadable file.
+
+    It must raise (like any non-object) rather than silently reset to defaults;
+    only an actually-undecodable file falls back.
+    """
+    baldric_home = tmp_path / ".baldric"
+    _write_providers_json(baldric_home, "null")
+
+    with pytest.raises(ProviderConfigError, match="JSON object"):
+        load_provider_settings(BaldricPaths(home=baldric_home))
+
+    assert (baldric_home / "providers.json").exists()  # not quarantined
+
+
+def test_corrupt_main_never_overwrites_a_good_backup(tmp_path: Path) -> None:
+    """A save must not copy a still-corrupt main file over the good ``.bak``."""
+    baldric_home = tmp_path / ".baldric"
+    _write_providers_json(baldric_home, '{"trunc')  # corrupt main
+    (baldric_home / "providers.json.bak").write_text(_GOOD_V2_SETTINGS, encoding="utf-8")
+
+    save_provider_settings(
+        ProviderSettings(
+            default_provider="openai-codex",
+            providers=(
+                OpenAICodexProviderConfig(name="openai-codex", models=("gpt-5.5",), default_model="gpt-5.5"),
+            ),
+        ),
+        BaldricPaths(home=baldric_home),
+    )
+
+    assert (baldric_home / "providers.json.bak").read_text(encoding="utf-8") == _GOOD_V2_SETTINGS
