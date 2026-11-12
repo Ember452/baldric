@@ -132,6 +132,10 @@
       "lines": 24,
       "max_function_stmts": 4
     },
+    "src/baldric/api/__init__.py": {
+      "lines": 164,
+      "max_function_stmts": 0
+    },
     "src/baldric/mcp/__init__.py": {
       "lines": 8,
       "max_function_stmts": 0
@@ -156,12 +160,24 @@
       "lines": 152,
       "max_function_stmts": 0
     },
+    "src/baldric/protocol/extension.py": {
+      "lines": 362,
+      "max_function_stmts": 2
+    },
+    "src/baldric/protocol/extension_events.py": {
+      "lines": 277,
+      "max_function_stmts": 0
+    },
     "src/baldric/protocol/messages.py": {
       "lines": 345,
       "max_function_stmts": 8
     },
+    "src/baldric/protocol/ports.py": {
+      "lines": 72,
+      "max_function_stmts": 2
+    },
     "src/baldric/protocol/provider.py": {
-      "lines": 99,
+      "lines": 114,
       "max_function_stmts": 2
     },
     "src/baldric/protocol/provider_events.py": {
@@ -169,16 +185,12 @@
       "max_function_stmts": 0
     },
     "src/baldric/protocol/session/__init__.py": {
-      "lines": 64,
+      "lines": 52,
       "max_function_stmts": 0
     },
     "src/baldric/protocol/session/entries.py": {
       "lines": 175,
       "max_function_stmts": 2
-    },
-    "src/baldric/protocol/session/jsonl.py": {
-      "lines": 320,
-      "max_function_stmts": 10
     },
     "src/baldric/protocol/session/tree.py": {
       "lines": 40,
@@ -324,6 +336,18 @@
       "lines": 93,
       "max_function_stmts": 6
     },
+    "src/baldric/runtime/core/__init__.py": {
+      "lines": 8,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/core/session/__init__.py": {
+      "lines": 25,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/core/session/jsonl.py": {
+      "lines": 320,
+      "max_function_stmts": 10
+    },
     "src/baldric/runtime/data/examples/extensions/ask_user_question.py": {
       "lines": 95,
       "max_function_stmts": 11
@@ -353,11 +377,11 @@
       "max_function_stmts": 0
     },
     "src/baldric/runtime/extensions/api.py": {
-      "lines": 1657,
+      "lines": 1339,
       "max_function_stmts": 9
     },
     "src/baldric/runtime/extensions/builtin_registry.py": {
-      "lines": 147,
+      "lines": 154,
       "max_function_stmts": 7
     },
     "src/baldric/runtime/extensions/builtins/__init__.py": {
@@ -392,86 +416,6 @@
       "lines": 307,
       "max_function_stmts": 12
     },
-    "src/baldric/runtime/extensions/builtins/subagents/__init__.py": {
-      "lines": 8,
-      "max_function_stmts": 0
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/agents.py": {
-      "lines": 187,
-      "max_function_stmts": 7
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/agents_menu.py": {
-      "lines": 289,
-      "max_function_stmts": 12
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/cron.py": {
-      "lines": 168,
-      "max_function_stmts": 8
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/extension.py": {
-      "lines": 1673,
-      "max_function_stmts": 32
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/fork.py": {
-      "lines": 129,
-      "max_function_stmts": 6
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/group_join.py": {
-      "lines": 121,
-      "max_function_stmts": 9
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/memory.py": {
-      "lines": 161,
-      "max_function_stmts": 7
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/notification_format.py": {
-      "lines": 203,
-      "max_function_stmts": 8
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/notification_render.py": {
-      "lines": 200,
-      "max_function_stmts": 12
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/output_file.py": {
-      "lines": 195,
-      "max_function_stmts": 9
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/prompts.py": {
-      "lines": 208,
-      "max_function_stmts": 7
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/schedule.py": {
-      "lines": 368,
-      "max_function_stmts": 13
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/schedule_store.py": {
-      "lines": 231,
-      "max_function_stmts": 6
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/settings.py": {
-      "lines": 100,
-      "max_function_stmts": 12
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/ui/__init__.py": {
-      "lines": 16,
-      "max_function_stmts": 0
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/ui/controller.py": {
-      "lines": 205,
-      "max_function_stmts": 14
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/ui/strip.py": {
-      "lines": 304,
-      "max_function_stmts": 19
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/ui/viewer.py": {
-      "lines": 444,
-      "max_function_stmts": 23
-    },
-    "src/baldric/runtime/extensions/builtins/subagents/worktree.py": {
-      "lines": 177,
-      "max_function_stmts": 13
-    },
     "src/baldric/runtime/extensions/installer.py": {
       "lines": 428,
       "max_function_stmts": 12
@@ -485,12 +429,96 @@
       "max_function_stmts": 16
     },
     "src/baldric/runtime/extensions/providers.py": {
-      "lines": 646,
+      "lines": 636,
       "max_function_stmts": 14
     },
     "src/baldric/runtime/extensions/runtime.py": {
       "lines": 1981,
       "max_function_stmts": 39
+    },
+    "src/baldric/runtime/features/__init__.py": {
+      "lines": 15,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/features/subagents/__init__.py": {
+      "lines": 8,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/features/subagents/agents.py": {
+      "lines": 187,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/features/subagents/agents_menu.py": {
+      "lines": 289,
+      "max_function_stmts": 12
+    },
+    "src/baldric/runtime/features/subagents/cron.py": {
+      "lines": 168,
+      "max_function_stmts": 8
+    },
+    "src/baldric/runtime/features/subagents/extension.py": {
+      "lines": 1673,
+      "max_function_stmts": 32
+    },
+    "src/baldric/runtime/features/subagents/fork.py": {
+      "lines": 129,
+      "max_function_stmts": 6
+    },
+    "src/baldric/runtime/features/subagents/group_join.py": {
+      "lines": 121,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/features/subagents/memory.py": {
+      "lines": 161,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/features/subagents/notification_format.py": {
+      "lines": 203,
+      "max_function_stmts": 8
+    },
+    "src/baldric/runtime/features/subagents/notification_render.py": {
+      "lines": 200,
+      "max_function_stmts": 12
+    },
+    "src/baldric/runtime/features/subagents/output_file.py": {
+      "lines": 195,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/features/subagents/prompts.py": {
+      "lines": 208,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/features/subagents/schedule.py": {
+      "lines": 368,
+      "max_function_stmts": 13
+    },
+    "src/baldric/runtime/features/subagents/schedule_store.py": {
+      "lines": 231,
+      "max_function_stmts": 6
+    },
+    "src/baldric/runtime/features/subagents/settings.py": {
+      "lines": 100,
+      "max_function_stmts": 12
+    },
+    "src/baldric/runtime/features/subagents/ui/__init__.py": {
+      "lines": 16,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/features/subagents/ui/controller.py": {
+      "lines": 205,
+      "max_function_stmts": 14
+    },
+    "src/baldric/runtime/features/subagents/ui/strip.py": {
+      "lines": 304,
+      "max_function_stmts": 19
+    },
+    "src/baldric/runtime/features/subagents/ui/viewer.py": {
+      "lines": 444,
+      "max_function_stmts": 23
+    },
+    "src/baldric/runtime/features/subagents/worktree.py": {
+      "lines": 177,
+      "max_function_stmts": 13
     },
     "src/baldric/runtime/modes/__init__.py": {
       "lines": 1,
@@ -569,7 +597,7 @@
       "max_function_stmts": 17
     },
     "src/baldric/runtime/providers/runtime.py": {
-      "lines": 503,
+      "lines": 494,
       "max_function_stmts": 14
     },
     "src/baldric/runtime/providers/stores/__init__.py": {

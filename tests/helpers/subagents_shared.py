@@ -17,15 +17,7 @@ from baldric.runtime import BaldricResourcePaths
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.extensions import ExtensionRuntime
 
-EXTENSION_DIR = (
-    Path(__file__).resolve().parents[2]
-    / "src"
-    / "baldric"
-    / "runtime"
-    / "extensions"
-    / "builtins"
-    / "subagents"
-)
+EXTENSION_DIR = Path(__file__).resolve().parents[2] / "src" / "baldric" / "runtime" / "features" / "subagents"
 
 __all__ = [
     "BlockingProvider",

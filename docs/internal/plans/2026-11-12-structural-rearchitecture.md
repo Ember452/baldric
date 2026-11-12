@@ -1,9 +1,10 @@
 # baldric 结构重构计划 v2：先砌墙，再搬家
 
-> 状态：**执行中 —— 阶段 A0、A 已完成**（2026-11-12）。执行记录：
+> 状态：**执行中 —— 阶段 A0、A、B 已完成**（2026-11-12）。执行记录：
 > [../notes/2026-11-12-stage-a0-wall.md](../notes/2026-11-12-stage-a0-wall.md)、
-> [../notes/2026-11-12-stage-a-rules-and-dedup.md](../notes/2026-11-12-stage-a-rules-and-dedup.md)。
-> 后续阶段 B–H 待逐阶段推进，每阶段原子完成并停下评审。
+> [../notes/2026-11-12-stage-a-rules-and-dedup.md](../notes/2026-11-12-stage-a-rules-and-dedup.md)、
+> [../notes/2026-11-12-stage-b-subagents.md](../notes/2026-11-12-stage-b-subagents.md)。
+> 后续阶段 C–H 待逐阶段推进，每阶段原子完成并停下评审。
 > v1 依据：2026-11-11 全量深扫 + 2026-11-12 逐目录实测裁定
 > v2 修订：吸收独立评审的 6 个 P0 + 11 个 P1，并补入本会话新发现的 2 项（`protocol/session/jsonl.py` 是行为、`ai/` 与 `providers/` 是两层配置）
 > 目标读者：维护者本人（个人开发者，时间充足，目标是长期产品，不发独立包）
@@ -326,13 +327,22 @@ A0（api facade + protocol 契约 + port + scanner 白名单 + 示例路径固�
 > 3. 落地 `protocol/` 只放形状规则 + 每模块 400 行预算。
 > 4. **验收**：fast suite 全绿；protocol 无行为文件；scanner 新规则能报违规。
 
-### 阶段 B：subagents 试点（最散，验证方案）
+### 阶段 B：subagents 试点（最散，验证方案）｜**已完成 2026-11-12**
 
-1. `git mv extensions/builtins/subagents/ features/subagents/`。
-2. `platform/features.py` 静态声明 `FEATURES`（`setup="...:setup"` 字符串 + `kind`）；`builtin_registry` 改字符串路径。
-3. `CustomMessageMarkup`/事件走 protocol；`ExtensionRuntime` 由 app 注入（A0 已备好 port）。
-4. tests → `tests/features/subagents/`（**不放 src 内**，见 §6）。
-5. **验收（S1a）**：`core/platform/frontends` 静态 import `features.*` = 0（AST 检查，非 grep）；10 个 subagents 测试全过；fast suite 全绿。
+实际落地（执行记录见 [../notes/2026-11-12-stage-b-subagents.md](../notes/2026-11-12-stage-b-subagents.md)）：
+
+1. ✅ `git mv extensions/builtins/subagents/ → features/subagents/`（20 文件）；新增 `runtime/features/__init__.py`。
+2. ⚠️ `platform/features.py` 静态 `FEATURES` **推到阶段 E**（`runtime/platform/` 那时才建，提前建是半迁移）。B 用 `builtin_registry` 内 `importlib.import_module("…features.subagents.extension")` 实现解耦。
+3. ⚠️ `ExtensionRuntime` 由 app 注入 **推到阶段 F**（组合根 `runtime/app.py` 是 F 产物）。B 只做物理搬迁 + 字符串化，不断开 core→platform（无半迁移）。
+4. ✅ tests → `tests/features/subagents/`（14 文件）；helper 路径同步。
+5. ✅ **验收（S1a）**：`runtime.core/platform/frontends/extensions` 静态 import `runtime.features.*` = 0（AST 扫描器新增 + 4 个 guard 测试）；subagents 测试 232 passed；fast suite 2282 passed。
+
+> 原计划条目（保留作历史对照）：
+> 1. `git mv extensions/builtins/subagents/ features/subagents/`。
+> 2. `platform/features.py` 静态声明 `FEATURES`（`setup="...:setup"` 字符串 + `kind`）；`builtin_registry` 改字符串路径。
+> 3. `CustomMessageMarkup`/事件走 protocol；`ExtensionRuntime` 由 app 注入（A0 已备好 port）。
+> 4. tests → `tests/features/subagents/`（**不放 src 内**，见 §6）。
+> 5. **验收（S1a）**：`core/platform/frontends` 静态 import `features.*` = 0（AST 检查，非 grep）；10 个 subagents 测试全过；fast suite 全绿。
 
 ### 阶段 C：mcp_tools / llama_cpp
 

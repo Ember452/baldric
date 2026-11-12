@@ -17,9 +17,9 @@ from baldric.protocol.messages import (
     UserMessage,
 )
 from baldric.runtime.config.paths import BaldricPaths
-from baldric.runtime.extensions.builtins.subagents import prompts as prompts_module
-from baldric.runtime.extensions.builtins.subagents.agents import AgentDefinition
-from baldric.runtime.extensions.builtins.subagents.prompts import (
+from baldric.runtime.features.subagents import prompts as prompts_module
+from baldric.runtime.features.subagents.agents import AgentDefinition
+from baldric.runtime.features.subagents.prompts import (
     PARENT_CONTEXT_FOOTER,
     PARENT_CONTEXT_HEADER,
     SUB_AGENT_BRIDGE,

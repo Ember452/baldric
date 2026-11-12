@@ -7,7 +7,7 @@ from typing import Any
 
 from baldric.protocol.tools import AgentToolResult
 from baldric.runtime.extensions.api import CustomMessageView, MessageRenderOptions
-from baldric.runtime.extensions.builtins.subagents.notification_render import (
+from baldric.runtime.features.subagents.notification_render import (
     COLLAPSED_PREVIEW_CHARS,
     EXPANDED_RESULT_LINES,
     render_agent_result,

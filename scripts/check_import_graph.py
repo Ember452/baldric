@@ -80,6 +80,43 @@ AI_PROTOCOL_SURFACE: tuple[str, ...] = (
 AI_AGENT_SURFACE = AI_PROTOCOL_SURFACE
 
 
+# --- S1a: core / platform / frontends must not import a feature *statically* ---
+# A product feature (``baldric.runtime.features.<name>``) is loaded by the
+# platform layer through a string path + importlib, never a static import, so the
+# lower layers never depend on a feature implementation. This is acceptance S1a
+# of the structural rearchitecture; the check walks every static import node
+# (top-level AND function-body, because ``ast.walk`` sees both).
+S1A_FORBIDDEN_IMPORTERS: tuple[str, ...] = (
+    "baldric.runtime.core",
+    "baldric.runtime.platform",
+    "baldric.runtime.frontends",
+    # ``runtime.extensions`` is the current home of the platform loader (it moves
+    # to ``runtime.platform`` in stage E); the built-in registry lives here and
+    # must resolve features by string path, not a static import.
+    "baldric.runtime.extensions",
+)
+FEATURES_PREFIX = "baldric.runtime.features"
+
+
+def scan_feature_isolation_violations(root: Path = ROOT) -> list[ImportViolation]:
+    """Return static imports of a feature implementation from core/platform/frontends."""
+    violations: list[ImportViolation] = []
+    source_root = root / "src"
+    if not source_root.exists():
+        return violations
+    for path in sorted(source_root.rglob("*.py")):
+        if "__pycache__" in path.parts or "data" in path.parts:
+            continue
+        module = _module_name(path, root)
+        if not any(_under(module, prefix) for prefix in S1A_FORBIDDEN_IMPORTERS):
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for lineno, imported in _imports(tree):
+            if _under(imported, FEATURES_PREFIX):
+                violations.append(ImportViolation(module=module, lineno=lineno, imported=imported))
+    return violations
+
+
 # --- whitelist rules (structural rearchitecture stage A0) --------------------
 # ``RULES`` above can only say "A may not import B". The rearchitecture needs the
 # opposite shape too: "A may import B, but only these submodules of B" (e.g. a
@@ -278,6 +315,7 @@ def main() -> int:
         [(violation, "layer") for violation in scan_violations()]
         + [(violation, "surface") for violation in scan_surface_violations()]
         + [(violation, "allow") for violation in scan_allow_violations()]
+        + [(violation, "s1a") for violation in scan_feature_isolation_violations()]
     )
     if violations:
         print("import-graph violations:")

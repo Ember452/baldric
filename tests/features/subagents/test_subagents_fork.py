@@ -11,7 +11,7 @@ from baldric.protocol.messages import (
     ToolResultMessage,
     UserMessage,
 )
-from baldric.runtime.extensions.builtins.subagents.fork import (
+from baldric.runtime.features.subagents.fork import (
     FORK_FILLER_RESULT,
     capture_fork,
     wrap_fork_task,

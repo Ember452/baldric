@@ -19,6 +19,7 @@ from scripts.check_import_graph import (
     AllowRule,
     ImportViolation,
     scan_allow_violations,
+    scan_feature_isolation_violations,
     scan_surface_violations,
     scan_violations,
 )
@@ -433,3 +434,53 @@ def test_allow_rule_permits_intra_feature_imports(tmp_path: Path) -> None:
 def test_repository_has_no_allow_violations() -> None:
     """On the real tree (features/ does not exist yet) the whitelist is quiet."""
     assert scan_allow_violations(REPO_ROOT) == []
+
+
+# --- S1a: core/platform/frontends must not statically import a feature --------
+
+
+def test_repository_has_no_feature_isolation_violations() -> None:
+    """The real tree: no core/platform/frontends module statically imports features."""
+    violations = scan_feature_isolation_violations(REPO_ROOT)
+    assert violations == [], "\n".join(f"{v.module}:{v.lineno} imports {v.imported}" for v in violations)
+
+
+def test_feature_isolation_scanner_detects_a_platform_import(tmp_path: Path) -> None:
+    """A platform module importing a feature implementation must be reported."""
+    package = tmp_path / "src" / "baldric" / "runtime" / "platform"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (package / "loader.py").write_text(
+        "from baldric.runtime.features.subagents.extension import setup\n", encoding="utf-8"
+    )
+    violations = scan_feature_isolation_violations(tmp_path)
+    assert violations == [
+        ImportViolation(
+            module="baldric.runtime.platform.loader",
+            lineno=1,
+            imported="baldric.runtime.features.subagents.extension",
+        )
+    ]
+
+
+def test_feature_isolation_scanner_ignores_in_body_importlib(tmp_path: Path) -> None:
+    """String-path loading via importlib is allowed (not a static import node)."""
+    package = tmp_path / "src" / "baldric" / "runtime" / "platform"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (package / "loader.py").write_text(
+        "from importlib import import_module\n\n"
+        "def load() -> object:\n"
+        "    return import_module('baldric.runtime.features.subagents.extension')\n",
+        encoding="utf-8",
+    )
+    assert scan_feature_isolation_violations(tmp_path) == []
+
+
+def test_feature_isolation_scanner_allows_features_importing_core(tmp_path: Path) -> None:
+    """The forward direction (feature -> core) is allowed; S1a is one-way."""
+    package = tmp_path / "src" / "baldric" / "runtime" / "features" / "x"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (package / "svc.py").write_text("from baldric.runtime.core.session import x\n", encoding="utf-8")
+    assert scan_feature_isolation_violations(tmp_path) == []

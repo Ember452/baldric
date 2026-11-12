@@ -16,7 +16,7 @@ import pytest
 
 from baldric.protocol.messages import AssistantMessage, UserMessage
 from baldric.runtime.config.paths import BaldricPaths
-from baldric.runtime.extensions.builtins.subagents.output_file import (
+from baldric.runtime.features.subagents.output_file import (
     OutputFileWriter,
     encode_cwd,
     output_file_path,

@@ -4,7 +4,7 @@ Every other UI test in this repo drives the widgets against a
 ``FakeComponentBridge`` and runtime stubs. This test closes that gap: it builds
 the actual :class:`baldric.runtime.tui.app.BaldricTuiApp` around a minimal fake session,
 hands it a REAL :class:`~baldric.runtime.extensions.ExtensionRuntime` that has loaded
-the REAL ``baldric.runtime.extensions.builtins.subagents`` extension, runs it under
+the REAL ``baldric.runtime.features.subagents`` extension, runs it under
 ``run_test()``, and asserts
 the extension's strip and conversation viewer actually mount into baldric's
 host-owned component slots.
@@ -32,8 +32,8 @@ from baldric.protocol.messages import AssistantMessage
 from baldric.runtime.context.skills.skills import Skill
 from baldric.runtime.context.system_prompt import ProjectContextFile
 from baldric.runtime.events import QueueUpdateEvent
-from baldric.runtime.extensions.builtins.subagents.ui.strip import AgentStripWidget
-from baldric.runtime.extensions.builtins.subagents.ui.viewer import ConversationViewer
+from baldric.runtime.features.subagents.ui.strip import AgentStripWidget
+from baldric.runtime.features.subagents.ui.viewer import ConversationViewer
 from baldric.runtime.session.session import ModelChoice, TerminalCommandResult
 from baldric.runtime.session.stats import SessionStats
 from baldric.runtime.tools.registry import create_coding_tools

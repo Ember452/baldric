@@ -4,7 +4,7 @@ Two layers, per the design's test plan:
 
 * Widget behaviour — mount the strip / viewer in a minimal Textual test ``App``
   and drive them with
-  :class:`~baldric.runtime.extensions.builtins.subagents.extension.AgentRun`
+  :class:`~baldric.runtime.features.subagents.extension.AgentRun`
   instances and a ``SimpleNamespace`` manager (no full host wiring needed).
 * Seam wiring — a ``FakeComponentBridge`` implementing baldric's
   :class:`ComponentBridge`, exercising the controller's registrations and the
@@ -28,10 +28,10 @@ from textual.widgets import Input
 
 from baldric.protocol.messages import AssistantMessage, ToolResultMessage, UserMessage
 from baldric.protocol.tools import ToolCall
-from baldric.runtime.extensions.builtins.subagents.extension import AgentRun, SubagentManager
-from baldric.runtime.extensions.builtins.subagents.ui.controller import STRIP_KEY, SubagentUiController
-from baldric.runtime.extensions.builtins.subagents.ui.strip import AgentStripWidget
-from baldric.runtime.extensions.builtins.subagents.ui.viewer import ConversationViewer
+from baldric.runtime.features.subagents.extension import AgentRun, SubagentManager
+from baldric.runtime.features.subagents.ui.controller import STRIP_KEY, SubagentUiController
+from baldric.runtime.features.subagents.ui.strip import AgentStripWidget
+from baldric.runtime.features.subagents.ui.viewer import ConversationViewer
 from baldric.runtime.tui.app import _theme_css_variables
 from baldric.runtime.tui.config import BALDRIC_DARK_THEME
 from baldric.runtime.tui.widgets import TranscriptMessageWidget

@@ -871,7 +871,7 @@ async def test_recovered_error_does_not_mark_run_failed() -> None:
     # The verdict must therefore be taken only at stream end: a later
     # successful assistant message clears the pending error.
     from baldric.agent.events import MessageEndEvent
-    from baldric.runtime.extensions.builtins.subagents.extension import AgentRun, SubagentManager
+    from baldric.runtime.features.subagents.extension import AgentRun, SubagentManager
 
     manager = SubagentManager(api=SimpleNamespace())
     run = AgentRun(
@@ -975,7 +975,7 @@ def test_sweep_transcripts_deletes_old_and_prunes(tmp_path: Path) -> None:
     import os
     import time
 
-    from baldric.runtime.extensions.builtins.subagents.output_file import sweep_transcripts, transcripts_root
+    from baldric.runtime.features.subagents.output_file import sweep_transcripts, transcripts_root
 
     root = transcripts_root()  # redirected to tmp_path by the conftest fixture
     assert str(root).startswith(str(tmp_path))
@@ -1440,7 +1440,7 @@ def test_task_notification_is_fit_or_fetch() -> None:
     # entirely with a get_subagent_result pointer — never truncated, so the
     # parent is never tempted to act on partial output. Turns/usage/type are
     # omitted too: get_subagent_result repeats them in its header.
-    from baldric.runtime.extensions.builtins.subagents.extension import AgentRun, format_task_notification
+    from baldric.runtime.features.subagents.extension import AgentRun, format_task_notification
 
     def _run(text: str) -> AgentRun:
         return AgentRun(

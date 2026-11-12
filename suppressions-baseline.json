@@ -30,33 +30,33 @@
   "src/baldric/runtime/extensions/builtins/llama_cpp/state.py": {
     "type-ignore:attr-defined": 4
   },
-  "src/baldric/runtime/extensions/builtins/subagents/agents_menu.py": {
-    "noqa:BLE001": 1
-  },
-  "src/baldric/runtime/extensions/builtins/subagents/extension.py": {
-    "noqa:BLE001": 7,
-    "noqa:SLF001": 3
-  },
-  "src/baldric/runtime/extensions/builtins/subagents/output_file.py": {
-    "noqa:BLE001": 1
-  },
-  "src/baldric/runtime/extensions/builtins/subagents/prompts.py": {
-    "noqa:BLE001": 1
-  },
-  "src/baldric/runtime/extensions/builtins/subagents/schedule.py": {
-    "noqa:BLE001": 2
-  },
-  "src/baldric/runtime/extensions/builtins/subagents/ui/viewer.py": {
-    "noqa:BLE001": 1
-  },
-  "src/baldric/runtime/extensions/builtins/subagents/worktree.py": {
-    "noqa:BLE001": 1
-  },
   "src/baldric/runtime/extensions/loader.py": {
     "noqa:BLE001": 1
   },
   "src/baldric/runtime/extensions/runtime.py": {
     "noqa:BLE001": 12
+  },
+  "src/baldric/runtime/features/subagents/agents_menu.py": {
+    "noqa:BLE001": 1
+  },
+  "src/baldric/runtime/features/subagents/extension.py": {
+    "noqa:BLE001": 7,
+    "noqa:SLF001": 3
+  },
+  "src/baldric/runtime/features/subagents/output_file.py": {
+    "noqa:BLE001": 1
+  },
+  "src/baldric/runtime/features/subagents/prompts.py": {
+    "noqa:BLE001": 1
+  },
+  "src/baldric/runtime/features/subagents/schedule.py": {
+    "noqa:BLE001": 2
+  },
+  "src/baldric/runtime/features/subagents/ui/viewer.py": {
+    "noqa:BLE001": 1
+  },
+  "src/baldric/runtime/features/subagents/worktree.py": {
+    "noqa:BLE001": 1
   },
   "src/baldric/runtime/providers/config/__init__.py": {
     "noqa:F401": 4

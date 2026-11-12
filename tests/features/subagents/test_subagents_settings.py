@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from baldric.runtime.config.paths import BaldricPaths
-from baldric.runtime.extensions.builtins.subagents.settings import (
+from baldric.runtime.features.subagents.settings import (
     SubagentSettings,
     load_subagent_settings,
 )

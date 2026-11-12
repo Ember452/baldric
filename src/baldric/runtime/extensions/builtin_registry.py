@@ -93,9 +93,16 @@ def _llama_cpp_setup_with_context(
 
 
 def _subagents_setup(api: ExtensionAPI) -> None:
-    """Load the bundled subagent capability with its normal process dependencies."""
-    from baldric.runtime.extensions.builtins.subagents.extension import setup
+    """Load the bundled subagent feature by string path.
 
+    ``subagents`` now lives under ``baldric.runtime.features`` (a product
+    feature). The platform/built-in registry must not *statically* import a
+    feature implementation (S1a), so it resolves the entry point through
+    ``importlib`` at call time instead of a top-level or in-body ``import``.
+    """
+    from importlib import import_module
+
+    setup = import_module("baldric.runtime.features.subagents.extension").setup
     setup(api)
 
 

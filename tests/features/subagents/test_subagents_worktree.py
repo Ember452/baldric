@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pytest
 
-import baldric.runtime.extensions.builtins.subagents.worktree as worktree_module
-from baldric.runtime.extensions.builtins.subagents.worktree import (
+import baldric.runtime.features.subagents.worktree as worktree_module
+from baldric.runtime.features.subagents.worktree import (
     Worktree,
     WorktreeResult,
     cleanup_worktree,

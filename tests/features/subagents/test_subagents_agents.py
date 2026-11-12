@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from baldric.runtime.config.paths import BaldricPaths
-from baldric.runtime.extensions.builtins.subagents.agents import (
+from baldric.runtime.features.subagents.agents import (
     DEFAULT_AGENT_TYPES,
     format_agent_type_list,
     load_agent_definitions,
