@@ -12,7 +12,7 @@ from textual.screen import ModalScreen
 from textual.widgets import Input, Label, ListItem, ListView, Static
 
 from baldric.runtime.context.resources import ResourceDiagnostic
-from baldric.runtime.extensions.runtime import ExtensionRuntime
+from baldric.runtime.platform.runtime import ExtensionRuntime
 from baldric.runtime.tui.config import TuiTheme
 
 type BindingEntry = Binding | tuple[str, str] | tuple[str, str, str]

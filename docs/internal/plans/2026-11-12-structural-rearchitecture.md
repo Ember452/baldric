@@ -1,10 +1,10 @@
 # baldric 结构重构计划 v2：先砌墙，再搬家
 
-> 状态：**执行中 —— 阶段 A0、A、B、C、D 已完成**（2026-11-12）。执行记录：
-> [stage A0](../notes/2026-11-12-stage-a0-wall.md)、[stage A](../notes/2026-11-12-stage-a-rules-and-dedup.md)、
-> [stage B](../notes/2026-11-12-stage-b-subagents.md)、[stage C](../notes/2026-11-12-stage-c-mcp-llamacpp.md)、
-> [stage D](../notes/2026-11-12-stage-d-providers-merge.md)。
-> 后续阶段 E–H 待逐阶段推进，每阶段原子完成并停下评审。
+> 状态：**执行中 —— 阶段 A0、A、B、C、D、E 已完成**（2026-11-12）。执行记录：
+> [A0](../notes/2026-11-12-stage-a0-wall.md)、[A](../notes/2026-11-12-stage-a-rules-and-dedup.md)、
+> [B](../notes/2026-11-12-stage-b-subagents.md)、[C](../notes/2026-11-12-stage-c-mcp-llamacpp.md)、
+> [D](../notes/2026-11-12-stage-d-providers-merge.md)、[E](../notes/2026-11-12-stage-e-platform.md)。
+> 后续阶段 F–H 待逐阶段推进，每阶段原子完成并停下评审。
 > v1 依据：2026-11-11 全量深扫 + 2026-11-12 逐目录实测裁定
 > v2 修订：吸收独立评审的 6 个 P0 + 11 个 P1，并补入本会话新发现的 2 项（`protocol/session/jsonl.py` 是行为、`ai/` 与 `providers/` 是两层配置）
 > 目标读者：维护者本人（个人开发者，时间充足，目标是长期产品，不发独立包）
@@ -365,9 +365,19 @@ A0（api facade + protocol 契约 + port + scanner 白名单 + 示例路径固�
 
 > 原计划：阶段 D：providers 域合并 —— 「`git mv auth/ → providers/auth/`、`backends/ → providers/backends/`。更新 import。」
 
-### 阶段 E：platform 抽离
+### 阶段 E：platform 抽离｜**已完成 2026-11-12**
 
-`extensions/{api,runtime,loader,installer,provider_registry,providers,builtin_registry} → platform/`。`extensions/__init__.py` 247 行按消费方拆。
+实际落地（执行记录见 [../notes/2026-11-12-stage-e-platform.md](../notes/2026-11-12-stage-e-platform.md)）：
+
+1. ✅ `git mv runtime/extensions → runtime/platform`（7 模块 + `__init__`）；全仓 `baldric.runtime.extensions → baldric.runtime.platform`（70 文件，含 src/tests/repo-examples/self-docs）。
+2. ✅ 新建 `platform/features.py` 静态 `FEATURES`（`FeatureSpec`：name/kind/setup 字符串路径，无 order）；`builtin_registry` 从 FEATURES 解析 setup 路径（唯一真源）；guard 加 2 个完备性测试（S7）。B 阶段推迟的 FEATURES 在此归位。
+3. ⚠️ `__init__.py` **未"按消费方拆"**：核实 `platform → providers.backends` re-export 符合 §4.3 矩阵，且拆分会波及 60+ 根导入点；本阶段保持公共面等价（仅改前缀），收窄导出留作后续 api 稳定面治理。
+4. ✅ **验收**：fast suite 2284 passed；TUI 766 passed；S1a platform→features 静态 import=0；FEATURES 完备；mypy 无新增；基线纯路径重命名（supp 138 不变）。
+
+> ⚠️ 过程事故（已修复，记录教训）：首轮用 PowerShell `Set-Content` 做 token 替换破坏了 UTF-8 em-dash（24 文件），已 `git reset --hard` 回到阶段 D 并改用 `UTF8Encoding($false)` 读写 + 完整性校验后重做。详见执行记录。
+
+> 原计划：阶段 E：platform 抽离 —— 「`extensions/{api,runtime,loader,installer,provider_registry,providers,builtin_registry} → platform/`。`extensions/__init__.py` 247 行按消费方拆。」
+
 
 ### 阶段 F：app 组合根
 

@@ -25,7 +25,7 @@ from baldric.protocol.tools import AgentToolResult, ToolCall
 from baldric.protocol.types import JSONValue
 from baldric.runtime.context.skills.skills import Skill, parse_skill_invocation
 from baldric.runtime.context.system_prompt import SystemPromptSource
-from baldric.runtime.extensions.api import (
+from baldric.runtime.platform.api import (
     CustomMessageMarkup,
     ToolCallMarkup,
     ToolResultMarkup,

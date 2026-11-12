@@ -1,6 +1,6 @@
 """Baldric extension system: discovery, loading, and the extension API."""
 
-from baldric.runtime.extensions.api import (
+from baldric.runtime.platform.api import (
     AGENT_EVENT_TYPES,
     AGENT_EVENT_WILDCARD,
     EXTENSION_API_VERSION,
@@ -41,7 +41,7 @@ from baldric.runtime.extensions.api import (
     TurnStartEvent,
     UiBridge,
 )
-from baldric.runtime.extensions.loader import (
+from baldric.runtime.platform.loader import (
     DiscoveredExtension,
     ExtensionLoadResult,
     ExtensionSource,
@@ -51,7 +51,7 @@ from baldric.runtime.extensions.loader import (
     extension_dirs,
     load_extensions,
 )
-from baldric.runtime.extensions.provider_registry import (
+from baldric.runtime.platform.provider_registry import (
     DEFAULT_PROVIDER_REFRESH_TIMEOUT_SECONDS,
     PROVIDER_DISCOVERY_CANCELLATION_TIMEOUT_SECONDS,
     DynamicProviderLayer,
@@ -62,7 +62,7 @@ from baldric.runtime.extensions.provider_registry import (
     ProviderRefreshResult,
     ProviderRegistryCloseResult,
 )
-from baldric.runtime.extensions.providers import (
+from baldric.runtime.platform.providers import (
     ClosableModelProvider,
     CredentialReader,
     DynamicProvider,
@@ -87,7 +87,7 @@ from baldric.runtime.extensions.providers import (
     provider_auth_scope,
     resolve_provider_auth,
 )
-from baldric.runtime.extensions.runtime import (
+from baldric.runtime.platform.runtime import (
     BoundSession,
     ExtensionRuntime,
     InputHookOutcome,

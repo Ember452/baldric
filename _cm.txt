@@ -1,0 +1,28 @@
+refactor(structure): stage E - extract runtime/platform and declare FEATURES
+
+Moves runtime/extensions into runtime/platform (git renames; api, runtime,
+loader, installer, provider_registry, providers, builtin_registry unchanged by
+name) and rewrites every reference from baldric.runtime.extensions to
+baldric.runtime.platform across src, tests, the repo examples/ and the runtime
+self-docs (70 files).
+
+Adds platform/features.py with a static FEATURES tuple (FeatureSpec: name, kind,
+"module:attr" setup path; no order) as the single source of truth for bundled
+product features; builtin_registry now resolves each feature's setup module path
+from FEATURES. Two guard tests assert every features/ dir is declared and every
+setup path resolves (S7). This lands the FEATURES declaration deferred from
+stage B.
+
+The 120-symbol extensions/__init__ was NOT split by consumer: platform
+re-exporting providers.backends.contracts is matrix-legal (platform -> providers
+is allowed) and re-partitioning the surface would touch 60+ root import sites,
+so it stays public-surface-equivalent; narrowing is deferred to a later api
+cleanup.
+
+Note: a first pass corrupted UTF-8 em-dashes via PowerShell Set-Content (24
+files); reverted with git reset --hard and redone with explicit UTF-8 IO plus
+integrity checks (no token residue, zero E2 80 3F, em-dash counts match HEAD).
+
+Baselines recomputed (pure path renames; suppression total 138 unchanged).
+fast suite 2284 passed; TUI 766 passed (one known picker flake, passes on
+rerun); mypy 14 known-only.

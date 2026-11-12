@@ -58,7 +58,7 @@ from baldric.runtime.context.thinking import (
     normalize_thinking_levels,
     reasoning_effort_for_level,
 )
-from baldric.runtime.extensions.builtin_registry import BuiltInExtension, BuiltInExtensionSetup
+from baldric.runtime.platform.builtin_registry import BuiltInExtension, BuiltInExtensionSetup
 from baldric.runtime.providers.auth.credentials import (
     CredentialStoreError,
     FileCredentialStore,

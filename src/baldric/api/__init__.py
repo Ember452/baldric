@@ -3,7 +3,7 @@
 This package is the *compatibility facade* introduced by the structural
 rearchitecture (stage A0). Its job is to fix the public import path **before**
 the implementation moves underneath it: today it re-exports the current
-``baldric.runtime.extensions.api`` symbols; as later stages relocate those
+``baldric.runtime.platform.api`` symbols; as later stages relocate those
 symbols (protocol shapes into ``baldric.protocol``, the behaviour classes into
 the platform package), the re-exports here keep pointing at the same names so
 no extension or example has to change its import path.
@@ -29,7 +29,7 @@ from baldric.protocol.ports import FeatureSetup, HookDispatcher
 # consumer has moved; the behaviour classes (ExtensionAPI and its context/ui)
 # move with the platform package in a later stage. Until then this single import
 # keeps the public path stable.
-from baldric.runtime.extensions.api import (
+from baldric.runtime.platform.api import (
     AGENT_EVENT_TYPES,
     AGENT_EVENT_WILDCARD,
     EVENT_NAME_ALIASES,

@@ -20,9 +20,9 @@ if TYPE_CHECKING:
     from textual.widget import Widget
 
     from baldric.runtime.config.paths import BaldricPaths
-    from baldric.runtime.extensions.provider_registry import DynamicProviderRegistry
-    from baldric.runtime.extensions.providers import DynamicProvider
-    from baldric.runtime.extensions.runtime import ExtensionRuntime
+    from baldric.runtime.platform.provider_registry import DynamicProviderRegistry
+    from baldric.runtime.platform.providers import DynamicProvider
+    from baldric.runtime.platform.runtime import ExtensionRuntime
     from baldric.runtime.providers.backends.contracts import LocalBackend
     from baldric.runtime.session.session import ModelChoice
     from baldric.runtime.trust.policy import ProjectTrustResolution
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 # constants) live in ``baldric.protocol.extension`` so any layer can depend on
 # them without pulling the runtime. They are re-exported here unchanged (the
 # ``X as X`` form marks them explicit re-exports, not unused imports) so the
-# existing ``baldric.runtime.extensions.api`` import surface keeps working while
+# existing ``baldric.runtime.platform.api`` import surface keeps working while
 # the structural rearchitecture proceeds; the single source of truth is the
 # protocol module.
 from baldric.protocol.extension import (

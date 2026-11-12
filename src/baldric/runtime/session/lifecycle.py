@@ -32,9 +32,9 @@ from baldric.runtime.context.system_prompt import (
 from baldric.runtime.events import (
     SessionInfoChangedEvent,
 )
-from baldric.runtime.extensions.api import UserBashEvent
-from baldric.runtime.extensions.providers import DynamicProvider
-from baldric.runtime.extensions.runtime import ExtensionRuntime
+from baldric.runtime.platform.api import UserBashEvent
+from baldric.runtime.platform.providers import DynamicProvider
+from baldric.runtime.platform.runtime import ExtensionRuntime
 from baldric.runtime.providers.config import (
     OpenAICodexProviderConfig,
     ProviderConfigError,

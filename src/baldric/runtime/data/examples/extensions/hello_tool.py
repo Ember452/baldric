@@ -10,7 +10,7 @@ from baldric.protocol.tools import (
     ToolUpdateCallback,
 )
 from baldric.protocol.types import JSONValue
-from baldric.runtime.extensions import ExtensionAPI
+from baldric.runtime.platform import ExtensionAPI
 
 
 async def _run_hello(

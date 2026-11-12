@@ -928,7 +928,7 @@ async def test_setup_survives_component_less_core(tmp_path, monkeypatch) -> None
     # the ``components`` attribute is absent entirely (not merely a no-op
     # bridge). The extension's getattr-guard must degrade to dialog-only rather
     # than crash session_start (constraint 8).
-    from baldric.runtime.extensions.api import ExtensionUi
+    from baldric.runtime.platform.api import ExtensionUi
 
     monkeypatch.delattr(ExtensionUi, "components", raising=True)
     runtime = _load_runtime(tmp_path)

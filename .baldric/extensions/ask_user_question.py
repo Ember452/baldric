@@ -15,7 +15,7 @@ from baldric.protocol.tools import (
     ToolUpdateCallback,
 )
 from baldric.protocol.types import JSONValue
-from baldric.runtime.extensions import ExtensionAPI
+from baldric.runtime.platform import ExtensionAPI
 
 
 def _result(text: str, *, selected: str | None = None) -> AgentToolResult:

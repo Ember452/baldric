@@ -16,7 +16,7 @@ from uuid import uuid4
 
 from baldric.agent.harness import SimpleCancellationToken
 from baldric.protocol.provider import ProviderLayerToken as ProviderLayerToken
-from baldric.runtime.extensions.providers import (
+from baldric.runtime.platform.providers import (
     CredentialReader,
     DynamicProvider,
     DynamicProviderError,

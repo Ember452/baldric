@@ -14,8 +14,6 @@ from baldric.agent.harness import SimpleCancellationToken
 from baldric.ai.env import DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.resources import BaldricResourcePaths
-from baldric.runtime.extensions import ExtensionRuntime
-from baldric.runtime.extensions.providers import ProviderRefreshContext, ResolvedProviderAuth
 from baldric.runtime.features.llama_cpp import service as llama_service
 from baldric.runtime.features.llama_cpp.huggingface import discover_hf_token
 from baldric.runtime.features.llama_cpp.router import (
@@ -39,6 +37,8 @@ from baldric.runtime.features.llama_cpp.state import (
     LlamaCppStateStore,
     LlamaCppStoredModel,
 )
+from baldric.runtime.platform import ExtensionRuntime
+from baldric.runtime.platform.providers import ProviderRefreshContext, ResolvedProviderAuth
 from baldric.runtime.providers.auth.credentials import FileCredentialStore
 from baldric.runtime.providers.backends.contracts import LocalOperationContext, LocalProgress
 from baldric.runtime.providers.runtime import create_dynamic_model_provider

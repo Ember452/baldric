@@ -16,7 +16,7 @@ from typing import Literal
 
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.resources import BaldricResourcePaths
-from baldric.runtime.extensions import discover_extensions
+from baldric.runtime.platform import discover_extensions
 from baldric.runtime.utils.atomic import atomic_write_text
 
 CommandRunner = Callable[..., subprocess.CompletedProcess[str]]

@@ -18,8 +18,8 @@ from baldric.runtime.context.thinking import (
     ThinkingLevel,
     normalize_thinking_level,
 )
-from baldric.runtime.extensions.provider_registry import DynamicProviderRegistry
-from baldric.runtime.extensions.providers import DynamicProvider
+from baldric.runtime.platform.provider_registry import DynamicProviderRegistry
+from baldric.runtime.platform.providers import DynamicProvider
 from baldric.runtime.providers.auth.credentials import FileCredentialStore
 from baldric.runtime.providers.config import (
     OpenAICodexProviderConfig,

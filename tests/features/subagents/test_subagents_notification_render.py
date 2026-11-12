@@ -6,7 +6,6 @@ from collections.abc import Mapping
 from typing import Any
 
 from baldric.protocol.tools import AgentToolResult
-from baldric.runtime.extensions.api import CustomMessageView, MessageRenderOptions
 from baldric.runtime.features.subagents.notification_render import (
     COLLAPSED_PREVIEW_CHARS,
     EXPANDED_RESULT_LINES,
@@ -14,6 +13,7 @@ from baldric.runtime.features.subagents.notification_render import (
     render_notification,
     stat_parts,
 )
+from baldric.runtime.platform.api import CustomMessageView, MessageRenderOptions
 
 
 def _details(**overrides: Any) -> dict[str, Any]:

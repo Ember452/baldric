@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 
 from baldric.runtime.context.resources import BaldricResourcePaths
-from baldric.runtime.extensions import discover_extensions
-from baldric.runtime.extensions.installer import (
+from baldric.runtime.platform import discover_extensions
+from baldric.runtime.platform.installer import (
     EXTENSION_REGISTRY_CORRUPT_SUFFIX,
     ExtensionInstallError,
     install_extension,

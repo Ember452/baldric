@@ -13,9 +13,9 @@ from pathlib import Path
 
 import pytest
 
-from baldric.runtime.extensions.api import ExtensionAPI, UserBashEvent
-from baldric.runtime.extensions.builtin_registry import BuiltInExtension
-from baldric.runtime.extensions.runtime import ExtensionRuntime
+from baldric.runtime.platform.api import ExtensionAPI, UserBashEvent
+from baldric.runtime.platform.builtin_registry import BuiltInExtension
+from baldric.runtime.platform.runtime import ExtensionRuntime
 from baldric.runtime.session.session import CodingSession, CodingSessionConfig
 from baldric.runtime.session.storage import JsonlSessionStorage
 from tests.runtime.extensions.test_extensions import _paths
@@ -98,7 +98,7 @@ async def test_set_thinking_level_api_delegates(tmp_path: Path) -> None:
 
 async def test_run_user_bash_returns_first_result_and_defers_none(tmp_path: Path) -> None:
     def setup(api: ExtensionAPI) -> None:
-        from baldric.runtime.extensions.api import UserBashResult
+        from baldric.runtime.platform.api import UserBashResult
 
         def answer(event: UserBashEvent, ctx) -> UserBashResult:
             return UserBashResult(output=f"remote:{event.command}", exit_code=0)
@@ -125,7 +125,7 @@ async def test_notify_model_selected_reaches_extension_and_frontend(tmp_path: Pa
     extension_dir = _write_hook_extension(
         tmp_path,
         f"""
-from baldric.runtime.extensions import ExtensionAPI
+from baldric.runtime.platform import ExtensionAPI
 
 SEEN = {str(seen)!r}
 
@@ -185,8 +185,8 @@ async def test_user_bash_extension_answers_without_running_the_shell(tmp_path: P
     extension_dir = _write_hook_extension(
         tmp_path,
         f"""
-from baldric.runtime.extensions import ExtensionAPI
-from baldric.runtime.extensions.api import UserBashResult
+from baldric.runtime.platform import ExtensionAPI
+from baldric.runtime.platform.api import UserBashResult
 
 SEEN = {str(seen)!r}
 
@@ -217,7 +217,7 @@ async def test_thinking_level_select_alias_receives_previous_level(tmp_path: Pat
     extension_dir = _write_hook_extension(
         tmp_path,
         f"""
-from baldric.runtime.extensions import ExtensionAPI
+from baldric.runtime.platform import ExtensionAPI
 
 SEEN = {str(seen)!r}
 

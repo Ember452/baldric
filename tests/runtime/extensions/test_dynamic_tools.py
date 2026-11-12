@@ -15,9 +15,9 @@ import pytest
 from baldric.agent import AgentTool, AgentToolResult
 from baldric.protocol.messages import TextContent
 from baldric.protocol.types import JSONValue
-from baldric.runtime.extensions.api import ExtensionAPI
-from baldric.runtime.extensions.builtin_registry import BuiltInExtension
-from baldric.runtime.extensions.runtime import ExtensionRuntime
+from baldric.runtime.platform.api import ExtensionAPI
+from baldric.runtime.platform.builtin_registry import BuiltInExtension
+from baldric.runtime.platform.runtime import ExtensionRuntime
 from tests.runtime.extensions.test_extensions import _paths
 
 pytestmark = pytest.mark.anyio
@@ -110,7 +110,7 @@ async def test_execute_tool_runs_through_the_tool_pipeline(tmp_path: Path) -> No
     def setup(api: ExtensionAPI) -> None:
         api.register_tool(_tool("alpha"))
 
-        from baldric.runtime.extensions.api import ToolCallHookResult
+        from baldric.runtime.platform.api import ToolCallHookResult
 
         def block(event, ctx):
             return ToolCallHookResult(block=True, reason="not now")

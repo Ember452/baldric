@@ -78,12 +78,12 @@ from baldric.runtime.events import (
     QueueUpdateEvent,
     SessionAgentEndEvent,
 )
-from baldric.runtime.extensions import (
+from baldric.runtime.platform import (
     DynamicProvider,
     OpenAICompatibleTransport,
     ProviderModel,
 )
-from baldric.runtime.extensions.runtime import InputHookOutcome
+from baldric.runtime.platform.runtime import InputHookOutcome
 from baldric.runtime.providers.config import (
     ProviderModelMetadata,
     provider_thinking_levels,
@@ -5952,7 +5952,7 @@ async def test_aborted_replacement_closes_only_candidate_provider_once(
 ) -> None:
     from dataclasses import replace as dataclass_replace
 
-    from baldric.runtime.extensions.runtime import ExtensionRuntime
+    from baldric.runtime.platform.runtime import ExtensionRuntime
 
     monkeypatch.setenv("LOCAL_API_KEY", "test-key")
     baldric_paths = BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents")
@@ -7584,7 +7584,7 @@ def _dynamic_thinking_override_config(
     extension = tmp_path / "dynamic_provider.py"
     extension.write_text(
         """
-from baldric.runtime.extensions import DynamicProvider, OpenAICompatibleTransport, ProviderModel
+from baldric.runtime.platform import DynamicProvider, OpenAICompatibleTransport, ProviderModel
 
 
 def setup(baldric):

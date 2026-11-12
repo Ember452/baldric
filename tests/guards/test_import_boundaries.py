@@ -484,3 +484,32 @@ def test_feature_isolation_scanner_allows_features_importing_core(tmp_path: Path
     (package / "__init__.py").write_text("", encoding="utf-8")
     (package / "svc.py").write_text("from baldric.runtime.core.session import x\n", encoding="utf-8")
     assert scan_feature_isolation_violations(tmp_path) == []
+
+
+# --- FEATURES declaration completeness (S7) ----------------------------------
+
+
+def test_every_feature_directory_is_declared_in_features() -> None:
+    """Every ``runtime/features/<name>`` package has a matching FEATURES entry."""
+    from baldric.runtime.platform.features import FEATURES
+
+    declared = {spec.name for spec in FEATURES}
+    features_dir = REPO_ROOT / "src" / "baldric" / "runtime" / "features"
+    on_disk = {
+        child.name for child in features_dir.iterdir() if child.is_dir() and child.name != "__pycache__"
+    }
+    assert on_disk <= declared, f"feature package(s) missing from FEATURES: {sorted(on_disk - declared)}"
+
+
+def test_every_feature_setup_path_resolves() -> None:
+    """Each FEATURES setup path names a real ``module:attr`` on disk."""
+    from baldric.runtime.platform.features import FEATURES
+
+    problems: list[str] = []
+    for spec in FEATURES:
+        module_path = spec.setup.split(":", 1)[0]
+        rel = module_path.replace(".", "/")
+        candidates = [REPO_ROOT / "src" / f"{rel}.py", REPO_ROOT / "src" / rel / "__init__.py"]
+        if not any(path.exists() for path in candidates):
+            problems.append(f"{spec.name}: {module_path} not found")
+    assert problems == [], "\n".join(problems)

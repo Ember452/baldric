@@ -8,7 +8,7 @@ from rich.console import Console
 from textual.app import App
 from textual.widgets import Input, Label, ListView, ProgressBar, Select, Static
 
-from baldric.runtime.extensions import (
+from baldric.runtime.platform import (
     DynamicProvider,
     DynamicProviderRegistry,
     LocalArtifactOption,

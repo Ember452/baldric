@@ -48,16 +48,16 @@ from baldric.runtime.events import (
     ModelSelectEvent,
     QueueUpdateEvent,
 )
-from baldric.runtime.extensions.providers import DynamicProvider, ProviderModel
-from baldric.runtime.extensions.runtime import ExtensionRuntime
 from baldric.runtime.observability.diagnostics import (
     AgentCallDiagnosticContext,
     AgentCallDiagnosticLogger,
 )
+from baldric.runtime.platform.providers import DynamicProvider, ProviderModel
+from baldric.runtime.platform.runtime import ExtensionRuntime
 from baldric.runtime.providers.auth.credentials import FileCredentialStore, credentials_path
 
 if TYPE_CHECKING:
-    from baldric.runtime.extensions.builtin_registry import BuiltInExtension
+    from baldric.runtime.platform.builtin_registry import BuiltInExtension
 
 from baldric.protocol.messages import (
     AgentMessage,
@@ -541,7 +541,7 @@ def _eligible_built_in_extensions(config: CodingSessionConfig) -> tuple[BuiltInE
     """
     if not config.disabled_built_in_extensions:
         return None
-    from baldric.runtime.extensions.builtin_registry import BUILT_IN_EXTENSIONS
+    from baldric.runtime.platform.builtin_registry import BUILT_IN_EXTENSIONS
 
     return tuple(
         built_in

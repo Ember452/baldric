@@ -6,7 +6,7 @@ import os
 from typing import TYPE_CHECKING
 
 from baldric.runtime.config.paths import BaldricPaths
-from baldric.runtime.extensions.builtin_registry import BuiltInExtensionContext
+from baldric.runtime.platform.builtin_registry import BuiltInExtensionContext
 from baldric.runtime.providers.auth.credentials import FileCredentialStore, credentials_path
 
 from .router import LLAMA_CPP_ROUTER_MAX_BUILD, LLAMA_CPP_ROUTER_MIN_BUILD
@@ -35,7 +35,7 @@ from .state import (
 )
 
 if TYPE_CHECKING:
-    from baldric.runtime.extensions.api import ExtensionAPI
+    from baldric.runtime.platform.api import ExtensionAPI
 
 
 def setup(

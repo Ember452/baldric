@@ -78,7 +78,7 @@ from baldric.runtime.events import (
     CompactionStartEvent,
     SessionAgentEndEvent,
 )
-from baldric.runtime.extensions import (
+from baldric.runtime.platform import (
     DynamicProvider,
     DynamicProviderRegistry,
     LocalBackend,

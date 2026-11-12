@@ -39,8 +39,8 @@ from baldric.runtime import (
 )
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.thinking import THINKING_LEVELS, ThinkingLevel
-from baldric.runtime.extensions import ExtensionAPI
-from baldric.runtime.extensions.providers import DynamicProvider
+from baldric.runtime.platform import ExtensionAPI
+from baldric.runtime.platform.providers import DynamicProvider
 from baldric.runtime.providers.runtime import create_dynamic_model_provider, create_model_provider
 from baldric.runtime.tools.registry import create_coding_tools
 
@@ -92,7 +92,7 @@ from .worktree import (
 
 if TYPE_CHECKING:
     from baldric.runtime.events import CodingSessionEvent
-    from baldric.runtime.extensions import ExtensionCommandContext, ExtensionContext
+    from baldric.runtime.platform import ExtensionCommandContext, ExtensionContext
 
     from .ui import SubagentUiController
 

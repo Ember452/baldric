@@ -16,9 +16,9 @@ from pathlib import Path
 import pytest
 
 from baldric.runtime.events import ThinkingLevelChangedEvent
-from baldric.runtime.extensions.api import ExtensionAPI
-from baldric.runtime.extensions.builtin_registry import BuiltInExtension
-from baldric.runtime.extensions.runtime import ExtensionRuntime
+from baldric.runtime.platform.api import ExtensionAPI
+from baldric.runtime.platform.builtin_registry import BuiltInExtension
+from baldric.runtime.platform.runtime import ExtensionRuntime
 from tests.runtime.extensions.test_extensions import _paths
 
 pytestmark = pytest.mark.anyio

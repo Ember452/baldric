@@ -3,7 +3,7 @@
 Every other UI test in this repo drives the widgets against a
 ``FakeComponentBridge`` and runtime stubs. This test closes that gap: it builds
 the actual :class:`baldric.runtime.tui.app.BaldricTuiApp` around a minimal fake session,
-hands it a REAL :class:`~baldric.runtime.extensions.ExtensionRuntime` that has loaded
+hands it a REAL :class:`~baldric.runtime.platform.ExtensionRuntime` that has loaded
 the REAL ``baldric.runtime.features.subagents`` extension, runs it under
 ``run_test()``, and asserts
 the extension's strip and conversation viewer actually mount into baldric's

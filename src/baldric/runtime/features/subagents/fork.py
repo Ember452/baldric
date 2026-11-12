@@ -29,7 +29,7 @@ from baldric.protocol.messages import (
 from baldric.protocol.session import MessageEntry, SessionEntry, SessionInfoEntry
 
 if TYPE_CHECKING:
-    from baldric.runtime.extensions.api import ExtensionContext
+    from baldric.runtime.platform.api import ExtensionContext
 
 FORK_FILLER_RESULT = "(forked here — this call's result is not part of the fork)"
 

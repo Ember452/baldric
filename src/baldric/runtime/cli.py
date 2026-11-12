@@ -28,16 +28,16 @@ from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.config.shell_config import load_shell_settings
 from baldric.runtime.context.resources import BaldricResourcePaths
 from baldric.runtime.context.thinking import THINKING_LEVELS, ThinkingLevel, normalize_thinking_level
-from baldric.runtime.extensions import StderrUiBridge
-from baldric.runtime.extensions.installer import (
+from baldric.runtime.modes.rpc import RpcServer
+from baldric.runtime.observability.doctor import render_doctor_report
+from baldric.runtime.platform import StderrUiBridge
+from baldric.runtime.platform.installer import (
     ExtensionInstallError,
     install_extension,
     read_extension_registry,
     remove_extension,
     update_extension,
 )
-from baldric.runtime.modes.rpc import RpcServer
-from baldric.runtime.observability.doctor import render_doctor_report
 from baldric.runtime.providers.auth.credentials import FileCredentialStore
 from baldric.runtime.providers.config import (
     DEFAULT_MODEL,

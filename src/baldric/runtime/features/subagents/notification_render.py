@@ -29,7 +29,7 @@ from baldric.protocol.types import JSONValue
 
 if TYPE_CHECKING:
     from baldric.protocol.tools import AgentToolResult
-    from baldric.runtime.extensions.api import CustomMessageView, MessageRenderOptions
+    from baldric.runtime.platform.api import CustomMessageView, MessageRenderOptions
 
 FAILURE_STATUSES = ("error", "stopped", "aborted", "cancelled")
 # User-initiated stops render neutral-dim, not failure-red: the user asked for

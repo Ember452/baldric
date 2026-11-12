@@ -328,38 +328,6 @@
       "lines": 58,
       "max_function_stmts": 4
     },
-    "src/baldric/runtime/extensions/__init__.py": {
-      "lines": 249,
-      "max_function_stmts": 0
-    },
-    "src/baldric/runtime/extensions/api.py": {
-      "lines": 1339,
-      "max_function_stmts": 9
-    },
-    "src/baldric/runtime/extensions/builtin_registry.py": {
-      "lines": 151,
-      "max_function_stmts": 7
-    },
-    "src/baldric/runtime/extensions/installer.py": {
-      "lines": 428,
-      "max_function_stmts": 12
-    },
-    "src/baldric/runtime/extensions/loader.py": {
-      "lines": 473,
-      "max_function_stmts": 17
-    },
-    "src/baldric/runtime/extensions/provider_registry.py": {
-      "lines": 656,
-      "max_function_stmts": 16
-    },
-    "src/baldric/runtime/extensions/providers.py": {
-      "lines": 636,
-      "max_function_stmts": 14
-    },
-    "src/baldric/runtime/extensions/runtime.py": {
-      "lines": 1981,
-      "max_function_stmts": 39
-    },
     "src/baldric/runtime/features/__init__.py": {
       "lines": 15,
       "max_function_stmts": 0
@@ -507,6 +475,42 @@
     "src/baldric/runtime/observability/watchdog.py": {
       "lines": 114,
       "max_function_stmts": 8
+    },
+    "src/baldric/runtime/platform/__init__.py": {
+      "lines": 249,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/platform/api.py": {
+      "lines": 1339,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/platform/builtin_registry.py": {
+      "lines": 160,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/platform/features.py": {
+      "lines": 58,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/platform/installer.py": {
+      "lines": 428,
+      "max_function_stmts": 12
+    },
+    "src/baldric/runtime/platform/loader.py": {
+      "lines": 473,
+      "max_function_stmts": 17
+    },
+    "src/baldric/runtime/platform/provider_registry.py": {
+      "lines": 656,
+      "max_function_stmts": 16
+    },
+    "src/baldric/runtime/platform/providers.py": {
+      "lines": 636,
+      "max_function_stmts": 14
+    },
+    "src/baldric/runtime/platform/runtime.py": {
+      "lines": 1981,
+      "max_function_stmts": 39
     },
     "src/baldric/runtime/providers/__init__.py": {
       "lines": 1,

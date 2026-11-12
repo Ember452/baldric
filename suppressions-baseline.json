@@ -18,12 +18,6 @@
   "src/baldric/runtime/cli.py": {
     "type-ignore:union-attr": 1
   },
-  "src/baldric/runtime/extensions/loader.py": {
-    "noqa:BLE001": 1
-  },
-  "src/baldric/runtime/extensions/runtime.py": {
-    "noqa:BLE001": 12
-  },
   "src/baldric/runtime/features/llama_cpp/service.py": {
     "type-ignore:arg-type": 2
   },
@@ -51,6 +45,12 @@
   },
   "src/baldric/runtime/features/subagents/worktree.py": {
     "noqa:BLE001": 1
+  },
+  "src/baldric/runtime/platform/loader.py": {
+    "noqa:BLE001": 1
+  },
+  "src/baldric/runtime/platform/runtime.py": {
+    "noqa:BLE001": 12
   },
   "src/baldric/runtime/providers/auth/oauth.py": {
     "noqa:N802": 1

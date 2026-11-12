@@ -28,7 +28,7 @@ from textual.widget import Widget
 from textual.widgets import Static
 
 from baldric.protocol.types import JSONValue
-from baldric.runtime.extensions.api import (
+from baldric.runtime.platform.api import (
     KeyInterceptor,
     MainViewFactory,
     MainViewHandle,

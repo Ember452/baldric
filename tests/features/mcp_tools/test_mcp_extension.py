@@ -15,8 +15,8 @@ from baldric.mcp.client import McpContentBlock, McpToolInfo, McpToolResultData
 from baldric.mcp.config import McpServerConfig
 from baldric.mcp.supervisor import McpServerStatus
 from baldric.runtime import BaldricPaths, BaldricResourcePaths, CodingSession, CodingSessionConfig
-from baldric.runtime.extensions import ExtensionRuntime
-from baldric.runtime.extensions.builtin_registry import BuiltInExtension
+from baldric.runtime.platform import ExtensionRuntime
+from baldric.runtime.platform.builtin_registry import BuiltInExtension
 from baldric.runtime.session import JsonlSessionStorage
 from tests.runtime.extensions.test_extensions import RecordingSession, RecordingUiBridge
 
@@ -452,7 +452,7 @@ async def test_prompt_section_omits_detail_without_description_or_instructions(
 
 
 def _mcp_handler(runtime: ExtensionRuntime, api: Any) -> Callable[[str], str | None]:
-    from baldric.runtime.extensions.api import ExtensionCommandContext
+    from baldric.runtime.platform.api import ExtensionCommandContext
 
     handler = runtime._commands["mcp"].handler  # noqa: SLF001 - test reaches the command
     return lambda args: handler(args, ExtensionCommandContext(name="mcp", args=args, api=api))

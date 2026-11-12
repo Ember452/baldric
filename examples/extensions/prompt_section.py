@@ -1,6 +1,6 @@
 """Append structured, always-on instructions to Baldric's system prompt."""
 
-from baldric.runtime.extensions import ExtensionAPI
+from baldric.runtime.platform import ExtensionAPI
 
 
 def setup(baldric: ExtensionAPI) -> None:

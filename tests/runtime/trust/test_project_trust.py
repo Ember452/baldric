@@ -983,7 +983,7 @@ async def test_failed_project_extension_reload_re_resolves_trust(
         "def setup(baldric):\n    baldric.add_prompt_guideline('DESTINATION-EXTENSION')\n",
         encoding="utf-8",
     )
-    from baldric.runtime.extensions.runtime import ExtensionRuntime
+    from baldric.runtime.platform.runtime import ExtensionRuntime
 
     real_load = ExtensionRuntime.load
 
@@ -1161,7 +1161,7 @@ async def test_reload_cancellation_during_shutdown_preserves_snapshot_and_re_res
 async def test_reload_cancellation_during_staged_start_preserves_snapshot_and_re_resolves(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric.runtime.extensions.runtime import ExtensionRuntime
+    from baldric.runtime.platform.runtime import ExtensionRuntime
 
     project = tmp_path / "project"
     project.mkdir()
@@ -1217,7 +1217,7 @@ async def test_reload_cancellation_during_staged_start_preserves_snapshot_and_re
 async def test_destination_adoption_cancellation_keeps_source_and_retry_resolves_again(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric.runtime.extensions.runtime import ExtensionRuntime
+    from baldric.runtime.platform.runtime import ExtensionRuntime
 
     source = tmp_path / "source"
     destination = tmp_path / "destination"

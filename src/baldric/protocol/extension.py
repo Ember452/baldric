@@ -14,7 +14,7 @@ silently growing behaviour as the project scales (see the structural plan,
 Behavioural classes — ``ExtensionAPI``, ``ExtensionContext``, ``ExtensionUi``,
 ``ExtensionSidebar``, ``ExtensionGeneration``, the UI bridges, and the
 ``UiBridge``/``ComponentBridge`` protocols that reference TUI types — stay in
-``baldric.runtime.extensions.api``. Only what is pure shape lives here.
+``baldric.runtime.platform.api``. Only what is pure shape lives here.
 """
 
 from __future__ import annotations

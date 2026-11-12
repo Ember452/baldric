@@ -17,7 +17,7 @@ from baldric.agent.events import (
 from baldric.ai.events import TextDeltaEvent
 from baldric.protocol.messages import AssistantMessage, CustomMessage, ToolCall
 from baldric.runtime.events import AutoRetryEndEvent, AutoRetryStartEvent, CodingSessionEvent
-from baldric.runtime.extensions.api import CustomMessageMarkup
+from baldric.runtime.platform.api import CustomMessageMarkup
 from baldric.runtime.rendering.base import is_failed_stop_reason
 from baldric.runtime.rendering.tool_calls import format_tool_call_block
 

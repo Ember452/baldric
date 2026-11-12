@@ -16,7 +16,7 @@ from rich.style import Style as RichStyle
 from textual.containers import Container
 from textual.widgets import Collapsible, Static
 
-from baldric.runtime.extensions import ExtensionRuntime
+from baldric.runtime.platform import ExtensionRuntime
 from baldric.runtime.rendering.themes import get_tui_theme
 from baldric.runtime.tui.app import BaldricTuiApp, PromptInput
 from baldric.runtime.tui.config import TuiSettings

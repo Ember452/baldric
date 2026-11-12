@@ -28,7 +28,7 @@ from baldric.protocol.provider_events import (
 from baldric.protocol.tools import AgentTool, AgentToolResult, ToolCancellationToken
 from baldric.protocol.types import JSONValue
 from baldric.runtime.config.paths import BaldricPaths
-from baldric.runtime.extensions.providers import (
+from baldric.runtime.platform.providers import (
     DynamicProvider,
     OpenAICompatibleTransport,
     ProviderAuthContext,

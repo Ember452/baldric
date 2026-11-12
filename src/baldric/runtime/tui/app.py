@@ -92,10 +92,10 @@ from baldric.runtime.events import (
     SessionInfoChangedEvent,
     ThinkingLevelChangedEvent,
 )
-from baldric.runtime.extensions.api import (
+from baldric.runtime.observability.watchdog import LoopWatchdog
+from baldric.runtime.platform.api import (
     KeyInterceptor,
 )
-from baldric.runtime.observability.watchdog import LoopWatchdog
 from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
 
 # Re-exported on purpose: ``tui/screens/login.py`` resolves the OAuth provider via

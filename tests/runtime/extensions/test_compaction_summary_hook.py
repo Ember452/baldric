@@ -60,8 +60,8 @@ async def test_extension_summary_is_used_without_calling_the_provider(tmp_path: 
     extension_dir = _write_extension(
         tmp_path,
         """
-from baldric.runtime.extensions import ExtensionAPI
-from baldric.runtime.extensions.api import CompactionSummaryResult, SessionBeforeCompactEvent
+from baldric.runtime.platform import ExtensionAPI
+from baldric.runtime.platform.api import CompactionSummaryResult, SessionBeforeCompactEvent
 
 
 def setup(api: ExtensionAPI) -> None:
@@ -86,8 +86,8 @@ async def test_extension_summary_is_clamped(tmp_path: Path) -> None:
     extension_dir = _write_extension(
         tmp_path,
         """
-from baldric.runtime.extensions import ExtensionAPI
-from baldric.runtime.extensions.api import CompactionSummaryResult
+from baldric.runtime.platform import ExtensionAPI
+from baldric.runtime.platform.api import CompactionSummaryResult
 
 
 def setup(api: ExtensionAPI) -> None:
@@ -107,7 +107,7 @@ async def test_none_defers_to_the_builtin_summarizer(tmp_path: Path) -> None:
     extension_dir = _write_extension(
         tmp_path,
         """
-from baldric.runtime.extensions import ExtensionAPI
+from baldric.runtime.platform import ExtensionAPI
 
 
 def setup(api: ExtensionAPI) -> None:
@@ -136,8 +136,8 @@ async def test_empty_and_raising_handlers_fall_back(tmp_path: Path) -> None:
     extension_dir = _write_extension(
         tmp_path,
         """
-from baldric.runtime.extensions import ExtensionAPI
-from baldric.runtime.extensions.api import CompactionSummaryResult
+from baldric.runtime.platform import ExtensionAPI
+from baldric.runtime.platform.api import CompactionSummaryResult
 
 
 def setup(api: ExtensionAPI) -> None:

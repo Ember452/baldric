@@ -15,9 +15,9 @@ from baldric.ai.events import AssistantDoneEvent, AssistantStartEvent
 from baldric.ai.fake import FakeProvider
 from baldric.ai.hooks import HookableProvider
 from baldric.protocol.messages import AssistantMessage, TextContent, UserMessage
-from baldric.runtime.extensions.api import ExtensionAPI
-from baldric.runtime.extensions.builtin_registry import BuiltInExtension
-from baldric.runtime.extensions.runtime import ExtensionRuntime
+from baldric.runtime.platform.api import ExtensionAPI
+from baldric.runtime.platform.builtin_registry import BuiltInExtension
+from baldric.runtime.platform.runtime import ExtensionRuntime
 from tests.runtime.extensions.test_extensions import _paths
 
 pytestmark = pytest.mark.anyio
@@ -97,7 +97,7 @@ async def test_before_provider_request_transforms_payload(tmp_path: Path) -> Non
 
 async def test_context_hook_transforms_messages(tmp_path: Path) -> None:
 
-    from baldric.runtime.extensions.api import ProviderContextEvent
+    from baldric.runtime.platform.api import ProviderContextEvent
 
     def setup(api: ExtensionAPI) -> None:
         def add_system(event, ctx):

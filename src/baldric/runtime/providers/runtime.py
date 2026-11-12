@@ -27,7 +27,7 @@ from baldric.runtime.context.thinking import (
     normalize_thinking_level,
     reasoning_effort_for_level,
 )
-from baldric.runtime.extensions.providers import (
+from baldric.runtime.platform.providers import (
     CredentialReader,
     DynamicProvider,
     OpenAICompatibleTransport,

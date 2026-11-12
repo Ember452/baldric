@@ -21,7 +21,7 @@ from textual.widgets import (
     TextArea,
 )
 
-from baldric.runtime.extensions.api import (
+from baldric.runtime.platform.api import (
     MainViewHandle,
 )
 

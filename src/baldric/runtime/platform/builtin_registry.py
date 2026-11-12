@@ -10,10 +10,11 @@ from typing import TYPE_CHECKING
 import httpx
 
 from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.platform.features import FEATURES
 from baldric.runtime.providers.auth.credentials import CredentialStore
 
 if TYPE_CHECKING:
-    from baldric.runtime.extensions.api import ExtensionAPI
+    from baldric.runtime.platform.api import ExtensionAPI
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,9 +90,17 @@ def _load_feature_setup(module_path: str) -> Callable[..., None]:
     return cast("Callable[..., None]", import_module(module_path).setup)
 
 
+def _feature_setup_path(name: str) -> str:
+    """Return the ``setup`` module path declared for ``name`` in :data:`FEATURES`."""
+    for spec in FEATURES:
+        if spec.name == name:
+            return spec.setup.split(":", 1)[0]
+    raise KeyError(f"no FeatureSpec declared for feature {name!r}")
+
+
 def _llama_cpp_setup(api: ExtensionAPI) -> None:
     """Load the llama.cpp feature with its normal process dependencies."""
-    _load_feature_setup("baldric.runtime.features.llama_cpp")(api)
+    _load_feature_setup(_feature_setup_path("llama_cpp"))(api)
 
 
 def _llama_cpp_setup_with_context(
@@ -99,17 +108,17 @@ def _llama_cpp_setup_with_context(
     context: BuiltInExtensionContext,
 ) -> None:
     """Load the llama.cpp feature lazily with trusted runtime dependencies."""
-    _load_feature_setup("baldric.runtime.features.llama_cpp")(api, context)
+    _load_feature_setup(_feature_setup_path("llama_cpp"))(api, context)
 
 
 def _subagents_setup(api: ExtensionAPI) -> None:
     """Load the subagents feature by string path."""
-    _load_feature_setup("baldric.runtime.features.subagents.extension")(api)
+    _load_feature_setup(_feature_setup_path("subagents"))(api)
 
 
 def _mcp_setup(api: ExtensionAPI) -> None:
     """Load the bundled MCP client feature with its normal process dependencies."""
-    _load_feature_setup("baldric.runtime.features.mcp_tools")(api)
+    _load_feature_setup(_feature_setup_path("mcp_tools"))(api)
 
 
 def _mcp_setup_with_context(
@@ -117,7 +126,7 @@ def _mcp_setup_with_context(
     context: BuiltInExtensionContext,
 ) -> None:
     """Load the bundled MCP client feature lazily with trusted runtime dependencies."""
-    _load_feature_setup("baldric.runtime.features.mcp_tools")(api, context)
+    _load_feature_setup(_feature_setup_path("mcp_tools"))(api, context)
 
 
 # Product capabilities are declared explicitly so filesystem discovery or

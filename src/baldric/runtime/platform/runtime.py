@@ -15,7 +15,7 @@ from uuid import uuid4
 
 import httpx
 
-import baldric.runtime.extensions.builtin_registry as built_in_extension_registry
+import baldric.runtime.platform.builtin_registry as built_in_extension_registry
 from baldric.agent.events import AgentEvent, AgentStartEvent
 from baldric.agent.events import TurnEndEvent as AgentTurnEndEvent
 from baldric.agent.events import TurnStartEvent as AgentTurnStartEvent
@@ -51,7 +51,7 @@ from baldric.runtime.commands.registry import (
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.resources import BaldricResourcePaths, ResourceDiagnostic
 from baldric.runtime.context.system_prompt import PromptSection
-from baldric.runtime.extensions.api import (
+from baldric.runtime.platform.api import (
     AGENT_EVENT_TYPES,
     AGENT_EVENT_WILDCARD,
     EVENT_NAME_ALIASES,
@@ -98,21 +98,21 @@ from baldric.runtime.extensions.api import (
     UserBashEvent,
     UserBashResult,
 )
-from baldric.runtime.extensions.builtin_registry import (
+from baldric.runtime.platform.builtin_registry import (
     BuiltInExtension,
     BuiltInExtensionContext,
 )
-from baldric.runtime.extensions.loader import (
+from baldric.runtime.platform.loader import (
     ExtensionSourceMetadata,
     LoadedExtension,
     load_extensions,
     unload_extension_modules,
 )
-from baldric.runtime.extensions.provider_registry import (
+from baldric.runtime.platform.provider_registry import (
     DynamicProviderRegistry,
     ProviderRegistryCloseResult,
 )
-from baldric.runtime.extensions.providers import CredentialReader, DynamicProvider
+from baldric.runtime.platform.providers import CredentialReader, DynamicProvider
 from baldric.runtime.providers.auth.credentials import (
     CredentialStore,
     FileCredentialStore,

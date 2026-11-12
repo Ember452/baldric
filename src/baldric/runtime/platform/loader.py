@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Literal
 
 from baldric.runtime.context.resources import BaldricResourcePaths, ResourceDiagnostic
-from baldric.runtime.extensions.api import EXTENSION_API_VERSION, ExtensionCapabilities
+from baldric.runtime.platform.api import EXTENSION_API_VERSION, ExtensionCapabilities
 
 EXTENSION_ENTRY_ATTRIBUTE = "setup"
 # Module-level declarations a filesystem extension uses to declare its contract.

@@ -14,7 +14,7 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 from baldric.protocol.types import JSONValue
-from baldric.runtime.extensions import CustomMessageView, MessageRenderOptions
+from baldric.runtime.platform import CustomMessageView, MessageRenderOptions
 
 from .notification_render import render_notification, stat_parts
 

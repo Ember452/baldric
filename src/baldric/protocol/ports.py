@@ -90,7 +90,7 @@ class ProviderCatalog(Protocol):
     identity it binds to, plus the layer-token and effective-provider lookups it
     pairs backends against. The concrete ``DynamicProviderRegistry`` satisfies
     this structurally, so the backend registry can depend on the protocol and no
-    longer import ``baldric.runtime.extensions.provider_registry``.
+    longer import ``baldric.runtime.platform.provider_registry``.
     """
 
     @property

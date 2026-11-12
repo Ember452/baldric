@@ -90,10 +90,6 @@ S1A_FORBIDDEN_IMPORTERS: tuple[str, ...] = (
     "baldric.runtime.core",
     "baldric.runtime.platform",
     "baldric.runtime.frontends",
-    # ``runtime.extensions`` is the current home of the platform loader (it moves
-    # to ``runtime.platform`` in stage E); the built-in registry lives here and
-    # must resolve features by string path, not a static import.
-    "baldric.runtime.extensions",
 )
 FEATURES_PREFIX = "baldric.runtime.features"
 

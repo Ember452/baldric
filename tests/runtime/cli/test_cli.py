@@ -22,8 +22,8 @@ from baldric.runtime.context.system_prompt import (
     build_system_prompt_inspection,
     format_system_prompt_inspection,
 )
-from baldric.runtime.extensions import ExtensionRuntime
-from baldric.runtime.extensions.installer import ExtensionInstallRecord
+from baldric.runtime.platform import ExtensionRuntime
+from baldric.runtime.platform.installer import ExtensionInstallRecord
 from baldric.runtime.providers.config import (
     OpenAICompatibleProviderConfig,
     ProviderSettings,

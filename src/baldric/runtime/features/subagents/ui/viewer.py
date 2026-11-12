@@ -43,7 +43,7 @@ from ..agents_menu import run_snapshot_messages, steer_run, stop_run
 if TYPE_CHECKING:
     from textual import events
 
-    from baldric.runtime.extensions import MainViewHandle
+    from baldric.runtime.platform import MainViewHandle
     from baldric.runtime.tui.config import TuiTheme
 
     from ..extension import AgentRun, SubagentManager

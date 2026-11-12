@@ -33,7 +33,7 @@ from baldric.runtime.context.thinking import (
     THINKING_LEVELS,
     ThinkingLevel,
 )
-from baldric.runtime.extensions.runtime import ExtensionRuntime
+from baldric.runtime.platform.runtime import ExtensionRuntime
 from baldric.runtime.providers.auth.credentials import FileCredentialStore
 from baldric.runtime.providers.auth.oauth import account_id_from_access_token
 from baldric.runtime.providers.config import (

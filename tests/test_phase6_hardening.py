@@ -11,7 +11,17 @@ import pytest
 
 from baldric.agent.harness import SimpleCancellationToken
 from baldric.runtime.config.paths import BaldricPaths
-from baldric.runtime.extensions import (
+from baldric.runtime.features.llama_cpp.service import (
+    LlamaCppService,
+)
+from baldric.runtime.features.llama_cpp.state import (
+    LLAMA_CPP_CREDENTIAL_PREFIX,
+    LlamaCppIntegrationState,
+    LlamaCppStateError,
+    LlamaCppStateStore,
+    LlamaCppStoredModel,
+)
+from baldric.runtime.platform import (
     DynamicProvider,
     DynamicProviderRegistry,
     ExtensionRuntime,
@@ -26,16 +36,6 @@ from baldric.runtime.extensions import (
     OpenAICompatibleTransport,
     ProviderModel,
     ProviderModelSnapshot,
-)
-from baldric.runtime.features.llama_cpp.service import (
-    LlamaCppService,
-)
-from baldric.runtime.features.llama_cpp.state import (
-    LLAMA_CPP_CREDENTIAL_PREFIX,
-    LlamaCppIntegrationState,
-    LlamaCppStateError,
-    LlamaCppStateStore,
-    LlamaCppStoredModel,
 )
 from baldric.runtime.providers.auth.credentials import FileCredentialStore
 from baldric.runtime.providers.backends.contracts import (
