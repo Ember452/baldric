@@ -62,7 +62,7 @@ _WIN32_SKIPS = {
     "tests/runtime/tui/test_tui_file_drop.py::",
     # POSIX file permissions (0o600)
     "tests/runtime/config/test_credentials.py::test_file_credential_store_round_trips_and_sets_private_permissions",
-    "tests/runtime/extensions/test_llama_cpp_extension.py::test_state_is_atomic_locked_private_and_recovers_interrupted_writes",
+    "tests/features/llama_cpp/test_llama_cpp_extension.py::test_state_is_atomic_locked_private_and_recovers_interrupted_writes",
     # symlink privileges not granted on Windows
     "tests/runtime/extensions/test_extensions.py::test_failed_setup_cleans_every_registration_after_entry_symlink_retarget",
     "tests/runtime/tui/test_tui_app.py::test_sidebar_file_atomic_save_preserves_symlink_and_permissions",

@@ -75,52 +75,49 @@ class BuiltInExtension:
         return f"built-in:{self.name}"
 
 
-def _llama_cpp_setup(api: ExtensionAPI) -> None:
-    """Load the product extension with its normal process dependencies."""
-    from baldric.runtime.extensions.builtins.llama_cpp import setup
+def _load_feature_setup(module_path: str) -> Callable[..., None]:
+    """Resolve a feature's ``setup`` callable by string path via ``importlib``.
 
-    setup(api)
+    Product features (``baldric.runtime.features.<name>``) are loaded through a
+    string path, never a static import, so the platform/built-in registry here
+    never statically depends on a feature implementation (S1a, enforced by
+    ``scripts/check_import_graph.py``).
+    """
+    from importlib import import_module
+    from typing import cast
+
+    return cast("Callable[..., None]", import_module(module_path).setup)
+
+
+def _llama_cpp_setup(api: ExtensionAPI) -> None:
+    """Load the llama.cpp feature with its normal process dependencies."""
+    _load_feature_setup("baldric.runtime.features.llama_cpp")(api)
 
 
 def _llama_cpp_setup_with_context(
     api: ExtensionAPI,
     context: BuiltInExtensionContext,
 ) -> None:
-    """Load the product extension lazily with trusted runtime dependencies."""
-    from baldric.runtime.extensions.builtins.llama_cpp import setup
-
-    setup(api, context)
+    """Load the llama.cpp feature lazily with trusted runtime dependencies."""
+    _load_feature_setup("baldric.runtime.features.llama_cpp")(api, context)
 
 
 def _subagents_setup(api: ExtensionAPI) -> None:
-    """Load the bundled subagent feature by string path.
-
-    ``subagents`` now lives under ``baldric.runtime.features`` (a product
-    feature). The platform/built-in registry must not *statically* import a
-    feature implementation (S1a), so it resolves the entry point through
-    ``importlib`` at call time instead of a top-level or in-body ``import``.
-    """
-    from importlib import import_module
-
-    setup = import_module("baldric.runtime.features.subagents.extension").setup
-    setup(api)
+    """Load the subagents feature by string path."""
+    _load_feature_setup("baldric.runtime.features.subagents.extension")(api)
 
 
 def _mcp_setup(api: ExtensionAPI) -> None:
-    """Load the bundled MCP client with its normal process dependencies."""
-    from baldric.runtime.extensions.builtins.mcp import setup
-
-    setup(api)
+    """Load the bundled MCP client feature with its normal process dependencies."""
+    _load_feature_setup("baldric.runtime.features.mcp_tools")(api)
 
 
 def _mcp_setup_with_context(
     api: ExtensionAPI,
     context: BuiltInExtensionContext,
 ) -> None:
-    """Load the bundled MCP client lazily with trusted runtime dependencies."""
-    from baldric.runtime.extensions.builtins.mcp import setup
-
-    setup(api, context)
+    """Load the bundled MCP client feature lazily with trusted runtime dependencies."""
+    _load_feature_setup("baldric.runtime.features.mcp_tools")(api, context)
 
 
 # Product capabilities are declared explicitly so filesystem discovery or

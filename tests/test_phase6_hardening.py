@@ -32,10 +32,10 @@ from baldric.runtime.extensions import (
     ProviderModel,
     ProviderModelSnapshot,
 )
-from baldric.runtime.extensions.builtins.llama_cpp.service import (
+from baldric.runtime.features.llama_cpp.service import (
     LlamaCppService,
 )
-from baldric.runtime.extensions.builtins.llama_cpp.state import (
+from baldric.runtime.features.llama_cpp.state import (
     LLAMA_CPP_CREDENTIAL_PREFIX,
     LlamaCppIntegrationState,
     LlamaCppStateError,

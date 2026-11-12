@@ -143,7 +143,7 @@ def _runtime(
     ui: RecordingUiBridge | None = None,
 ) -> tuple[ExtensionRuntime, list[tuple[Any, Any]], RecordingUiBridge, BaldricPaths]:
     """A real runtime whose only built-in is the capture-wired mcp extension."""
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     captured: list[tuple[Any, Any]] = []
 
@@ -185,7 +185,7 @@ async def _settle() -> None:
 
 
 async def test_no_config_files_boots_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
@@ -201,7 +201,7 @@ async def test_no_config_files_boots_nothing(tmp_path: Path, monkeypatch: pytest
 async def test_untrusted_project_is_ignored_with_a_diagnostic(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
@@ -221,7 +221,7 @@ async def test_untrusted_project_is_ignored_with_a_diagnostic(
 async def test_trusted_project_servers_boot_and_tools_register(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
@@ -253,7 +253,7 @@ async def test_trusted_project_servers_boot_and_tools_register(
 async def test_sanitized_name_collisions_get_distinct_final_names(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
@@ -278,7 +278,7 @@ async def test_sanitized_name_collisions_get_distinct_final_names(
 
 
 async def test_failed_server_withdraws_its_tools(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
@@ -303,7 +303,7 @@ async def test_failed_server_withdraws_its_tools(tmp_path: Path, monkeypatch: py
 async def test_session_shutdown_closes_the_supervisor(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
@@ -320,7 +320,7 @@ async def test_session_shutdown_closes_the_supervisor(
 async def test_repeated_session_start_boots_only_once(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
@@ -353,7 +353,7 @@ async def test_child_config_excludes_the_mcp_builtin(tmp_path: Path) -> None:
 async def test_first_input_waits_once_while_connecting(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
@@ -378,7 +378,7 @@ async def test_first_input_waits_once_while_connecting(
 async def test_prompt_section_registers_once_and_refreshes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
@@ -405,7 +405,7 @@ async def test_prompt_section_registers_once_and_refreshes(
 
 
 async def test_prompt_section_caps_lines_and_total(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
@@ -435,7 +435,7 @@ async def test_prompt_section_caps_lines_and_total(tmp_path: Path, monkeypatch: 
 async def test_prompt_section_omits_detail_without_description_or_instructions(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
@@ -459,7 +459,7 @@ def _mcp_handler(runtime: ExtensionRuntime, api: Any) -> Callable[[str], str | N
 
 
 async def test_mcp_command_lists_servers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
@@ -477,7 +477,7 @@ async def test_mcp_command_lists_servers(tmp_path: Path, monkeypatch: pytest.Mon
 
 
 async def test_mcp_off_persists_and_disables(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
@@ -498,7 +498,7 @@ async def test_mcp_off_persists_and_disables(tmp_path: Path, monkeypatch: pytest
 
 
 async def test_mcp_on_rereads_and_enables(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
@@ -522,7 +522,7 @@ async def test_mcp_on_rereads_and_enables(tmp_path: Path, monkeypatch: pytest.Mo
 async def test_mcp_restart_reconnects_with_fresh_config(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
@@ -542,7 +542,7 @@ async def test_mcp_restart_reconnects_with_fresh_config(
 async def test_stderr_sink_factory_wired_and_opens_the_log(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
@@ -567,7 +567,7 @@ async def test_stderr_sink_factory_wired_and_opens_the_log(
 
 
 async def test_output_saver_saves_full_text(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
@@ -595,7 +595,7 @@ async def test_output_saver_saves_full_text(tmp_path: Path, monkeypatch: pytest.
 
 
 async def test_mcp_unknown_server_reports_message(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from baldric.runtime.extensions.builtins import mcp as mcp_extension
+    from baldric.runtime.features import mcp_tools as mcp_extension
 
     factory = Factory()
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)

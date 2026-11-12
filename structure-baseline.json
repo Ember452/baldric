@@ -381,40 +381,8 @@
       "max_function_stmts": 9
     },
     "src/baldric/runtime/extensions/builtin_registry.py": {
-      "lines": 154,
+      "lines": 150,
       "max_function_stmts": 7
-    },
-    "src/baldric/runtime/extensions/builtins/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/runtime/extensions/builtins/llama_cpp/__init__.py": {
-      "lines": 87,
-      "max_function_stmts": 5
-    },
-    "src/baldric/runtime/extensions/builtins/llama_cpp/huggingface.py": {
-      "lines": 211,
-      "max_function_stmts": 13
-    },
-    "src/baldric/runtime/extensions/builtins/llama_cpp/router.py": {
-      "lines": 331,
-      "max_function_stmts": 12
-    },
-    "src/baldric/runtime/extensions/builtins/llama_cpp/service.py": {
-      "lines": 1737,
-      "max_function_stmts": 24
-    },
-    "src/baldric/runtime/extensions/builtins/llama_cpp/state.py": {
-      "lines": 405,
-      "max_function_stmts": 14
-    },
-    "src/baldric/runtime/extensions/builtins/mcp/__init__.py": {
-      "lines": 7,
-      "max_function_stmts": 0
-    },
-    "src/baldric/runtime/extensions/builtins/mcp/extension.py": {
-      "lines": 307,
-      "max_function_stmts": 12
     },
     "src/baldric/runtime/extensions/installer.py": {
       "lines": 428,
@@ -439,6 +407,34 @@
     "src/baldric/runtime/features/__init__.py": {
       "lines": 15,
       "max_function_stmts": 0
+    },
+    "src/baldric/runtime/features/llama_cpp/__init__.py": {
+      "lines": 87,
+      "max_function_stmts": 5
+    },
+    "src/baldric/runtime/features/llama_cpp/huggingface.py": {
+      "lines": 211,
+      "max_function_stmts": 13
+    },
+    "src/baldric/runtime/features/llama_cpp/router.py": {
+      "lines": 331,
+      "max_function_stmts": 12
+    },
+    "src/baldric/runtime/features/llama_cpp/service.py": {
+      "lines": 1737,
+      "max_function_stmts": 24
+    },
+    "src/baldric/runtime/features/llama_cpp/state.py": {
+      "lines": 405,
+      "max_function_stmts": 14
+    },
+    "src/baldric/runtime/features/mcp_tools/__init__.py": {
+      "lines": 7,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/features/mcp_tools/extension.py": {
+      "lines": 307,
+      "max_function_stmts": 12
     },
     "src/baldric/runtime/features/subagents/__init__.py": {
       "lines": 8,

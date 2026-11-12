@@ -1,10 +1,9 @@
 # baldric 结构重构计划 v2：先砌墙，再搬家
 
-> 状态：**执行中 —— 阶段 A0、A、B 已完成**（2026-11-12）。执行记录：
-> [../notes/2026-11-12-stage-a0-wall.md](../notes/2026-11-12-stage-a0-wall.md)、
-> [../notes/2026-11-12-stage-a-rules-and-dedup.md](../notes/2026-11-12-stage-a-rules-and-dedup.md)、
-> [../notes/2026-11-12-stage-b-subagents.md](../notes/2026-11-12-stage-b-subagents.md)。
-> 后续阶段 C–H 待逐阶段推进，每阶段原子完成并停下评审。
+> 状态：**执行中 —— 阶段 A0、A、B、C 已完成**（2026-11-12）。执行记录：
+> [stage A0](../notes/2026-11-12-stage-a0-wall.md)、[stage A](../notes/2026-11-12-stage-a-rules-and-dedup.md)、
+> [stage B](../notes/2026-11-12-stage-b-subagents.md)、[stage C](../notes/2026-11-12-stage-c-mcp-llamacpp.md)。
+> 后续阶段 D–H 待逐阶段推进，每阶段原子完成并停下评审。
 > v1 依据：2026-11-11 全量深扫 + 2026-11-12 逐目录实测裁定
 > v2 修订：吸收独立评审的 6 个 P0 + 11 个 P1，并补入本会话新发现的 2 项（`protocol/session/jsonl.py` 是行为、`ai/` 与 `providers/` 是两层配置）
 > 目标读者：维护者本人（个人开发者，时间充足，目标是长期产品，不发独立包）
@@ -344,9 +343,16 @@ A0（api facade + protocol 契约 + port + scanner 白名单 + 示例路径固�
 > 4. tests → `tests/features/subagents/`（**不放 src 内**，见 §6）。
 > 5. **验收（S1a）**：`core/platform/frontends` 静态 import `features.*` = 0（AST 检查，非 grep）；10 个 subagents 测试全过；fast suite 全绿。
 
-### 阶段 C：mcp_tools / llama_cpp
+### 阶段 C：mcp_tools / llama_cpp｜**已完成 2026-11-12**
 
-同 B。llama_cpp 验证只依赖 `providers/backends` 契约。`bgrep` 核心层无功能名（smoke）。
+实际落地（执行记录见 [../notes/2026-11-12-stage-c-mcp-llamacpp.md](../notes/2026-11-12-stage-c-mcp-llamacpp.md)）：
+
+1. ✅ `builtins/mcp → features/mcp_tools`、`builtins/llama_cpp → features/llama_cpp`；删除空 `extensions/builtins/` 包。
+2. ✅ `builtin_registry` 统一 `_load_feature_setup`（importlib 字符串路径）；5 个 setup 包装全改；name 不变、行为不变。
+3. ✅ 测试搬 `tests/features/{llama_cpp,mcp_tools}/`；`test_phase6_hardening.py` 保留 `tests/` 根（通用硬化套件）仅改导入；conftest 的 Windows-skip nodeid 同步。
+4. ✅ **验收**：fast suite 2282 passed；TUI 767 passed；S1a 静态 import features = 0；mypy 无新增；两基线纯路径重命名（supp 138 不变）。
+
+> 原计划：阶段 C：mcp_tools / llama_cpp —— 「同 B。llama_cpp 验证只依赖 `providers/backends` 契约。`bgrep` 核心层无功能名（smoke）。」
 
 ### 阶段 D：providers 域合并
 

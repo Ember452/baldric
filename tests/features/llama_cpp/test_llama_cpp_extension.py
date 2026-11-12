@@ -17,15 +17,16 @@ from baldric.runtime.backends.contracts import LocalOperationContext, LocalProgr
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.resources import BaldricResourcePaths
 from baldric.runtime.extensions import ExtensionRuntime
-from baldric.runtime.extensions.builtins.llama_cpp import service as llama_service
-from baldric.runtime.extensions.builtins.llama_cpp.huggingface import discover_hf_token
-from baldric.runtime.extensions.builtins.llama_cpp.router import (
+from baldric.runtime.extensions.providers import ProviderRefreshContext, ResolvedProviderAuth
+from baldric.runtime.features.llama_cpp import service as llama_service
+from baldric.runtime.features.llama_cpp.huggingface import discover_hf_token
+from baldric.runtime.features.llama_cpp.router import (
     RouterCapability,
     props_input_modalities,
     reported_input_modalities,
     watch_router_download_progress,
 )
-from baldric.runtime.extensions.builtins.llama_cpp.service import (
+from baldric.runtime.features.llama_cpp.service import (
     LLAMA_CPP_API_KEY_ENV,
     LLAMA_CPP_DEFAULT_ENDPOINT,
     LLAMA_CPP_ENDPOINT_ENV,
@@ -33,14 +34,13 @@ from baldric.runtime.extensions.builtins.llama_cpp.service import (
     LlamaCppService,
     normalize_llama_cpp_endpoint,
 )
-from baldric.runtime.extensions.builtins.llama_cpp.state import (
+from baldric.runtime.features.llama_cpp.state import (
     LLAMA_CPP_CREDENTIAL_PREFIX,
     LlamaCppIntegrationState,
     LlamaCppStateError,
     LlamaCppStateStore,
     LlamaCppStoredModel,
 )
-from baldric.runtime.extensions.providers import ProviderRefreshContext, ResolvedProviderAuth
 from baldric.runtime.providers.runtime import create_dynamic_model_provider
 from tests.helpers.conftest_utils import isolate_home
 
@@ -675,7 +675,7 @@ def test_state_schema_validation_and_legacy_recovery(tmp_path: Path) -> None:
 
 
 def test_state_replace_is_atomic_on_write_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import baldric.runtime.extensions.builtins.llama_cpp.state as state_module
+    import baldric.runtime.features.llama_cpp.state as state_module
 
     store = LlamaCppStateStore(tmp_path / "state.json")
     store.save(_state())
