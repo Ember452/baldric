@@ -69,6 +69,45 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 These guidelines are working if: fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
 
+## Generic Work Rules
+
+Engineering discipline over every task. Rules 1 and 4 duplicate the itemized
+execution principles in `docs/internal/plans/2026-11-11-productization-roadmap.md` §执行原则;
+rules 2-3 and 5-6 here are the general surface that also applies outside that
+plan. When both apply, the stricter of the two wins.
+
+1. **Reference, don't transplant.** Before borrowing any pi / opencode design,
+   read its full implementation and answer: why this shape? what precondition in
+   *their* architecture does it rely on? does that precondition still hold in
+   baldric's `ai / agent / runtime` layers + event contracts? Only the design
+   intent travels; implementation is rewritten to baldric's structure, naming,
+   and testing habits. Small explicitly-vendored files must carry a provenance
+   header (source + version). When a reference clashes with baldric's existing
+   design, don't default to bending baldric — judge which is more correct; if
+   unsure, stop and ask.
+2. **Re-scan before acting; the plan is a stale snapshot.** Re-read the actual
+   code (signatures, fields, callers) before each change — files may have moved
+   since the plan was written. Line numbers, names, paths, and fixture names in a
+   plan are a *previous snapshot*; the live code wins on small conflicts (and
+   write the correction back into the plan). For a conflict touching
+   architecture or requirements, stop and ask.
+3. **Impact analysis comes first.** Before touching any shared module
+   (`protocol`, `events`, `session`, `providers`, `tools`, `trust`), grep every
+   reference (imports, field use, event consumers, test assertions) and list the
+   affected set before editing.
+4. **Out-of-plan work is allowed** only when: genuinely necessary + impact is
+   analyzed + the deviation and its consequences are documented in the task
+   deliverable. Never introduce low-cohesion / high-coupling structure to save
+   effort; never act without thinking it through.
+5. **Quality floor:** new units are single-responsibility; cross-layer traffic
+   goes through events / protocol contracts, never direct reads of internal
+   fields. Each task lands as an independently reviewable, independently testable
+   unit; tests must pass before commit and assertions must never be weakened
+   (baldric hard rule).
+6. **Stop and ask.** On unclear requirements, design conflicts, doubtful impact,
+   or a discovered bug / smell — interrupt and ask the maintainer. Do not
+   fill gaps by guessing. Better to ask once more than to mis-edit once.
+
 ## Hard Rules
 
 These are not style preferences; each one comes from a real incident in this
