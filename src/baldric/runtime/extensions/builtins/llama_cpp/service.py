@@ -21,8 +21,8 @@ from baldric.ai.openai_compatible import OpenAICompatibleProvider
 from baldric.protocol.messages import TextContent, UserMessage
 from baldric.protocol.provider import CancellationToken
 from baldric.protocol.provider_events import (
+    AssistantDoneEvent,
     AssistantErrorEvent,
-    AssistantStartEvent,
     ToolCallEndEvent,
 )
 from baldric.protocol.tools import AgentTool, AgentToolResult, ToolCancellationToken
@@ -1313,15 +1313,18 @@ class LlamaCppService:
                 tools=[],
                 signal=signal,
             ):
-                if isinstance(event, AssistantStartEvent):
-                    return True, "Streaming chat completions accepted."
+                # canonicalize_provider_stream opens with an AssistantStartEvent
+                # even on failures, so success is the terminal Done event and
+                # the error event decides failure.
                 if isinstance(event, AssistantErrorEvent):
                     return False, f"Streaming chat completions failed: {event.error.text}"
+                if isinstance(event, AssistantDoneEvent):
+                    return True, "Streaming chat completions accepted."
         except httpx.HTTPError:
             return False, "Streaming chat completions could not be reached."
         finally:
             if owned_client:
-                await provider.aclose()
+                await client.aclose()
         return False, "The server did not accept a streaming completion."
 
     async def _probe_tools(
@@ -1376,7 +1379,7 @@ class LlamaCppService:
             return False, "Tool-call compatibility could not be checked."
         finally:
             if owned_client:
-                await provider.aclose()
+                await client.aclose()
         return False, (
             "Streaming works, but the model did not emit a tool call. Use a tool-capable "
             "instruct GGUF and a compatible llama.cpp chat template."

@@ -1562,4 +1562,75 @@ def state_store_text(tmp_path: Path) -> str:
     return path.read_text(encoding="utf-8") if path.exists() else ""
 
 
+@pytest.mark.anyio
+@pytest.mark.parametrize("probe_name", ["_probe_stream", "_probe_tools"])
+async def test_probe_closes_the_client_it_creates(
+    probe_name: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A Doctor probe must close the httpx client it created.
+
+    The probe wraps an injected client in an OpenAICompatibleProvider, and the
+    provider's ``aclose()`` only closes clients it created itself, so the
+    probe-owned client leaked on every Doctor run. (``_probe_stream`` also
+    judged success by the leading AssistantStartEvent, covered separately.)
+    """
+    created: list[httpx.AsyncClient] = []
+
+    def recording_client(*, timeout: float) -> httpx.AsyncClient:
+        def handler(request: httpx.Request) -> Exception:
+            raise httpx.ConnectError("server is down", request=request)
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler), timeout=timeout)
+        created.append(client)
+        return client
+
+    monkeypatch.setattr(llama_service, "create_async_client", recording_client)
+    service, _state_store, _credentials_store = _service(tmp_path, environment={})
+
+    probe = getattr(service, probe_name)
+    ok, _message = await probe(ResolvedProviderAuth(), "qwen-local", SimpleCancellationToken())
+
+    assert ok is False
+    assert len(created) == 1
+    assert created[0].is_closed
+
+
+def _chat_completion_client() -> tuple[httpx.AsyncClient, list[httpx.Request]]:
+    """A client whose one chat-completions response ends with a finish frame.
+
+    The canonical stream opens with an AssistantStartEvent even on failures, so
+    this exercises the terminal-event classification: a finished stream must
+    read as accepted.
+    """
+    return _client(
+        lambda request: httpx.Response(
+            200,
+            text='data: {"choices":[{"delta":{"content":"OK"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n',
+            headers={"content-type": "text/event-stream"},
+        )
+    )
+
+
+@pytest.mark.anyio
+async def test_stream_probe_reports_success_on_terminal_done(tmp_path: Path) -> None:
+    client, _requests = _chat_completion_client()
+    service, _state_store, _credentials_store = _service(tmp_path, client=client)
+
+    ok, message = await service._probe_stream(ResolvedProviderAuth(), "qwen-local", SimpleCancellationToken())
+
+    assert ok is True
+    assert message == "Streaming chat completions accepted."
+
+
+@pytest.mark.anyio
+async def test_stream_probe_reports_failure_on_error_after_start(tmp_path: Path) -> None:
+    client, _requests = _client(lambda request: httpx.Response(500, text="upstream exploded"))
+    service, _state_store, _credentials_store = _service(tmp_path, client=client)
+
+    ok, message = await service._probe_stream(ResolvedProviderAuth(), "qwen-local", SimpleCancellationToken())
+
+    assert ok is False
+    assert message.startswith("Streaming chat completions failed")
+
+
 __all__ = []
