@@ -59,6 +59,8 @@ baldric 的产品定位从「pi 血统的可读实现」转向「完整产品」
 baldric/
 ├── src/baldric/
 │   ├── protocol/                  现有｜格式契约：messages/tools/provider/provider_events
+│   │   ├── extension.py           A0｜扩展契约形状（事件 payload/类型别名/能力元数据，纯形状）
+│   │   ├── ports.py               A0｜跨域 port（HookDispatcher / FeatureSetup；其余端口推迟到 D/E）
 │   │   └── session/               现有｜会话文件格式 + 版本化迁移
 │   ├── ai/                        现有｜provider 流层
 │   │   ├── catalog/               P2｜schema+默认目录自 runtime/providers 上浮（用户覆盖留 runtime）

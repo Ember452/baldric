@@ -14,8 +14,11 @@ from pathlib import Path
 
 from scripts.check_import_graph import (
     AI_PROTOCOL_SURFACE,
+    ALLOW_RULES,
     RULES,
+    AllowRule,
     ImportViolation,
+    scan_allow_violations,
     scan_surface_violations,
     scan_violations,
 )
@@ -227,3 +230,149 @@ def test_mcp_package_loads_no_upper_layer_at_runtime() -> None:
         )
         == []
     )
+
+
+# --- protocol shape-only wall (structural rearchitecture stage A0) -----------
+# ``protocol/extension.py`` and ``protocol/ports.py`` hold the extension contract
+# *shapes*. They must import nothing from an upper layer and must contain no
+# behaviour (no function bodies except dataclass ``__post_init__``/validators,
+# no I/O, no module-level singletons) so the protocol package cannot grow into a
+# god module as the project scales. A gate that stops firing is worse than none,
+# so the AST check is exercised directly below as well as over the real files.
+
+_SHAPE_ONLY_MODULES = (
+    "src/baldric/protocol/extension.py",
+    "src/baldric/protocol/ports.py",
+)
+
+
+def _protocol_shape_violations(path: Path) -> list[str]:
+    """Return reasons ``path`` is not shape-only (empty when it is).
+
+    Permitted "methods" on a shape module are limited to the machinery that
+    dataclasses and ``Protocol`` need, all of which are shape declarations, not
+    logic: ``__post_init__``/``__init__``, ``@classmethod``/``@staticmethod``/
+    ``@property`` members (contract metadata accessors), and ``Protocol`` stubs
+    whose body is only a docstring / ``...`` / ``pass``. Anything else is
+    behaviour and fails.
+    """
+    import ast
+
+    def _decorated_as_machinery(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+        for deco in fn.decorator_list:
+            name = deco.id if isinstance(deco, ast.Name) else getattr(deco, "attr", "")
+            if name in ("classmethod", "staticmethod", "property", "validator"):
+                return True
+        return False
+
+    def _is_stub(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+        for stmt in fn.body:
+            if isinstance(stmt, ast.Pass):
+                continue
+            if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Constant):
+                continue  # docstring or ``...`` (Ellipsis)
+            return False
+        return True
+
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    problems: list[str] = []
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            problems.append(f"{path.name}: top-level function {node.name!r} is behaviour")
+        elif isinstance(node, ast.ClassDef):
+            for child in node.body:
+                if not isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                if child.name in ("__post_init__", "__init__"):
+                    continue
+                if _decorated_as_machinery(child) or _is_stub(child):
+                    continue
+                problems.append(f"{path.name}: {node.name}.{child.name} is a method body")
+        elif isinstance(node, (ast.Assign, ast.AnnAssign, ast.TypeAlias)):
+            continue  # constants / type aliases are fine
+    return problems
+
+
+def test_protocol_extension_and_ports_pull_no_upper_layer() -> None:
+    """The extension shape modules must not load the runtime/adapters/frontend."""
+    for module_name in ("baldric.protocol.extension", "baldric.protocol.ports"):
+        leaked = _loads_only(
+            module_name,
+            ("baldric.agent", "baldric.ai", "baldric.runtime", "textual", "rich"),
+        )
+        assert leaked == [], f"{module_name} pulled in: {leaked}"
+
+
+def test_protocol_extension_and_ports_contain_only_shapes() -> None:
+    """These modules must define only shapes, never behaviour."""
+    problems: list[str] = []
+    for rel in _SHAPE_ONLY_MODULES:
+        problems.extend(_protocol_shape_violations(REPO_ROOT / rel))
+    assert problems == [], "\n".join(problems)
+
+
+def test_protocol_shape_guard_has_teeth(tmp_path: Path) -> None:
+    """The shape-only check must reject a module that smuggles in behaviour."""
+    bad = tmp_path / "bad.py"
+    bad.write_text(
+        "def helper() -> int:\n    return 1\n\n\nclass Shape:\n    def act(self) -> int:\n        return 2\n",
+        encoding="utf-8",
+    )
+    problems = _protocol_shape_violations(bad)
+    assert any("helper" in problem for problem in problems)
+    assert any("act" in problem for problem in problems)
+
+
+# --- allow-rule whitelist (cross-domain port discipline) ---------------------
+
+
+def _write_feature(root: Path, name: str, files: dict[str, str]) -> None:
+    package = root / "src" / "baldric" / "runtime" / "features" / name
+    package.mkdir(parents=True, exist_ok=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    for rel, text in files.items():
+        target = package / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+
+
+def _feature_rule() -> tuple[AllowRule, ...]:
+    return (AllowRule(source="baldric.runtime.features", target="baldric.runtime.features", allow=("port",)),)
+
+
+def test_allow_rules_declared_and_non_empty() -> None:
+    assert ALLOW_RULES, "the whitelist must not be empty once features exist"
+    assert any(rule.allow == ("port",) for rule in ALLOW_RULES)
+
+
+def test_allow_rule_permits_a_sibling_features_port(tmp_path: Path) -> None:
+    _write_feature(tmp_path, "a", {"svc.py": "import baldric.runtime.features.b.port\n"})
+    _write_feature(tmp_path, "b", {"port.py": ""})
+    assert scan_allow_violations(tmp_path, _feature_rule()) == []
+
+
+def test_allow_rule_rejects_a_sibling_features_internals(tmp_path: Path) -> None:
+    _write_feature(tmp_path, "a", {"svc.py": "import baldric.runtime.features.b.service\n"})
+    _write_feature(tmp_path, "b", {"service.py": ""})
+    violations = scan_allow_violations(tmp_path, _feature_rule())
+    assert violations == [
+        ImportViolation(
+            module="baldric.runtime.features.a.svc",
+            lineno=1,
+            imported="baldric.runtime.features.b.service",
+        )
+    ]
+
+
+def test_allow_rule_permits_intra_feature_imports(tmp_path: Path) -> None:
+    _write_feature(
+        tmp_path,
+        "b",
+        {"service.py": "", "port.py": "import baldric.runtime.features.b.service\n"},
+    )
+    assert scan_allow_violations(tmp_path, _feature_rule()) == []
+
+
+def test_repository_has_no_allow_violations() -> None:
+    """On the real tree (features/ does not exist yet) the whitelist is quiet."""
+    assert scan_allow_violations(REPO_ROOT) == []

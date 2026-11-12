@@ -1,9 +1,25 @@
 # baldric 结构重构计划 v2：先砌墙，再搬家
 
-> 状态：待批准执行
+> 状态：**执行中 —— 阶段 A0 已完成**（2026-11-12，执行记录见
+> [../notes/2026-11-12-stage-a0-wall.md](../notes/2026-11-12-stage-a0-wall.md)）。
+> 后续阶段 B–H 待逐阶段推进，每阶段原子完成并停下评审。
 > v1 依据：2026-11-11 全量深扫 + 2026-11-12 逐目录实测裁定
 > v2 修订：吸收独立评审的 6 个 P0 + 11 个 P1，并补入本会话新发现的 2 项（`protocol/session/jsonl.py` 是行为、`ai/` 与 `providers/` 是两层配置）
 > 目标读者：维护者本人（个人开发者，时间充足，目标是长期产品，不发独立包）
+
+## 0.1 阶段 A0 执行后的现实修正（2026-11-12）
+
+A0 动手前逐字段重扫代码，发现计划正文有三处与代码现实不符，按「现实为准 + 回写计划」处理，
+详见执行记录。要点：
+
+- **`ExtensionAPI` 等是带行为的实现类，不是 Protocol**，不搬入 `protocol/`（否则违反
+  「protocol 只放形状」与运行时无上层依赖门）。A0 只把**纯形状**（事件 dataclass、
+  类型别名、能力元数据、事件常量）迁入 `protocol/extension.py`；实现类留 runtime，
+  随阶段 E/F 搬。
+- **`PluginManifest` 全仓不存在**（它是 P9 产物）。A0 不凭空创建，等 P9 再定义为 protocol 形状。
+- **`ports.py` 只落无歧义的 `HookDispatcher` + `FeatureSetup`**；计划原列的
+  `ProviderCatalog`（返回不存在的 `ProviderRecord`）/`SessionLifecycle` 推迟到 D/E
+  真实类型出现后再定型。
 
 ## 0. v2 相对 v1 的根本变化
 
@@ -19,19 +35,23 @@ v2 的原则：**先把墙砌好（protocol 契约 + port + scanner 白名单 + 
 
 > **规则**：计划里任何行数/符号数/文件数，一律由 `scripts/measure_structure.py` 生成再粘贴；验收时也用它，避免手写口径漂移。
 
-**基线快照（2026-11-12 实测）**：
+**基线快照（2026-11-12 实测，由 `scripts/measure_structure.py` 生成，A0 建脚本后重测）**：
 
 | 项 | 数值 |
 |---|---|
-| `src/` | 250 文件 / **67,987** 行 |
-| `tests/` | 216 文件 / **63,347** 行 |
-| `runtime/` | 202 文件 / 58,453 行 |
-| `runtime/tui/` | 40 文件 / 16,842 行 |
-| `runtime/session/session.py` | 1,864 行 / **183** 个方法（v1 写 184，差 1） |
-| `runtime/__init__.py` | **313** 行 / **139** 个 `__all__`（v1 写 317/140+） |
-| `runtime/extensions/__init__.py` | **247** 行 / **116** 符号（v1 写 249） |
-| `scripts/check_import_graph.py` 规则数 | **28** 条（v1 写 29） |
-| fast suite（除 TUI） | 2265 passed（会变，验收看"不减少"而非绝对数） |
+| `src/` | 249 文件 / **77,712** 行（A0 前 250/67,987；本表随协议新增文件更新，脚本为准） |
+| `tests/` | 216 文件 / **77,790** 行 |
+| `runtime/` | 198 文件 / 65,935 行 |
+| `runtime/tui/` | 40 文件 / 19,053 行 |
+| `runtime/session/session.py` | **2,097** 行 / **183** 个方法（v1/v2 写 1,864 行——已过时，以脚本为准） |
+| `runtime/__init__.py` | **317** 行 / **139** 个 `__all__` |
+| `runtime/extensions/__init__.py` | **249** 行 / **116** 符号 |
+| `scripts/check_import_graph.py` 规则数 | **29** 条（28 RULES + 1 AllowRule） |
+| fast suite（除 TUI） | 2276 passed（会变，验收看"不减少"而非绝对数） |
+
+> 口径纪律：任何行数/符号数以此脚本 `uv run python scripts/measure_structure.py` 输出为准，
+> 不手写。首次引入脚本时发现计划旧数字已漂移（session.py 实际 2,097 行而非 1,864），
+> 正说明该纪律必要。
 
 ---
 
@@ -267,15 +287,28 @@ A0（api facade + protocol 契约 + port + scanner 白名单 + 示例路径固�
 
 **铁律**：每个阶段必须**原子完成**（旧路径在同一个 PR 删除），时间盒只限制"是否开始下一阶段"，**绝不停在阶段中间**（半迁移 = 两套结构并存，比不开始还贵）。
 
-### 阶段 A0：墙（1–2 天，零行为变化）
+### 阶段 A0：墙（1–2 天，零行为变化）｜**已完成 2026-11-12**
 
-1. 建顶层 `baldric/api/__init__.py`，先 re-export 旧 `extensions.api`（兼容 facade）。
-2. `protocol/extension.py`：把 `ExtensionAPI` 契约、事件类型、`PluginManifest` 从 `extensions/api.py` 抽出（先并存，A0 只加不删）。
-3. `protocol/ports.py`：定义 `HookDispatcher`/`ProviderCatalog`/`SessionLifecycle`/`FeatureSetup`。
-4. `CustomMessageMarkup` 上移 `protocol/extension.py`；`rendering` 改 import（此时仍可并存）。
-5. scanner 加 `AllowRule` + 依赖矩阵（§4.3）；示例路径改 `baldric.api`。
-6. `scripts/measure_structure.py`（生成基线，禁手写数字）。
-7. **验收**：fast suite 全绿；`check_import_graph` 0 违规；`baldric.api` 可 import。
+实际落地（与下述「原计划」的差异见 §0.1；执行记录见
+[../notes/2026-11-12-stage-a0-wall.md](../notes/2026-11-12-stage-a0-wall.md)）：
+
+1. ✅ 建顶层 `baldric/api/__init__.py`，re-export 旧 `extensions.api` 全部符号（兼容 facade，按消费方分组，63 个名字）。
+2. ✅ `protocol/extension.py`：只迁**纯形状**——18 个事件/结果 dataclass + 类型别名 + `ExtensionCapabilities` + 事件常量 + Literal；`ExtensionAPI`/`ExtensionContext`/`ExtensionUi`/UI 桥等实现类**留在** `extensions/api.py`（原计划说搬 `ExtensionAPI` 契约，与"纯形状"冲突，已改）。事件 payload 用 `X as X` 形式从 protocol 显式 re-export 回 `extensions/api.py`，46 处消费点零改动。
+3. ✅ `protocol/ports.py`：定义 `HookDispatcher` + `FeatureSetup`（原计划的 `ProviderCatalog`/`SessionLifecycle` 因返回类型尚不存在，推迟到 D/E）。
+4. ✅ `CustomMessageMarkup`（及 `ToolCallMarkup`/`ToolResultMarkup`/`MessageRenderer` 等别名）定义于 `protocol/extension.py`，`extensions/api.py` 以 `as` re-export；3 个 rendering/tui 消费点零改动。
+5. ✅ scanner 加 `AllowRule` + `LAYER_MATRIX` + `scan_allow_violations`（真实目录尚不存在故 0 违规，合成样例 guard 测试证明能报违规）；`baldric.api` 已可作稳定入口（示例改路径留待后续阶段统一）。
+6. ✅ `scripts/measure_structure.py`（生成基线，禁手写数字；已据其修正 §1 漂移）。
+7. ✅ 新增 guard 测试：`test_protocol_extension_and_ports_pull_no_upper_layer`、`test_protocol_extension_and_ports_contain_only_shapes`（AST 形状闸门 + 自证有牙）、AllowRule 4 个合成样例测试。
+8. ✅ **验收**：fast suite 2276 passed / 52 skipped（零行为变化）；`check_import_graph` 0 违规；`baldric.api` 可 import；ruff/mypy 无新增。
+
+> 原计划条目（保留作历史对照）：
+> 1. 建顶层 `baldric/api/__init__.py`，先 re-export 旧 `extensions.api`（兼容 facade）。
+> 2. `protocol/extension.py`：把 `ExtensionAPI` 契约、事件类型、`PluginManifest` 从 `extensions/api.py` 抽出（先并存，A0 只加不删）。
+> 3. `protocol/ports.py`：定义 `HookDispatcher`/`ProviderCatalog`/`SessionLifecycle`/`FeatureSetup`。
+> 4. `CustomMessageMarkup` 上移 `protocol/extension.py`；`rendering` 改 import（此时仍可并存）。
+> 5. scanner 加 `AllowRule` + 依赖矩阵（§4.3）；示例路径改 `baldric.api`。
+> 6. `scripts/measure_structure.py`（生成基线，禁手写数字）。
+> 7. **验收**：fast suite 全绿；`check_import_graph` 0 违规；`baldric.api` 可 import。
 
 ### 阶段 A：规则 + 删重复契约（1 天）
 

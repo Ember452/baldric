@@ -80,6 +80,63 @@ AI_PROTOCOL_SURFACE: tuple[str, ...] = (
 AI_AGENT_SURFACE = AI_PROTOCOL_SURFACE
 
 
+# --- whitelist rules (structural rearchitecture stage A0) --------------------
+# ``RULES`` above can only say "A may not import B". The rearchitecture needs the
+# opposite shape too: "A may import B, but only these submodules of B" (e.g. a
+# feature may reach another feature's ``port`` but never its ``service``). An
+# ``AllowRule`` expresses that. The rules are data-led by ``LAYER_MATRIX`` below;
+# the concrete source/target packages (``runtime.core`` / ``runtime.platform`` /
+# ``runtime.features`` / ``runtime.frontends``) do not exist yet — they are
+# created in later stages — so today the real tree yields no whitelist
+# violations. This stage installs the checker and proves (in
+# ``tests/guards/test_import_boundaries.py``) that it fires on synthetic input,
+# which is the cheap moment to build a gate: once the directories exist, a new
+# violation and a broken rule are indistinguishable without it.
+@dataclass(frozen=True, slots=True)
+class AllowRule:
+    """Permit ``source`` to import only ``allow`` submodules of ``target``.
+
+    ``target`` is a package prefix; a source module (``source`` or a descendant)
+    importing ``target`` or any descendant must land under one of the ``allow``
+    submodule names, or it is a violation. ``allow=()`` forbids importing the
+    target entirely (equivalent to a ``RULES`` entry, kept here for symmetry).
+    """
+
+    source: str
+    target: str
+    allow: tuple[str, ...]
+
+
+# The intended layer dependency matrix (rows = importer domain, cols = the set of
+# domains it may reach). This is documentation-in-code for the target skeleton;
+# ``ALLOW_RULES`` derives the machine-checkable whitelist edges from it. A cell
+# absent from a row means "not permitted". Kept as data so later stages flip
+# individual edges on as the packages appear, instead of editing scanner logic.
+LAYER_MATRIX: dict[str, tuple[str, ...]] = {
+    # A feature may only reach another feature's public ``port`` submodule.
+    "features": ("protocol", "core", "providers", "platform", "features"),
+    "platform": ("protocol", "config", "observability", "utils", "providers"),
+    "frontends": ("protocol", "core", "providers", "platform"),
+}
+
+
+def _default_allow_rules() -> tuple[AllowRule, ...]:
+    """Return the concrete whitelist edges implied by :data:`LAYER_MATRIX`.
+
+    Only the cross-feature edge is a *narrowing* whitelist today (a feature may
+    import a sibling feature's ``port`` only); the other matrix rows are
+    expressed as ordinary forbidden edges once those packages exist. Returning
+    them as ``AllowRule`` objects keeps the checker uniform.
+    """
+    return (
+        # features.a may import features.b.port, never features.b.service/etc.
+        AllowRule(source="baldric.runtime.features", target="baldric.runtime.features", allow=("port",)),
+    )
+
+
+ALLOW_RULES: tuple[AllowRule, ...] = _default_allow_rules()
+
+
 @dataclass(frozen=True, slots=True)
 class ImportViolation:
     """One forbidden import plus where it was found."""
@@ -160,10 +217,68 @@ def scan_surface_violations(root: Path = ROOT) -> list[ImportViolation]:
     return violations
 
 
+def _under(module: str, prefix: str) -> bool:
+    return module == prefix or module.startswith(prefix + ".")
+
+
+def scan_allow_violations(
+    root: Path = ROOT,
+    rules: tuple[AllowRule, ...] | None = None,
+) -> list[ImportViolation]:
+    """Return imports that breach an :class:`AllowRule` whitelist.
+
+    For each source under ``rule.source`` that imports something under
+    ``rule.target``, the import is permitted only if it resolves to one of the
+    allowed submodules, **or** it stays within the source's own package namespace
+    (a package importing its own siblings/descendants is always allowed). The
+    special self-referential rule (``source == target``, e.g. cross-feature) uses
+    the first path segment after the shared prefix as the "feature" identity and
+    only flags imports that cross into a *different* feature namespace.
+    """
+    active = rules if rules is not None else ALLOW_RULES
+    violations: list[ImportViolation] = []
+    source_root = root / "src"
+    if not source_root.exists() or not active:
+        return violations
+    for path in sorted(source_root.rglob("*.py")):
+        if "__pycache__" in path.parts or "data" in path.parts:
+            continue
+        module = _module_name(path, root)
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for lineno, imported in _imports(tree):
+            for rule in active:
+                if not _under(module, rule.source) or not _under(imported, rule.target):
+                    continue
+                if rule.source == rule.target:
+                    # Same namespace: allow within the same feature, police
+                    # cross-feature imports to anything but the allowed submodule.
+                    source_rest = module[len(rule.source) :].lstrip(".")
+                    target_rest = imported[len(rule.target) :].lstrip(".")
+                    source_head = source_rest.split(".", 1)[0] if source_rest else ""
+                    if target_rest == source_head or target_rest.startswith(source_head + "."):
+                        continue  # intra-feature
+                    remainder = target_rest.split(".", 1)[1] if "." in target_rest else ""
+                    head = remainder.split(".", 1)[0] if remainder else ""
+                    if head in rule.allow:
+                        continue
+                    violations.append(ImportViolation(module=module, lineno=lineno, imported=imported))
+                    continue
+                # Cross-package rule: the imported path relative to the target
+                # must begin with an allowed submodule name.
+                remainder = imported[len(rule.target) :].lstrip(".")
+                head = remainder.split(".", 1)[0] if remainder else ""
+                if head in rule.allow:
+                    continue
+                violations.append(ImportViolation(module=module, lineno=lineno, imported=imported))
+    return violations
+
+
 def main() -> int:
-    violations = [(violation, "layer") for violation in scan_violations()] + [
-        (violation, "surface") for violation in scan_surface_violations()
-    ]
+    violations = (
+        [(violation, "layer") for violation in scan_violations()]
+        + [(violation, "surface") for violation in scan_surface_violations()]
+        + [(violation, "allow") for violation in scan_allow_violations()]
+    )
     if violations:
         print("import-graph violations:")
         for violation, kind in violations:
