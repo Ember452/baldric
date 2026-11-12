@@ -16,10 +16,10 @@ from typing import TYPE_CHECKING, Any
 
 from baldric.mcp.adapter import create_mcp_tool_name, mcp_tool_to_agent_tool
 from baldric.mcp.client import McpToolUnavailable
-from baldric.runtime.auth.credentials import FileCredentialStore, credentials_path
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.extensions.api import EXTENSION_API_VERSION, ExtensionAPI, ExtensionCapabilities
 from baldric.runtime.extensions.builtin_registry import BuiltInExtensionContext
+from baldric.runtime.providers.auth.credentials import FileCredentialStore, credentials_path
 from baldric.runtime.tools.output_accumulator import write_temp_output
 
 if TYPE_CHECKING:

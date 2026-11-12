@@ -5,9 +5,9 @@ from pathlib import Path
 import pytest
 
 import baldric.runtime.providers.config as provider_config
-from baldric.runtime.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.thinking import ThinkingLevel
+from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric.runtime.providers.catalog import ModelCostTier
 from baldric.runtime.providers.config import (
     DEFAULT_MODEL,

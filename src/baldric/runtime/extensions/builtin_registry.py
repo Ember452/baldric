@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-from baldric.runtime.auth.credentials import CredentialStore
 from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.providers.auth.credentials import CredentialStore
 
 if TYPE_CHECKING:
     from baldric.runtime.extensions.api import ExtensionAPI

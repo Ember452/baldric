@@ -3,8 +3,8 @@ from dataclasses import replace
 import pytest
 
 from baldric.ai import AnthropicProvider, OpenAICodexProvider, OpenAICompatibleProvider
-from baldric.runtime.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric.runtime.providers import runtime as provider_runtime
+from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric.runtime.providers.config import (
     AnthropicProviderConfig,
     OpenAICodexProviderConfig,

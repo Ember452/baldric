@@ -17,7 +17,6 @@ from baldric.agent.tool_history import ToolHistoryRepair
 from baldric.ai.hooks import HookableProvider
 from baldric.ai.model_catalog import RuntimeModelCatalog
 from baldric.ai.model_limits import RuntimeModelLimits
-from baldric.runtime.auth.credentials import FileCredentialStore, credentials_path
 from baldric.runtime.commands.registry import CommandRegistry, CommandResult, create_default_command_registry
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.prompts import (
@@ -55,6 +54,7 @@ from baldric.runtime.observability.diagnostics import (
     AgentCallDiagnosticContext,
     AgentCallDiagnosticLogger,
 )
+from baldric.runtime.providers.auth.credentials import FileCredentialStore, credentials_path
 
 if TYPE_CHECKING:
     from baldric.runtime.extensions.builtin_registry import BuiltInExtension

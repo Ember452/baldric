@@ -15,6 +15,7 @@ from typing import Literal
 from uuid import uuid4
 
 from baldric.agent.harness import SimpleCancellationToken
+from baldric.protocol.provider import ProviderLayerToken as ProviderLayerToken
 from baldric.runtime.extensions.providers import (
     CredentialReader,
     DynamicProvider,
@@ -39,16 +40,6 @@ _BUILTIN_PROVIDER_IDS = frozenset(entry.name for entry in BUILTIN_PROVIDER_CATAL
 # cancellation-requested discovery and its generation registry strongly
 # reachable through cooperative drain or bounded containment.
 _SUPERVISED_DISCOVERY_TASKS: set[asyncio.Task[ProviderModelSnapshot]] = set()
-
-
-@dataclass(frozen=True, slots=True)
-class ProviderLayerToken:
-    """Identity required to publish work into one exact source layer."""
-
-    provider_id: str
-    source_id: str
-    generation_id: str
-    layer_id: str
 
 
 @dataclass(frozen=True, slots=True)

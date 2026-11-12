@@ -22,7 +22,6 @@ from baldric.ai.env import (
 )
 from baldric.protocol.provider import ModelProvider
 from baldric.protocol.session import SessionEntry
-from baldric.runtime.auth.credentials import FileCredentialStore
 from baldric.runtime.commands.base import CommandKind
 from baldric.runtime.commands.registry import format_reload_summary
 from baldric.runtime.config.paths import BaldricPaths
@@ -39,6 +38,7 @@ from baldric.runtime.extensions.installer import (
 )
 from baldric.runtime.modes.rpc import RpcServer
 from baldric.runtime.observability.doctor import render_doctor_report
+from baldric.runtime.providers.auth.credentials import FileCredentialStore
 from baldric.runtime.providers.config import (
     DEFAULT_MODEL,
     DEFAULT_PROVIDER_NAME,

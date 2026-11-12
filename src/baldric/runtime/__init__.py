@@ -2,27 +2,6 @@
 
 from __future__ import annotations
 
-from baldric.runtime.auth.credentials import (
-    CredentialStoreError,
-    FileCredentialStore,
-    OAuthCredential,
-    credentials_path,
-)
-from baldric.runtime.auth.registry import (
-    get_oauth_provider,
-    get_oauth_providers,
-    register_oauth_provider,
-    reset_oauth_providers,
-    unregister_oauth_provider,
-)
-from baldric.runtime.auth.types import (
-    OAuthAuthInfo,
-    OAuthDeviceCodeInfo,
-    OAuthLoginCallbacks,
-    OAuthPrompt,
-    OAuthProvider,
-    OAuthRuntimeAuth,
-)
 from baldric.runtime.commands.registry import (
     CommandRegistry,
     CommandResult,
@@ -80,6 +59,27 @@ from baldric.runtime.context.thinking import (
     reasoning_effort_for_level,
 )
 from baldric.runtime.extensions.builtin_registry import BuiltInExtension, BuiltInExtensionSetup
+from baldric.runtime.providers.auth.credentials import (
+    CredentialStoreError,
+    FileCredentialStore,
+    OAuthCredential,
+    credentials_path,
+)
+from baldric.runtime.providers.auth.registry import (
+    get_oauth_provider,
+    get_oauth_providers,
+    register_oauth_provider,
+    reset_oauth_providers,
+    unregister_oauth_provider,
+)
+from baldric.runtime.providers.auth.types import (
+    OAuthAuthInfo,
+    OAuthDeviceCodeInfo,
+    OAuthLoginCallbacks,
+    OAuthPrompt,
+    OAuthProvider,
+    OAuthRuntimeAuth,
+)
 from baldric.runtime.providers.catalog import (
     BUILTIN_PROVIDER_CATALOG,
     ProviderCatalogEntry,

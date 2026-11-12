@@ -20,8 +20,8 @@ from urllib.parse import parse_qs, urlencode, urlparse
 import httpx
 
 from baldric.ai.http import create_async_client
-from baldric.runtime.auth.credentials import OAuthCredential
-from baldric.runtime.auth.types import (
+from baldric.runtime.providers.auth.credentials import OAuthCredential
+from baldric.runtime.providers.auth.types import (
     OAuthAuthInfo,
     OAuthFlowKind,
     OAuthLoginCallbacks,

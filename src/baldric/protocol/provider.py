@@ -27,6 +27,22 @@ class CancellationToken(Protocol):
         ...
 
 
+@dataclass(frozen=True, slots=True)
+class ProviderLayerToken:
+    """Identity required to publish work into one exact provider source layer.
+
+    A pure shape shared by the provider registry (which mints tokens) and the
+    local-backend registry (which pairs a backend to the exact provider layer it
+    belongs to). Living in the contract layer lets both depend on it without the
+    backend registry importing the provider registry implementation.
+    """
+
+    provider_id: str
+    source_id: str
+    generation_id: str
+    layer_id: str
+
+
 class ModelProvider(Protocol):
     """Provider-neutral Pi-compatible model stream interface."""
 

@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from baldric.runtime.auth.credentials import FileCredentialStore
-from baldric.runtime.auth.registry import oauth_provider_ids
+from baldric.runtime.providers.auth.credentials import FileCredentialStore
+from baldric.runtime.providers.auth.registry import oauth_provider_ids
 from baldric.runtime.providers.catalog import ProviderCatalogEntry
 
 __all__ = [

@@ -15,12 +15,6 @@
     "type-ignore:arg-type": 1,
     "type-ignore:assignment": 1
   },
-  "src/baldric/runtime/auth/oauth.py": {
-    "noqa:N802": 1
-  },
-  "src/baldric/runtime/backends/contracts.py": {
-    "type-ignore:no-untyped-def": 1
-  },
   "src/baldric/runtime/cli.py": {
     "type-ignore:union-attr": 1
   },
@@ -57,6 +51,12 @@
   },
   "src/baldric/runtime/features/subagents/worktree.py": {
     "noqa:BLE001": 1
+  },
+  "src/baldric/runtime/providers/auth/oauth.py": {
+    "noqa:N802": 1
+  },
+  "src/baldric/runtime/providers/backends/contracts.py": {
+    "type-ignore:no-untyped-def": 1
   },
   "src/baldric/runtime/providers/config/__init__.py": {
     "noqa:F401": 4

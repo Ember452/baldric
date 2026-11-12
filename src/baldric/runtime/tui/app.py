@@ -62,12 +62,6 @@ from baldric.protocol.provider_events import (
 )
 from baldric.protocol.tools import AgentTool
 from baldric.protocol.types import JSONValue
-from baldric.runtime.auth.credentials import FileCredentialStore, OAuthCredential
-
-# Re-exported on purpose: ``tui/screens/login.py`` resolves the OAuth provider via
-# ``_app_module().get_oauth_provider(name)`` so tests (and the app) can patch it
-# here. Removing this import breaks the OAuth login flow at runtime.
-from baldric.runtime.auth.registry import get_oauth_provider as get_oauth_provider
 from baldric.runtime.commands.base import (
     CommandKind,
     CommandOutcome,
@@ -102,6 +96,12 @@ from baldric.runtime.extensions.api import (
     KeyInterceptor,
 )
 from baldric.runtime.observability.watchdog import LoopWatchdog
+from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
+
+# Re-exported on purpose: ``tui/screens/login.py`` resolves the OAuth provider via
+# ``_app_module().get_oauth_provider(name)`` so tests (and the app) can patch it
+# here. Removing this import breaks the OAuth login flow at runtime.
+from baldric.runtime.providers.auth.registry import get_oauth_provider as get_oauth_provider
 from baldric.runtime.providers.catalog import (
     ProviderCatalogEntry,
     builtin_provider_entry,

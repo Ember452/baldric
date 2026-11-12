@@ -173,11 +173,11 @@
       "max_function_stmts": 8
     },
     "src/baldric/protocol/ports.py": {
-      "lines": 72,
+      "lines": 115,
       "max_function_stmts": 2
     },
     "src/baldric/protocol/provider.py": {
-      "lines": 114,
+      "lines": 130,
       "max_function_stmts": 2
     },
     "src/baldric/protocol/provider_events.py": {
@@ -207,50 +207,6 @@
     "src/baldric/runtime/__init__.py": {
       "lines": 317,
       "max_function_stmts": 0
-    },
-    "src/baldric/runtime/auth/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/runtime/auth/credentials.py": {
-      "lines": 261,
-      "max_function_stmts": 13
-    },
-    "src/baldric/runtime/auth/flows/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/runtime/auth/flows/anthropic.py": {
-      "lines": 285,
-      "max_function_stmts": 12
-    },
-    "src/baldric/runtime/auth/flows/device.py": {
-      "lines": 109,
-      "max_function_stmts": 11
-    },
-    "src/baldric/runtime/auth/flows/github_copilot.py": {
-      "lines": 285,
-      "max_function_stmts": 11
-    },
-    "src/baldric/runtime/auth/oauth.py": {
-      "lines": 523,
-      "max_function_stmts": 9
-    },
-    "src/baldric/runtime/auth/registry.py": {
-      "lines": 55,
-      "max_function_stmts": 3
-    },
-    "src/baldric/runtime/auth/types.py": {
-      "lines": 127,
-      "max_function_stmts": 4
-    },
-    "src/baldric/runtime/backends/__init__.py": {
-      "lines": 1,
-      "max_function_stmts": 0
-    },
-    "src/baldric/runtime/backends/contracts.py": {
-      "lines": 1276,
-      "max_function_stmts": 15
     },
     "src/baldric/runtime/cli.py": {
       "lines": 1539,
@@ -381,7 +337,7 @@
       "max_function_stmts": 9
     },
     "src/baldric/runtime/extensions/builtin_registry.py": {
-      "lines": 150,
+      "lines": 151,
       "max_function_stmts": 7
     },
     "src/baldric/runtime/extensions/installer.py": {
@@ -393,7 +349,7 @@
       "max_function_stmts": 17
     },
     "src/baldric/runtime/extensions/provider_registry.py": {
-      "lines": 665,
+      "lines": 656,
       "max_function_stmts": 16
     },
     "src/baldric/runtime/extensions/providers.py": {
@@ -555,6 +511,50 @@
     "src/baldric/runtime/providers/__init__.py": {
       "lines": 1,
       "max_function_stmts": 0
+    },
+    "src/baldric/runtime/providers/auth/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/providers/auth/credentials.py": {
+      "lines": 261,
+      "max_function_stmts": 13
+    },
+    "src/baldric/runtime/providers/auth/flows/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/providers/auth/flows/anthropic.py": {
+      "lines": 285,
+      "max_function_stmts": 12
+    },
+    "src/baldric/runtime/providers/auth/flows/device.py": {
+      "lines": 109,
+      "max_function_stmts": 11
+    },
+    "src/baldric/runtime/providers/auth/flows/github_copilot.py": {
+      "lines": 285,
+      "max_function_stmts": 11
+    },
+    "src/baldric/runtime/providers/auth/oauth.py": {
+      "lines": 523,
+      "max_function_stmts": 9
+    },
+    "src/baldric/runtime/providers/auth/registry.py": {
+      "lines": 55,
+      "max_function_stmts": 3
+    },
+    "src/baldric/runtime/providers/auth/types.py": {
+      "lines": 127,
+      "max_function_stmts": 4
+    },
+    "src/baldric/runtime/providers/backends/__init__.py": {
+      "lines": 1,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/providers/backends/contracts.py": {
+      "lines": 1274,
+      "max_function_stmts": 15
     },
     "src/baldric/runtime/providers/catalog.py": {
       "lines": 111,

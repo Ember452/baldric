@@ -21,14 +21,6 @@ from baldric.ai.openai_codex import (
 )
 from baldric.ai.openai_compatible import OpenAICompatibleProvider
 from baldric.protocol.provider import ClosableModelProvider as ClosableModelProvider
-from baldric.runtime.auth.credentials import FileCredentialStore, OAuthCredential
-from baldric.runtime.auth.oauth import (
-    account_id_from_access_token,
-    oauth_credential_is_expired,
-    refresh_openai_codex_token,
-)
-from baldric.runtime.auth.registry import get_oauth_provider
-from baldric.runtime.auth.types import OAuthProvider
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.thinking import (
     ThinkingLevel,
@@ -48,6 +40,14 @@ from baldric.runtime.extensions.providers import (
     json_compatible_mapping,
     resolve_provider_auth,
 )
+from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
+from baldric.runtime.providers.auth.oauth import (
+    account_id_from_access_token,
+    oauth_credential_is_expired,
+    refresh_openai_codex_token,
+)
+from baldric.runtime.providers.auth.registry import get_oauth_provider
+from baldric.runtime.providers.auth.types import OAuthProvider
 from baldric.runtime.providers.config import (
     AnthropicProviderConfig,
     OpenAICodexProviderConfig,

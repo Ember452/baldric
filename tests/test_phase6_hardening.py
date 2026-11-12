@@ -10,11 +10,6 @@ import httpx
 import pytest
 
 from baldric.agent.harness import SimpleCancellationToken
-from baldric.runtime.auth.credentials import FileCredentialStore
-from baldric.runtime.backends.contracts import (
-    LOCAL_OPERATION_CANCELLATION_TIMEOUT_SECONDS,
-    LocalOperationResult,
-)
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.extensions import (
     DynamicProvider,
@@ -41,6 +36,11 @@ from baldric.runtime.features.llama_cpp.state import (
     LlamaCppStateError,
     LlamaCppStateStore,
     LlamaCppStoredModel,
+)
+from baldric.runtime.providers.auth.credentials import FileCredentialStore
+from baldric.runtime.providers.backends.contracts import (
+    LOCAL_OPERATION_CANCELLATION_TIMEOUT_SECONDS,
+    LocalOperationResult,
 )
 
 pytestmark = pytest.mark.anyio

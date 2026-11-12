@@ -12,8 +12,6 @@ import pytest
 
 from baldric.agent.harness import SimpleCancellationToken
 from baldric.ai.env import DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS
-from baldric.runtime.auth.credentials import FileCredentialStore
-from baldric.runtime.backends.contracts import LocalOperationContext, LocalProgress
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.resources import BaldricResourcePaths
 from baldric.runtime.extensions import ExtensionRuntime
@@ -41,6 +39,8 @@ from baldric.runtime.features.llama_cpp.state import (
     LlamaCppStateStore,
     LlamaCppStoredModel,
 )
+from baldric.runtime.providers.auth.credentials import FileCredentialStore
+from baldric.runtime.providers.backends.contracts import LocalOperationContext, LocalProgress
 from baldric.runtime.providers.runtime import create_dynamic_model_provider
 from tests.helpers.conftest_utils import isolate_home
 

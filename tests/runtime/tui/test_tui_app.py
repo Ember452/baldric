@@ -61,7 +61,6 @@ from baldric.protocol.provider_events import (
     ThinkingDeltaEvent,
     ThinkingEndEvent,
 )
-from baldric.runtime.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric.runtime.commands.base import CommandKind, CommandOutcome, MessageDisplay
 from baldric.runtime.commands.registry import CommandResult
 from baldric.runtime.config.paths import BaldricPaths
@@ -92,6 +91,7 @@ from baldric.runtime.extensions import (
     OpenAICompatibleTransport,
     ProviderModel,
 )
+from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric.runtime.providers.config import (
     OpenAICodexProviderConfig,
     OpenAICompatibleProviderConfig,

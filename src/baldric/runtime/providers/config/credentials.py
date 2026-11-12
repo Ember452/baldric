@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from baldric.runtime.auth.registry import get_oauth_provider
+from baldric.runtime.providers.auth.registry import get_oauth_provider
 from baldric.runtime.providers.config.models import CredentialReader, ProviderConfig
 
 

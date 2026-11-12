@@ -12,9 +12,9 @@ import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from baldric.runtime.auth.credentials import FileCredentialStore, OAuthCredential
-from baldric.runtime.auth.oauth import login_openai_codex
-from baldric.runtime.auth.registry import get_oauth_provider
+from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
+from baldric.runtime.providers.auth.oauth import login_openai_codex
+from baldric.runtime.providers.auth.registry import get_oauth_provider
 from baldric.runtime.providers.catalog import (
     BUILTIN_PROVIDER_CATALOG,
     ProviderCatalogEntry,

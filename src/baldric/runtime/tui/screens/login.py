@@ -25,8 +25,8 @@ from textual.widgets import (
     Static,
 )
 
-from baldric.runtime.auth.credentials import OAuthCredential
-from baldric.runtime.auth.types import (
+from baldric.runtime.providers.auth.credentials import OAuthCredential
+from baldric.runtime.providers.auth.types import (
     OAuthAuthInfo,
     OAuthDeviceCodeInfo,
     OAuthLoginCallbacks,

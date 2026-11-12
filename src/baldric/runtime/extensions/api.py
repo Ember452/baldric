@@ -19,11 +19,11 @@ if TYPE_CHECKING:
     from textual import events
     from textual.widget import Widget
 
-    from baldric.runtime.backends.contracts import LocalBackend
     from baldric.runtime.config.paths import BaldricPaths
     from baldric.runtime.extensions.provider_registry import DynamicProviderRegistry
     from baldric.runtime.extensions.providers import DynamicProvider
     from baldric.runtime.extensions.runtime import ExtensionRuntime
+    from baldric.runtime.providers.backends.contracts import LocalBackend
     from baldric.runtime.session.session import ModelChoice
     from baldric.runtime.trust.policy import ProjectTrustResolution
     from baldric.runtime.tui.config import TuiTheme

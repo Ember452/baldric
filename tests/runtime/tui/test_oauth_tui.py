@@ -5,7 +5,7 @@ from textual.app import App
 from textual.geometry import Region
 from textual.widgets import Input, Static
 
-from baldric.runtime.auth.types import OAuthAuthInfo, OAuthDeviceCodeInfo, OAuthPrompt
+from baldric.runtime.providers.auth.types import OAuthAuthInfo, OAuthDeviceCodeInfo, OAuthPrompt
 from baldric.runtime.providers.catalog import builtin_provider_entry
 from baldric.runtime.tui.app import BaldricTuiApp, OAuthLoginScreen
 from baldric.runtime.tui.config import BALDRIC_DARK_THEME

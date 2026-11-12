@@ -40,12 +40,6 @@ from baldric.protocol.tools import (
     ToolUpdateCallback,
 )
 from baldric.protocol.types import JSONValue
-from baldric.runtime.auth.credentials import (
-    CredentialStore,
-    FileCredentialStore,
-    credentials_path,
-)
-from baldric.runtime.backends.contracts import LocalBackend, LocalBackendRegistry
 from baldric.runtime.commands.base import handled_result, message_outcome
 from baldric.runtime.commands.registry import (
     CommandContext,
@@ -119,6 +113,12 @@ from baldric.runtime.extensions.provider_registry import (
     ProviderRegistryCloseResult,
 )
 from baldric.runtime.extensions.providers import CredentialReader, DynamicProvider
+from baldric.runtime.providers.auth.credentials import (
+    CredentialStore,
+    FileCredentialStore,
+    credentials_path,
+)
+from baldric.runtime.providers.backends.contracts import LocalBackend, LocalBackendRegistry
 from baldric.runtime.providers.config import ProviderConfig
 from baldric.runtime.trust.policy import (
     ExtensionTrustResult,

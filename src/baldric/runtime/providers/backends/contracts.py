@@ -17,10 +17,8 @@ from types import MappingProxyType
 from typing import Literal, Protocol
 
 from baldric.agent.harness import SimpleCancellationToken
-from baldric.runtime.extensions.provider_registry import (
-    DynamicProviderRegistry,
-    ProviderLayerToken,
-)
+from baldric.protocol.ports import ProviderCatalog
+from baldric.protocol.provider import ProviderLayerToken
 
 LOCAL_OPERATION_CANCELLATION_TIMEOUT_SECONDS = 0.25
 _SUPERVISED_LOCAL_OPERATION_TASKS: set[asyncio.Task[object]] = set()
@@ -539,7 +537,7 @@ class LocalBackendRegistry:
 
     def __init__(
         self,
-        provider_registry: DynamicProviderRegistry,
+        provider_registry: ProviderCatalog,
         *,
         generation_id: str | None = None,
         recommended_backend_id: str | None = None,

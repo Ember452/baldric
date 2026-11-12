@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from baldric.protocol.types import JSONValue
-from baldric.runtime.auth.credentials import OAuthCredential
+from baldric.runtime.providers.auth.credentials import OAuthCredential
 
 OAuthFlowKind = Literal["browser", "device_code"]
 

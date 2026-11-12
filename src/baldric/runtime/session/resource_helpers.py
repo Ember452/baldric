@@ -13,8 +13,6 @@ from baldric.protocol.messages import (
     AgentMessage,
 )
 from baldric.protocol.session.entries import SessionEntry
-from baldric.runtime.auth.credentials import FileCredentialStore
-from baldric.runtime.auth.oauth import account_id_from_access_token
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.project import discover_project_context_with_diagnostics
 from baldric.runtime.context.prompts import (
@@ -36,6 +34,8 @@ from baldric.runtime.context.thinking import (
     ThinkingLevel,
 )
 from baldric.runtime.extensions.runtime import ExtensionRuntime
+from baldric.runtime.providers.auth.credentials import FileCredentialStore
+from baldric.runtime.providers.auth.oauth import account_id_from_access_token
 from baldric.runtime.providers.config import (
     OpenAICodexProviderConfig,
     ProviderConfig,

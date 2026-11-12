@@ -1,9 +1,10 @@
 # baldric 结构重构计划 v2：先砌墙，再搬家
 
-> 状态：**执行中 —— 阶段 A0、A、B、C 已完成**（2026-11-12）。执行记录：
+> 状态：**执行中 —— 阶段 A0、A、B、C、D 已完成**（2026-11-12）。执行记录：
 > [stage A0](../notes/2026-11-12-stage-a0-wall.md)、[stage A](../notes/2026-11-12-stage-a-rules-and-dedup.md)、
-> [stage B](../notes/2026-11-12-stage-b-subagents.md)、[stage C](../notes/2026-11-12-stage-c-mcp-llamacpp.md)。
-> 后续阶段 D–H 待逐阶段推进，每阶段原子完成并停下评审。
+> [stage B](../notes/2026-11-12-stage-b-subagents.md)、[stage C](../notes/2026-11-12-stage-c-mcp-llamacpp.md)、
+> [stage D](../notes/2026-11-12-stage-d-providers-merge.md)。
+> 后续阶段 E–H 待逐阶段推进，每阶段原子完成并停下评审。
 > v1 依据：2026-11-11 全量深扫 + 2026-11-12 逐目录实测裁定
 > v2 修订：吸收独立评审的 6 个 P0 + 11 个 P1，并补入本会话新发现的 2 项（`protocol/session/jsonl.py` 是行为、`ai/` 与 `providers/` 是两层配置）
 > 目标读者：维护者本人（个人开发者，时间充足，目标是长期产品，不发独立包）
@@ -354,9 +355,15 @@ A0（api facade + protocol 契约 + port + scanner 白名单 + 示例路径固�
 
 > 原计划：阶段 C：mcp_tools / llama_cpp —— 「同 B。llama_cpp 验证只依赖 `providers/backends` 契约。`bgrep` 核心层无功能名（smoke）。」
 
-### 阶段 D：providers 域合并
+### 阶段 D：providers 域合并｜**已完成 2026-11-12（含依赖反转）**
 
-`git mv auth/ → providers/auth/`、`backends/ → providers/backends/`。更新 import。
+实际落地（执行记录见 [../notes/2026-11-12-stage-d-providers-merge.md](../notes/2026-11-12-stage-d-providers-merge.md)）：
+
+1. ✅ `git mv auth/ → providers/auth/`、`backends/ → providers/backends/`；全仓 import 前缀改写。
+2. ✅ **额外做依赖反转**（计划未写、但长期最优）：`ProviderLayerToken` 上移 `protocol/provider.py`；`protocol/ports.py` 新增 `ProviderCatalog` + `EffectiveProviderView`；`backends/contracts.py` 构造参数改 `ProviderCatalog`，**彻底删除 `backends → extensions.provider_registry` 静态 import**。这样 §4.3 的 `providers ✗→ platform` 不再被这条边违反。
+3. ✅ **验收**：fast suite 2281 passed；TUI 767 passed；D 直接域 349 passed；mypy 无新增；基线纯路径重命名（supp 138 不变）。
+
+> 原计划：阶段 D：providers 域合并 —— 「`git mv auth/ → providers/auth/`、`backends/ → providers/backends/`。更新 import。」
 
 ### 阶段 E：platform 抽离
 

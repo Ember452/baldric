@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any
 
-from baldric.runtime.auth.credentials import FileCredentialStore, credentials_path
 from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.providers.auth.credentials import FileCredentialStore, credentials_path
 from baldric.runtime.providers.catalog import (
     BUILTIN_PROVIDER_CATALOG,
     ModelCatalogMetadata,
