@@ -133,7 +133,7 @@
       "max_function_stmts": 4
     },
     "src/baldric/api/__init__.py": {
-      "lines": 164,
+      "lines": 161,
       "max_function_stmts": 0
     },
     "src/baldric/mcp/__init__.py": {

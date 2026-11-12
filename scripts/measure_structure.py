@@ -96,15 +96,15 @@ def measure() -> dict[str, object]:
     test_files, test_lines = _count_lines_and_files(TESTS)
     runtime_dir = SRC / "baldric" / "runtime"
     rt_files, rt_lines = _count_lines_and_files(runtime_dir)
-    tui_files, tui_lines = _count_lines_and_files(runtime_dir / "tui")
+    tui_files, tui_lines = _count_lines_and_files(runtime_dir / "frontends" / "tui")
     session_py = runtime_dir / "session" / "session.py"
-    runtime_init = SRC / "baldric" / "runtime" / "__init__.py"
-    extensions_init = SRC / "baldric" / "runtime" / "extensions" / "__init__.py"
+    runtime_init = runtime_dir / "__init__.py"
+    platform_init = runtime_dir / "platform" / "__init__.py"
     return {
         "src": {"files": src_files, "lines": src_lines},
         "tests": {"files": test_files, "lines": test_lines},
         "runtime": {"files": rt_files, "lines": rt_lines},
-        "runtime_tui": {"files": tui_files, "lines": tui_lines},
+        "frontends/tui": {"files": tui_files, "lines": tui_lines},
         "runtime/session/session.py": {
             "lines": _line_count(session_py) if session_py.exists() else 0,
             "methods": _class_method_count(session_py, "CodingSession"),
@@ -113,9 +113,9 @@ def measure() -> dict[str, object]:
             "lines": _line_count(runtime_init) if runtime_init.exists() else 0,
             "all": _all_count(Path("baldric/runtime/__init__.py")),
         },
-        "runtime/extensions/__init__.py": {
-            "lines": _line_count(extensions_init) if extensions_init.exists() else 0,
-            "all": _all_count(Path("baldric/runtime/extensions/__init__.py")),
+        "runtime/platform/__init__.py": {
+            "lines": _line_count(platform_init) if platform_init.exists() else 0,
+            "all": _all_count(Path("baldric/runtime/platform/__init__.py")),
         },
         "check_import_graph": {"rules": _scanner_rule_count()},
     }

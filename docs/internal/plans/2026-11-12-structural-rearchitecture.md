@@ -38,23 +38,23 @@ v2 的原则：**先把墙砌好（protocol 契约 + port + scanner 白名单 + 
 
 > **规则**：计划里任何行数/符号数/文件数，一律由 `scripts/measure_structure.py` 生成再粘贴；验收时也用它，避免手写口径漂移。
 
-**基线快照（2026-11-12 实测，由 `scripts/measure_structure.py` 生成，A0 建脚本后重测）**：
+**基线快照（2026-11-13 实测，阶段 A0–G 完成后由 `scripts/measure_structure.py` 生成）**：
 
 | 项 | 数值 |
 |---|---|
-| `src/` | 249 文件 / **77,712** 行（A0 前 250/67,987；本表随协议新增文件更新，脚本为准） |
-| `tests/` | 216 文件 / **77,790** 行 |
-| `runtime/` | 198 文件 / 65,935 行 |
-| `runtime/tui/` | 40 文件 / 19,053 行 |
-| `runtime/session/session.py` | **2,097** 行 / **183** 个方法（v1/v2 写 1,864 行——已过时，以脚本为准） |
-| `runtime/__init__.py` | **317** 行 / **139** 个 `__all__` |
-| `runtime/extensions/__init__.py` | **249** 行 / **116** 符号 |
-| `scripts/check_import_graph.py` 规则数 | **29** 条（28 RULES + 1 AllowRule） |
-| fast suite（除 TUI） | 2276 passed（会变，验收看"不减少"而非绝对数） |
+| `src/` | 257 文件 / **78,225** 行 |
+| `tests/` | 220 文件 / **77,931** 行 |
+| `runtime/` | 206 文件 / 66,595 行 |
+| `runtime/frontends/tui/` | 40 文件 / 19,056 行（G1 前为 `runtime/tui/`） |
+| `runtime/session/session.py` | **2,060** 行 / **183** 个方法（阶段 F 抽出 runtime 装配后） |
+| `runtime/__init__.py` | **317** 行 / **139** 个 `__all__`（待 §6.1 瘦身） |
+| `runtime/platform/__init__.py` | **249** 行 / **116** 符号（E 前为 `runtime/extensions/`） |
+| `scripts/check_import_graph.py` 规则数 | **28** 条（27 RULES + 1 AllowRule） |
+| fast suite（除 TUI） | 2284 passed（会变，验收看"不减少"而非绝对数） |
 
 > 口径纪律：任何行数/符号数以此脚本 `uv run python scripts/measure_structure.py` 输出为准，
 > 不手写。首次引入脚本时发现计划旧数字已漂移（session.py 实际 2,097 行而非 1,864），
-> 正说明该纪律必要。
+> 正说明该纪律必要；每阶段结束重跑一次并回写本表。
 
 ---
 
@@ -416,7 +416,7 @@ A0（api facade + protocol 契约 + port + scanner 白名单 + 示例路径固�
 - `baldric/api/` = 稳定公共面（re-export protocol）。
 - `runtime/__init__.py` 瘦身（只 `__version__` + 必要符号）。
 - **feature 测试放 `tests/features/<name>/`（不放 src 内，避免打进 wheel 与 scanner 误扫）**。v1 的"放 features/<name>/tests/"撤回。
-- 老命令 `pytest tests/runtime/extensions/test_subagents_*` 失效 → CI/文档同步更新。
+- 老命令 `pytest tests/runtime/extensions/test_subagents_*` 已随阶段 B 失效（测试现位于 `tests/features/subagents/`），CI/文档已同步。
 
 ### 6.2 兼容 shim 的纪律（shim 最易变永久债）
 
@@ -454,7 +454,7 @@ A–G 只验收 **S1a**（core 不 import features 实现）；**S1（含 sessio
 | S1 | 含 session 的完整内聚 | 阶段 H 后 | ⏳ 延后 |
 | S2 | 分层 import 纪律 | `check_import_graph` 0 违规 + AllowRule + 依赖矩阵 | ✅ |
 | S3 | 行为不变 | fast suite **测试数不减少**（非固定 2265）+ 无断言降级 | ✅ |
-| S4 | 公共面=protocol re-export | `baldric/api` 只 import protocol（CI） | ✅ |
+| S4 | 公共面 provenance | **形状**从 `baldric.protocol` re-export（身份校验，CI）；**行为类**从 `runtime.platform.api`（有意的例外：实现类不属形状） | ✅ 部分（guard 测试 `test_api_facade_exports_protocol_shapes_by_identity`） |
 | S5 | 新功能可定位 | **人工评审**（非机器） | ❌ 人工 |
 | S6 | 无回归禁止项 | 不改断言/不加 skip/不降级 | ✅ |
 | S7 | Feature 注册完备 | 每个 features/* 有 FEATURES 条目（校验测试 + `kind`） | ✅ |

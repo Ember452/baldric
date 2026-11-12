@@ -514,3 +514,27 @@ def test_every_feature_setup_path_resolves() -> None:
         if not any(path.exists() for path in candidates):
             problems.append(f"{spec.name}: {module_path} not found")
     assert problems == [], "\n".join(problems)
+
+
+# --- public facade provenance (S4, partial) ----------------------------------
+
+
+def test_api_facade_exports_protocol_shapes_by_identity() -> None:
+    """Every protocol shape the ``baldric.api`` facade exports is the same object.
+
+    The facade re-exports contract shapes straight from ``baldric.protocol`` so an
+    extension that only needs shapes never pulls the platform runtime. This pins
+    that provenance: if a shape is re-declared or imported from a different module,
+    identity breaks and the test fails.
+    """
+    import baldric.api as api
+    import baldric.protocol.extension as protocol_extension
+
+    assert api.__all__, "the facade must export something"
+    missing = [name for name in api.__all__ if not hasattr(api, name)]
+    assert missing == [], f"__all__ names with no attribute: {missing}"
+
+    shared = [name for name in protocol_extension.__all__ if hasattr(api, name)]
+    assert shared, "the facade should re-export protocol shapes"
+    mismatched = [name for name in shared if getattr(api, name) is not getattr(protocol_extension, name)]
+    assert mismatched == [], f"facade shapes not identical to protocol: {mismatched}"
