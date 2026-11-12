@@ -1,7 +1,8 @@
 # baldric 结构重构计划 v2：先砌墙，再搬家
 
-> 状态：**执行中 —— 阶段 A0 已完成**（2026-11-12，执行记录见
-> [../notes/2026-11-12-stage-a0-wall.md](../notes/2026-11-12-stage-a0-wall.md)）。
+> 状态：**执行中 —— 阶段 A0、A 已完成**（2026-11-12）。执行记录：
+> [../notes/2026-11-12-stage-a0-wall.md](../notes/2026-11-12-stage-a0-wall.md)、
+> [../notes/2026-11-12-stage-a-rules-and-dedup.md](../notes/2026-11-12-stage-a-rules-and-dedup.md)。
 > 后续阶段 B–H 待逐阶段推进，每阶段原子完成并停下评审。
 > v1 依据：2026-11-11 全量深扫 + 2026-11-12 逐目录实测裁定
 > v2 修订：吸收独立评审的 6 个 P0 + 11 个 P1，并补入本会话新发现的 2 项（`protocol/session/jsonl.py` 是行为、`ai/` 与 `providers/` 是两层配置）
@@ -310,12 +311,20 @@ A0（api facade + protocol 契约 + port + scanner 白名单 + 示例路径固�
 > 6. `scripts/measure_structure.py`（生成基线，禁手写数字）。
 > 7. **验收**：fast suite 全绿；`check_import_graph` 0 违规；`baldric.api` 可 import。
 
-### 阶段 A：规则 + 删重复契约（1 天）
+### 阶段 A：规则 + 删重复契约（1 天）｜**已完成 2026-11-12**
 
-1. 删重复：`CredentialReader`（留 `providers/config/models.py`）、`ClosableModelProvider`（留 `providers/runtime.py`）。
-2. **`protocol/session/jsonl.py` 移到 `runtime/core/session/jsonl.py`**（它是行为）。
-3. 落地 `protocol/` 只放形状规则 + 每模块 400 行预算。
-4. **验收**：fast suite 全绿；protocol 无行为文件；scanner 新规则能报违规。
+实际落地（执行记录见 [../notes/2026-11-12-stage-a-rules-and-dedup.md](../notes/2026-11-12-stage-a-rules-and-dedup.md)）：
+
+1. ✅ 删重复：`CredentialReader` 唯一真源留 `providers/config/models.py`，`ClosableModelProvider` **改留 `protocol/provider.py`**（原计划"留 `providers/runtime.py`"会造成 extensions↔runtime 循环导入，已修正）。
+2. ✅ `protocol/session/jsonl.py` → `runtime/core/session/jsonl.py`；`protocol/session/__init__` 停导出 jsonl；4 处 importer 同步。
+3. ✅ 落地 `protocol/` 形状规则 + 每模块 400 行预算：`protocol/extension.py` 拆分出 `extension_events.py`；guard 加「模块分类 ratchet + 400 行预算」。既有协议辅助函数（messages/provider/tools/entries/tree）登记为遗留行为债务白名单（只减不增），迁出列为后续独立任务。
+4. ✅ **验收**：fast suite 2277 passed / 52 skipped；protocol 中 **新模块**均为纯形状（既有债务已登记）；scanner/guard 新规则对合成样例能报违规；mypy 无新增。
+
+> 原计划条目（保留作历史对照）：
+> 1. 删重复：`CredentialReader`（留 `providers/config/models.py`）、`ClosableModelProvider`（留 `providers/runtime.py`）。
+> 2. **`protocol/session/jsonl.py` 移到 `runtime/core/session/jsonl.py`**（它是行为）。
+> 3. 落地 `protocol/` 只放形状规则 + 每模块 400 行预算。
+> 4. **验收**：fast suite 全绿；protocol 无行为文件；scanner 新规则能报违规。
 
 ### 阶段 B：subagents 试点（最散，验证方案）
 

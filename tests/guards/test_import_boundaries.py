@@ -242,8 +242,30 @@ def test_mcp_package_loads_no_upper_layer_at_runtime() -> None:
 
 _SHAPE_ONLY_MODULES = (
     "src/baldric/protocol/extension.py",
+    "src/baldric/protocol/extension_events.py",
     "src/baldric/protocol/ports.py",
+    "src/baldric/protocol/provider_events.py",
+    "src/baldric/protocol/types.py",
 )
+
+# Protocol modules that still carry a few pre-existing helper methods/functions
+# (text extraction, usage arithmetic, tree traversal, tool execution, hook-
+# emptiness). The plan's "protocol holds only shapes" rule is future-facing:
+# these are recorded debt to be migrated out in a later stage, and this ratchet
+# forbids the *set* from growing. Every protocol module must be classified as
+# either shape-only (enforced above) or legacy-behaviour (listed here); a new
+# unclassified module fails.
+_PROTOCOL_LEGACY_BEHAVIOUR = frozenset(
+    {
+        "src/baldric/protocol/messages.py",
+        "src/baldric/protocol/provider.py",
+        "src/baldric/protocol/tools.py",
+        "src/baldric/protocol/session/entries.py",
+        "src/baldric/protocol/session/tree.py",
+    }
+)
+
+_PROTOCOL_LINE_BUDGET = 400
 
 
 def _protocol_shape_violations(path: Path) -> list[str]:
@@ -321,6 +343,41 @@ def test_protocol_shape_guard_has_teeth(tmp_path: Path) -> None:
     problems = _protocol_shape_violations(bad)
     assert any("helper" in problem for problem in problems)
     assert any("act" in problem for problem in problems)
+
+
+def _protocol_py_files() -> list[Path]:
+    """Every non-package ``.py`` module under ``src/baldric/protocol``."""
+    base = REPO_ROOT / "src" / "baldric" / "protocol"
+    return [path for path in sorted(base.rglob("*.py")) if path.name != "__init__.py"]
+
+
+def _relative_to_repo(path: Path) -> str:
+    return path.relative_to(REPO_ROOT).as_posix()
+
+
+def test_every_protocol_module_is_classified() -> None:
+    """Each protocol module is either shape-only or documented legacy debt.
+
+    This is the ratchet that stops the protocol package from silently growing a
+    new behaviour module: a new file must be consciously classified.
+    """
+    classified = {path for path in _SHAPE_ONLY_MODULES} | _PROTOCOL_LEGACY_BEHAVIOUR
+    discovered = {_relative_to_repo(path) for path in _protocol_py_files()}
+    unclassified = sorted(discovered - set(classified))
+    assert unclassified == [], (
+        "unclassified protocol module(s); add each to _SHAPE_ONLY_MODULES (must be "
+        f"pure shapes) or _PROTOCOL_LEGACY_BEHAVIOUR (recorded debt): {unclassified}"
+    )
+
+
+def test_protocol_modules_stay_within_line_budget() -> None:
+    """No protocol module may exceed the 400-line budget (split when it would)."""
+    over = []
+    for path in _protocol_py_files():
+        lines = len(path.read_text(encoding="utf-8").splitlines())
+        if lines > _PROTOCOL_LINE_BUDGET:
+            over.append(f"{_relative_to_repo(path)}: {lines} > {_PROTOCOL_LINE_BUDGET}")
+    assert over == [], "protocol module(s) over the line budget:\n" + "\n".join(over)
 
 
 # --- allow-rule whitelist (cross-domain port discipline) ---------------------

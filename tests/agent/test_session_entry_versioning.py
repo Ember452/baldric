@@ -20,6 +20,8 @@ from baldric.protocol.session import (
     CustomEntry,
     MessageEntry,
     SessionInfoEntry,
+)
+from baldric.runtime.core.session.jsonl import (
     SessionJsonlError,
     SessionVersionError,
     entries_from_json_lines,

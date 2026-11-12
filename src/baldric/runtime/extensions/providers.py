@@ -16,10 +16,12 @@ from baldric.ai.env import (
     DEFAULT_OPENAI_COMPATIBLE_MAX_RETRY_DELAY_SECONDS,
     DEFAULT_OPENAI_COMPATIBLE_TIMEOUT_SECONDS,
 )
-from baldric.protocol.provider import CancellationToken, ModelProvider
+from baldric.protocol.provider import CancellationToken
+from baldric.protocol.provider import ClosableModelProvider as ClosableModelProvider
 from baldric.protocol.types import JSONPrimitive, JSONValue
 from baldric.runtime.context.thinking import ThinkingLevel
 from baldric.runtime.providers.catalog import ModelInput, ProviderApi
+from baldric.runtime.providers.config.models import CredentialReader as CredentialReader
 
 _PROVIDER_APIS = frozenset(
     {
@@ -48,12 +50,6 @@ class ProviderAuthError(RuntimeError):
 
 class _MissingRequiredApiKeyError(ProviderAuthError):
     """Host-authored missing-key guidance safe to preserve at runtime boundaries."""
-
-
-class CredentialReader(Protocol):
-    """Read-only credential lookup used by dynamic auth strategies."""
-
-    def get(self, name: str) -> str | None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -374,12 +370,6 @@ class ProviderRuntimeContext:
 
     provider_id: str
     auth: ResolvedProviderAuth = field(repr=False)
-
-
-class ClosableModelProvider(ModelProvider, Protocol):
-    """Runtime provider returned by a dynamic provider factory."""
-
-    async def aclose(self) -> None: ...
 
 
 RuntimeFactory = Callable[

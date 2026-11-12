@@ -8,7 +8,6 @@ from collections.abc import Callable, Mapping, MutableMapping
 from dataclasses import replace
 from inspect import isawaitable
 from os import environ
-from typing import Protocol
 from weakref import WeakKeyDictionary
 
 from baldric.ai.anthropic import AnthropicProvider
@@ -21,7 +20,7 @@ from baldric.ai.openai_codex import (
     OpenAICodexProvider,
 )
 from baldric.ai.openai_compatible import OpenAICompatibleProvider
-from baldric.protocol.provider import ModelProvider
+from baldric.protocol.provider import ClosableModelProvider as ClosableModelProvider
 from baldric.runtime.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric.runtime.auth.oauth import (
     account_id_from_access_token,
@@ -65,14 +64,6 @@ from baldric.runtime.providers.config import (
     validate_provider_model,
 )
 from baldric.runtime.providers.stores.codex_version import CodexClientVersionResolver
-
-
-class ClosableModelProvider(ModelProvider, Protocol):
-    """Runtime provider object Baldric owns and can close."""
-
-    async def aclose(self) -> None:
-        """Close any provider-owned resources."""
-        ...
 
 
 async def create_dynamic_model_provider(

@@ -54,6 +54,21 @@ class ModelProvider(Protocol):
         ...
 
 
+class ClosableModelProvider(ModelProvider, Protocol):
+    """Runtime provider object Baldric owns and can close.
+
+    A provider that holds resources (HTTP clients, streams) implements this so
+    the session can release them deterministically. It is a pure shape
+    (``ModelProvider`` + ``aclose``) and lives in the contract layer so both the
+    provider-config layer and the extension provider contracts can name it without
+    importing each other.
+    """
+
+    async def aclose(self) -> None:
+        """Close any provider-owned resources."""
+        ...
+
+
 # --- request-level hook contract (Pi onPayload / headers / onResponse) --------
 # Shapes are pure data + pure dispatch so they belong to the contract layer:
 # adapters and the adapter-hook helper both depend on protocol, never the reverse.
