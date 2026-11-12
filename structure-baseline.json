@@ -208,6 +208,10 @@
       "lines": 317,
       "max_function_stmts": 0
     },
+    "src/baldric/runtime/app.py": {
+      "lines": 189,
+      "max_function_stmts": 8
+    },
     "src/baldric/runtime/cli.py": {
       "lines": 1539,
       "max_function_stmts": 44
@@ -721,8 +725,8 @@
       "max_function_stmts": 5
     },
     "src/baldric/runtime/session/lifecycle.py": {
-      "lines": 1222,
-      "max_function_stmts": 61
+      "lines": 1219,
+      "max_function_stmts": 60
     },
     "src/baldric/runtime/session/manager.py": {
       "lines": 542,
@@ -749,7 +753,7 @@
       "max_function_stmts": 17
     },
     "src/baldric/runtime/session/resource_helpers.py": {
-      "lines": 399,
+      "lines": 402,
       "max_function_stmts": 7
     },
     "src/baldric/runtime/session/retry_events.py": {
@@ -761,7 +765,7 @@
       "max_function_stmts": 22
     },
     "src/baldric/runtime/session/session.py": {
-      "lines": 2097,
+      "lines": 2060,
       "max_function_stmts": 55
     },
     "src/baldric/runtime/session/stats.py": {

@@ -1,10 +1,11 @@
 # baldric 结构重构计划 v2：先砌墙，再搬家
 
-> 状态：**执行中 —— 阶段 A0、A、B、C、D、E 已完成**（2026-11-12）。执行记录：
+> 状态：**执行中 —— 阶段 A0、A、B、C、D、E、F 已完成**（2026-11-12）。执行记录：
 > [A0](../notes/2026-11-12-stage-a0-wall.md)、[A](../notes/2026-11-12-stage-a-rules-and-dedup.md)、
 > [B](../notes/2026-11-12-stage-b-subagents.md)、[C](../notes/2026-11-12-stage-c-mcp-llamacpp.md)、
-> [D](../notes/2026-11-12-stage-d-providers-merge.md)、[E](../notes/2026-11-12-stage-e-platform.md)。
-> 后续阶段 F–H 待逐阶段推进，每阶段原子完成并停下评审。
+> [D](../notes/2026-11-12-stage-d-providers-merge.md)、[E](../notes/2026-11-12-stage-e-platform.md)、
+> [F](../notes/2026-11-12-stage-f-app-composition.md)。
+> 后续阶段 G–H 待逐阶段推进，每阶段原子完成并停下评审。
 > v1 依据：2026-11-11 全量深扫 + 2026-11-12 逐目录实测裁定
 > v2 修订：吸收独立评审的 6 个 P0 + 11 个 P1，并补入本会话新发现的 2 项（`protocol/session/jsonl.py` 是行为、`ai/` 与 `providers/` 是两层配置）
 > 目标读者：维护者本人（个人开发者，时间充足，目标是长期产品，不发独立包）
@@ -379,9 +380,17 @@ A0（api facade + protocol 契约 + port + scanner 白名单 + 示例路径固�
 > 原计划：阶段 E：platform 抽离 —— 「`extensions/{api,runtime,loader,installer,provider_registry,providers,builtin_registry} → platform/`。`extensions/__init__.py` 247 行按消费方拆。」
 
 
-### 阶段 F：app 组合根
+### 阶段 F：app 组合根｜**已完成 2026-11-12（按高层反转，非 75 成员 port）**
 
-从 `cli.py` 抽装配到 `runtime/app.py::build_app(config)`。`cli.py` 1,411 → < 600 行。
+实际落地（执行记录见 [../notes/2026-11-12-stage-f-app-composition.md](../notes/2026-11-12-stage-f-app-composition.md)）：
+
+1. ✅ 新建 `runtime/app.py`（组合根）：`build_runtime()` / `prepare_runtime_for_load(config, previous_runtime)` / `stage_runtime_for_reload(...)` / `eligible_built_in_extensions(config)`。**所有 `ExtensionRuntime(...)` 构造收敛到 app.py**。
+2. ✅ `session.py`（`load` + `__init__` fallback）、`lifecycle.py`（reload staging）改为调用组合根工厂；`session` 包运行时不再 import `platform.runtime`（仅 `TYPE_CHECKING` 注解）。
+3. ⚠️ **未造计划的 75 成员 `Platform` Protocol**：实测 `ExtensionRuntime` 公开面 ~75 成员，造巨型 port 只是把 concrete 改名成 god interface（更差抽象）。改选高层反转：构造与首阶段 load 归组合根，与 trust 交织的第二阶段 load 留 session（生命周期归属正确）。
+4. ⚠️ `cli.py` 的 1411→<600 装配瘦身**未在 F 完成**（本轮 F 聚焦 core→platform 反转），留作后续（G/H 后或独立任务）。
+5. ✅ **验收**：fast suite 2284 passed；TUI 767 passed；session 域 355 passed；mypy 无新增；guards 70 passed。
+
+> 原计划：阶段 F：app 组合根 —— 「从 `cli.py` 抽装配到 `runtime/app.py::build_app(config)`。`cli.py` 1,411 → < 600 行。」
 
 ### 阶段 G：frontends 收口（拆三步，G1/G2/G3）
 

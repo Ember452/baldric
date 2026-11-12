@@ -17,6 +17,7 @@ from baldric.agent.tool_history import ToolHistoryRepair
 from baldric.ai.hooks import HookableProvider
 from baldric.ai.model_catalog import RuntimeModelCatalog
 from baldric.ai.model_limits import RuntimeModelLimits
+from baldric.runtime.app import build_runtime, prepare_runtime_for_load
 from baldric.runtime.commands.registry import CommandRegistry, CommandResult, create_default_command_registry
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.prompts import (
@@ -53,11 +54,10 @@ from baldric.runtime.observability.diagnostics import (
     AgentCallDiagnosticLogger,
 )
 from baldric.runtime.platform.providers import DynamicProvider, ProviderModel
-from baldric.runtime.platform.runtime import ExtensionRuntime
 from baldric.runtime.providers.auth.credentials import FileCredentialStore, credentials_path
 
 if TYPE_CHECKING:
-    from baldric.runtime.platform.builtin_registry import BuiltInExtension
+    from baldric.runtime.platform.runtime import ExtensionRuntime
 
 from baldric.protocol.messages import (
     AgentMessage,
@@ -532,24 +532,6 @@ class CodingSessionConfig:
     defer_authoritative_writes: bool = False
 
 
-def _eligible_built_in_extensions(config: CodingSessionConfig) -> tuple[BuiltInExtension, ...] | None:
-    """Filter the built-in registry by the session's disabled set.
-
-    ``None`` keeps the runtime's default registry, so sessions that disable
-    nothing behave exactly as before; an explicit tuple makes the exclusion
-    real — a disabled built-in never runs its setup.
-    """
-    if not config.disabled_built_in_extensions:
-        return None
-    from baldric.runtime.platform.builtin_registry import BUILT_IN_EXTENSIONS
-
-    return tuple(
-        built_in
-        for built_in in BUILT_IN_EXTENSIONS
-        if built_in.name not in config.disabled_built_in_extensions
-    )
-
-
 class CodingSession:
     """Baldric's coding-agent environment wrapper.
 
@@ -584,7 +566,7 @@ class CodingSession:
         self._config = config
         self._state = state
         self._harness = harness
-        self._extension_runtime = extension_runtime or ExtensionRuntime()
+        self._extension_runtime = extension_runtime or build_runtime()
         self._provider_registry = self._extension_runtime.provider_registry
         self._image_support = image_support or ImageSupportState()
         self._session_start_pending = False
@@ -672,37 +654,18 @@ class CodingSession:
             entries = _detach_missing_parents(entries)
 
         state = SessionState.from_entries(entries)
-        unfiltered_resource_paths = resource_paths_with_cwd(config.resource_paths, config.cwd)
 
         # A runtime is cwd-bound because it may contain project registrations.
         # Always stage a fresh eligible-only runtime for a destination snapshot;
         # never reuse source-project code across replacement trust boundaries.
+        # The construction lives in the composition root (runtime.app) so this
+        # core module no longer statically imports the platform runtime.
         previous_runtime = config.extension_runtime
-        runtime_paths = unfiltered_resource_paths.paths or BaldricPaths(
-            home=unfiltered_resource_paths.root,
-            agents_home=unfiltered_resource_paths.agents_root or Path.home() / ".agents",
-        )
-        credential_store = FileCredentialStore(credentials_path(runtime_paths))
-        injected_credentials = previous_runtime.provider_credentials if previous_runtime is not None else None
-        extension_runtime = ExtensionRuntime(
-            paths=runtime_paths,
-            credentials=injected_credentials or credential_store,
-            environment=(previous_runtime.provider_environment if previous_runtime is not None else None),
-            built_in_credentials=(
-                previous_runtime.built_in_credentials if previous_runtime is not None else None
-            ),
-            built_in_http_client=(
-                previous_runtime.built_in_http_client if previous_runtime is not None else None
-            ),
-            durable_providers=(config.provider_settings.providers if config.provider_settings else ()),
-            built_in_extensions=_eligible_built_in_extensions(config),
-        )
-        extension_runtime.load(
-            unfiltered_resource_paths,
-            extra_paths=config.extension_paths,
-            include_resource_dirs=config.extensions_enabled,
-            include_project_dir=False,
-        )
+        runtime_prep = prepare_runtime_for_load(config, previous_runtime)
+        extension_runtime = runtime_prep.extension_runtime
+        unfiltered_resource_paths = runtime_prep.unfiltered_resource_paths
+        runtime_paths = runtime_prep.runtime_paths
+        credential_store = runtime_prep.credential_store
 
         coordinator = config.project_trust_coordinator or ProjectTrustCoordinator(
             ProjectTrustStore(
