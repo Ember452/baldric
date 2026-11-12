@@ -328,9 +328,15 @@ class McpServerConnection:
             self._state = "connected"
             self._error = None
             return None
-        except BaseException as exc:
+        except (Exception, anyio.get_cancelled_exc_class()) as exc:
             if stack is not None:
-                await self._aclose(stack)
+                # Cancellation is level-triggered: without a shield the first
+                # await inside _aclose re-raises and the transport/session are
+                # never closed. Shield cleanup so it runs to completion.
+                with anyio.CancelScope(shield=True):
+                    await self._aclose(stack)
+            if isinstance(exc, anyio.get_cancelled_exc_class()):
+                raise
             return exc
 
     async def _call_with_deadline(self, coro_factory: Callable[[], Any], holder: _Deadline) -> Any:

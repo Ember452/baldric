@@ -279,3 +279,28 @@ def test_set_server_enabled_unknown_name_raises(tmp_path: Path) -> None:
         assert "nope" in str(exc)
     else:
         raise AssertionError("expected ValueError")
+
+
+def test_set_server_enabled_fsyncs_before_replace(tmp_path: Path, monkeypatch) -> None:
+    from pathlib import Path as _Path
+
+    import baldric.mcp.config as mcp_config_module
+
+    order: list[str] = []
+    real_fsync = mcp_config_module.fsync
+    monkeypatch.setattr(mcp_config_module, "fsync", lambda fd: (order.append("fsync"), real_fsync(fd))[1])
+    original_replace = _Path.replace
+
+    def recording_replace(self, target):
+        order.append("replace")
+        return original_replace(self, target)
+
+    monkeypatch.setattr(_Path, "replace", recording_replace)
+    user = _write(tmp_path / "user.json", {"mcpServers": {"x": {"command": "x", "enabled": False}}})
+
+    set_server_enabled(user, "x", True)
+
+    result = load_mcp_config(user, None, ENV)
+    assert _server(result, "x").enabled is True
+    assert not list(tmp_path.glob(".user.json.*"))
+    assert order == ["fsync", "replace"]

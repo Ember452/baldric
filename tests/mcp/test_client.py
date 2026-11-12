@@ -47,8 +47,10 @@ class FakeSession:
         call_results: list[Any] | None = None,
         call_hook: Callable[..., None] | None = None,
         has_tools_capability: bool = True,
+        initialize_hook: Callable[[], Any] | None = None,
     ) -> None:
         self.initialize_error = initialize_error
+        self.initialize_hook = initialize_hook
         self.tools = tools if tools is not None else [mt.Tool(name="echo", inputSchema={"type": "object"})]
         self.instructions = instructions
         self.call_results = list(call_results or [])
@@ -59,6 +61,8 @@ class FakeSession:
 
     async def initialize(self) -> mt.InitializeResult:
         self.initialized += 1
+        if self.initialize_hook is not None:
+            await self.initialize_hook()
         if self.initialize_error is not None:
             raise self.initialize_error
         return mt.InitializeResult(
@@ -103,8 +107,9 @@ class FakeSession:
 
 
 class FakeTransport:
-    def __init__(self, session: FakeSession) -> None:
+    def __init__(self, session: FakeSession, *, teardown_awaits: bool = False) -> None:
         self.session = session
+        self.teardown_awaits = teardown_awaits
         self.entered = 0
         self.exited = 0
 
@@ -113,6 +118,10 @@ class FakeTransport:
         return (object(), object())
 
     async def __aexit__(self, *exc: object) -> bool:
+        if self.teardown_awaits:
+            # A real transport teardown yields at least once; that checkpoint is
+            # where an unshielded cleanup would be re-cancelled mid-teardown.
+            await anyio.sleep(0)
         self.exited += 1
         return False
 
@@ -120,12 +129,13 @@ class FakeTransport:
 class Harness:
     """Scripted transports/sessions in connect order."""
 
-    def __init__(self, sessions: list[FakeSession]) -> None:
+    def __init__(self, sessions: list[FakeSession], *, teardown_awaits: bool = False) -> None:
         self.sessions = sessions
+        self.teardown_awaits = teardown_awaits
         self.transports: list[FakeTransport] = []
 
     def transport_factory(self, config: McpServerConfig, environment: Any = None) -> FakeTransport:
-        transport = FakeTransport(self.sessions[len(self.transports)])
+        transport = FakeTransport(self.sessions[len(self.transports)], teardown_awaits=self.teardown_awaits)
         self.transports.append(transport)
         return transport
 
@@ -396,3 +406,29 @@ async def test_reconnect_opens_a_fresh_stderr_sink() -> None:
 
     assert len(sinks) == 2  # a fresh handle for the reconnected attempt
     assert sinks[1].closed is False
+
+
+async def test_connect_cancellation_is_not_swallowed() -> None:
+    """A cancelled connect must propagate instead of degrading into ``failed``.
+
+    Real cancellation, not a manually raised ``CancelledError``: the connect is
+    parked in ``initialize()`` while a surrounding scope is cancelled, so the
+    cleanup runs under a cancelled (level-triggered) scope. Without a shield the
+    transport teardown would be interrupted and ``exited`` would stay 0.
+    """
+    started = anyio.Event()
+
+    async def hang() -> None:
+        started.set()
+        await anyio.sleep_forever()
+
+    harness = Harness([FakeSession(initialize_hook=hang)], teardown_awaits=True)
+    connection = harness.connection()
+
+    async with anyio.create_task_group() as tg:
+        tg.start_soon(connection.connect)
+        await started.wait()
+        tg.cancel_scope.cancel()
+
+    assert harness.transports[0].exited == 1  # cleanup completed despite cancellation
+    assert connection.state != "connected"
