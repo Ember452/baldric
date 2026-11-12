@@ -26,7 +26,7 @@ from baldric.runtime import (
     SessionManager,
 )
 from baldric.runtime import cli as cli_module
-from baldric.runtime.modes.rpc import RpcServer
+from baldric.runtime.frontends.rpc import RpcServer
 from baldric.runtime.providers.config import ProviderModelMetadata
 from baldric.runtime.session import JsonlSessionStorage
 from tests.helpers.pi_event_helpers import assistant_done, assistant_start, text_delta

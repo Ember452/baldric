@@ -20,7 +20,7 @@ import pytest
 from baldric.agent import AssistantMessage
 from baldric.ai import FakeProvider
 from baldric.runtime import CodingSession, CodingSessionConfig
-from baldric.runtime.modes.rpc import RpcServer
+from baldric.runtime.frontends.rpc import RpcServer
 from baldric.runtime.session import JsonlSessionStorage
 from tests.helpers.pi_event_helpers import assistant_done, assistant_start, text_delta
 

@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from baldric.protocol.messages import AssistantMessage, UserMessage
 from baldric.protocol.session.entries import SessionEntry
 from baldric.protocol.types import JSONValue
-from baldric.runtime.modes.rpc.session import RpcSession
+from baldric.runtime.frontends.rpc.session import RpcSession
 from baldric.runtime.providers.config import (
     AnthropicProviderConfig,
     OpenAICompatibleProviderConfig,

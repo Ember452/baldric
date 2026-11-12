@@ -13,8 +13,8 @@ import anyio
 
 from baldric.protocol.messages import AssistantMessage, UserMessage
 from baldric.runtime.events import CodingSessionEvent
-from baldric.runtime.modes.rpc.session import RpcSession
-from baldric.runtime.modes.rpc.wire import (
+from baldric.runtime.frontends.rpc.session import RpcSession
+from baldric.runtime.frontends.rpc.wire import (
     _entry_wire,
     _jsonable,
     _leaf_id,
