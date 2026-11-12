@@ -18,8 +18,8 @@ import baldric.runtime.session.session as coding_session_module
 from baldric.agent.events import MessageEndEvent
 from baldric.ai import FakeProvider
 from baldric.protocol.messages import AssistantMessage
-from baldric.runtime.cli import run_print_mode
 from baldric.runtime.context.resources import BaldricResourcePaths
+from baldric.runtime.frontends.print import run_print_mode
 from baldric.runtime.providers.config import OpenAICompatibleProviderConfig, ProviderSettings
 from baldric.runtime.rendering.json import JsonEventRenderer
 from baldric.runtime.rendering.plain import FinalTextRenderer

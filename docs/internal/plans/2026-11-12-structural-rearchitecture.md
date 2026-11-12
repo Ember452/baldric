@@ -1,11 +1,11 @@
 # baldric 结构重构计划 v2：先砌墙，再搬家
 
-> 状态：**执行中 —— 阶段 A0、A、B、C、D、E、F 已完成**（2026-11-12）。执行记录：
+> 状态：**执行中 —— 阶段 A0、A、B、C、D、E、F、G 已完成**（2026-11-12/13）。执行记录：
 > [A0](../notes/2026-11-12-stage-a0-wall.md)、[A](../notes/2026-11-12-stage-a-rules-and-dedup.md)、
 > [B](../notes/2026-11-12-stage-b-subagents.md)、[C](../notes/2026-11-12-stage-c-mcp-llamacpp.md)、
 > [D](../notes/2026-11-12-stage-d-providers-merge.md)、[E](../notes/2026-11-12-stage-e-platform.md)、
-> [F](../notes/2026-11-12-stage-f-app-composition.md)。
-> 后续阶段 G–H 待逐阶段推进，每阶段原子完成并停下评审。
+> [F](../notes/2026-11-12-stage-f-app-composition.md)、[G](../notes/2026-11-13-stage-g-frontends.md)。
+> 后续阶段 H 待推进（独立分支），原子完成并停下评审。
 > v1 依据：2026-11-11 全量深扫 + 2026-11-12 逐目录实测裁定
 > v2 修订：吸收独立评审的 6 个 P0 + 11 个 P1，并补入本会话新发现的 2 项（`protocol/session/jsonl.py` 是行为、`ai/` 与 `providers/` 是两层配置）
 > 目标读者：维护者本人（个人开发者，时间充足，目标是长期产品，不发独立包）
@@ -392,15 +392,20 @@ A0（api facade + protocol 契约 + port + scanner 白名单 + 示例路径固�
 
 > 原计划：阶段 F：app 组合根 —— 「从 `cli.py` 抽装配到 `runtime/app.py::build_app(config)`。`cli.py` 1,411 → < 600 行。」
 
-### 阶段 G：frontends 收口（拆三步，G1/G2/G3）
+### 阶段 G：frontends 收口（拆三步，G1/G2/G3）｜**已完成 2026-11-13**
 
-- **G1**：`tui/ → frontends/tui/`（40 文件 16.8k 行，单独提交，Linux CI 绿）
-- **G2**：`modes/rpc/ → frontends/rpc/`
-- **G3**：cli print 路径 → `frontends/print/`（import core/rendering，不搬渲染实现）
+实际落地（执行记录见 [../notes/2026-11-13-stage-g-frontends.md](../notes/2026-11-13-stage-g-frontends.md)）：
+
+- ✅ **G1**：`tui → frontends/tui`（40 文件，单独提交 88a2305）；`runtime/frontends/__init__.py`；75 文件 / 420 处引用改写；scanner「core 不得 import TUI」规则改新路径。
+- ✅ **G2**：`modes/rpc → frontends/rpc`（提交 06285e6）；删除空 `runtime/modes/`。
+- ✅ **G3**：cli print 编排 → `frontends/print/mode.py`；print 与 rpc 共用的 session-record 解析抽到 `frontends/session_records.py`；`cli.py` 1539 → 1031 行；渲染实现仍留在 `rendering/`（只消费，不搬）。
+- 验收：fast suite 2284 passed；TUI 767 passed；cli 域 120 passed；guards 70；mypy 无新增；基线纯路径重命名 + 3 个新文件，supp 138 不变。
+
+> 原计划：G1 `tui/ → frontends/tui/`（40 文件 16.8k 行，单独提交，Linux CI 绿）；G2 `modes/rpc/ → frontends/rpc/`；G3 cli print 路径 → `frontends/print/`（import core/rendering，不搬渲染实现）。
 
 ### 阶段 H（独立分支）：session 消肿
 
-照 OpenHands `conversation/{base,impl,goal,state,cancellation}` 形态：门面 + 单职责文件 + 子功能目录。`session.py` 1,864 行 / 183 方法 → < 500 行。**验收**：公共方法签名零变化；fast suite 全绿；**S1 到此时才完全成立**。
+照 OpenHands `conversation/{base,impl,goal,state,cancellation}` 形态：门面 + 单职责文件 + 子功能目录。`session.py` 2,097 行 / 183 方法 → < 500 行（阶段 F 后现 2,060 行）。**验收**：公共方法签名零变化；fast suite 全绿；**S1 到此时才完全成立**。
 
 ---
 

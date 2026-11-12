@@ -855,7 +855,7 @@ async def test_credential_cleanup_failure_is_reported_and_reset_is_recoverable(
 async def test_print_mode_explicit_dynamic_startup_uses_cached_state(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    from baldric.runtime.cli import run_print_mode
+    from baldric.runtime.frontends.print import run_print_mode
     from baldric.runtime.rendering import PrintOutputMode
 
     paths = BaldricPaths(home=tmp_path / "baldric", agents_home=tmp_path / "agents")

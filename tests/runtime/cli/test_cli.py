@@ -12,7 +12,7 @@ from baldric.ai import (
 from baldric.protocol.messages import BashExecutionMessage
 from baldric.protocol.session import MessageEntry, ModelChangeEntry
 from baldric.runtime import CodingSessionRecord, SessionManager, cli
-from baldric.runtime.cli import app, run_print_mode
+from baldric.runtime.cli import app
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.resources import BaldricResourcePaths
 from baldric.runtime.context.skills.skills import load_skills
@@ -22,6 +22,9 @@ from baldric.runtime.context.system_prompt import (
     build_system_prompt_inspection,
     format_system_prompt_inspection,
 )
+from baldric.runtime.frontends.print import mode as print_mode
+from baldric.runtime.frontends.print import run_print_mode
+from baldric.runtime.frontends.session_records import create_mode_session, resolve_mode_session_record
 from baldric.runtime.platform import ExtensionRuntime
 from baldric.runtime.platform.installer import ExtensionInstallRecord
 from baldric.runtime.providers.config import (
@@ -1382,7 +1385,7 @@ def test_print_session_record_resumes_existing_session(tmp_path: Path) -> None:
         session_id="session-123",
     )
 
-    resumed = cli._print_session_record(
+    resumed = resolve_mode_session_record(
         manager,
         resume_session_id="session-123",
         cwd=tmp_path / "other",
@@ -1399,7 +1402,7 @@ def test_print_session_record_rejects_unknown_session(tmp_path: Path) -> None:
     manager = SessionManager(BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents"))
 
     with pytest.raises(ValueError, match="Unknown session: missing"):
-        cli._print_session_record(
+        resolve_mode_session_record(
             manager,
             resume_session_id="missing",
             cwd=tmp_path,
@@ -1474,9 +1477,9 @@ async def test_print_resume_does_not_apply_hf_route_to_explicit_non_hf_provider(
         assert storage.path == resumed_record.path
         return True
 
-    monkeypatch.setattr(cli, "load_provider_settings", lambda: settings)
-    monkeypatch.setattr(cli, "create_model_provider", fake_create_model_provider)
-    monkeypatch.setattr(cli, "run_print_mode", fake_run_print_mode)
+    monkeypatch.setattr(print_mode, "load_provider_settings", lambda: settings)
+    monkeypatch.setattr(print_mode, "create_model_provider", fake_create_model_provider)
+    monkeypatch.setattr(print_mode, "run_print_mode", fake_run_print_mode)
 
     ok = await cli.run_openai_print_mode(
         "Follow up",
@@ -1495,7 +1498,7 @@ async def test_print_resume_does_not_apply_hf_route_to_explicit_non_hf_provider(
 def test_create_print_session_uses_requested_id_and_rejects_collision(tmp_path: Path) -> None:
     manager = SessionManager(BaldricPaths(home=tmp_path / ".baldric", agents_home=tmp_path / ".agents"))
 
-    record = cli._create_print_session(
+    record = create_mode_session(
         manager,
         cwd=tmp_path,
         model="fake",
@@ -1505,7 +1508,7 @@ def test_create_print_session_uses_requested_id_and_rejects_collision(tmp_path: 
     assert record.id == "worker-499"
     assert record.path.name == "worker-499.jsonl"
     with pytest.raises(RuntimeError, match="Session already exists with id 'worker-499'"):
-        cli._create_print_session(
+        create_mode_session(
             manager,
             cwd=tmp_path,
             model="fake",
@@ -1839,7 +1842,7 @@ def test_print_mode_surfaces_bad_model_as_clean_error(
 
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(cli, "_startup_update_notice", lambda: None)
-    monkeypatch.setattr(cli, "load_provider_settings", lambda *args, **kwargs: settings)
+    monkeypatch.setattr(print_mode, "load_provider_settings", lambda *args, **kwargs: settings)
     monkeypatch.setattr(tui_app, "load_provider_settings", lambda *args, **kwargs: settings)
 
     result = CliRunner().invoke(app, ["--model", "llama", "--provider", "local", "-p", "hello"])

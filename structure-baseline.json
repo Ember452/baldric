@@ -213,7 +213,7 @@
       "max_function_stmts": 8
     },
     "src/baldric/runtime/cli.py": {
-      "lines": 1539,
+      "lines": 1139,
       "max_function_stmts": 44
     },
     "src/baldric/runtime/commands/__init__.py": {
@@ -448,6 +448,14 @@
       "lines": 8,
       "max_function_stmts": 0
     },
+    "src/baldric/runtime/frontends/print/__init__.py": {
+      "lines": 17,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/frontends/print/mode.py": {
+      "lines": 383,
+      "max_function_stmts": 18
+    },
     "src/baldric/runtime/frontends/rpc/__init__.py": {
       "lines": 6,
       "max_function_stmts": 0
@@ -463,6 +471,10 @@
     "src/baldric/runtime/frontends/rpc/wire.py": {
       "lines": 271,
       "max_function_stmts": 13
+    },
+    "src/baldric/runtime/frontends/session_records.py": {
+      "lines": 90,
+      "max_function_stmts": 5
     },
     "src/baldric/runtime/frontends/tui/__init__.py": {
       "lines": 69,
