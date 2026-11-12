@@ -362,11 +362,13 @@ def _build_mistral_payload(
         payload["max_tokens"] = max_tokens
     if tools:
         payload["tools"] = [_tool_to_mistral(tool) for tool in tools]
-    if reasoning_effort is not None and reasoning_effort != "none":
-        if _uses_reasoning_effort(model):
-            payload["reasoning_effort"] = "high"
-        else:
-            payload["prompt_mode"] = "reasoning"
+    if model in _MISTRAL_EFFORT_MODELS and reasoning_effort is not None:
+        # pi: mistral-conversations.ts:200-206 — effort models always carry
+        # reasoning_effort: unsupported levels clamp to "high", and the API
+        # only accepts none/high on these models.
+        payload["reasoning_effort"] = _MISTRAL_EFFORT_LEVELS.get(reasoning_effort, "high")
+    elif reasoning_effort is not None and reasoning_effort != "none":
+        payload["prompt_mode"] = "reasoning"
     return payload
 
 
@@ -485,8 +487,13 @@ def _mistral_base_url(base_url: str) -> str:
     return f"{normalized}/v1"
 
 
-def _uses_reasoning_effort(model: str) -> bool:
-    return model in {"mistral-small-2603", "mistral-small-latest", "mistral-medium-3.5"}
+# pi: catalog/providers/mistral.ts — these models take reasoning_effort and the
+# API only accepts none/high on them; other reasoning models take prompt_mode.
+_MISTRAL_EFFORT_MODELS: frozenset[str] = frozenset(
+    {"mistral-small-2603", "mistral-small-latest", "mistral-medium-3.5"}
+)
+# These models accept only none/high; any other requested level clamps to high.
+_MISTRAL_EFFORT_LEVELS: dict[str, str] = {"none": "none", "high": "high"}
 
 
 def _parse_mistral_usage(raw: Mapping[str, Any]) -> Usage:
