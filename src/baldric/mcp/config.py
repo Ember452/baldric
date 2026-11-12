@@ -13,8 +13,11 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Callable, Mapping
+from contextlib import suppress
 from dataclasses import dataclass, field, replace
+from os import fsync
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Literal
 
 ServerType = Literal["stdio", "http"]
@@ -127,7 +130,31 @@ def set_server_enabled(path: Path, name: str, enabled: bool) -> None:
     indent = _INDENT.search(text)
     path.parent.mkdir(parents=True, exist_ok=True)
     written = json.dumps(parsed, indent=indent.group(1) if indent else "  ", ensure_ascii=False)
-    path.write_text(written + "\n", encoding="utf-8")
+    _atomic_write_text(path, written + "\n")
+
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    """Write through a sibling temp file with fsync so a crash cannot tear the file."""
+    temp_path: Path | None = None
+    try:
+        with NamedTemporaryFile(
+            "w",
+            dir=path.parent,
+            encoding="utf-8",
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temp_file:
+            temp_path = Path(temp_file.name)
+            temp_file.write(text)
+            temp_file.flush()
+            fsync(temp_file.fileno())
+        temp_path.replace(path)
+    except Exception:
+        if temp_path is not None:
+            with suppress(OSError):
+                temp_path.unlink()
+        raise
 
 
 def _read_file(
