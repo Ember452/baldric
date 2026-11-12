@@ -351,7 +351,7 @@ class OpenAICodexProvider:
                             return
                         continue
                 except RETRYABLE_TRANSPORT_ERRORS as exc:
-                    if not emitted_content and attempt < self._config.max_retries:
+                    if not emitted_content and not emitted_thinking and attempt < self._config.max_retries:
                         delay = retry_delay_seconds(
                             attempt,
                             max_delay_seconds=self._config.max_retry_delay_seconds,
