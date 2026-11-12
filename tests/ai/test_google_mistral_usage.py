@@ -235,3 +235,113 @@ async def test_mistral_leaves_usage_zero_when_not_reported() -> None:
     body = _sse(_mistral_chunk({"content": "hi"}), _mistral_chunk({}, finish_reason="stop"))
 
     assert _done_usage(await _run_mistral(body)) == Usage()
+
+
+async def _collect_google_request(config: OpenAICompatibleConfig) -> httpx.Request:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200,
+            text=_sse(_google_text("hi"), _google_finish()),
+            headers={"content-type": "text/event-stream"},
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        provider = GoogleGenerativeAIProvider(config, client=client)
+        await _collect(
+            provider.stream_response(
+                model="gemini-test",
+                system="You are Baldric.",
+                messages=[UserMessage(content="Say hi")],
+                tools=[],
+            )
+        )
+    return requests[0]
+
+
+@pytest.mark.anyio
+async def test_google_auth_uses_header_instead_of_url_query() -> None:
+    request = await _collect_google_request(_CONFIG)
+
+    assert "key" not in request.url.params
+    assert request.headers["x-goog-api-key"] == "test-key"
+
+
+@pytest.mark.anyio
+async def test_google_explicit_auth_header_wins_over_config_api_key() -> None:
+    config = OpenAICompatibleConfig(
+        api_key="test-key",
+        base_url="https://example.test/v1",
+        headers={"x-goog-api-key": "user-key"},
+    )
+
+    request = await _collect_google_request(config)
+
+    assert request.headers["x-goog-api-key"] == "user-key"
+    assert "key" not in request.url.params
+
+
+async def _capture_mistral_payload(model: str, *, reasoning_effort: str | None) -> dict[str, object]:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200,
+            text=_sse(
+                _mistral_chunk({"content": "hi"}),
+                _mistral_chunk({}, finish_reason="stop"),
+            ),
+            headers={"content-type": "text/event-stream"},
+        )
+
+    config = OpenAICompatibleConfig(
+        api_key="test-key",
+        base_url="https://example.test/v1",
+        reasoning_effort=reasoning_effort,
+    )
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        provider = MistralConversationsProvider(config, client=client)
+        await _collect(
+            provider.stream_response(
+                model=model,
+                system="You are Baldric.",
+                messages=[UserMessage(content="Say hi")],
+                tools=[],
+            )
+        )
+    return json.loads(requests[0].content.decode("utf-8"))
+
+
+@pytest.mark.anyio
+async def test_mistral_thinking_off_sends_reasoning_effort_none() -> None:
+    # pi: mistral-conversations.ts:200-206 — effort-map models always carry
+    # reasoning_effort; "none" is how thinking-off reaches the API.
+    payload = await _capture_mistral_payload("mistral-small-latest", reasoning_effort="none")
+
+    assert payload["reasoning_effort"] == "none"
+
+
+@pytest.mark.anyio
+async def test_mistral_unsupported_levels_clamp_to_high() -> None:
+    for level in ("minimal", "low", "medium", "xhigh", "max"):
+        payload = await _capture_mistral_payload("mistral-small-latest", reasoning_effort=level)
+
+        assert payload["reasoning_effort"] == "high", level
+
+
+@pytest.mark.anyio
+async def test_mistral_unconfigured_effort_stays_omitted() -> None:
+    payload = await _capture_mistral_payload("mistral-small-latest", reasoning_effort=None)
+
+    assert "reasoning_effort" not in payload
+
+
+@pytest.mark.anyio
+async def test_mistral_non_effort_models_use_prompt_mode() -> None:
+    payload = await _capture_mistral_payload("magistral-medium-latest", reasoning_effort="medium")
+
+    assert payload["prompt_mode"] == "reasoning"
+    assert "reasoning_effort" not in payload

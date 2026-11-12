@@ -121,15 +121,17 @@ class GoogleGenerativeAIProvider:
                 supports_images=self._config.supports_images,
             )
             payload = await apply_payload(hooks, payload)
-            url = (
-                f"{self._config.base_url.rstrip('/')}/models/"
-                f"{model}:streamGenerateContent?alt=sse&key={self._config.api_key}"
-            )
+            url = f"{self._config.base_url.rstrip('/')}/models/{model}:streamGenerateContent?alt=sse"
             headers = {
                 **dict(self._config.headers or {}),
                 "content-type": "application/json",
             }
             await apply_headers(hooks, headers)
+            # Auth moves to a header so the key never lands in URL/proxy logs.
+            # Added after the header hooks so a user-supplied x-goog-api-key
+            # (any casing) wins and no duplicate header is emitted.
+            if self._config.api_key and not any(key.lower() == "x-goog-api-key" for key in headers):
+                headers["x-goog-api-key"] = self._config.api_key
 
             attempt = 0
             parser = _GoogleStreamParser()
