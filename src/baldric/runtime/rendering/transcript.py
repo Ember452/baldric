@@ -8,18 +8,68 @@ from rich.text import Text
 
 from baldric.agent.events import (
     AgentEndEvent,
+    AgentStartEvent,
     MessageEndEvent,
+    MessageStartEvent,
     MessageUpdateEvent,
+    RetryAttemptEvent,
     ToolExecutionEndEvent,
     ToolExecutionStartEvent,
     ToolExecutionUpdateEvent,
+    TurnEndEvent,
+    TurnStartEvent,
 )
 from baldric.ai.events import TextDeltaEvent
 from baldric.protocol.messages import AssistantMessage, CustomMessage, ToolCall
-from baldric.runtime.events import AutoRetryEndEvent, AutoRetryStartEvent, CodingSessionEvent
+from baldric.runtime.events import (
+    AgentSettledEvent,
+    AutoRetryEndEvent,
+    AutoRetryStartEvent,
+    CodingSessionEvent,
+    CompactionEndEvent,
+    CompactionStartEvent,
+    ModelSelectEvent,
+    QueueUpdateEvent,
+    SessionAgentEndEvent,
+    SessionInfoChangedEvent,
+    ThinkingLevelChangedEvent,
+)
 from baldric.runtime.platform.api import CustomMessageMarkup
 from baldric.runtime.rendering.base import is_failed_stop_reason
 from baldric.runtime.rendering.tool_calls import format_tool_call_block
+
+#: Event coverage declarations consumed by tests/guards/test_print_event_dispatch.py.
+#: The transcript renders streamed assistant text and tool lifecycle only; the
+#: CustomMessage/AssistantMessage payloads are reached by unwrapping
+#: MessageEndEvent, and message classes are not session events, so they are not
+#: listed here.
+RENDERED_EVENT_TYPES: frozenset[type[object]] = frozenset(
+    {
+        AgentEndEvent,
+        AutoRetryEndEvent,
+        AutoRetryStartEvent,
+        MessageEndEvent,
+        MessageUpdateEvent,
+        SessionAgentEndEvent,
+        ToolExecutionEndEvent,
+        ToolExecutionStartEvent,
+        ToolExecutionUpdateEvent,
+    }
+)
+INTENTIONAL_NOOP: dict[type[object], str] = {
+    AgentSettledEvent: "no visible output in transcript mode",
+    AgentStartEvent: "no visible output in transcript mode",
+    CompactionEndEvent: "compaction progress is not shown in transcript mode",
+    CompactionStartEvent: "compaction progress is not shown in transcript mode",
+    MessageStartEvent: "no output until deltas or the message end",
+    ModelSelectEvent: "TUI-only; print mode reports model changes as command text",
+    QueueUpdateEvent: "TUI-only; print mode never queues mid-turn",
+    RetryAttemptEvent: "translated to AutoRetryStartEvent before print renderers",
+    SessionInfoChangedEvent: "TUI-only; print mode reports renames as command text",
+    ThinkingLevelChangedEvent: "TUI-only; print mode reports thinking changes as command text",
+    TurnEndEvent: "turn messages print through MessageEndEvent",
+    TurnStartEvent: "no visible output in transcript mode",
+}
 
 
 class TranscriptRenderer:
@@ -104,7 +154,12 @@ class TranscriptRenderer:
                 self._console.print(Text(message, style="red"))
             self._newline(final=True)
             return
-        if isinstance(event, AgentEndEvent):
+        if isinstance(event, SessionAgentEndEvent | AgentEndEvent):
+            # A session-frontend run only ever yields SessionAgentEndEvent: the
+            # session rewrites the agent-level AgentEndEvent before any renderer
+            # sees it. Keeping the agent form covered keeps this renderer honest
+            # for a harness-level caller, and without the session form an
+            # aborted run left its open assistant block without a final newline.
             self._newline(final=True)
 
     def finish(self) -> bool:
