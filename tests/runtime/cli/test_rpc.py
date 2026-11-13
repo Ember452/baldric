@@ -573,6 +573,34 @@ async def test_rpc_splits_only_on_lf_and_accepts_crlf(tmp_path: Path) -> None:
 
 
 @pytest.mark.anyio
+async def test_tree_projection_handles_a_chain_deeper_than_the_recursion_limit() -> None:
+    """Entries chain parent-to-child, so the recursive projection grew with the
+    transcript and raised RecursionError at ~996 entries on get_tree. A
+    1500-entry chain is a supported session (tests/runtime/session/
+    test_coding_session.py has that regression), so projection must be iterative.
+    """
+    from baldric.runtime.frontends.rpc.wire import _tree_wire
+
+    entries = []
+    parent_id: str | None = None
+    for index in range(1500):
+        entry = MessageEntry(parent_id=parent_id, message=UserMessage(content=f"m{index}"))
+        entries.append(entry)
+        parent_id = entry.id
+
+    tree = _tree_wire(tuple(entries), "fake")
+
+    depth = 0
+    node = tree[0]
+    assert isinstance(node, dict)
+    while node["children"]:
+        node = node["children"][0]
+        assert isinstance(node, dict)
+        depth += 1
+    assert depth == 1499
+
+
+@pytest.mark.anyio
 async def test_get_state_reports_compaction_from_the_event_stream(tmp_path: Path) -> None:
     """get_state used to hardcode isCompacting=false.
 
