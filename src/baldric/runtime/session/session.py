@@ -416,13 +416,23 @@ async def _finish_aborted_session_close(session: CodingSession) -> None:
 
 @dataclass(frozen=True, slots=True)
 class TerminalCommandResult:
-    """Result of an input-bar terminal command."""
+    """Result of an input-bar terminal command.
+
+    Carries the bash tool's full outcome, not just text: a command that the
+    output limit truncated or that an extension reported as cancelled must reach
+    the frontend with that fact attached, because the transcript message already
+    records it and a peer that only sees ``exit_code``/``output`` cannot tell
+    truncated output from complete output.
+    """
 
     command: str
     output: str
     exit_code: int | None
     ok: bool
     added_to_context: bool
+    cancelled: bool = False
+    truncated: bool = False
+    full_output_path: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -1172,6 +1172,7 @@ async def run_terminal_command(
                 command=normalized_command,
                 output=extension_result.output,
                 exit_code=extension_result.exit_code,
+                cancelled=extension_result.cancelled,
             )
             session._harness.append_message(context_message)
             session._invalidate_context_usage_cache()
@@ -1184,6 +1185,7 @@ async def run_terminal_command(
                 exit_code=extension_result.exit_code,
                 ok=extension_result.exit_code == 0 and not extension_result.cancelled,
                 added_to_context=added,
+                cancelled=extension_result.cancelled,
             ),
         )
 
@@ -1194,9 +1196,21 @@ async def run_terminal_command(
     )
     result = await bash_tool.execute("terminal-command", {"command": normalized_command})
     exit_code = None
+    cancelled = False
+    truncated = False
+    full_output_path: str | None = None
     if isinstance(result.details, dict):
         raw_exit_code = result.details.get("exit_code")
         exit_code = raw_exit_code if isinstance(raw_exit_code, int) else None
+        raw_cancelled = result.details.get("cancelled")
+        cancelled = raw_cancelled if isinstance(raw_cancelled, bool) else False
+        # The bash tool already shortened the text and appended a "Showing lines
+        # X-Y of N" note; dropping the metadata here is what made the RPC wire
+        # claim truncated=false for output that visibly was truncated.
+        raw_truncation = result.details.get("truncation")
+        truncated = raw_truncation.get("truncated") is True if isinstance(raw_truncation, dict) else False
+        raw_path = result.details.get("full_output_path")
+        full_output_path = raw_path if isinstance(raw_path, str) else None
 
     if add_to_context:
         await session._flush_pending_message_writes(context=session._diagnostic_context())
@@ -1204,6 +1218,9 @@ async def run_terminal_command(
             command=normalized_command,
             output=result.text,
             exit_code=exit_code,
+            cancelled=cancelled,
+            truncated=truncated,
+            full_output_path=full_output_path,
         )
         session._harness.append_message(context_message)
         session._invalidate_context_usage_cache()
@@ -1217,5 +1234,8 @@ async def run_terminal_command(
             exit_code=exit_code,
             ok=exit_code == 0,
             added_to_context=add_to_context,
+            cancelled=cancelled,
+            truncated=truncated,
+            full_output_path=full_output_path,
         ),
     )

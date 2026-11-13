@@ -501,7 +501,7 @@
       "max_function_stmts": 14
     },
     "src/baldric/runtime/frontends/rpc/server.py": {
-      "lines": 465,
+      "lines": 481,
       "max_function_stmts": 6
     },
     "src/baldric/runtime/frontends/rpc/session.py": {
@@ -941,7 +941,7 @@
       "max_function_stmts": 5
     },
     "src/baldric/runtime/session/lifecycle.py": {
-      "lines": 1221,
+      "lines": 1241,
       "max_function_stmts": 60
     },
     "src/baldric/runtime/session/manager.py": {
@@ -981,7 +981,7 @@
       "max_function_stmts": 22
     },
     "src/baldric/runtime/session/session.py": {
-      "lines": 2060,
+      "lines": 2070,
       "max_function_stmts": 55
     },
     "src/baldric/runtime/session/stats.py": {

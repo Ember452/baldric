@@ -12,7 +12,7 @@ from typing import IO, Literal, cast
 import anyio
 
 from baldric.protocol.messages import AssistantMessage, UserMessage
-from baldric.runtime.events import CodingSessionEvent
+from baldric.runtime.events import CodingSessionEvent, CompactionEndEvent, CompactionStartEvent
 from baldric.runtime.frontends.rpc.session import RpcSession
 from baldric.runtime.frontends.rpc.wire import (
     _entry_wire,
@@ -67,6 +67,10 @@ class RpcServer:
         self._stdout = stdout or sys.stdout
         self._write_lock = anyio.Lock()
         self._active_prompt_tasks = 0
+        # Compaction is event-derived state (there is no session property): the
+        # prompt stream carries CompactionStart/End events, and the TUI derives
+        # the same boolean from them. get_state used to hardcode false.
+        self._compacting = False
 
     async def run(self) -> None:
         """Serve commands until stdin reaches EOF."""
@@ -143,7 +147,12 @@ class RpcServer:
                         "model": _model_wire(self._session),
                         "thinkingLevel": self._session.thinking_level,
                         "isStreaming": self._active_prompt_tasks > 0,
-                        "isCompacting": False,
+                        "isCompacting": self._compacting,
+                        # The harness queue mode is fixed at "one_at_a_time" for
+                        # every process (nothing sets "all"), so these are true
+                        # today; exposing a live value needs a queue_mode member
+                        # on the session, tracked in the RPC interchangeability
+                        # plan rather than faked here.
                         "steeringMode": "one-at-a-time",
                         "followUpMode": "one-at-a-time",
                         "sessionFile": _session_file(self._session),
@@ -256,8 +265,8 @@ class RpcServer:
                     {
                         "output": bash_result.output,
                         "exitCode": bash_result.exit_code,
-                        "cancelled": False,
-                        "truncated": False,
+                        "cancelled": bash_result.cancelled,
+                        "truncated": bash_result.truncated,
                     },
                 )
                 return
@@ -399,14 +408,23 @@ class RpcServer:
         except Exception as exc:
             await self._error(request_id, command_type, str(exc))
 
+    def _track_compaction(self, event: CodingSessionEvent) -> None:
+        """Maintain the isCompacting flag from the events get_state cannot see."""
+        if isinstance(event, CompactionStartEvent):
+            self._compacting = True
+        elif isinstance(event, CompactionEndEvent):
+            self._compacting = False
+
     async def _run_prompt(
         self,
         stream: AsyncIterator[CodingSessionEvent],
         first_event: CodingSessionEvent,
     ) -> None:
         try:
+            self._track_compaction(first_event)
             await self._write(first_event)
             async for event in stream:
+                self._track_compaction(event)
                 await self._write(event)
         except Exception as exc:
             # This coroutine runs inside the server's task group: anything that

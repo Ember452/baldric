@@ -26,7 +26,12 @@ from baldric.runtime.providers.config import (
 )
 from baldric.runtime.session import JsonlSessionStorage
 from baldric.runtime.session.manager import SessionManager
-from baldric.runtime.session.session import CodingSession, CodingSessionConfig, ModelChoice
+from baldric.runtime.session.session import (
+    CodingSession,
+    CodingSessionConfig,
+    ModelChoice,
+    TerminalCommandResult,
+)
 from tests.helpers.pi_event_helpers import assistant_done, assistant_start, text_delta
 
 
@@ -565,6 +570,69 @@ async def test_rpc_splits_only_on_lf_and_accepts_crlf(tmp_path: Path) -> None:
     record = json.loads(stdout.getvalue())
     assert record["success"] is True
     assert record["id"] == "a\u2028b"
+
+
+@pytest.mark.anyio
+async def test_get_state_reports_compaction_from_the_event_stream(tmp_path: Path) -> None:
+    """get_state used to hardcode isCompacting=false.
+
+    There is no session property for it: compaction is event-derived, the same
+    way the TUI derives it, so the server tracks CompactionStart/End as prompt
+    events flow through.
+    """
+    from baldric.runtime.events import CompactionEndEvent, CompactionStartEvent
+
+    session = await _session(tmp_path, FakeProvider([]))
+    started = RpcServer(
+        session,
+        stdin=StringIO('{"id":"state","type":"get_state"}\n'),
+        stdout=StringIO(),
+    )
+    started._track_compaction(CompactionStartEvent(reason="threshold"))
+    await started.run()
+    started_record = json.loads(started._stdout.getvalue())
+
+    ended = RpcServer(
+        session,
+        stdin=StringIO('{"id":"state","type":"get_state"}\n'),
+        stdout=StringIO(),
+    )
+    ended._track_compaction(CompactionStartEvent(reason="threshold"))
+    ended._track_compaction(CompactionEndEvent(reason="threshold"))
+    await ended.run()
+    ended_record = json.loads(ended._stdout.getvalue())
+
+    assert started_record["data"]["isCompacting"] is True
+    assert ended_record["data"]["isCompacting"] is False
+
+
+@pytest.mark.anyio
+async def test_rpc_bash_reports_real_truncation_and_cancellation(tmp_path: Path) -> None:
+    """The wire used to hardcode truncated/cancelled false regardless of outcome."""
+    session = await _session(tmp_path, FakeProvider([]))
+
+    async def fake_run_terminal_command(command: str, *, add_to_context: bool) -> object:
+        del command, add_to_context
+        return TerminalCommandResult(
+            command="seq 5000",
+            output="line 1\n[Showing lines 1-1 of 5000. Full output: full.txt]",
+            exit_code=0,
+            ok=True,
+            added_to_context=False,
+            truncated=True,
+            cancelled=False,
+            full_output_path="full.txt",
+        )
+
+    session.run_terminal_command = fake_run_terminal_command  # type: ignore[method-assign]
+    stdin = StringIO('{"id":"bash","type":"bash","command":"seq 5000"}\n')
+    stdout = StringIO()
+
+    await RpcServer(session, stdin=stdin, stdout=stdout).run()
+
+    record = json.loads(stdout.getvalue())
+    assert record["data"]["truncated"] is True
+    assert record["data"]["cancelled"] is False
 
 
 @pytest.mark.anyio

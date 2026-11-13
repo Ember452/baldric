@@ -1349,6 +1349,61 @@ async def test_terminal_command_can_persist_output_to_context(tmp_path: Path) ->
 
 
 @pytest.mark.anyio
+async def test_terminal_command_propagates_bash_truncation_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The bash tool's truncation/cancel metadata must reach the result.
+
+    The tool already shortens the text and appends a "Showing lines X-Y of N"
+    note, so dropping the metadata here made the RPC wire report
+    ``truncated=false`` for output that visibly was truncated.
+    """
+    import baldric.runtime.session.lifecycle as lifecycle_module
+
+    storage = JsonlSessionStorage(tmp_path / "session.jsonl")
+    session = await CodingSession.load(_config(tmp_path, FakeProvider([]), storage))
+
+    async def fake_execute(
+        tool_call_id: str,
+        arguments: object,
+        signal: object = None,
+        on_update: object = None,
+    ) -> AgentToolResult:
+        del tool_call_id, arguments, signal, on_update
+        return AgentToolResult(
+            content=[TextContent(text="line 1\n[Showing lines 1-1 of 5000. Full output: full.txt]")],
+            details={
+                "exit_code": 0,
+                "cancelled": False,
+                "truncation": {"truncated": True, "truncated_by": "lines"},
+                "full_output_path": str(tmp_path / "full.txt"),
+            },
+        )
+
+    class _FakeBashTool:
+        async def execute(self, *_args: object, **_kwargs: object) -> AgentToolResult:
+            return await fake_execute("call", {})
+
+    monkeypatch.setattr(lifecycle_module, "create_bash_tool", lambda **_kwargs: _FakeBashTool())
+
+    result = await session.run_terminal_command("seq 5000", add_to_context=True)
+
+    assert result.truncated is True
+    assert result.cancelled is False
+    assert result.full_output_path == str(tmp_path / "full.txt")
+    entries = await storage.read_all()
+    persisted = [
+        entry.message
+        for entry in entries
+        if isinstance(entry, MessageEntry) and isinstance(entry.message, BashExecutionMessage)
+    ]
+    assert persisted, "the terminal command was not persisted to context"
+    assert persisted[0].truncated is True
+    assert persisted[0].full_output_path == str(tmp_path / "full.txt")
+
+
+@pytest.mark.anyio
 async def test_terminal_command_can_run_without_context(tmp_path: Path) -> None:
     storage = JsonlSessionStorage(tmp_path / "session.jsonl")
     session = await CodingSession.load(_config(tmp_path, FakeProvider([]), storage))
