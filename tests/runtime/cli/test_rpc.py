@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 from typer.testing import CliRunner
 
-from baldric.agent import AssistantMessage, Usage, UserMessage
+from baldric.agent import AssistantMessage, MessageEndEvent, Usage, UserMessage
 from baldric.ai import FakeProvider
 from baldric.protocol.session import (
     CompactionEntry,
@@ -565,3 +565,42 @@ async def test_rpc_splits_only_on_lf_and_accepts_crlf(tmp_path: Path) -> None:
     record = json.loads(stdout.getvalue())
     assert record["success"] is True
     assert record["id"] == "a\u2028b"
+
+
+@pytest.mark.anyio
+async def test_prompt_stream_failure_ends_that_prompt_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One failing write must not cancel the server's task group.
+
+    ``_run_prompt`` is started with ``tasks.start_soon`` inside
+    ``anyio.create_task_group()``: an exception escaping the coroutine cancels
+    the group, tears down the read loop and skips ``session.aclose()``. The
+    handler used to catch only ``RuntimeError``/``ValueError``, so an ``OSError``
+    from a full disk (or a code-page failure) killed the whole RPC mode.
+    """
+    session = await _session(tmp_path, FakeProvider([]))
+
+    async def failing_stream(
+        message: str,
+        *,
+        streaming_behavior: object = None,
+    ) -> AsyncIterator[object]:
+        del message, streaming_behavior
+        yield MessageEndEvent(message=AssistantMessage(content="partial", model="fake"))
+        raise OSError("disk full")
+
+    monkeypatch.setattr(session, "prompt", failing_stream)
+    stdin = StringIO('{"id":"bad","type":"prompt","message":"hi"}\n{"id":"next","type":"get_state"}\n')
+    stdout = StringIO()
+
+    await RpcServer(session, stdin=stdin, stdout=stdout).run()
+
+    records = [json.loads(line) for line in stdout.getvalue().splitlines() if line]
+    errors = [record for record in records if record["type"] == "rpc_error"]
+    assert errors, f"the failed prompt left no rpc_error record: {records}"
+    assert "disk full" in errors[0]["error"]
+    assert any(record.get("id") == "next" and record["type"] == "response" for record in records), (
+        "the server stopped serving after one prompt failed"
+    )

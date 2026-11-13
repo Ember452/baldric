@@ -408,8 +408,16 @@ class RpcServer:
             await self._write(first_event)
             async for event in stream:
                 await self._write(event)
-        except (RuntimeError, ValueError) as exc:
-            await self._write({"type": "rpc_error", "error": str(exc)})
+        except Exception as exc:
+            # This coroutine runs inside the server's task group: anything that
+            # escapes here cancels the group, tears down the read loop, and skips
+            # the session close, so one bad write (a full disk, a code page that
+            # cannot encode a character) used to kill the whole RPC server. A
+            # stream or encoding failure now ends this prompt only, as an
+            # rpc_error record; a peer that is already gone has nobody left to
+            # tell, so a failing report is the one thing we must not re-raise.
+            with contextlib.suppress(Exception):
+                await self._write({"type": "rpc_error", "error": str(exc)})
         finally:
             self._active_prompt_tasks -= 1
 

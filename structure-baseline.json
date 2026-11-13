@@ -497,11 +497,11 @@
       "max_function_stmts": 0
     },
     "src/baldric/runtime/frontends/rpc/mode.py": {
-      "lines": 141,
-      "max_function_stmts": 15
+      "lines": 158,
+      "max_function_stmts": 14
     },
     "src/baldric/runtime/frontends/rpc/server.py": {
-      "lines": 455,
+      "lines": 465,
       "max_function_stmts": 6
     },
     "src/baldric/runtime/frontends/rpc/session.py": {

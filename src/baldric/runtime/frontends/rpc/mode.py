@@ -23,6 +23,7 @@ from baldric.runtime.providers.config import (
 )
 from baldric.runtime.providers.runtime import create_model_provider
 from baldric.runtime.session.manager import SessionManager
+from baldric.runtime.session.prepare import prepare_coding_session
 from baldric.runtime.session.session import (
     CodingSession,
     CodingSessionConfig,
@@ -103,39 +104,55 @@ async def run_openai_rpc_mode(
             cli_override=thinking_level_override,
         ),
     )
-    session = await CodingSession.load(
-        CodingSessionConfig(
-            provider=provider,
-            model=selected_model or selection.model,
-            requested_provider=selected_provider if explicit_selection else None,
-            requested_model=selected_model if explicit_selection else None,
-            session_provider_name=record.provider_name,
-            thinking_level_override=thinking_level_override,
-            cwd=record.cwd,
-            storage=jsonl_session_storage(record.path),
-            session_id=record.id,
-            session_manager=manager,
-            provider_name=selection.provider.name,
-            inference_provider=inference_provider,
-            inference_provider_mode=inference_provider_mode,
-            provider_settings=settings,
-            runtime_provider_config=selection.provider,
-            shell_command_prefix=shell_settings.shell_command_prefix,
-            shell=shell_settings.shell,
-            extension_paths=extension_paths,
-            extensions_enabled=extensions_enabled,
-            project_extensions_enabled=project_extensions_enabled,
-            custom_system_prompt=custom_system_prompt,
-            append_system_prompt=append_system_prompt,
-            trust_override=trust_override,
-            trust_default=shell_settings.default_project_trust,
-        )
-    )
-    session.extension_runtime.set_ui_bridge(StderrUiBridge())
+    # The session must own this provider: CodingSession only closes what is on
+    # its ownership ledger, so without the flag a load failure closed nothing and
+    # leaked a live httpx client. Print and TUI already prepare+adopt; RPC was the
+    # last entry that loaded directly, which also meant it wrote the session
+    # header before validation instead of committing the staged batch on adopt.
+    session: CodingSession | None = None
     try:
+        prepared = await prepare_coding_session(
+            CodingSessionConfig(
+                provider=provider,
+                owns_initial_provider=True,
+                model=selected_model or selection.model,
+                requested_provider=selected_provider if explicit_selection else None,
+                requested_model=selected_model if explicit_selection else None,
+                session_provider_name=record.provider_name,
+                thinking_level_override=thinking_level_override,
+                cwd=record.cwd,
+                storage=jsonl_session_storage(record.path),
+                session_id=record.id,
+                session_manager=manager,
+                provider_name=selection.provider.name,
+                inference_provider=inference_provider,
+                inference_provider_mode=inference_provider_mode,
+                provider_settings=settings,
+                runtime_provider_config=selection.provider,
+                shell_command_prefix=shell_settings.shell_command_prefix,
+                shell=shell_settings.shell,
+                extension_paths=extension_paths,
+                extensions_enabled=extensions_enabled,
+                project_extensions_enabled=project_extensions_enabled,
+                custom_system_prompt=custom_system_prompt,
+                append_system_prompt=append_system_prompt,
+                trust_override=trust_override,
+                trust_default=shell_settings.default_project_trust,
+            )
+        )
+        session = await prepared.adopt()
+        session.extension_runtime.set_ui_bridge(StderrUiBridge())
         await RpcServer(session).run()
     finally:
-        await provider.aclose()
+        if session is not None:
+            # Idempotent: RpcServer.run() closes on its normal path, and this
+            # covers the exception path where it cannot.
+            await session.aclose()
+        else:
+            # Nothing took ownership (the candidate never loaded), so this mode
+            # still owns the provider. Closing an already-closed provider is a
+            # no-op: the session's abort path closes what it managed to own.
+            await provider.aclose()
 
 
 __all__ = ["run_openai_rpc_mode"]
