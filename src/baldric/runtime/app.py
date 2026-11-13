@@ -33,9 +33,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import baldric.runtime.platform.builtin_registry as built_in_extension_registry
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.resources import BaldricResourcePaths, resource_paths_with_cwd
-from baldric.runtime.platform.builtin_registry import BUILT_IN_EXTENSIONS, BuiltInExtension
+from baldric.runtime.platform.builtin_registry import BuiltInExtension
 from baldric.runtime.platform.runtime import ExtensionRuntime
 from baldric.runtime.providers.auth.credentials import (
     CredentialStore,
@@ -72,13 +73,15 @@ def eligible_built_in_extensions(
 
     ``None`` keeps the runtime's default registry, so sessions that disable
     nothing behave exactly as before; an explicit tuple makes the exclusion
-    real — a disabled built-in never runs its setup.
+    real — a disabled built-in never runs its setup. The registry is read through
+    its module (not a copied name) so this filter always sees the same registry
+    the runtime loader reads.
     """
     if not config.disabled_built_in_extensions:
         return None
     return tuple(
         built_in
-        for built_in in BUILT_IN_EXTENSIONS
+        for built_in in built_in_extension_registry.BUILT_IN_EXTENSIONS
         if built_in.name not in config.disabled_built_in_extensions
     )
 
@@ -153,6 +156,7 @@ def stage_runtime_for_reload(
     environment: Mapping[str, str] | None,
     built_in_credentials: CredentialStore,
     built_in_http_client: httpx.AsyncClient | None,
+    built_in_extensions: tuple[BuiltInExtension, ...] | None,
     runtime_paths: BaldricPaths,
     unfiltered_resource_paths: BaldricResourcePaths,
     extra_paths: tuple[Path, ...],
@@ -162,7 +166,9 @@ def stage_runtime_for_reload(
 
     Mirrors the inline staging in the session lifecycle: carry the live session's
     credentials, environment, built-in context, and paths into a fresh runtime,
-    then load eligible extensions (project extensions excluded).
+    then load eligible extensions (project extensions excluded). ``built_in_extensions``
+    carries the session's disabled-built-in filter; passing ``None`` would load
+    the full registry and silently re-enable a capability the session disabled.
     """
     staged_runtime = ExtensionRuntime(
         durable_providers=durable_providers,
@@ -170,6 +176,7 @@ def stage_runtime_for_reload(
         environment=environment,
         built_in_credentials=built_in_credentials,
         built_in_http_client=built_in_http_client,
+        built_in_extensions=built_in_extensions,
         paths=runtime_paths,
     )
     staged_runtime.load(

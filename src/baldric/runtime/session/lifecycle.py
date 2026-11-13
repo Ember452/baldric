@@ -13,7 +13,7 @@ from baldric.ai.model_catalog import ModelCatalogProvider, RuntimeModelCatalog
 from baldric.protocol.messages import (
     BashExecutionMessage,
 )
-from baldric.runtime.app import stage_runtime_for_reload
+from baldric.runtime.app import eligible_built_in_extensions, stage_runtime_for_reload
 from baldric.runtime.commands.base import unhandled_result
 from baldric.runtime.commands.registry import CommandResult
 from baldric.runtime.config.paths import BaldricPaths
@@ -317,6 +317,7 @@ async def reload(session: CodingSession) -> CodingReloadSummary:
         environment=session._extension_runtime.provider_environment,
         built_in_credentials=session._extension_runtime.built_in_credentials,
         built_in_http_client=session._extension_runtime.built_in_http_client,
+        built_in_extensions=eligible_built_in_extensions(session._config),
         runtime_paths=(
             session._resource_paths.paths
             or BaldricPaths(
@@ -744,6 +745,7 @@ async def resume(session: CodingSession, session_id: str) -> str:
             trust_prompt=session._config.trust_prompt,
             defer_authoritative_writes=dynamic_resume,
             owns_initial_provider=dynamic_resume,
+            disabled_built_in_extensions=session._config.disabled_built_in_extensions,
         )
     )
     try:

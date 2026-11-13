@@ -2259,6 +2259,66 @@ async def test_session_lifecycle_recreates_built_in_in_a_fresh_generation(
     await session.aclose()
 
 
+async def test_disabled_built_ins_stay_disabled_across_reload_and_resume(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``disabled_built_in_extensions`` must survive every runtime rebuild.
+
+    It is the documented host seam for per-session capability composition (a
+    subagent child passes ``{"mcp"}`` so the bundled MCP client never boots).
+    Only ``prepare_runtime_for_load`` honoured it: reload rebuilt through
+    ``stage_runtime_for_reload``, which had no filter parameter and therefore
+    loaded the full registry, and resume rebuilt ``CodingSessionConfig`` without
+    the field, so both silently re-enabled the capability.
+    """
+    from dataclasses import replace as dataclass_replace
+
+    import baldric.runtime.platform.builtin_registry as declarations
+    from baldric.runtime.config.paths import BaldricPaths
+    from baldric.runtime.session.manager import SessionManager
+
+    loaded: list[str] = []
+
+    def _recording(name: str) -> BuiltInExtension:
+        def setup(baldric: ExtensionAPI) -> None:
+            del baldric
+            loaded.append(name)
+
+        return BuiltInExtension(name=name, setup=setup)
+
+    monkeypatch.setattr(
+        declarations,
+        "BUILT_IN_EXTENSIONS",
+        (_recording("kept"), _recording("disabled")),
+    )
+    manager = SessionManager(
+        BaldricPaths(home=tmp_path / "home-baldric", agents_home=tmp_path / "home-agents")
+    )
+    base = _session_config(tmp_path, FakeProvider([]))
+    destination = manager.create_session(cwd=base.cwd, model="fake")
+    session = await CodingSession.load(
+        dataclass_replace(
+            base,
+            extensions_enabled=False,
+            session_manager=manager,
+            disabled_built_in_extensions=frozenset({"disabled"}),
+        )
+    )
+    try:
+        assert loaded == ["kept"]
+
+        loaded.clear()
+        await session.reload()
+        assert loaded == ["kept"], "reload re-enabled a built-in the session disabled"
+
+        loaded.clear()
+        await session.resume(destination.id)
+        assert loaded == ["kept"], "resume re-enabled a built-in the session disabled"
+    finally:
+        await session.aclose()
+
+
 async def test_session_exposes_extension_paths_at_moved_home(tmp_path: Path) -> None:
     await CodingSession.load(
         _session_config(tmp_path, FakeProvider([]), extension_body=API_CAPTURING_EXTENSION)
