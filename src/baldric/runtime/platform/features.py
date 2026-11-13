@@ -11,10 +11,13 @@ The string path is load-bearing for S1a: the platform layer loads a feature via
 ``importlib`` from this path and never imports a feature implementation
 statically, so ``core``/``platform``/``frontends`` cannot depend on a feature.
 
-A feature that ships UI (subagents) imports the TUI toolkit directly from its
-``ui`` subpackage — the documented exception to "features do not depend on
-frontends" (see ``runtime/features/__init__.py``); the *host wiring* still goes
-through the ``ComponentBridge`` protocol.
+A feature that ships UI (subagents) statically imports Baldric's own TUI
+frontend modules — ``frontends.tui.config`` / ``.state`` / ``.widgets`` — from
+its ``ui`` subpackage. This is the one documented exception to "features do not
+depend on frontends", machine-checked as a narrow AllowRule in
+``scripts/check_import_graph.py`` (any other features->frontends import is a
+violation); the *host wiring* still goes through the ``ComponentBridge``
+protocol.
 """
 
 from __future__ import annotations

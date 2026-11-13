@@ -1,12 +1,13 @@
 """Composition root: build the platform runtime a session needs.
 
 This module is the single place in the core that *constructs* the concrete
-``ExtensionRuntime``. Session code (``runtime.session``) and the reload/lifecycle
-path ask these factories for a runtime instead of importing and constructing the
-platform class themselves, so ``core`` no longer depends on ``platform`` at
-runtime (structural rearchitecture stage F). The concrete ``ExtensionRuntime`` is
-still the object they drive; this only moves *where it is built* to the
-composition root.
+``ExtensionRuntime``: ``CodingSession.load``, the reload/rebind lifecycle, and
+the bare-session fallback all ask these factories instead of constructing the
+platform class themselves. Stage F moved *where the runtime is built* to the
+composition root; it did not remove every runtime import from session — the
+session still statically imports platform contracts for the event and provider
+types it consumes (``UserBashEvent``, ``DynamicProvider``, ...). See the
+structural plan §0.2 for the precise scope of the inversion.
 
 Two entry points, matching the two construction contexts that existed inline
 before:

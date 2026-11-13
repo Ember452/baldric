@@ -3779,3 +3779,25 @@ def test_extension_info_is_cleared_on_runtime_retire(tmp_path: Path) -> None:
     runtime.retire()
 
     assert runtime.extension_info == ()
+
+
+def test_staged_runtimes_do_not_share_feature_state() -> None:
+    """S9: two staged runtimes keep isolated feature state.
+
+    Each generation owns its registries and registrations; anything registered
+    on one concurrently-staged runtime must be invisible to the other. This is
+    the acceptance the structural plan §7 S9 row promises (the multi-session
+    isolation guarantee that keeps a feature's state from leaking across
+    sessions).
+    """
+    first = ExtensionRuntime(built_in_extensions=())
+    second = ExtensionRuntime(built_in_extensions=())
+
+    assert first is not second
+    assert first.provider_registry is not second.provider_registry
+    assert first.local_backend_registry is not second.local_backend_registry
+    assert first.provider_registry.generation_id != second.provider_registry.generation_id
+
+    first.register_prompt_guideline("test-source", "test-ext", "only in first")
+    assert first.prompt_guidelines == ("only in first",)
+    assert second.prompt_guidelines == ()

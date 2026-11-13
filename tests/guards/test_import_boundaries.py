@@ -35,6 +35,7 @@ def test_rules_declare_the_layer_direction() -> None:
     assert ("baldric.agent", "textual") in pairs
     assert ("baldric.ai", "baldric.runtime") in pairs
     assert ("baldric.runtime.rendering", "baldric.runtime.frontends.tui") in pairs
+    assert ("baldric.runtime.config", "baldric.runtime.trust") in pairs
 
 
 def test_protocol_is_the_bottom_layer() -> None:
@@ -433,15 +434,63 @@ def test_allow_rule_permits_intra_feature_imports(tmp_path: Path) -> None:
 
 
 def test_repository_has_no_allow_violations() -> None:
-    """On the real tree (features/ does not exist yet) the whitelist is quiet."""
+    """On the real tree the whitelist is quiet: the one live features->frontends
+    edge (subagents/ui -> frontends.tui.{config,state,widgets}) is exactly the
+    declared exception."""
     assert scan_allow_violations(REPO_ROOT) == []
+
+
+def _features_frontends_rules() -> tuple[AllowRule, ...]:
+    """The production pair: the subagents.ui exception inside the blanket ban."""
+    return (
+        AllowRule(
+            source="baldric.runtime.features.subagents.ui",
+            target="baldric.runtime.frontends.tui",
+            allow=("config", "state", "widgets"),
+        ),
+        AllowRule(source="baldric.runtime.features", target="baldric.runtime.frontends", allow=()),
+    )
+
+
+def test_allow_rule_permits_the_declared_subagents_ui_exception(tmp_path: Path) -> None:
+    """The subagents UI may import exactly its three declared TUI modules."""
+    package = tmp_path / "src" / "baldric" / "runtime" / "features" / "subagents" / "ui"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (package / "viewer.py").write_text(
+        "from baldric.runtime.frontends.tui.config import TuiKeybindings\n"
+        "from baldric.runtime.frontends.tui.state import TuiState\n"
+        "from baldric.runtime.frontends.tui.widgets import TranscriptView\n",
+        encoding="utf-8",
+    )
+    assert scan_allow_violations(tmp_path, _features_frontends_rules()) == []
+
+
+def test_allow_rule_bans_feature_frontends_imports_outside_the_exception(tmp_path: Path) -> None:
+    """Other frontends surfaces — and other TUI modules — stay banned for features."""
+    ui = tmp_path / "src" / "baldric" / "runtime" / "features" / "subagents" / "ui"
+    ui.mkdir(parents=True)
+    (ui / "__init__.py").write_text("", encoding="utf-8")
+    (ui / "viewer.py").write_text(
+        "from baldric.runtime.frontends.tui.app import BaldricTuiApp\n", encoding="utf-8"
+    )
+    other = tmp_path / "src" / "baldric" / "runtime" / "features" / "other"
+    other.mkdir(parents=True)
+    (other / "__init__.py").write_text("", encoding="utf-8")
+    (other / "svc.py").write_text("from baldric.runtime.frontends.rpc import RpcServer\n", encoding="utf-8")
+    violations = scan_allow_violations(tmp_path, _features_frontends_rules())
+    reported = {(v.module, v.imported) for v in violations}
+    assert reported == {
+        ("baldric.runtime.features.subagents.ui.viewer", "baldric.runtime.frontends.tui.app"),
+        ("baldric.runtime.features.other.svc", "baldric.runtime.frontends.rpc"),
+    }
 
 
 # --- S1a: core/platform/frontends must not statically import a feature --------
 
 
 def test_repository_has_no_feature_isolation_violations() -> None:
-    """The real tree: no core/platform/frontends module statically imports features."""
+    """The real tree: no runtime module outside ``features`` statically imports a feature."""
     violations = scan_feature_isolation_violations(REPO_ROOT)
     assert violations == [], "\n".join(f"{v.module}:{v.lineno} imports {v.imported}" for v in violations)
 
@@ -458,6 +507,29 @@ def test_feature_isolation_scanner_detects_a_platform_import(tmp_path: Path) -> 
     assert violations == [
         ImportViolation(
             module="baldric.runtime.platform.loader",
+            lineno=1,
+            imported="baldric.runtime.features.subagents.extension",
+        )
+    ]
+
+
+def test_feature_isolation_scanner_detects_a_session_import(tmp_path: Path) -> None:
+    """The historical blind spot: session lives directly under ``runtime``.
+
+    The original allowlist of three prefixes (core/platform/frontends) missed it
+    because the core merge never happened; the rule is now inverse — every
+    runtime module outside ``features`` — so this case must be reported.
+    """
+    package = tmp_path / "src" / "baldric" / "runtime" / "session"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (package / "leaky.py").write_text(
+        "import baldric.runtime.features.subagents.extension\n", encoding="utf-8"
+    )
+    violations = scan_feature_isolation_violations(tmp_path)
+    assert violations == [
+        ImportViolation(
+            module="baldric.runtime.session.leaky",
             lineno=1,
             imported="baldric.runtime.features.subagents.extension",
         )

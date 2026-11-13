@@ -133,7 +133,7 @@
       "max_function_stmts": 4
     },
     "src/baldric/api/__init__.py": {
-      "lines": 161,
+      "lines": 154,
       "max_function_stmts": 0
     },
     "src/baldric/mcp/__init__.py": {
@@ -173,7 +173,7 @@
       "max_function_stmts": 8
     },
     "src/baldric/protocol/ports.py": {
-      "lines": 115,
+      "lines": 68,
       "max_function_stmts": 2
     },
     "src/baldric/protocol/provider.py": {
@@ -209,7 +209,7 @@
       "max_function_stmts": 0
     },
     "src/baldric/runtime/app.py": {
-      "lines": 189,
+      "lines": 190,
       "max_function_stmts": 8
     },
     "src/baldric/runtime/cli.py": {
@@ -257,7 +257,7 @@
       "max_function_stmts": 9
     },
     "src/baldric/runtime/config/shell_config.py": {
-      "lines": 85,
+      "lines": 91,
       "max_function_stmts": 11
     },
     "src/baldric/runtime/context/__init__.py": {
@@ -665,7 +665,7 @@
       "max_function_stmts": 7
     },
     "src/baldric/runtime/platform/features.py": {
-      "lines": 58,
+      "lines": 61,
       "max_function_stmts": 0
     },
     "src/baldric/runtime/platform/installer.py": {
@@ -1009,7 +1009,7 @@
       "max_function_stmts": 11
     },
     "src/baldric/runtime/trust/policy.py": {
-      "lines": 686,
+      "lines": 688,
       "max_function_stmts": 24
     },
     "src/baldric/runtime/update/__init__.py": {

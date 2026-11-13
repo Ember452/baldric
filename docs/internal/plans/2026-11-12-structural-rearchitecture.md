@@ -1,10 +1,11 @@
 # baldric 结构重构计划 v2：先砌墙，再搬家
 
-> 状态：**执行中 —— 阶段 A0、A、B、C、D、E、F、G 已完成**（2026-11-12/13）。执行记录：
+> 状态：**执行中 —— 阶段 A0、A、B、C、D、E、F、G 已完成；外审修正已落地**（2026-11-12/13）。执行记录：
 > [A0](../notes/2026-11-12-stage-a0-wall.md)、[A](../notes/2026-11-12-stage-a-rules-and-dedup.md)、
 > [B](../notes/2026-11-12-stage-b-subagents.md)、[C](../notes/2026-11-12-stage-c-mcp-llamacpp.md)、
 > [D](../notes/2026-11-12-stage-d-providers-merge.md)、[E](../notes/2026-11-12-stage-e-platform.md)、
-> [F](../notes/2026-11-12-stage-f-app-composition.md)、[G](../notes/2026-11-13-stage-g-frontends.md)。
+> [F](../notes/2026-11-12-stage-f-app-composition.md)、[G](../notes/2026-11-13-stage-g-frontends.md)、
+> [外审修正](../notes/2026-11-13-post-review-fixes.md)。
 > 后续阶段 H 待推进（独立分支），原子完成并停下评审。
 > v1 依据：2026-11-11 全量深扫 + 2026-11-12 逐目录实测裁定
 > v2 修订：吸收独立评审的 6 个 P0 + 11 个 P1，并补入本会话新发现的 2 项（`protocol/session/jsonl.py` 是行为、`ai/` 与 `providers/` 是两层配置）
@@ -24,6 +25,37 @@ A0 动手前逐字段重扫代码，发现计划正文有三处与代码现实�
   `ProviderCatalog`（返回不存在的 `ProviderRecord`）/`SessionLifecycle` 推迟到 D/E
   真实类型出现后再定型。
 
+## 0.2 外审修正（2026-11-13，A0–G 收尾后）
+
+维护者对分支 `f2d564a..HEAD` 做了逐文件外审（12 提交、241 文件），判定
+「搬家干净、记账不干净」。以下修正全部为守卫/文档/计划对账级，**不动生产行为**：
+
+- **验收表对账（原 S8/S9 虚标 ✅）**：三个 feature 的 `setup` 全部 `-> None`，
+  全仓无 disposer 调用点、无双会话隔离测试。修正：S8 改述为现实（teardown 由
+  `session_shutdown` 事件 + `retire()` 承担）；S9 补真实测试
+  （`test_staged_runtimes_do_not_share_feature_state`）。
+- **`FeatureSetup`/`HookDispatcher` 删除**：两者自 A0 建立起**零消费**
+  （F 改走组合根使 HookDispatcher 失配、teardown 实际走 session_shutdown 事件），
+  按「不为零消费建抽象」删除；`ports.py` 仅保留有真实消费方的
+  `ProviderCatalog`/`EffectiveProviderView`（backends 反转在用）。ADR-0007 已加修订注。
+- **守卫对齐真实树（原 S1a 指向未建成的骨架）**：`S1A_FORBIDDEN_IMPORTERS`
+  三前缀允许列表漏掉仍直挂在 `runtime` 下的 session/tools/commands/context/
+  rendering（合成实验证实盲区）。改为**反向规则**：`runtime.*` 下除 `features`
+  外全部禁止静态 import features——新增子包自动被覆盖，不再依赖有人回填列表。
+  `runtime/core/` 桩包保留（H 阶段 session 迁入的落点）。
+- **矩阵接线**：删除无人消费的 `LAYER_MATRIX` 死数据；落地两条真实边——
+  `config ✗→ trust`（`TrustDefault` 移至 `config/shell_config.py` 定义、trust 层
+  re-export，修掉 `shell_config.py` 的矩阵外 import）与
+  `features ✗→ frontends`（AllowRule 禁令 + `subagents.ui → frontends.tui.
+  {config,state,widgets}` 窄例外；allow-rule 匹配改为**最具体优先**，
+  scanner 语义升级）。原「subagents 导入 TUI toolkit」措辞修正为
+  「导入 baldric 自有 frontends.tui 三模块」。
+- **四处冻结文档修正**：`app.py` docstring（改为准确陈述反转范围——session 仍有
+  6 处平台契约 import）、`ports.py` docstring（删"built in a later stage"）、
+  scanner 冻结注释（包已存在）、`features.py`「TUI toolkit」措辞。
+- **G 笔记口径统一**：cli.py 1539→1139（splitlines 口径；原 1031 为非空行口径，
+  两种口径混用造成 −508 的错觉，实际 −400）。§3 的 cli "<600" 目标标注现状。
+
 ## 0. v2 相对 v1 的根本变化
 
 v1 是"描述现状的计划"——它把"家具该放哪个房间"想清楚了，但**没定义"墙在哪里"**。执行到阶段 E 会立刻撞墙（实测 11 处 core→platform 硬依赖 + 2 处 rendering→extensions.api）。
@@ -38,19 +70,19 @@ v2 的原则：**先把墙砌好（protocol 契约 + port + scanner 白名单 + 
 
 > **规则**：计划里任何行数/符号数/文件数，一律由 `scripts/measure_structure.py` 生成再粘贴；验收时也用它，避免手写口径漂移。
 
-**基线快照（2026-11-13 实测，阶段 A0–G 完成后由 `scripts/measure_structure.py` 生成）**：
+**基线快照（2026-11-13 外审修正后实测，由 `scripts/measure_structure.py` 生成）**：
 
 | 项 | 数值 |
 |---|---|
-| `src/` | 257 文件 / **78,225** 行 |
-| `tests/` | 220 文件 / **77,931** 行 |
-| `runtime/` | 206 文件 / 66,595 行 |
+| `src/` | 257 文件 / **78,180** 行 |
+| `tests/` | 220 文件 / **78,049** 行 |
+| `runtime/` | 206 文件 / 66,607 行 |
 | `runtime/frontends/tui/` | 40 文件 / 19,056 行（G1 前为 `runtime/tui/`） |
 | `runtime/session/session.py` | **2,060** 行 / **183** 个方法（阶段 F 抽出 runtime 装配后） |
 | `runtime/__init__.py` | **317** 行 / **139** 个 `__all__`（待 §6.1 瘦身） |
 | `runtime/platform/__init__.py` | **249** 行 / **116** 符号（E 前为 `runtime/extensions/`） |
-| `scripts/check_import_graph.py` 规则数 | **28** 条（27 RULES + 1 AllowRule） |
-| fast suite（除 TUI） | 2284 passed（会变，验收看"不减少"而非绝对数） |
+| `scripts/check_import_graph.py` 规则数 | **31** 条（28 RULES + 3 AllowRule；§0.2 加 config✗→trust 与 features✗→frontends 对） |
+| fast suite（除 TUI） | 会变，验收看"不减少"而非绝对数 |
 
 > 口径纪律：任何行数/符号数以此脚本 `uv run python scripts/measure_structure.py` 输出为准，
 > 不手写。首次引入脚本时发现计划旧数字已漂移（session.py 实际 2,097 行而非 1,864），
@@ -98,7 +130,7 @@ baldric/
 │
 └── runtime/
     ├── app.py                # 【新】组合根：构造 ExtensionRuntime，注入 CodingSession
-    ├── cli.py                # 瘦身：参数解析 + 模式分派（< 600 行）
+    ├── cli.py                # 瘦身：参数解析 + 模式分派（< 600 行）【现值 1,139（G3 后，splitlines 口径）——目标未达成，F/G3 仅抽走了 runtime 装配与 print 编排，CLI 参数/子命令面仍在此文件；进一步瘦身待独立任务】
     ├── core/
     │   ├── session/          # 原 runtime/session（含 compaction/export + 移入的 jsonl.py）
     │   ├── tools/  commands/  context/
@@ -130,6 +162,7 @@ baldric/
 **定死方案**：
 - `CustomMessageMarkup`（插件渲染契约类型）**上移至 `protocol/extension.py`**（它是形状，属契约层）。
 - 上移后 `rendering/` 只依赖 `protocol`，**整体留 `core/rendering`**。
+  【现实：A–G 未执行 core/ 合并，rendering 仍在 `runtime/rendering`（同 §0.2 守卫对齐条）；S1a 已将 rendering 纳入禁止 import features 的范围】
 - `frontends/print/` 只消费 `core/rendering` 的 print 渲染器（`base/plain/json/transcript`），**不拥有任何渲染实现文件**。
 - **不拆 rendering 文件到 frontends/print。** rendering 是共享原语库，print 和 tui 都是它的消费者。
 
@@ -233,6 +266,7 @@ frontends → core.session 的公共 API  (RPC 现在直接 import session，见
 ```
 
 **lazy import 规则（实测：scanner 用 ast.walk，函数体 import 也会抓）**：`builtin_registry.py:80-114` 5 处函数内 `from ...builtins.xxx import setup`。阶段 E 加 `(platform, features)` 会全部违规。**规定**：只有 `platform/loader.py` 可用 `importlib` 动态加载 features；`platform/features.py` 与 `builtin_registry.py` 只存**字符串路径**（如 `"baldric.runtime.features.mcp_tools:setup"`），不得静态 import feature 模块。
+【现实修正（§0.2）：实际唯一动态加载点是 `platform/builtin_registry.py::_load_feature_setup`（功能等价）；S1a 现以反向规则覆盖全部 runtime 模块——除 `features` 外任何模块静态 import features 即违规】
 
 ### 4.3 横切设施的依赖矩阵（v1 漏写 5 个顶层设施）
 
@@ -398,7 +432,7 @@ A0（api facade + protocol 契约 + port + scanner 白名单 + 示例路径固�
 
 - ✅ **G1**：`tui → frontends/tui`（40 文件，单独提交 88a2305）；`runtime/frontends/__init__.py`；75 文件 / 420 处引用改写；scanner「core 不得 import TUI」规则改新路径。
 - ✅ **G2**：`modes/rpc → frontends/rpc`（提交 06285e6）；删除空 `runtime/modes/`。
-- ✅ **G3**：cli print 编排 → `frontends/print/mode.py`；print 与 rpc 共用的 session-record 解析抽到 `frontends/session_records.py`；`cli.py` 1539 → 1031 行；渲染实现仍留在 `rendering/`（只消费，不搬）。
+- ✅ **G3**：cli print 编排 → `frontends/print/mode.py`；print 与 rpc 共用的 session-record 解析抽到 `frontends/session_records.py`；`cli.py` 1539 → 1139 行；渲染实现仍留在 `rendering/`（只消费，不搬）。
 - 验收：fast suite 2284 passed；TUI 767 passed；cli 域 120 passed；guards 70；mypy 无新增；基线纯路径重命名 + 3 个新文件，supp 138 不变。
 
 > 原计划：G1 `tui/ → frontends/tui/`（40 文件 16.8k 行，单独提交，Linux CI 绿）；G2 `modes/rpc/ → frontends/rpc/`；G3 cli print 路径 → `frontends/print/`（import core/rendering，不搬渲染实现）。
@@ -458,8 +492,8 @@ A–G 只验收 **S1a**（core 不 import features 实现）；**S1（含 sessio
 | S5 | 新功能可定位 | **人工评审**（非机器） | ❌ 人工 |
 | S6 | 无回归禁止项 | 不改断言/不加 skip/不降级 | ✅ |
 | S7 | Feature 注册完备 | 每个 features/* 有 FEATURES 条目（校验测试 + `kind`） | ✅ |
-| S8 | feature 级 teardown | 每个 setup 返回 disposer 或被调用（校验测试） | ✅ |
-| S9 | 多会话隔离 | 同时起 2 会话，断言 feature 状态对象不同 | ✅ |
+| S8 | feature 级 teardown | 现实：统一 teardown 由 `session_shutdown` 生命周期事件 + `ExtensionRuntime.retire()` 承担（三 feature 现状即如此）；disposer 契约（原 `FeatureSetup` port）为零消费抽象，已删除（§0.2），待真实需要时按消费方重新设计 | ⏳ 以事件机制承担，无 disposer 契约 |
+| S9 | 多会话隔离 | 同时起 2 runtime，断言状态对象/注册互不泄漏 | ✅（`test_staged_runtimes_do_not_share_feature_state`） |
 | S10 | protocol 只放形状 | 无行为文件 + 每模块 ≤400 行（CI） | ✅ |
 
 ---

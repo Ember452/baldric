@@ -62,10 +62,6 @@ from baldric.protocol.extension import (
     UserBashResult,
 )
 
-# Cross-domain ports: protocol shapes whose implementations are injected at the
-# composition root.
-from baldric.protocol.ports import FeatureSetup, HookDispatcher
-
 # Behaviour handed to extensions: the setup() argument and its context/ui.
 from baldric.runtime.platform.api import (
     ComponentBridge,
@@ -155,7 +151,4 @@ __all__ = [
     "SlotWidgetFactory",
     "StderrUiBridge",
     "UiBridge",
-    # cross-domain ports
-    "FeatureSetup",
-    "HookDispatcher",
 ]
