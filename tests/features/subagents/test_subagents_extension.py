@@ -110,7 +110,7 @@ def _git_stdout(args: list[str], cwd: Path) -> str:
     return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=True).stdout
 
 
-def _steer_tool(runtime: ExtensionRuntime):  # noqa: ANN202
+def _steer_tool(runtime: ExtensionRuntime):
     return next(tool for tool in runtime.extension_tools if tool.name == "steer_subagent")
 
 
@@ -136,14 +136,14 @@ def _patch_recording_provider(
     thinking_levels: list[object] = []
     module.load_provider_settings = lambda: None  # type: ignore[attr-defined]
 
-    def fake_resolve(settings, provider_name=None, model=None):  # noqa: ANN001, ANN202
+    def fake_resolve(settings, provider_name=None, model=None):
         provider_names.append(provider_name)
         models.append(model)
         return SimpleNamespace(provider=SimpleNamespace(name="fake"), model="fake")
 
     provider_iter = iter(provider_instances)
 
-    def fake_create(provider, model, thinking_level):  # noqa: ANN001, ANN202
+    def fake_create(provider, model, thinking_level):
         thinking_levels.append(thinking_level)
         return next(provider_iter)
 
@@ -1222,7 +1222,7 @@ async def test_child_inherits_parent_shell_settings(tmp_path: Path) -> None:
     captured: list[object] = []
     real_load = module.CodingSession.load
 
-    async def recording_load(config):  # noqa: ANN001, ANN202 - test wrapper
+    async def recording_load(config):  # test wrapper
         captured.append(config)
         return await real_load(config)
 
@@ -1254,7 +1254,7 @@ async def test_a_child_on_another_model_sends_no_thinking_level(tmp_path: Path) 
     )
     resolutions: list[SimpleNamespace] = []
 
-    def resolve(settings, provider_name=None, model=None):  # noqa: ANN001, ANN202
+    def resolve(settings, provider_name=None, model=None):
         selection = SimpleNamespace(provider=SimpleNamespace(name="fake"), model="other-model")
         resolutions.append(selection)
         return selection
@@ -1279,7 +1279,7 @@ async def test_a_child_on_a_different_provider_sends_no_thinking_level(
     )
     resolutions: list[SimpleNamespace] = []
 
-    def resolve(settings, provider_name=None, model=None):  # noqa: ANN001, ANN202
+    def resolve(settings, provider_name=None, model=None):
         selection = SimpleNamespace(provider=SimpleNamespace(name="other-provider"), model="fake")
         resolutions.append(selection)
         names.append(provider_name)
@@ -1799,7 +1799,7 @@ async def test_notification_delivered_as_custom_message(tmp_path: Path) -> None:
     assert "<task-notification>" in session.followed_up[0]
 
 
-def _menu_run(module, **overrides):  # noqa: ANN001, ANN202
+def _menu_run(module, **overrides):
     defaults = {
         "agent_id": "agent-1",
         "agent_type": "general",
@@ -1888,7 +1888,7 @@ async def test_agents_menu_opens_conversation_via_component_seam(tmp_path: Path)
     opened: list[str] = []
 
     class FakeController:
-        def open_conversation(self, run) -> bool:  # noqa: ANN001
+        def open_conversation(self, run) -> bool:
             opened.append(run.agent_id)
             return True
 
@@ -2126,13 +2126,11 @@ class CapturingProvider:
         self._streams = iter(streams)
         self.calls: list[dict[str, object]] = []
 
-    def stream_response(  # noqa: ANN001, ANN202
-        self, *, model, system, messages, tools, signal=None, session_id=None
-    ):
+    def stream_response(self, *, model, system, messages, tools, signal=None, session_id=None):
         self.calls.append({"system": system, "messages": list(messages), "tools": list(tools or ())})
         events = next(self._streams)
 
-        async def iterator():  # noqa: ANN202
+        async def iterator():
             for event in events:
                 yield event
 
@@ -2159,14 +2157,14 @@ def _patch_fork_resolution(module: object, provider: object) -> list[tuple]:
     resolutions: list[tuple] = []
     module.load_provider_settings = lambda: None  # type: ignore[attr-defined]
 
-    def fake_resolve(settings, provider_name=None, model=None):  # noqa: ANN001, ANN202
+    def fake_resolve(settings, provider_name=None, model=None):
         resolutions.append([provider_name, model])
         return SimpleNamespace(
             provider=SimpleNamespace(name=provider_name or "fake"),
             model=model or "fake",
         )
 
-    def fake_create(provider_arg, model, thinking_level):  # noqa: ANN001, ANN202
+    def fake_create(provider_arg, model, thinking_level):
         resolutions[-1].append(thinking_level)
         return provider
 

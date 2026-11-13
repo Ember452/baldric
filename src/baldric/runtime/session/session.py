@@ -53,8 +53,8 @@ from baldric.runtime.observability.diagnostics import (
     AgentCallDiagnosticContext,
     AgentCallDiagnosticLogger,
 )
-from baldric.runtime.platform.providers import DynamicProvider, ProviderModel
 from baldric.runtime.providers.auth.credentials import FileCredentialStore, credentials_path
+from baldric.runtime.providers.contracts import DynamicProvider, ProviderModel
 
 if TYPE_CHECKING:
     from baldric.runtime.platform.runtime import ExtensionRuntime
@@ -140,7 +140,7 @@ from baldric.runtime.session.model_selection import (
 from baldric.runtime.session.model_selection import (
     ModelSelectionResult as ModelSelectionResult,
 )
-from baldric.runtime.session.provider_helpers import (  # noqa: F401
+from baldric.runtime.session.provider_helpers import (
     _coerced_thinking_level as _coerced_thinking_level,
 )
 from baldric.runtime.session.provider_helpers import (
@@ -200,7 +200,7 @@ from baldric.runtime.session.provider_helpers import (
 from baldric.runtime.session.provider_helpers import (
     _unavailable_thinking_message as _unavailable_thinking_message,
 )
-from baldric.runtime.session.resource_helpers import (  # noqa: F401
+from baldric.runtime.session.resource_helpers import (
     SessionResources as SessionResources,
 )
 from baldric.runtime.session.resource_helpers import (
@@ -274,7 +274,7 @@ from baldric.runtime.session.resource_helpers import (
 )
 from baldric.runtime.session.runtime import CompactionPlan, _GeneratedSummary, _PendingMessageWrite
 from baldric.runtime.session.stats import SessionStats, calculate_session_stats
-from baldric.runtime.session.tree_helpers import (  # noqa: F401
+from baldric.runtime.session.tree_helpers import (
     _active_branchable_entry_id as _active_branchable_entry_id,
 )
 from baldric.runtime.session.tree_helpers import (
@@ -416,13 +416,23 @@ async def _finish_aborted_session_close(session: CodingSession) -> None:
 
 @dataclass(frozen=True, slots=True)
 class TerminalCommandResult:
-    """Result of an input-bar terminal command."""
+    """Result of an input-bar terminal command.
+
+    Carries the bash tool's full outcome, not just text: a command that the
+    output limit truncated or that an extension reported as cancelled must reach
+    the frontend with that fact attached, because the transcript message already
+    records it and a peer that only sees ``exit_code``/``output`` cannot tell
+    truncated output from complete output.
+    """
 
     command: str
     output: str
     exit_code: int | None
     ok: bool
     added_to_context: bool
+    cancelled: bool = False
+    truncated: bool = False
+    full_output_path: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -410,7 +410,7 @@ class ExtensionComponentsMixin:
             try:
                 if interceptor(event, text):
                     return True
-            except Exception as exc:  # noqa: BLE001 - isolation boundary
+            except Exception as exc:  # isolation boundary
                 # Notify like the other failure classes so a broken interceptor
                 # is not silently invisible, and dedup per-interceptor so a
                 # second faulty handler still gets diagnosed.
@@ -482,7 +482,7 @@ class ExtensionComponentsMixin:
         if factory is not None:
             try:
                 new_widget = factory(self.tui_settings.resolved_theme)
-            except Exception as exc:  # noqa: BLE001 - isolation boundary
+            except Exception as exc:  # isolation boundary
                 self._record_extension_component_failure(f"slot:{key}", exc, notify=True)
                 return
         slot_id = "above-prompt-slot" if placement == "above_prompt" else "below-prompt-slot"
@@ -517,7 +517,7 @@ class ExtensionComponentsMixin:
             slot_id = self._extension_slot_slot_ids.get(key, "below-prompt-slot")
             try:
                 self.query_one(f"#{slot_id}", Container).mount(target)
-            except Exception as exc:  # noqa: BLE001 - isolation boundary
+            except Exception as exc:  # isolation boundary
                 if self._extension_slot_widgets.get(key) is target:
                     self._extension_slot_widgets.pop(key, None)
                     self._extension_slot_slot_ids.pop(key, None)
@@ -549,7 +549,7 @@ class ExtensionComponentsMixin:
                 Container(body, classes="extension-sidebar-body"),
                 classes="extension-sidebar-section",
             )
-        except Exception as exc:  # noqa: BLE001 - isolation boundary
+        except Exception as exc:  # isolation boundary
             extension_name, key = owner
             self._record_extension_component_failure(
                 f"sidebar:{extension_name}:{key}",
@@ -598,7 +598,7 @@ class ExtensionComponentsMixin:
                 mounted.query_one(".extension-sidebar-title", Static).update(header)
                 body = mounted.query_one(".extension-sidebar-body", Container).query_one(Static)
                 body.update(_custom_markup_to_text("\n".join(normalized_content)))
-            except Exception as exc:  # noqa: BLE001 - isolation boundary
+            except Exception as exc:  # isolation boundary
                 self._record_extension_component_failure(
                     f"sidebar:{extension_name}:{key}",
                     exc,
@@ -675,7 +675,7 @@ class ExtensionComponentsMixin:
                 )
                 try:
                     await slot.mount(target, before=later_mounted)
-                except Exception as exc:  # noqa: BLE001 - isolation boundary
+                except Exception as exc:  # isolation boundary
                     extension_name, key = owner
                     if self._extension_sidebar_widgets.get(owner) is target:
                         self._extension_sidebar_widgets.pop(owner, None)
@@ -710,7 +710,7 @@ class ExtensionComponentsMixin:
         handle = _MainViewHandle(self, asyncio.get_event_loop().create_future())
         try:
             widget = factory(handle, self.tui_settings.resolved_theme)
-        except Exception as exc:  # noqa: BLE001 - isolation boundary
+        except Exception as exc:  # isolation boundary
             self._record_extension_component_failure("main_view", exc, notify=True)
             # Nothing awaits this handle (the extension gets the dead one), but
             # resolve it anyway so no future leaks unresolved.
@@ -745,7 +745,7 @@ class ExtensionComponentsMixin:
                 try:
                     slot = self.query_one("#main-slot", Container)
                     slot.mount(target_widget)
-                except Exception as exc:  # noqa: BLE001 - isolation boundary
+                except Exception as exc:  # isolation boundary
                     if self._extension_main_view is target:
                         self._extension_main_view = None
                     self._release_main_view_handle(target)

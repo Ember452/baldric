@@ -1,6 +1,6 @@
 """Portable Pi-compatible agent harness primitives for Baldric."""
 
-# ruff: noqa: F401 - this module intentionally defines the public facade
+# this module intentionally defines the public facade
 
 from baldric.agent.events import (
     AgentEndEvent,

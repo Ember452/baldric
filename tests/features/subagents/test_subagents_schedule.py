@@ -39,19 +39,19 @@ def anyio_backend() -> str:
     return "asyncio"
 
 
-def _cron_module():  # noqa: ANN202
+def _cron_module():
     return _submodule("cron")
 
 
-def _schedule_module():  # noqa: ANN202
+def _schedule_module():
     return _submodule("schedule")
 
 
-def _store_module():  # noqa: ANN202
+def _store_module():
     return _submodule("schedule_store")
 
 
-def _make_job(store_module, **overrides):  # noqa: ANN001, ANN202
+def _make_job(store_module, **overrides):
     defaults = {
         "id": "job-1",
         "name": "nightly",
@@ -71,14 +71,14 @@ def _make_job(store_module, **overrides):  # noqa: ANN001, ANN202
 # ── cron matcher ─────────────────────────────────────────────────────────
 
 
-def test_cron_star_matches_every_minute(tmp_path) -> None:  # noqa: ANN001
+def test_cron_star_matches_every_minute(tmp_path) -> None:
     _load_runtime(tmp_path)
     cron = _cron_module()
     expr = cron.CronExpression("* * * * *")
     assert expr.matches(datetime(2026, 7, 4, 13, 37))
 
 
-def test_cron_specific_minute_hour(tmp_path) -> None:  # noqa: ANN001
+def test_cron_specific_minute_hour(tmp_path) -> None:
     _load_runtime(tmp_path)
     cron = _cron_module()
     expr = cron.CronExpression("30 14 * * *")
@@ -87,7 +87,7 @@ def test_cron_specific_minute_hour(tmp_path) -> None:  # noqa: ANN001
     assert not expr.matches(datetime(2026, 7, 4, 15, 30))
 
 
-def test_cron_step_and_range_and_list(tmp_path) -> None:  # noqa: ANN001
+def test_cron_step_and_range_and_list(tmp_path) -> None:
     _load_runtime(tmp_path)
     cron = _cron_module()
     step = cron.CronExpression("*/15 * * * *")
@@ -112,7 +112,7 @@ def test_cron_step_and_range_and_list(tmp_path) -> None:  # noqa: ANN001
     }
 
 
-def test_cron_day_of_week(tmp_path) -> None:  # noqa: ANN001
+def test_cron_day_of_week(tmp_path) -> None:
     _load_runtime(tmp_path)
     cron = _cron_module()
     # 2026-07-06 is a Monday. dow 1 = Monday.
@@ -126,7 +126,7 @@ def test_cron_day_of_week(tmp_path) -> None:  # noqa: ANN001
     assert sunday_seven.matches(datetime(2026, 7, 5, 0, 0))
 
 
-def test_cron_dom_dow_or_semantics(tmp_path) -> None:  # noqa: ANN001
+def test_cron_dom_dow_or_semantics(tmp_path) -> None:
     _load_runtime(tmp_path)
     cron = _cron_module()
     # Both restricted: matches on the 1st OR on Mondays.
@@ -136,7 +136,7 @@ def test_cron_dom_dow_or_semantics(tmp_path) -> None:  # noqa: ANN001
     assert not expr.matches(datetime(2026, 7, 7, 0, 0))  # neither
 
 
-def test_cron_next_after(tmp_path) -> None:  # noqa: ANN001
+def test_cron_next_after(tmp_path) -> None:
     _load_runtime(tmp_path)
     cron = _cron_module()
     expr = cron.CronExpression("0 9 * * 1")  # 09:00 every Monday
@@ -147,7 +147,7 @@ def test_cron_next_after(tmp_path) -> None:  # noqa: ANN001
     assert after_match == datetime(2026, 7, 13, 9, 0)
 
 
-def test_cron_validation(tmp_path) -> None:  # noqa: ANN001
+def test_cron_validation(tmp_path) -> None:
     _load_runtime(tmp_path)
     cron = _cron_module()
     assert cron.validate_cron("*/5 * * * *")
@@ -160,7 +160,7 @@ def test_cron_validation(tmp_path) -> None:  # noqa: ANN001
 # ── detect_schedule ──────────────────────────────────────────────────────
 
 
-def test_detect_schedule_forms(tmp_path) -> None:  # noqa: ANN001
+def test_detect_schedule_forms(tmp_path) -> None:
     _load_runtime(tmp_path)
     sched = _schedule_module().SubagentScheduler
     assert sched.detect_schedule("5m")[0] == "interval"
@@ -185,7 +185,7 @@ def test_detect_schedule_forms(tmp_path) -> None:  # noqa: ANN001
 # ── store round-trip + stale lock ────────────────────────────────────────
 
 
-def test_store_round_trip(tmp_path) -> None:  # noqa: ANN001
+def test_store_round_trip(tmp_path) -> None:
     _load_runtime(tmp_path)
     store_module = _store_module()
     path = store_module.resolve_store_path(_bpaths(tmp_path), tmp_path, "session-x")
@@ -209,7 +209,7 @@ def test_store_round_trip(tmp_path) -> None:  # noqa: ANN001
     assert reloaded.update("missing", run_count=1) is None
 
 
-def test_store_takes_over_stale_lock(tmp_path) -> None:  # noqa: ANN001
+def test_store_takes_over_stale_lock(tmp_path) -> None:
     _load_runtime(tmp_path)
     store_module = _store_module()
     path = store_module.resolve_store_path(_bpaths(tmp_path), tmp_path, "session-y")
@@ -231,7 +231,7 @@ def test_store_takes_over_stale_lock(tmp_path) -> None:  # noqa: ANN001
 class _FakeApi:
     """Minimal ExtensionAPI stand-in for driving SubagentManager directly."""
 
-    def __init__(self, cwd, session_id="session-1") -> None:  # noqa: ANN001
+    def __init__(self, cwd, session_id="session-1") -> None:
         self.context = SimpleNamespace(
             cwd=cwd,
             session_id=session_id,
@@ -258,11 +258,11 @@ class _FakeApi:
     def send_user_message(self, content: str, *, deliver_as: str = "follow_up") -> None:
         self.followed_up.append(content)
 
-    async def append_entry(self, namespace: str, data: dict) -> None:  # noqa: ANN001
+    async def append_entry(self, namespace: str, data: dict) -> None:
         self.custom_entries.append((namespace, data))
 
 
-async def test_job_fires_bypassing_full_queue(tmp_path) -> None:  # noqa: ANN001
+async def test_job_fires_bypassing_full_queue(tmp_path) -> None:
     _load_runtime(tmp_path)
     module = _extension_module()
     store_module = _store_module()
@@ -296,7 +296,7 @@ async def test_job_fires_bypassing_full_queue(tmp_path) -> None:  # noqa: ANN001
         description="blocker",
         background=True,
     )
-    await _wait_for(lambda: manager._running_background == 1)  # noqa: SLF001
+    await _wait_for(lambda: manager._running_background == 1)
 
     job = scheduler.add_job(
         name="scheduled",
@@ -308,9 +308,9 @@ async def test_job_fires_bypassing_full_queue(tmp_path) -> None:  # noqa: ANN001
         model="gpt-5.6-sol",
     )
     # Fire via the real timer callback path, then await the launched run.
-    scheduler._on_fire(job.id)  # noqa: SLF001
-    await _wait_for(lambda: bool(scheduler._tasks))  # noqa: SLF001
-    await asyncio.gather(*list(scheduler._tasks))  # noqa: SLF001
+    scheduler._on_fire(job.id)
+    await _wait_for(lambda: bool(scheduler._tasks))
+    await asyncio.gather(*list(scheduler._tasks))
 
     # The scheduled agent (agent-2) ran to completion even though the only slot
     # was occupied by the still-blocked agent-1 — proof it bypassed the queue.
@@ -327,7 +327,7 @@ async def test_job_fires_bypassing_full_queue(tmp_path) -> None:  # noqa: ANN001
     await manager.shutdown()
 
 
-async def test_add_and_cancel_job(tmp_path) -> None:  # noqa: ANN001
+async def test_add_and_cancel_job(tmp_path) -> None:
     _load_runtime(tmp_path)
     module = _extension_module()
     store_module = _store_module()
@@ -347,15 +347,15 @@ async def test_add_and_cancel_job(tmp_path) -> None:  # noqa: ANN001
         prompt="p",
     )
     assert len(scheduler.list()) == 1
-    assert job.id in scheduler._timers  # noqa: SLF001 - armed
+    assert job.id in scheduler._timers  # armed
     assert scheduler.remove_job(job.id) is True
     assert scheduler.list() == []
-    assert job.id not in scheduler._timers  # noqa: SLF001 - disarmed
+    assert job.id not in scheduler._timers  # disarmed
     assert scheduler.remove_job("missing") is False
     scheduler.stop()
 
 
-async def test_past_oneshot_is_disabled_on_arm(tmp_path) -> None:  # noqa: ANN001
+async def test_past_oneshot_is_disabled_on_arm(tmp_path) -> None:
     _load_runtime(tmp_path)
     module = _extension_module()
     store_module = _store_module()
@@ -386,7 +386,7 @@ async def test_past_oneshot_is_disabled_on_arm(tmp_path) -> None:  # noqa: ANN00
 # ── agent-tool guards ────────────────────────────────────────────────────
 
 
-async def test_schedule_resume_guard(tmp_path) -> None:  # noqa: ANN001
+async def test_schedule_resume_guard(tmp_path) -> None:
     runtime = _load_runtime(tmp_path)
     runtime.bind(RecordingSession(tmp_path))
     result = await _agent_tool(runtime).execute(
@@ -395,7 +395,7 @@ async def test_schedule_resume_guard(tmp_path) -> None:  # noqa: ANN001
     assert "Cannot combine `schedule` with `resume`" in result.text
 
 
-async def test_schedule_inherit_context_guard(tmp_path) -> None:  # noqa: ANN001
+async def test_schedule_inherit_context_guard(tmp_path) -> None:
     runtime = _load_runtime(tmp_path)
     runtime.bind(RecordingSession(tmp_path))
     result = await _agent_tool(runtime).execute(
@@ -410,7 +410,7 @@ async def test_schedule_inherit_context_guard(tmp_path) -> None:  # noqa: ANN001
     assert "Cannot combine `schedule` with `inherit_context`" in result.text
 
 
-async def test_schedule_foreground_guard(tmp_path) -> None:  # noqa: ANN001
+async def test_schedule_foreground_guard(tmp_path) -> None:
     runtime = _load_runtime(tmp_path)
     runtime.bind(RecordingSession(tmp_path))
     result = await _agent_tool(runtime).execute(
@@ -425,7 +425,7 @@ async def test_schedule_foreground_guard(tmp_path) -> None:  # noqa: ANN001
     assert "run_in_background: false" in result.text
 
 
-async def test_schedule_via_tool_creates_and_persists_job(tmp_path) -> None:  # noqa: ANN001
+async def test_schedule_via_tool_creates_and_persists_job(tmp_path) -> None:
     runtime = _load_runtime(tmp_path)
     session = RecordingSession(tmp_path)
     runtime.bind(session)
@@ -460,17 +460,17 @@ async def test_schedule_via_tool_creates_and_persists_job(tmp_path) -> None:  # 
 
 
 class _FakeScheduler:
-    def __init__(self, jobs) -> None:  # noqa: ANN001
+    def __init__(self, jobs) -> None:
         self._jobs = jobs
         self.removed: list[str] = []
 
     def is_active(self) -> bool:
         return True
 
-    def list(self):  # noqa: ANN202
+    def list(self):
         return self._jobs
 
-    def get_next_run(self, job_id: str):  # noqa: ANN202
+    def get_next_run(self, job_id: str):
         return (datetime.now() + timedelta(minutes=5)).isoformat()
 
     def remove_job(self, job_id: str) -> bool:
@@ -478,7 +478,7 @@ class _FakeScheduler:
         return True
 
 
-async def test_menu_lists_and_cancels_scheduled_job(tmp_path) -> None:  # noqa: ANN001
+async def test_menu_lists_and_cancels_scheduled_job(tmp_path) -> None:
     _load_runtime(tmp_path)
     menu = _submodule("agents_menu")
     store_module = _store_module()

@@ -127,8 +127,8 @@ async def test_component_slot_rapid_a_b_c_last_wins() -> None:
 
         made: dict[str, Static] = {}
 
-        def factory(label: str):  # noqa: ANN202
-            def build(theme):  # noqa: ANN001, ANN202
+        def factory(label: str):
+            def build(theme):
                 widget = made[label] = Static(label, id="abc-slot")
                 return widget
 
@@ -302,7 +302,7 @@ async def test_sidebar_removing_absent_key_does_not_schedule_reconciliation(
         await pilot.pause()
         scheduled = False
 
-        def schedule(coro):  # noqa: ANN001, ANN202
+        def schedule(coro):
             nonlocal scheduled
             scheduled = True
             coro.close()
@@ -356,7 +356,7 @@ async def test_sidebar_off_is_unsupported_and_does_not_call_factory() -> None:
     app = BaldricTuiApp(FakeSession(), tui_settings=TuiSettings(sidebar_position="off"))
     called = False
 
-    def factory(theme):  # noqa: ANN001, ANN202
+    def factory(theme):
         nonlocal called
         called = True
         return Static("hidden")
@@ -424,7 +424,7 @@ async def test_sidebar_factory_rebuilds_with_live_theme(
     app = BaldricTuiApp(FakeSession())
     themes: list[str] = []
 
-    def factory(theme):  # noqa: ANN001, ANN202
+    def factory(theme):
         themes.append(theme.name)
         return Static(theme.name, classes="theme-body")
 
@@ -446,7 +446,7 @@ async def test_sidebar_factory_rebuilds_with_live_theme(
 def _collapsible_title_color(collapsible: Collapsible) -> str:
     """Return the hex color of the first styled span in the title label."""
 
-    def _hex(color) -> str:  # noqa: ANN001
+    def _hex(color) -> str:
         triplet = color.triplet
         return f"{triplet.red:02x}{triplet.green:02x}{triplet.blue:02x}"
 
@@ -508,7 +508,7 @@ async def test_sidebar_factory_failure_keeps_app_running() -> None:
         await pilot.pause()
         bridge = _component_bridge(app)
 
-        def explode(theme):  # noqa: ANN001, ANN202
+        def explode(theme):
             raise RuntimeError("sidebar factory exploded")
 
         bridge.set_sidebar_section("ext", "bad", title="Bad", content=explode)
@@ -520,7 +520,7 @@ async def test_sidebar_factory_failure_keeps_app_running() -> None:
 
 
 class _SidebarRenderCrash(Static):
-    def render(self):  # noqa: ANN201
+    def render(self):
         raise RuntimeError("sidebar render exploded")
 
 

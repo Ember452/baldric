@@ -72,18 +72,20 @@ v2 的原则：**先把墙砌好（protocol 契约 + port + scanner 白名单 + 
 
 > **规则**：计划里任何行数/符号数/文件数，一律由 `scripts/measure_structure.py` 生成再粘贴；验收时也用它，避免手写口径漂移。
 
-**基线快照（2026-11-13 cli 拆分与 platform 收窄后实测，由 `scripts/measure_structure.py` 生成）**：
+**基线快照（2026-11-13 契约接缝与守卫收尾后实测，由 `scripts/measure_structure.py` 生成；
+上一版是 cli 拆分与 platform 收窄后的数字，本表已按脚本回写）**：
 
 | 项 | 数值 |
 |---|---|
-| `src/` | 268 文件 / **77,972** 行 |
-| `tests/` | 220 文件 / **78,058** 行 |
-| `runtime/` | 217 文件 / 66,399 行 |
+| `src/` | 268 文件 / **78,198** 行 |
+| `tests/` | 221 文件 / **78,470** 行 |
+| `runtime/` | 217 文件 / 66,625 行 |
 | `runtime/frontends/tui/` | 41 文件 / 19,142 行（G1 前为 `runtime/tui/`） |
-| `runtime/session/session.py` | **2,060** 行 / **183** 个方法（阶段 H，见 issue #73） |
+| `runtime/session/session.py` | **2,070** 行 / **183** 个方法（阶段 H，见 issue #73） |
 | `runtime/__init__.py` | **18** 行 / **1** 个 `__all__`（已瘦身；原 317 行 / 139 名） |
-| `runtime/platform/__init__.py` | **179** 行 / **82** 符号（已收窄为平台自有模块；原 249/116） |
-| `scripts/check_import_graph.py` 规则数 | **31** 条（28 RULES + 3 AllowRule） |
+| `runtime/platform/__init__.py` | **131** 行 / **59** 符号（provider 域契约搬回 `providers/contracts.py` 后进一步收窄；原 249/116，上一版 179/82） |
+| `scripts/check_import_graph.py` 规则数 | **32** 条（29 RULES + 3 AllowRule，新增 `providers ✗→ platform`） |
+| 抑制棘轮（`src/`） | **29** 条（原 138 条中 109 条是压不住任何规则的死指令，已清理，详见 [接缝与守卫记录](../notes/2026-11-13-seams-and-guards.md)） |
 | fast suite（除 TUI） | 会变，验收看"不减少"而非绝对数 |
 
 > 口径纪律：任何行数/符号数以此脚本 `uv run python scripts/measure_structure.py` 输出为准，

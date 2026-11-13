@@ -143,7 +143,7 @@ def _cleanup_worktree_blocking(worktree: Worktree, description: str) -> Worktree
                 return _preserve(worktree, "git branch failed, so the commit has no branch yet")
         _remove_worktree(worktree)
         return WorktreeResult(has_changes=True, branch=branch)
-    except Exception as exc:  # noqa: BLE001 - cleanup is best-effort
+    except Exception as exc:  # cleanup is best-effort
         return _preserve(worktree, f"worktree cleanup failed: {exc}")
 
 

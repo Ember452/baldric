@@ -16,11 +16,16 @@ from baldric.agent import (
     ToolExecutionUpdateEvent,
 )
 from baldric.protocol.provider_events import TextDeltaEvent, ThinkingDeltaEvent
-from baldric.runtime.events import AutoRetryEndEvent, AutoRetryStartEvent, QueueUpdateEvent
+from baldric.runtime.events import (
+    AutoRetryEndEvent,
+    AutoRetryStartEvent,
+    QueueUpdateEvent,
+    SessionAgentEndEvent,
+)
 from baldric.runtime.rendering import FinalTextRenderer, JsonEventRenderer, TranscriptRenderer
 
 
-def _assistant_update(event) -> MessageUpdateEvent:  # noqa: ANN001
+def _assistant_update(event) -> MessageUpdateEvent:
     return MessageUpdateEvent(message=event.partial, assistant_message_event=event)
 
 
@@ -92,6 +97,27 @@ def test_transcript_renderer_streams_text_and_tool_events(
     assert "… reading" in captured.err
     assert "✓ read" in captured.err
     assert "done" in captured.err
+
+
+def test_transcript_renderer_closes_an_open_assistant_block_on_session_agent_end(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """An aborted run must still leave a final newline.
+
+    The session rewrites the agent-level AgentEndEvent into SessionAgentEndEvent
+    before any renderer sees it, so the branch that closes a streamed assistant
+    block has to match the session form. Before this test the renderer only
+    matched AgentEndEvent, which a session run never delivers.
+    """
+    renderer = TranscriptRenderer()
+    partial = AssistantMessage(content="")
+
+    renderer.render(_assistant_update(TextDeltaEvent(content_index=0, delta="partial", partial=partial)))
+    assert capsys.readouterr().out == "partial"
+
+    renderer.render(SessionAgentEndEvent(messages=[]))
+
+    assert capsys.readouterr().out == "\n"
 
 
 def test_transcript_renderer_keeps_full_bash_command(

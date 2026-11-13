@@ -61,7 +61,7 @@ from baldric.runtime.session.compaction.context_window import (
     build_compaction_summary_prompt,
     summarize_messages_for_compaction,
 )
-from baldric.runtime.session.provider_helpers import (  # noqa: F401
+from baldric.runtime.session.provider_helpers import (
     _coerced_thinking_level as _coerced_thinking_level,
 )
 from baldric.runtime.session.provider_helpers import (
@@ -118,7 +118,7 @@ from baldric.runtime.session.provider_helpers import (
 from baldric.runtime.session.provider_helpers import (
     _unavailable_thinking_message as _unavailable_thinking_message,
 )
-from baldric.runtime.session.resource_helpers import (  # noqa: F401
+from baldric.runtime.session.resource_helpers import (
     SessionResources as SessionResources,
 )
 from baldric.runtime.session.resource_helpers import (
@@ -191,7 +191,7 @@ from baldric.runtime.session.resource_helpers import (
     parse_terminal_command as parse_terminal_command,
 )
 from baldric.runtime.session.retry_events import with_auto_retry_events
-from baldric.runtime.session.tree_helpers import (  # noqa: F401
+from baldric.runtime.session.tree_helpers import (
     _active_branchable_entry_id as _active_branchable_entry_id,
 )
 from baldric.runtime.session.tree_helpers import (
@@ -812,7 +812,7 @@ async def _reconcile_run_persistence(
             # Runs in a finally: a repeat failure must not mask cancellation.
             try:
                 await session._persist_message(message)
-            except Exception as exc:  # noqa: BLE001 - preserve cancellation
+            except Exception as exc:  # preserve cancellation
                 session._log_persistence_failure(context=context, exc=exc)
     session._ended_message_ids.clear()
     session._persisted_message_ids.clear()
@@ -1002,7 +1002,7 @@ async def _try_auto_compact(
 ) -> AsyncGenerator[CodingSessionEvent, None]:
     try:
         plan = session._auto_compaction_plan()
-    except Exception as exc:  # noqa: BLE001 - automatic compaction must not lose a turn
+    except Exception as exc:  # automatic compaction must not lose a turn
         session._last_diagnostic_log_path = session._diagnostic_logger.log_exception(
             context=context,
             phase=phase,
@@ -1016,7 +1016,7 @@ async def _try_auto_compact(
     yield start_event
     try:
         await session._run_compaction_plan(plan, reason="threshold")
-    except Exception as exc:  # noqa: BLE001 - automatic compaction must not lose a turn
+    except Exception as exc:  # automatic compaction must not lose a turn
         session._last_diagnostic_log_path = session._diagnostic_logger.log_exception(
             context=context,
             phase=phase,
@@ -1048,7 +1048,7 @@ async def _try_overflow_compact(session: CodingSession, *, context: AgentCallDia
             return False
         await session._run_compaction_plan(plan, reason="overflow")
         return True
-    except Exception as exc:  # noqa: BLE001 - the original overflow remains visible
+    except Exception as exc:  # the original overflow remains visible
         session._last_diagnostic_log_path = session._diagnostic_logger.log_exception(
             context=context,
             phase="overflow_compact",
@@ -1070,7 +1070,7 @@ async def _try_auto_name_session(
         title = await session._generate_session_name(
             first_message, provider=bound_provider, model=bound_model
         )
-    except Exception as exc:  # noqa: BLE001 - naming must not interrupt the agent turn
+    except Exception as exc:  # naming must not interrupt the agent turn
         session._last_diagnostic_log_path = session._diagnostic_logger.log_exception(
             context=context,
             phase="auto_name_session",

@@ -22,13 +22,8 @@ from baldric.runtime.features.llama_cpp.state import (
     LlamaCppStoredModel,
 )
 from baldric.runtime.platform import (
-    DynamicProvider,
     DynamicProviderRegistry,
     ExtensionRuntime,
-    NoAuth,
-    OpenAICompatibleTransport,
-    ProviderModel,
-    ProviderModelSnapshot,
 )
 from baldric.runtime.providers.auth.credentials import FileCredentialStore
 from baldric.runtime.providers.backends.contracts import (
@@ -41,6 +36,13 @@ from baldric.runtime.providers.backends.contracts import (
     LocalModel,
     LocalOperationContext,
     LocalOperationResult,
+)
+from baldric.runtime.providers.contracts import (
+    DynamicProvider,
+    NoAuth,
+    OpenAICompatibleTransport,
+    ProviderModel,
+    ProviderModelSnapshot,
 )
 
 pytestmark = pytest.mark.anyio

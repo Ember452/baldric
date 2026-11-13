@@ -21,7 +21,6 @@ from baldric.runtime.context.system_prompt import PromptSection
 from baldric.runtime.platform import (
     EXTENSION_API_VERSION,
     CustomMessageView,
-    DynamicProvider,
     ExtensionAPI,
     ExtensionCapabilities,
     ExtensionError,
@@ -30,17 +29,20 @@ from baldric.runtime.platform import (
     InputHookResult,
     LoadedExtension,
     MessageRenderOptions,
-    NoAuth,
-    OpenAICompatibleTransport,
-    ProviderModelSnapshot,
-    ProviderRefreshContext,
-    RefreshModels,
     ToolCallHookResult,
     ToolResultHookResult,
     discover_extensions,
     load_extensions,
 )
 from baldric.runtime.platform.builtin_registry import BuiltInExtension
+from baldric.runtime.providers.contracts import (
+    DynamicProvider,
+    NoAuth,
+    OpenAICompatibleTransport,
+    ProviderModelSnapshot,
+    ProviderRefreshContext,
+    RefreshModels,
+)
 from baldric.runtime.session import JsonlSessionStorage
 from baldric.runtime.session.manager import SessionManager
 from baldric.runtime.session.session import CodingSession, CodingSessionConfig, ModelChoice
@@ -734,7 +736,7 @@ async def test_built_in_order_preserves_tool_command_and_provider_precedence(
         "shadow",
         """
 from baldric.protocol.tools import AgentTool, AgentToolResult
-from baldric.runtime.platform import DynamicProvider, NoAuth, OpenAICompatibleTransport
+from baldric.runtime.providers.contracts import DynamicProvider, NoAuth, OpenAICompatibleTransport
 
 
 async def execute(tool_call_id, arguments, signal=None, on_update=None):
@@ -993,7 +995,7 @@ async def test_failed_setup_cleans_every_registration_after_entry_symlink_retarg
 from pathlib import Path
 
 from baldric.protocol.tools import AgentTool, AgentToolResult
-from baldric.runtime.platform import DynamicProvider, NoAuth, OpenAICompatibleTransport
+from baldric.runtime.providers.contracts import DynamicProvider, NoAuth, OpenAICompatibleTransport
 
 
 async def _tool(tool_call_id, arguments, signal=None, on_update=None):
@@ -1753,7 +1755,7 @@ class RecordingUiBridge:
         return self._has_ui
 
     @property
-    def theme(self):  # noqa: ANN202 - TuiTheme, imported lazily by the default
+    def theme(self):  # TuiTheme, imported lazily by the default
         from baldric.runtime.frontends.tui.config import BALDRIC_DARK_THEME
 
         return BALDRIC_DARK_THEME
@@ -1764,10 +1766,10 @@ class RecordingUiBridge:
     def request_render(self) -> None:
         self.calls.append(("request_render", (), {}))
 
-    def set_slot_widget(self, key, factory, *, placement="above_prompt"):  # noqa: ANN001
+    def set_slot_widget(self, key, factory, *, placement="above_prompt"):
         self.calls.append(("set_slot_widget", (key,), {"placement": placement}))
 
-    def open_main_view(self, factory):  # noqa: ANN001
+    def open_main_view(self, factory):
         self.calls.append(("open_main_view", (), {}))
         from baldric.runtime.platform.api import _DeadMainViewHandle
 
@@ -1783,7 +1785,7 @@ class RecordingUiBridge:
         key,
         *,
         title,
-        content,  # noqa: ANN001
+        content,
     ) -> None:
         self.calls.append(
             (
@@ -1793,13 +1795,13 @@ class RecordingUiBridge:
             )
         )
 
-    def remove_sidebar_section(self, extension_name, key):  # noqa: ANN001, ANN201
+    def remove_sidebar_section(self, extension_name, key):
         self.calls.append(("remove_sidebar_section", (extension_name, key), {}))
 
     def clear_components(self) -> None:
         self.calls.append(("clear_components", (), {}))
 
-    def register_key_interceptor(self, handler):  # noqa: ANN001
+    def register_key_interceptor(self, handler):
         self.interceptors.append(handler)
         return lambda: self.interceptors.remove(handler)
 
@@ -2083,7 +2085,7 @@ def _register_inline_extension(runtime: ExtensionRuntime, name: str) -> object:
     def setup(api: object) -> None:
         captured["api"] = api
 
-    runtime._setup_extension(  # noqa: SLF001 - test seam
+    runtime._setup_extension(  # test seam
         LoadedExtension(
             name=name,
             path=Path(f"/virtual/{name}.py"),
@@ -2255,6 +2257,66 @@ async def test_session_lifecycle_recreates_built_in_in_a_fresh_generation(
     with pytest.raises(ExtensionError, match="stale after reload"):
         _ = old_api.name
     await session.aclose()
+
+
+async def test_disabled_built_ins_stay_disabled_across_reload_and_resume(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``disabled_built_in_extensions`` must survive every runtime rebuild.
+
+    It is the documented host seam for per-session capability composition (a
+    subagent child passes ``{"mcp"}`` so the bundled MCP client never boots).
+    Only ``prepare_runtime_for_load`` honoured it: reload rebuilt through
+    ``stage_runtime_for_reload``, which had no filter parameter and therefore
+    loaded the full registry, and resume rebuilt ``CodingSessionConfig`` without
+    the field, so both silently re-enabled the capability.
+    """
+    from dataclasses import replace as dataclass_replace
+
+    import baldric.runtime.platform.builtin_registry as declarations
+    from baldric.runtime.config.paths import BaldricPaths
+    from baldric.runtime.session.manager import SessionManager
+
+    loaded: list[str] = []
+
+    def _recording(name: str) -> BuiltInExtension:
+        def setup(baldric: ExtensionAPI) -> None:
+            del baldric
+            loaded.append(name)
+
+        return BuiltInExtension(name=name, setup=setup)
+
+    monkeypatch.setattr(
+        declarations,
+        "BUILT_IN_EXTENSIONS",
+        (_recording("kept"), _recording("disabled")),
+    )
+    manager = SessionManager(
+        BaldricPaths(home=tmp_path / "home-baldric", agents_home=tmp_path / "home-agents")
+    )
+    base = _session_config(tmp_path, FakeProvider([]))
+    destination = manager.create_session(cwd=base.cwd, model="fake")
+    session = await CodingSession.load(
+        dataclass_replace(
+            base,
+            extensions_enabled=False,
+            session_manager=manager,
+            disabled_built_in_extensions=frozenset({"disabled"}),
+        )
+    )
+    try:
+        assert loaded == ["kept"]
+
+        loaded.clear()
+        await session.reload()
+        assert loaded == ["kept"], "reload re-enabled a built-in the session disabled"
+
+        loaded.clear()
+        await session.resume(destination.id)
+        assert loaded == ["kept"], "resume re-enabled a built-in the session disabled"
+    finally:
+        await session.aclose()
 
 
 async def test_session_exposes_extension_paths_at_moved_home(tmp_path: Path) -> None:
@@ -2980,7 +3042,7 @@ async def test_final_close_finishes_registry_and_each_provider_before_propagatin
             await asyncio.sleep(0)
 
     providers = (CountingProvider(), CountingProvider())
-    session._owned_providers.extend(providers)  # type: ignore[arg-type]  # noqa: SLF001
+    session._owned_providers.extend(providers)  # type: ignore[arg-type]
 
     close = asyncio.create_task(session.aclose())
     await asyncio.wait_for(cleanup_started.wait(), timeout=0.5)
@@ -2995,7 +3057,7 @@ async def test_final_close_finishes_registry_and_each_provider_before_propagatin
     assert (await pending).status == "cancelled"
     assert runtime_close_calls == 1
     assert [provider.close_calls for provider in providers] == [1, 1]
-    assert session._owned_providers == []  # noqa: SLF001
+    assert session._owned_providers == []
     assert not registry._discovery_tasks  # type: ignore[attr-defined]
 
     await session.aclose()
@@ -3495,11 +3557,11 @@ def test_render_custom_message_reports_failure_once_per_custom_type(tmp_path: Pa
 # -- tool-call renderers --------------------------------------------------------
 
 
-async def _idle_executor(tool_call_id, arguments, signal=None, on_update=None):  # noqa: ANN001, ANN202
+async def _idle_executor(tool_call_id, arguments, signal=None, on_update=None):
     return AgentToolResult(content="")
 
 
-def _renderable_tool(name: str, render_call=None, render_result=None) -> AgentTool:  # noqa: ANN001
+def _renderable_tool(name: str, render_call=None, render_result=None) -> AgentTool:
     return AgentTool(
         name=name,
         label=name,
@@ -3516,7 +3578,7 @@ def test_render_tool_call_uses_tool_renderer(tmp_path: Path) -> None:
     api = _inline_api(runtime, "subagents")
     seen: list[dict[str, JSONValue]] = []
 
-    def render(arguments) -> str:  # noqa: ANN001
+    def render(arguments) -> str:
         seen.append(dict(arguments))
         return f"▸ agent · {arguments.get('description')}"
 
@@ -3541,7 +3603,7 @@ def test_render_tool_call_swallows_errors_and_reports_once(tmp_path: Path) -> No
     runtime = ExtensionRuntime()
     api = _inline_api(runtime, "boom")
 
-    def render(arguments) -> str:  # noqa: ANN001
+    def render(arguments) -> str:
         raise RuntimeError("renderer exploded")
 
     api.register_tool(_renderable_tool("boom-tool", render))
@@ -3574,7 +3636,7 @@ def test_render_tool_result_uses_tool_renderer(tmp_path: Path) -> None:
     api = _inline_api(runtime, "subagents")
     seen: list[tuple[str, bool]] = []
 
-    def render(result, *, expanded) -> str:  # noqa: ANN001
+    def render(result, *, expanded) -> str:
         seen.append((str(result.details["description"]), expanded))
         return "✓ completed · 3 tool uses"
 
@@ -3601,7 +3663,7 @@ def test_render_tool_result_swallows_errors_and_reports_once(tmp_path: Path) -> 
     runtime = ExtensionRuntime()
     api = _inline_api(runtime, "boom")
 
-    def render(result, *, expanded) -> str:  # noqa: ANN001
+    def render(result, *, expanded) -> str:
         raise RuntimeError("renderer exploded")
 
     api.register_tool(_renderable_tool("boom-tool", render_result=render))
@@ -3628,10 +3690,10 @@ def test_render_tool_result_failures_do_not_shadow_render_call(tmp_path: Path) -
     runtime = ExtensionRuntime()
     api = _inline_api(runtime, "boom")
 
-    def bad_call(arguments) -> str:  # noqa: ANN001
+    def bad_call(arguments) -> str:
         raise RuntimeError("call renderer exploded")
 
-    def bad_result(result, *, expanded) -> str:  # noqa: ANN001
+    def bad_result(result, *, expanded) -> str:
         raise RuntimeError("result renderer exploded")
 
     api.register_tool(_renderable_tool("agent", render_call=bad_call, render_result=bad_result))

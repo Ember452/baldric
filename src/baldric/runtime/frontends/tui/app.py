@@ -1986,7 +1986,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
                     format=outcome.format,
                 )
                 self._append_command_message(text, f"Exported session to {exported_path}")
-            except Exception as exc:  # noqa: BLE001 - surface command failures in the TUI
+            except Exception as exc:  # surface command failures in the TUI
                 self._notify(f"Could not export session: {exc}", severity="error")
                 return
         elif outcome.kind is CommandKind.MODEL_SELECTED:
@@ -2185,7 +2185,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
             compact_message = await self.session.compact(summary)
         except asyncio.CancelledError:
             return
-        except Exception as exc:  # noqa: BLE001 - surface command failures in the TUI
+        except Exception as exc:  # surface command failures in the TUI
             self._notify(f"Error: {exc}", severity="error")
             return
         finally:
@@ -2459,7 +2459,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
 
         try:
             result = await run_terminal_command(command, add_to_context=add_to_context)
-        except Exception as exc:  # noqa: BLE001 - surface command execution failures in the TUI
+        except Exception as exc:  # surface command execution failures in the TUI
             if item_index < len(self.state.items):
                 item = self.state.items[item_index]
                 item.tool_result_text = format_terminal_command_result_block(
@@ -2532,7 +2532,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         try:
             async for event in self.session.prompt(text, streaming_behavior=streaming_behavior):
                 self.adapter.apply(event)
-        except Exception as exc:  # noqa: BLE001 - surface queueing failures in the TUI
+        except Exception as exc:  # surface queueing failures in the TUI
             self._notify(f"Could not queue message: {exc}", severity="error")
             return
         self._refresh_chrome()
@@ -2577,7 +2577,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
                     self.call_after_refresh(_collect_garbage_while_idle)
                     if not self._app_has_focus:
                         self._terminal_notification.notify_turn_finished()
-        except Exception as exc:  # noqa: BLE001 - surface unexpected worker errors in the TUI
+        except Exception as exc:  # surface unexpected worker errors in the TUI
             if active_run_id != self._prompt_run_id:
                 return
             if getattr(self.session, "has_pending_selection", False):
@@ -3043,7 +3043,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
             reload_result = self.session.reload()
             if isawaitable(reload_result):
                 await reload_result
-        except Exception as exc:  # noqa: BLE001 - saved file remains valid; surface reload errors
+        except Exception as exc:  # saved file remains valid; surface reload errors
             self._notify(
                 f"Saved /{template.name}, but could not reload resources: {exc}",
                 severity="error",
@@ -3061,7 +3061,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         if preview is not None:
             try:
                 preview()
-            except Exception as exc:  # noqa: BLE001 - report invalid selections
+            except Exception as exc:  # report invalid selections
                 self._notify(f"Could not change thinking mode: {exc}", severity="error")
                 return
             self._refresh_chrome()
@@ -3084,7 +3084,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         if preview is not None:
             try:
                 preview(reverse=reverse)
-            except Exception as exc:  # noqa: BLE001 - report invalid selections
+            except Exception as exc:  # report invalid selections
                 self._notify(f"Could not switch scoped model: {exc}", severity="error")
                 return
             self._refresh_chrome()
@@ -3127,7 +3127,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
             return
         try:
             archived = await asyncio.to_thread(archive, record.id)
-        except Exception as exc:  # noqa: BLE001 - surface filesystem failures in the TUI
+        except Exception as exc:  # surface filesystem failures in the TUI
             self._notify(f"Could not archive session: {exc}", severity="error")
             return
         if archived:
@@ -3143,7 +3143,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
             return
         try:
             archived = await asyncio.to_thread(archive, cwd)
-        except Exception as exc:  # noqa: BLE001 - surface filesystem failures in the TUI
+        except Exception as exc:  # surface filesystem failures in the TUI
             self._notify(f"Could not archive project: {exc}", severity="error")
             return
         if archived:
@@ -3161,7 +3161,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
             return
         try:
             restored = await asyncio.to_thread(unarchive, record.id)
-        except Exception as exc:  # noqa: BLE001 - surface filesystem failures in the TUI
+        except Exception as exc:  # surface filesystem failures in the TUI
             self._notify(f"Could not restore session: {exc}", severity="error")
             return
         if restored:
@@ -3177,7 +3177,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
             return
         try:
             restored = await asyncio.to_thread(unarchive, cwd)
-        except Exception as exc:  # noqa: BLE001 - surface filesystem failures in the TUI
+        except Exception as exc:  # surface filesystem failures in the TUI
             self._notify(f"Could not restore project: {exc}", severity="error")
             return
         if restored:
@@ -3196,7 +3196,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
             if current_cwd != previous_cwd:
                 resume_message = f"{resume_message} ({short_path(current_cwd)})"
             self._notify(resume_message)
-        except Exception as exc:  # noqa: BLE001 - surface command failures in the TUI
+        except Exception as exc:  # surface command failures in the TUI
             self._notify(f"Error: {exc}", severity="error")
         self._refresh()
 
@@ -3249,7 +3249,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
                 self._notify(result.message)
             elif isinstance(result, str):
                 self._notify(result)
-        except Exception as exc:  # noqa: BLE001 - surface command failures in the TUI
+        except Exception as exc:  # surface command failures in the TUI
             self._notify(f"Error: {exc}", severity="error")
         self._refresh()
 
@@ -3265,7 +3265,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
             self.state.clear()
             self.state.set_skills(self.session.skills)
             self._load_session_messages_from_session()
-        except Exception as exc:  # noqa: BLE001 - surface command failures in the TUI
+        except Exception as exc:  # surface command failures in the TUI
             self._notify(f"Error: {exc}", severity="error")
         self._refresh()
 
@@ -3352,7 +3352,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
                 self.session.set_provider(provider.name, persist_default=False)
             except TypeError:
                 self.session.set_provider(provider.name)
-        except Exception as exc:  # noqa: BLE001 - surface login failures in the TUI
+        except Exception as exc:  # surface login failures in the TUI
             self._notify(f"Could not save custom provider: {exc}", severity="error")
             return
         self._notify(f"Saved custom provider {result.display_name}.")
@@ -3400,7 +3400,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
                 self.session.set_provider(entry.name, persist_default=False)
             except TypeError:
                 self.session.set_provider(entry.name)
-        except Exception as exc:  # noqa: BLE001 - surface login failures in the TUI
+        except Exception as exc:  # surface login failures in the TUI
             self._notify(f"Could not save login: {exc}", severity="error")
             return
         self._notify(f"Saved login for {entry.display_name}.")
@@ -3423,7 +3423,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
         try:
             credential_store.delete(entry.credential_name)
             self.session.reload_provider_settings()
-        except Exception as exc:  # noqa: BLE001 - surface logout failures in the TUI
+        except Exception as exc:  # surface logout failures in the TUI
             self._notify(f"Could not log out: {exc}", severity="error")
             return
 
@@ -3525,7 +3525,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
             return tuple(getattr(self.session, "scoped_model_choices", ()))
         try:
             return tuple(toggle_scoped_model(choice))
-        except Exception as exc:  # noqa: BLE001 - surface session state failures in the TUI
+        except Exception as exc:  # surface session state failures in the TUI
             self._notify(f"Could not update scoped models: {exc}", severity="error")
             return tuple(getattr(self.session, "scoped_model_choices", ()))
 
@@ -3549,7 +3549,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
                     self.session.set_model(choice.model)
                 else:
                     set_model_choice(choice)
-        except Exception as exc:  # noqa: BLE001 - surface model switch failures in the TUI
+        except Exception as exc:  # surface model switch failures in the TUI
             self._notify(f"Could not switch model: {exc}", severity="error")
             return
         self._refresh_chrome()
@@ -3565,7 +3565,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
             result = setter(level)
             if isawaitable(result):
                 await result
-        except Exception as exc:  # noqa: BLE001 - surface session state failures in the TUI
+        except Exception as exc:  # surface session state failures in the TUI
             self._notify(f"Could not change thinking mode: {exc}", severity="error")
             return
         self._refresh_chrome()
@@ -3579,7 +3579,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
             result = cycler()
             if isawaitable(result):
                 await result
-        except Exception as exc:  # noqa: BLE001 - surface session state failures in the TUI
+        except Exception as exc:  # surface session state failures in the TUI
             self._notify(f"Could not change thinking mode: {exc}", severity="error")
             return
         self._refresh_chrome()
@@ -3593,7 +3593,7 @@ class BaldricTuiApp(PickerMixin, ExtensionComponentsMixin, App[None]):
             result = cycler(reverse=reverse)
             if isawaitable(result):
                 result = await result
-        except Exception as exc:  # noqa: BLE001 - surface session state failures in the TUI
+        except Exception as exc:  # surface session state failures in the TUI
             self._notify(f"Could not switch scoped model: {exc}", severity="error")
             return
         self._refresh_chrome()
@@ -4036,7 +4036,7 @@ async def _run_in_daemon_thread[T](function: Callable[[], T]) -> T:
         error: BaseException | None = None
         try:
             result = function()
-        except BaseException as exc:  # noqa: BLE001 - re-raised in the awaiting task
+        except BaseException as exc:  # re-raised in the awaiting task
             error = exc
         with suppress(RuntimeError):  # the event loop closed while this ran
             loop.call_soon_threadsafe(resolve, result, error)

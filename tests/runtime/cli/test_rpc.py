@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 from typer.testing import CliRunner
 
-from baldric.agent import AssistantMessage, Usage, UserMessage
+from baldric.agent import AssistantMessage, MessageEndEvent, Usage, UserMessage
 from baldric.ai import FakeProvider
 from baldric.protocol.session import (
     CompactionEntry,
@@ -26,7 +26,12 @@ from baldric.runtime.providers.config import (
 )
 from baldric.runtime.session import JsonlSessionStorage
 from baldric.runtime.session.manager import SessionManager
-from baldric.runtime.session.session import CodingSession, CodingSessionConfig, ModelChoice
+from baldric.runtime.session.session import (
+    CodingSession,
+    CodingSessionConfig,
+    ModelChoice,
+    TerminalCommandResult,
+)
 from tests.helpers.pi_event_helpers import assistant_done, assistant_start, text_delta
 
 
@@ -565,3 +570,133 @@ async def test_rpc_splits_only_on_lf_and_accepts_crlf(tmp_path: Path) -> None:
     record = json.loads(stdout.getvalue())
     assert record["success"] is True
     assert record["id"] == "a\u2028b"
+
+
+@pytest.mark.anyio
+async def test_tree_projection_handles_a_chain_deeper_than_the_recursion_limit() -> None:
+    """Entries chain parent-to-child, so the recursive projection grew with the
+    transcript and raised RecursionError at ~996 entries on get_tree. A
+    1500-entry chain is a supported session (tests/runtime/session/
+    test_coding_session.py has that regression), so projection must be iterative.
+    """
+    from baldric.runtime.frontends.rpc.wire import _tree_wire
+
+    entries = []
+    parent_id: str | None = None
+    for index in range(1500):
+        entry = MessageEntry(parent_id=parent_id, message=UserMessage(content=f"m{index}"))
+        entries.append(entry)
+        parent_id = entry.id
+
+    tree = _tree_wire(tuple(entries), "fake")
+
+    depth = 0
+    node = tree[0]
+    assert isinstance(node, dict)
+    while node["children"]:
+        node = node["children"][0]
+        assert isinstance(node, dict)
+        depth += 1
+    assert depth == 1499
+
+
+@pytest.mark.anyio
+async def test_get_state_reports_compaction_from_the_event_stream(tmp_path: Path) -> None:
+    """get_state used to hardcode isCompacting=false.
+
+    There is no session property for it: compaction is event-derived, the same
+    way the TUI derives it, so the server tracks CompactionStart/End as prompt
+    events flow through.
+    """
+    from baldric.runtime.events import CompactionEndEvent, CompactionStartEvent
+
+    session = await _session(tmp_path, FakeProvider([]))
+    started = RpcServer(
+        session,
+        stdin=StringIO('{"id":"state","type":"get_state"}\n'),
+        stdout=StringIO(),
+    )
+    started._track_compaction(CompactionStartEvent(reason="threshold"))
+    await started.run()
+    started_record = json.loads(started._stdout.getvalue())
+
+    ended = RpcServer(
+        session,
+        stdin=StringIO('{"id":"state","type":"get_state"}\n'),
+        stdout=StringIO(),
+    )
+    ended._track_compaction(CompactionStartEvent(reason="threshold"))
+    ended._track_compaction(CompactionEndEvent(reason="threshold"))
+    await ended.run()
+    ended_record = json.loads(ended._stdout.getvalue())
+
+    assert started_record["data"]["isCompacting"] is True
+    assert ended_record["data"]["isCompacting"] is False
+
+
+@pytest.mark.anyio
+async def test_rpc_bash_reports_real_truncation_and_cancellation(tmp_path: Path) -> None:
+    """The wire used to hardcode truncated/cancelled false regardless of outcome."""
+    session = await _session(tmp_path, FakeProvider([]))
+
+    async def fake_run_terminal_command(command: str, *, add_to_context: bool) -> object:
+        del command, add_to_context
+        return TerminalCommandResult(
+            command="seq 5000",
+            output="line 1\n[Showing lines 1-1 of 5000. Full output: full.txt]",
+            exit_code=0,
+            ok=True,
+            added_to_context=False,
+            truncated=True,
+            cancelled=False,
+            full_output_path="full.txt",
+        )
+
+    session.run_terminal_command = fake_run_terminal_command  # type: ignore[method-assign]
+    stdin = StringIO('{"id":"bash","type":"bash","command":"seq 5000"}\n')
+    stdout = StringIO()
+
+    await RpcServer(session, stdin=stdin, stdout=stdout).run()
+
+    record = json.loads(stdout.getvalue())
+    assert record["data"]["truncated"] is True
+    assert record["data"]["cancelled"] is False
+
+
+@pytest.mark.anyio
+async def test_prompt_stream_failure_ends_that_prompt_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One failing write must not cancel the server's task group.
+
+    ``_run_prompt`` is started with ``tasks.start_soon`` inside
+    ``anyio.create_task_group()``: an exception escaping the coroutine cancels
+    the group, tears down the read loop and skips ``session.aclose()``. The
+    handler used to catch only ``RuntimeError``/``ValueError``, so an ``OSError``
+    from a full disk (or a code-page failure) killed the whole RPC mode.
+    """
+    session = await _session(tmp_path, FakeProvider([]))
+
+    async def failing_stream(
+        message: str,
+        *,
+        streaming_behavior: object = None,
+    ) -> AsyncIterator[object]:
+        del message, streaming_behavior
+        yield MessageEndEvent(message=AssistantMessage(content="partial", model="fake"))
+        raise OSError("disk full")
+
+    monkeypatch.setattr(session, "prompt", failing_stream)
+    stdin = StringIO('{"id":"bad","type":"prompt","message":"hi"}\n{"id":"next","type":"get_state"}\n')
+    stdout = StringIO()
+
+    await RpcServer(session, stdin=stdin, stdout=stdout).run()
+
+    records = [json.loads(line) for line in stdout.getvalue().splitlines() if line]
+    errors = [record for record in records if record["type"] == "rpc_error"]
+    assert errors, f"the failed prompt left no rpc_error record: {records}"
+    assert "disk full" in errors[0]["error"]
+    assert any(record.get("id") == "next" and record["type"] == "response" for record in records), (
+        "the server stopped serving after one prompt failed"
+    )

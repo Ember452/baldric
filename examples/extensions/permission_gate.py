@@ -23,7 +23,7 @@ DANGEROUS_PATTERNS = (
 )
 
 
-def _gate_tool_call(event: ToolCallHookEvent, context) -> ToolCallHookResult | None:  # noqa: ANN001
+def _gate_tool_call(event: ToolCallHookEvent, context) -> ToolCallHookResult | None:
     del context
     if event.tool_name != "bash":
         return None

@@ -173,7 +173,7 @@ class SidebarFileEditor(Vertical):
                 source,
                 self._snapshot,
             )
-        except Exception as exc:  # noqa: BLE001 - filesystem worker boundary
+        except Exception as exc:  # filesystem worker boundary
             message = f"Could not save {self.path}: {exc}"
             self.query_one("#sidebar-file-editor-status", Static).update(message)
             cast("BaldricTuiApp", self.app)._notify(message, severity="error")

@@ -226,16 +226,31 @@ def _tree_wire(entries: tuple[SessionEntry, ...], provider_name: str) -> list[JS
         parent = entry.parent_id if entry.parent_id in ids else None
         children.setdefault(parent, []).append(entry)
 
-    def build(entry: SessionEntry) -> dict[str, JSONValue]:
-        projected = _entry_wire(entry, provider_name)
+    # Post-order walk with an explicit stack. A session's entries form a chain
+    # (each entry's parent is the previous one), so recursion depth grew with the
+    # transcript: get_tree raised RecursionError at ~996 entries even though a
+    # 1500-entry chain is a supported session (tests/runtime/session/
+    # test_coding_session.py covers one). The tree shape and child order are
+    # identical to the recursive builder.
+    built: dict[str, dict[str, JSONValue]] = {}
+    roots = children.get(None, [])
+    stack: list[tuple[SessionEntry, bool]] = [(root, False) for root in reversed(roots)]
+    while stack:
+        current, expanded = stack.pop()
+        current_children = children.get(current.id, [])
+        if not expanded:
+            stack.append((current, True))
+            stack.extend((child, False) for child in reversed(current_children))
+            continue
+        projected = _entry_wire(current, provider_name)
         if projected is None:
             raise AssertionError("Leaf entries must be filtered before tree projection")
-        return {
+        built[current.id] = {
             "entry": projected,
-            "children": [build(child) for child in children.get(entry.id, [])],
+            "children": [built[child.id] for child in current_children],
         }
 
-    return [build(entry) for entry in children.get(None, [])]
+    return [built[root.id] for root in roots]
 
 
 def _resolve_session_id(session: RpcSession, reference: str) -> str:

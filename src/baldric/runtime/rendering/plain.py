@@ -2,10 +2,67 @@
 
 import typer
 
-from baldric.agent.events import MessageEndEvent
+from baldric.agent.events import (
+    AgentEndEvent,
+    AgentStartEvent,
+    MessageEndEvent,
+    MessageStartEvent,
+    MessageUpdateEvent,
+    RetryAttemptEvent,
+    ToolExecutionEndEvent,
+    ToolExecutionStartEvent,
+    ToolExecutionUpdateEvent,
+    TurnEndEvent,
+    TurnStartEvent,
+)
 from baldric.protocol.messages import AssistantMessage
-from baldric.runtime.events import AutoRetryEndEvent, CodingSessionEvent
+from baldric.runtime.events import (
+    AgentSettledEvent,
+    AutoRetryEndEvent,
+    AutoRetryStartEvent,
+    CodingSessionEvent,
+    CompactionEndEvent,
+    CompactionStartEvent,
+    ModelSelectEvent,
+    QueueUpdateEvent,
+    SessionAgentEndEvent,
+    SessionInfoChangedEvent,
+    ThinkingLevelChangedEvent,
+)
 from baldric.runtime.rendering.base import is_failed_stop_reason
+
+#: Event coverage declarations consumed by tests/guards/test_print_event_dispatch.py.
+#: Final-text mode prints only the completed assistant answer and its failure
+#: reason, so every remaining session event is deliberately ignored. The
+#: AssistantMessage payload is reached by unwrapping MessageEndEvent; message
+#: classes are not session events and therefore are not listed here.
+RENDERED_EVENT_TYPES: frozenset[type[object]] = frozenset(
+    {
+        AutoRetryEndEvent,
+        MessageEndEvent,
+    }
+)
+INTENTIONAL_NOOP: dict[type[object], str] = {
+    AgentEndEvent: "translated to SessionAgentEndEvent before reaching print renderers",
+    AgentSettledEvent: "no visible output in final-text mode",
+    AgentStartEvent: "no visible output in final-text mode",
+    AutoRetryStartEvent: "retry progress is not printed in final-text mode",
+    CompactionEndEvent: "compaction progress is not printed in final-text mode",
+    CompactionStartEvent: "compaction progress is not printed in final-text mode",
+    MessageStartEvent: "no output until the message ends",
+    MessageUpdateEvent: "streaming deltas are not printed in final-text mode",
+    ModelSelectEvent: "TUI-only; print mode reports model changes as command text",
+    QueueUpdateEvent: "TUI-only; print mode never queues mid-turn",
+    RetryAttemptEvent: "translated to AutoRetryStartEvent before print renderers",
+    SessionAgentEndEvent: "no per-type output; answers print on MessageEndEvent",
+    SessionInfoChangedEvent: "TUI-only; print mode reports renames as command text",
+    ThinkingLevelChangedEvent: "TUI-only; print mode reports thinking changes as command text",
+    ToolExecutionEndEvent: "tool output is not printed in final-text mode",
+    ToolExecutionStartEvent: "tool output is not printed in final-text mode",
+    ToolExecutionUpdateEvent: "tool output is not printed in final-text mode",
+    TurnEndEvent: "turn messages are printed through MessageEndEvent",
+    TurnStartEvent: "no visible output in final-text mode",
+}
 
 
 class FinalTextRenderer:

@@ -23,7 +23,7 @@ DEFAULT_OUTPUT = Path("src/baldric/runtime/data/models-dev-catalog.json")
 def _load_source(location: str) -> object:
     if location.startswith(("http://", "https://")):
         request = Request(location, headers={"User-Agent": "baldric-model-catalog-generator"})
-        with urlopen(request, timeout=30) as response:  # noqa: S310 - explicit build input
+        with urlopen(request, timeout=30) as response:  # explicit build input
             return json.load(response)
     with Path(location).open(encoding="utf-8") as source_file:
         return json.load(source_file)

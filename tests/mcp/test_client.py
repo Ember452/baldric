@@ -275,7 +275,7 @@ async def test_call_timeout_keeps_state_connected() -> None:
 
     harness = Harness([FakeSession(call_hook=hook)])
     connection = harness.connection(clock=clock)
-    connection._config = McpServerConfig(  # noqa: SLF001 - test-only timeout tweak
+    connection._config = McpServerConfig(  # test-only timeout tweak
         name="srv", server_type="http", url="https://example.com/mcp", timeout=5.0
     )
     assert await connection.connect() is True
@@ -299,7 +299,7 @@ async def test_progress_resets_deadline_and_reports() -> None:
 
     harness = Harness([FakeSession(call_hook=hook)])
     connection = harness.connection(clock=clock)
-    connection._config = McpServerConfig(  # noqa: SLF001 - test-only timeout tweak
+    connection._config = McpServerConfig(  # test-only timeout tweak
         name="srv", server_type="http", url="https://example.com/mcp", timeout=5.0
     )
     assert await connection.connect() is True

@@ -244,8 +244,8 @@ def test_stderr_sink_factory_binds_each_connection() -> None:
     supervisor = McpSupervisor([ENABLED_A, ENABLED_B], environment={}, stderr_sink_factory=make)
 
     # The sink opens per connect attempt, bound to that server's config.
-    connection = supervisor._connections["a"]  # noqa: SLF001 - asserting the wiring
-    sink_factory = connection._stderr_sink_factory  # noqa: SLF001
+    connection = supervisor._connections["a"]  # asserting the wiring
+    sink_factory = connection._stderr_sink_factory
     assert sink_factory is not None
     assert sink_factory() is not None
     assert created == ["a"]

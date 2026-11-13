@@ -596,7 +596,7 @@ class OAuthLoginScreen(ModalScreen[OAuthCredential | _LoginFlowAction | None]):
                     on_manual_code_input=self._manual_code_input,
                 )
             )
-        except Exception as exc:  # noqa: BLE001 - surface OAuth failures in the TUI
+        except Exception as exc:  # surface OAuth failures in the TUI
             self.query_one("#login-help", Static).update(f"OAuth failed: {exc}")
             return
         self.dismiss(credential)

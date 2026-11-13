@@ -376,7 +376,7 @@ class AgentHarness:
                     event = await anext(loop_events)
                 except StopAsyncIteration:
                     break
-                except Exception as exc:  # noqa: BLE001 - the run ends visible, not loud
+                except Exception as exc:  # the run ends visible, not loud
                     # Pi agent.ts:542-558: a crashed run still ends with a
                     # complete event sequence, so a consumer never hangs on a
                     # half run. The failure message joins history (pi pushes

@@ -1,4 +1,12 @@
-"""Frontend-free contracts for process-local extension providers."""
+"""Frontend-free contracts for process-local extension providers.
+
+These are provider-domain shapes and their validation, consumed by the
+extension API but owned by the provider layer: the module only depends on
+``protocol``, ``context.thinking`` and sibling ``providers`` modules, and the
+platform layer imports it (never the reverse). It lived under ``platform``
+historically, which made ``providers.runtime`` import the platform package and
+created a bidirectional package edge; see plan section 0.2.
+"""
 
 from __future__ import annotations
 

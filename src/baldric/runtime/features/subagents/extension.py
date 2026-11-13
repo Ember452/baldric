@@ -33,12 +33,12 @@ from baldric.protocol.types import JSONValue
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.thinking import THINKING_LEVELS, ThinkingLevel
 from baldric.runtime.platform import ExtensionAPI
-from baldric.runtime.platform.providers import DynamicProvider
 from baldric.runtime.providers.config import (
     ProviderConfigError,
     load_provider_settings,
     resolve_provider_selection,
 )
+from baldric.runtime.providers.contracts import DynamicProvider
 from baldric.runtime.providers.runtime import create_dynamic_model_provider, create_model_provider
 from baldric.runtime.session.session import CodingSession, CodingSessionConfig
 from baldric.runtime.tools.registry import create_coding_tools
@@ -437,7 +437,7 @@ class SubagentManager:
             # (hard-cancel) lands here; settle the record before re-raising.
             run.status = "cancelled"
             raise
-        except Exception as exc:  # noqa: BLE001 - report subagent failures as results
+        except Exception as exc:  # report subagent failures as results
             run.status = "error"
             run.error = str(exc)
         finally:
@@ -512,7 +512,7 @@ class SubagentManager:
         except asyncio.CancelledError:
             run.status = "cancelled"
             raise
-        except Exception as exc:  # noqa: BLE001 - report subagent failures as results
+        except Exception as exc:  # report subagent failures as results
             run.status = "error"
             run.error = str(exc)
         finally:
@@ -539,7 +539,7 @@ class SubagentManager:
         assert worktree is not None
         try:
             result = await cleanup_worktree(worktree, run.description)
-        except Exception:  # noqa: BLE001 - worktree cleanup is best-effort
+        except Exception:  # worktree cleanup is best-effort
             return
         notice = worktree_notice(result)
         if notice:
@@ -722,7 +722,7 @@ class SubagentManager:
             if definition.prompt_mode == "append":
                 try:
                     parent_prompt = self._api.context.system_prompt
-                except Exception:  # noqa: BLE001 - fall back to replace-mode assembly
+                except Exception:  # fall back to replace-mode assembly
                     parent_prompt = None
             environment = ""
             if definition.prompt_mode == "append" and parent_prompt:
@@ -810,14 +810,14 @@ class SubagentManager:
             # promise, and it is the same post-load narrowing the per-type
             # `tools:` gate below already uses.
             core_names = {tool.name for tool in create_coding_tools(cwd=child_cwd)}
-            session._harness.config.tools = [  # noqa: SLF001 - scoped tool gating
+            session._harness.config.tools = [  # scoped tool gating
                 tool for tool in session._harness.config.tools if tool.name in core_names
             ]
         if definition.tools is not None:
             allowed = set(definition.tools)
             if memory_block is not None:
                 allowed |= {"read", "write", "edit"} if memory_rw else {"read"}
-            session._harness.config.tools = [  # noqa: SLF001 - scoped tool gating
+            session._harness.config.tools = [  # scoped tool gating
                 tool for tool in session._harness.config.tools if tool.name in allowed
             ]
         final_text: list[str] = []
@@ -958,7 +958,7 @@ class SubagentManager:
                 f"{format_task_notification(run)}\n{COMPLETION_NOTICE}",
                 build_notification_details(run),
             )
-        except Exception:  # noqa: BLE001 - timer callbacks must never crash the loop
+        except Exception:  # timer callbacks must never crash the loop
             pass
 
     def _send_group_notification(self, records: list[AgentRun], partial: bool) -> None:
@@ -974,7 +974,7 @@ class SubagentManager:
                 format_group_notification(unconsumed, partial=partial),
                 details,
             )
-        except Exception:  # noqa: BLE001 - timer callbacks must never crash the loop
+        except Exception:  # timer callbacks must never crash the loop
             pass
 
     def _deliver_notification(self, content: str, details: dict[str, JSONValue]) -> None:
@@ -1020,7 +1020,7 @@ def setup(baldric: ExtensionAPI) -> None:
                 return  # id not yet available — retry on the next session_start
             store = ScheduleStore(resolve_store_path(baldric.context.paths, baldric.context.cwd, session_id))
             scheduler.start(store)
-        except Exception:  # noqa: BLE001 - scheduling must never break the session
+        except Exception:  # scheduling must never break the session
             pass
 
     # Component seam: the extension owns the agents strip and the
@@ -1452,7 +1452,7 @@ def setup(baldric: ExtensionAPI) -> None:
             ui_controller.clear()
         await manager.shutdown()
         manager.runs.clear()
-        manager._notify_sources()  # noqa: SLF001 - same-module teardown signal
+        manager._notify_sources()  # same-module teardown signal
 
     # Built before any session is bound, so there is no trust decision to read
     # yet: the description lists the user's types, and project agent types stay

@@ -22,9 +22,9 @@ if TYPE_CHECKING:
     from baldric.runtime.config.paths import BaldricPaths
     from baldric.runtime.frontends.tui.config import TuiTheme
     from baldric.runtime.platform.provider_registry import DynamicProviderRegistry
-    from baldric.runtime.platform.providers import DynamicProvider
     from baldric.runtime.platform.runtime import ExtensionRuntime
     from baldric.runtime.providers.backends.contracts import LocalBackend
+    from baldric.runtime.providers.contracts import DynamicProvider
     from baldric.runtime.session.session import ModelChoice
     from baldric.runtime.trust.policy import ProjectTrustResolution
 

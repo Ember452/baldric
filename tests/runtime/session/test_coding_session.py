@@ -61,11 +61,6 @@ from baldric.runtime.events import (
     QueueUpdateEvent,
     SessionAgentEndEvent,
 )
-from baldric.runtime.platform import (
-    DynamicProvider,
-    OpenAICompatibleTransport,
-    ProviderModel,
-)
 from baldric.runtime.platform.runtime import InputHookOutcome
 from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric.runtime.providers.config import (
@@ -78,6 +73,11 @@ from baldric.runtime.providers.config import (
     load_provider_settings,
     provider_thinking_levels,
     save_provider_settings,
+)
+from baldric.runtime.providers.contracts import (
+    DynamicProvider,
+    OpenAICompatibleTransport,
+    ProviderModel,
 )
 from baldric.runtime.providers.stores.codex_model_store import (
     cached_codex_model_catalog,
@@ -1346,6 +1346,61 @@ async def test_terminal_command_can_persist_output_to_context(tmp_path: Path) ->
     assert "Terminal command executed by the user." in messages[0].text
     assert "printf hello" in messages[0].text
     assert "hello" in messages[0].text
+
+
+@pytest.mark.anyio
+async def test_terminal_command_propagates_bash_truncation_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The bash tool's truncation/cancel metadata must reach the result.
+
+    The tool already shortens the text and appends a "Showing lines X-Y of N"
+    note, so dropping the metadata here made the RPC wire report
+    ``truncated=false`` for output that visibly was truncated.
+    """
+    import baldric.runtime.session.lifecycle as lifecycle_module
+
+    storage = JsonlSessionStorage(tmp_path / "session.jsonl")
+    session = await CodingSession.load(_config(tmp_path, FakeProvider([]), storage))
+
+    async def fake_execute(
+        tool_call_id: str,
+        arguments: object,
+        signal: object = None,
+        on_update: object = None,
+    ) -> AgentToolResult:
+        del tool_call_id, arguments, signal, on_update
+        return AgentToolResult(
+            content=[TextContent(text="line 1\n[Showing lines 1-1 of 5000. Full output: full.txt]")],
+            details={
+                "exit_code": 0,
+                "cancelled": False,
+                "truncation": {"truncated": True, "truncated_by": "lines"},
+                "full_output_path": str(tmp_path / "full.txt"),
+            },
+        )
+
+    class _FakeBashTool:
+        async def execute(self, *_args: object, **_kwargs: object) -> AgentToolResult:
+            return await fake_execute("call", {})
+
+    monkeypatch.setattr(lifecycle_module, "create_bash_tool", lambda **_kwargs: _FakeBashTool())
+
+    result = await session.run_terminal_command("seq 5000", add_to_context=True)
+
+    assert result.truncated is True
+    assert result.cancelled is False
+    assert result.full_output_path == str(tmp_path / "full.txt")
+    entries = await storage.read_all()
+    persisted = [
+        entry.message
+        for entry in entries
+        if isinstance(entry, MessageEntry) and isinstance(entry.message, BashExecutionMessage)
+    ]
+    assert persisted, "the terminal command was not persisted to context"
+    assert persisted[0].truncated is True
+    assert persisted[0].full_output_path == str(tmp_path / "full.txt")
 
 
 @pytest.mark.anyio
@@ -3097,7 +3152,7 @@ async def test_auto_naming_does_not_rename_a_session_adopted_mid_request(
 
     replacement = await CodingSession.load(
         dataclass_replace(
-            session._config,  # noqa: SLF001 - direct adoption ownership seam
+            session._config,  # direct adoption ownership seam
             storage=JsonlSessionStorage(other.path),
             session_id=other.id,
             extension_runtime=session.extension_runtime,
@@ -3119,7 +3174,7 @@ async def test_auto_naming_does_not_rename_a_session_adopted_mid_request(
     while session.is_running:
         await asyncio.sleep(0)
     assert not session.is_running
-    await session._adopt_replacement(replacement, reason="branch")  # noqa: SLF001
+    await session._adopt_replacement(replacement, reason="branch")
 
     provider.naming_release.set()
     await asyncio.wait_for(collector, 2)
@@ -5917,8 +5972,8 @@ async def test_session_adoption_transfers_all_runtime_provider_ownership(
     else:
         replacement = await CodingSession.load(
             dataclass_replace(
-                session._config,  # noqa: SLF001 - direct adoption ownership seam
-                provider=session._harness.config.provider,  # noqa: SLF001
+                session._config,  # direct adoption ownership seam
+                provider=session._harness.config.provider,
                 storage=JsonlSessionStorage(resume_record.path),
                 session_id=resume_record.id,
                 extension_runtime=session.extension_runtime,
@@ -6017,8 +6072,8 @@ async def test_aborted_replacement_closes_only_candidate_provider_once(
         reason = "branch"
         replacement = await CodingSession.load(
             dataclass_replace(
-                session._config,  # noqa: SLF001 - direct adoption ownership seam
-                provider=session._harness.config.provider,  # noqa: SLF001
+                session._config,  # direct adoption ownership seam
+                provider=session._harness.config.provider,
                 storage=JsonlSessionStorage(resume_record.path),
                 session_id=resume_record.id,
                 extension_runtime=old_runtime,
@@ -6066,8 +6121,8 @@ async def test_aborted_replacement_closes_only_candidate_provider_once(
     assert lifecycle.done() is False
     assert active_provider.close_calls == 0
     assert candidate_provider.close_calls == 1
-    assert session._harness.config.provider is active_provider  # noqa: SLF001
-    assert tuple(session._owned_providers) == (active_provider,)  # noqa: SLF001
+    assert session._harness.config.provider is active_provider
+    assert tuple(session._owned_providers) == (active_provider,)
 
     release_candidate_close.set()
     expected_error = asyncio.CancelledError if failure == "cancel" else RuntimeError
@@ -7472,7 +7527,7 @@ def test_minimal_commands_are_handled(tmp_path: Path) -> None:
     assert session.handle_command("/unknown").handled is False
 
 
-def _thinking_override_provider_config(  # noqa: D103
+def _thinking_override_provider_config(
     thinking_defaults: dict[str, str] | None = None,
 ) -> OpenAICompatibleProviderConfig:
     return OpenAICompatibleProviderConfig(
@@ -7580,7 +7635,7 @@ def _dynamic_thinking_override_config(
     extension = tmp_path / "dynamic_provider.py"
     extension.write_text(
         """
-from baldric.runtime.platform import DynamicProvider, OpenAICompatibleTransport, ProviderModel
+from baldric.runtime.providers.contracts import DynamicProvider, OpenAICompatibleTransport, ProviderModel
 
 
 def setup(baldric):

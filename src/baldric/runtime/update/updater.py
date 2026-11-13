@@ -90,7 +90,7 @@ def update_baldric(
     if method == "uv-tool":
         try:
             latest_version = latest_version_fetcher()
-        except Exception as exc:  # noqa: BLE001 - report update lookup failures to the user
+        except Exception as exc:  # report update lookup failures to the user
             return _failure(f"Could not determine the latest Baldric version from PyPI: {exc}")
         if latest_version is None:
             return _failure("Could not determine the latest Baldric version from PyPI.")

@@ -28,18 +28,6 @@ from baldric.protocol.provider_events import (
 from baldric.protocol.tools import AgentTool, AgentToolResult, ToolCancellationToken
 from baldric.protocol.types import JSONValue
 from baldric.runtime.config.paths import BaldricPaths
-from baldric.runtime.platform.providers import (
-    DynamicProvider,
-    OpenAICompatibleTransport,
-    ProviderAuthContext,
-    ProviderAuthError,
-    ProviderAuthScope,
-    ProviderModel,
-    ProviderModelSnapshot,
-    ProviderRefreshContext,
-    ResolvedProviderAuth,
-    resolve_provider_auth,
-)
 from baldric.runtime.providers.auth.credentials import CredentialStore, FileCredentialStore, credentials_path
 from baldric.runtime.providers.backends.contracts import (
     LocalAction,
@@ -57,6 +45,18 @@ from baldric.runtime.providers.backends.contracts import (
     LocalOperationResult,
     LocalProgress,
     LocalSearchResult,
+)
+from baldric.runtime.providers.contracts import (
+    DynamicProvider,
+    OpenAICompatibleTransport,
+    ProviderAuthContext,
+    ProviderAuthError,
+    ProviderAuthScope,
+    ProviderModel,
+    ProviderModelSnapshot,
+    ProviderRefreshContext,
+    ResolvedProviderAuth,
+    resolve_provider_auth,
 )
 
 from .huggingface import (

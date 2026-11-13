@@ -179,8 +179,8 @@ detects violations - a green gate that no longer fires is worse than no gate.
 - **TUI tests are occasionally flaky on Windows**: the whole suite can hang in
   the asyncio Windows backend. Re-run the domain before treating it as a
   regression; the same code passes on Linux CI.
-- **94 `# noqa: BLE001`**: broad exception handling is recorded debt, not a
-  target. The suppression ratchet only stops it from growing.
+- **Broad `except Exception` is recorded debt.** `BLE001` is disabled; reasons
+  are plain comments, not dead `# noqa`.
 - **The TUI is a frontend, not the architecture**: do not add Textual imports to
   `baldric.agent` or `baldric.ai` to make a feature easier.
 

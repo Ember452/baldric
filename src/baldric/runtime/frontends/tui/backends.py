@@ -434,7 +434,7 @@ class LocalBackendScreen(ModalScreen[None]):
             return
         try:
             spec = view.backend.read_configure_spec()
-        except Exception:  # noqa: BLE001 - a backend must not crash the host
+        except Exception:  # a backend must not crash the host
             self._show_message("Could not read the backend configuration.", "error")
             return
         self.app.push_screen(
@@ -657,7 +657,7 @@ class LocalBackendScreen(ModalScreen[None]):
         except asyncio.CancelledError:
             self._active_action = None
             return
-        except Exception as exc:  # noqa: BLE001 - host keeps modal alive
+        except Exception as exc:  # host keeps modal alive
             self._active_action = None
             if self._can_update_ui:
                 self._show_message(f"Could not complete action: {type(exc).__name__}", "error")
@@ -768,7 +768,7 @@ class LocalBackendScreen(ModalScreen[None]):
             await result
         except asyncio.CancelledError:
             return
-        except Exception:  # noqa: BLE001 - keep host modal alive
+        except Exception:  # keep host modal alive
             if self._can_update_ui:
                 self._show_message("Could not switch to the selected model.", "error")
 

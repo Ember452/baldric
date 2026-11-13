@@ -43,14 +43,14 @@ from baldric.runtime.trust.policy import ProjectTrustResolution
 
 # Sibling test modules (pytest prepend import mode puts tests/ on sys.path).
 from tests.helpers.subagents_shared import (
-    # noqa: E402,
+    # ,
     _agent_tool,
     _extension_module,
     _load_runtime,
     _patch_provider_factory,
     _text_stream,
 )
-from tests.helpers.subagents_ui_helpers import _run, _strip_text  # noqa: E402
+from tests.helpers.subagents_ui_helpers import _run, _strip_text
 
 pytestmark = pytest.mark.anyio
 
@@ -76,7 +76,7 @@ class _FakeSession:
     extension installs its widgets).
     """
 
-    def __init__(self, runtime, cwd: Path) -> None:  # noqa: ANN001
+    def __init__(self, runtime, cwd: Path) -> None:
         self._extension_runtime = runtime
         self.cwd = cwd
         self.session_id = "itest-session"
@@ -125,7 +125,7 @@ class _FakeSession:
         self.session_start_emissions = 0
 
     @property
-    def extension_runtime(self):  # noqa: ANN201
+    def extension_runtime(self):
         return self._extension_runtime
 
     async def emit_pending_session_start(self) -> None:
@@ -182,7 +182,7 @@ def _make_app(tmp_path: Path) -> tuple[BaldricTuiApp, _FakeSession]:
     return app, session
 
 
-async def test_real_app_mounts_extension_strip_and_viewer(tmp_path) -> None:  # noqa: ANN001
+async def test_real_app_mounts_extension_strip_and_viewer(tmp_path) -> None:
     app, session = _make_app(tmp_path)
 
     async with app.run_test(size=(100, 40)) as pilot:
@@ -252,10 +252,8 @@ class _GatedProvider:
     def __init__(self, release: asyncio.Event) -> None:
         self._release = release
 
-    def stream_response(  # noqa: ANN001, ANN202
-        self, *, model, system, messages, tools, signal=None, session_id=None
-    ):
-        async def iterator():  # noqa: ANN202
+    def stream_response(self, *, model, system, messages, tools, signal=None, session_id=None):
+        async def iterator():
             await self._release.wait()
             yield AssistantStartEvent(partial=AssistantMessage(model="fake"))
             yield AssistantDoneEvent(reason="stop", message=AssistantMessage(content="done"))
@@ -263,7 +261,7 @@ class _GatedProvider:
         return iterator()
 
 
-async def _wait_until(pilot, condition, *, tries: int = 200) -> None:  # noqa: ANN001
+async def _wait_until(pilot, condition, *, tries: int = 200) -> None:
     """Pump the event loop until ``condition()`` holds (or we give up)."""
     for _ in range(tries):
         if condition():
@@ -271,7 +269,7 @@ async def _wait_until(pilot, condition, *, tries: int = 200) -> None:  # noqa: A
         await pilot.pause()
 
 
-async def test_real_spawn_lights_strip_and_keyboard_opens_viewer(tmp_path) -> None:  # noqa: ANN001
+async def test_real_spawn_lights_strip_and_keyboard_opens_viewer(tmp_path) -> None:
     """End-to-end proof: a real background spawn lights the strip (with non-zero
     height), and REAL key presses drive the fleet-list nav — ``left`` activates,
     ``down``+``enter`` open the viewer, ``escape`` closes it — all through the
@@ -353,14 +351,14 @@ async def test_real_spawn_lights_strip_and_keyboard_opens_viewer(tmp_path) -> No
         await pilot.pause()
 
 
-async def _settle(pilot) -> None:  # noqa: ANN001
+async def _settle(pilot) -> None:
     """Pump through an async component swap (deferred remove -> mount)."""
     for _ in range(4):
         await asyncio.sleep(0)
         await pilot.pause()
 
 
-def _seed_run(strip, agent_id: str, *, agent_type: str, description: str):  # noqa: ANN001, ANN202
+def _seed_run(strip, agent_id: str, *, agent_type: str, description: str):
     run = _run(
         agent_id,
         agent_type=agent_type,
@@ -379,7 +377,7 @@ def _seed_run(strip, agent_id: str, *, agent_type: str, description: str):  # no
 # removals drain, both land exactly one widget with zero component failures.
 
 
-async def test_rapid_viewer_switch_mounts_exactly_one_viewer(tmp_path) -> None:  # noqa: ANN001
+async def test_rapid_viewer_switch_mounts_exactly_one_viewer(tmp_path) -> None:
     """Opening a second viewer the same tick a first opens -> one viewer, no crash."""
     app, _session = _make_app(tmp_path)
     async with app.run_test(size=(100, 40)) as pilot:
@@ -403,7 +401,7 @@ async def test_rapid_viewer_switch_mounts_exactly_one_viewer(tmp_path) -> None: 
         assert app._extension_component_failures_reported == set()
 
 
-async def test_rapid_viewer_switch_a_b_c(tmp_path) -> None:  # noqa: ANN001
+async def test_rapid_viewer_switch_a_b_c(tmp_path) -> None:
     """Three viewer opens in one tick collapse to the last, no DuplicateIds."""
     app, _session = _make_app(tmp_path)
     async with app.run_test(size=(100, 40)) as pilot:
@@ -427,7 +425,7 @@ async def test_rapid_viewer_switch_a_b_c(tmp_path) -> None:  # noqa: ANN001
         assert app._extension_component_failures_reported == set()
 
 
-async def test_same_tick_teardown_reinstall_yields_one_strip(tmp_path) -> None:  # noqa: ANN001
+async def test_same_tick_teardown_reinstall_yields_one_strip(tmp_path) -> None:
     """Tearing the controller down and reinstalling in one tick -> one strip."""
     app, _session = _make_app(tmp_path)
     async with app.run_test(size=(100, 40)) as pilot:
@@ -444,7 +442,7 @@ async def test_same_tick_teardown_reinstall_yields_one_strip(tmp_path) -> None: 
         assert app._extension_component_failures_reported == set()
 
 
-async def test_session_rebind_keeps_single_strip(tmp_path) -> None:  # noqa: ANN001
+async def test_session_rebind_keeps_single_strip(tmp_path) -> None:
     """The real /new,/resume rebind sequence (shutdown then start) keeps one strip.
 
     Reproduces bug 3: the extension tears its widgets down on ``session_shutdown``
@@ -467,7 +465,7 @@ async def test_session_rebind_keeps_single_strip(tmp_path) -> None:  # noqa: ANN
         assert app._extension_component_failures_reported == set()
 
 
-async def test_journey_switch_viewers_then_back_to_main(tmp_path) -> None:  # noqa: ANN001
+async def test_journey_switch_viewers_then_back_to_main(tmp_path) -> None:
     """The user's exact journey, end to end, with zero component failures.
 
     Spawn two real background runs -> open run 1's viewer via keys -> ``left``
@@ -556,18 +554,18 @@ async def test_journey_switch_viewers_then_back_to_main(tmp_path) -> None:  # no
 # the prompt on ANY left click, silently rerouting every key to the main chat.
 
 
-def _focus_inside(app, widget) -> bool:  # noqa: ANN001
+def _focus_inside(app, widget) -> bool:
     focused = app.focused
     return focused is not None and (focused is widget or widget in focused.ancestors)
 
 
-def _open_viewer(app, strip, run):  # noqa: ANN001, ANN202
+def _open_viewer(app, strip, run):
     controller = strip._open_conversation.__self__
     assert controller.open_conversation(run) is True
     return controller
 
 
-async def test_click_inside_viewer_keeps_viewer_focused(tmp_path) -> None:  # noqa: ANN001
+async def test_click_inside_viewer_keeps_viewer_focused(tmp_path) -> None:
     app, _session = _make_app(tmp_path)
     async with app.run_test(size=(100, 40)) as pilot:
         await pilot.pause()
@@ -587,7 +585,7 @@ async def test_click_inside_viewer_keeps_viewer_focused(tmp_path) -> None:  # no
         )
 
 
-async def test_click_outside_viewer_keeps_viewer_focused(tmp_path) -> None:  # noqa: ANN001
+async def test_click_outside_viewer_keeps_viewer_focused(tmp_path) -> None:
     # A click on the strip (or any main-screen chrome) must not hand the
     # keyboard back to the prompt while an extension main view is open.
     app, _session = _make_app(tmp_path)
@@ -611,7 +609,7 @@ async def test_click_outside_viewer_keeps_viewer_focused(tmp_path) -> None:  # n
         )
 
 
-async def test_viewer_keys_still_work_after_a_click(tmp_path) -> None:  # noqa: ANN001
+async def test_viewer_keys_still_work_after_a_click(tmp_path) -> None:
     # The reported symptoms, end to end: after a click, ctrl+o must toggle the
     # VIEWER's tool results (not the hidden main transcript) and esc must
     # close the viewer (not fall through to the prompt's cancel).
@@ -641,7 +639,7 @@ async def test_viewer_keys_still_work_after_a_click(tmp_path) -> None:  # noqa: 
         assert app.query_one("#transcript", TranscriptView).display is True
 
 
-async def test_agents_menu_open_path_focuses_viewer(tmp_path) -> None:  # noqa: ANN001
+async def test_agents_menu_open_path_focuses_viewer(tmp_path) -> None:
     # The /agents flow opens the viewer right after a modal select dismisses;
     # the modal's focus-restore must not outlive the viewer's mount focus.
     app, session = _make_app(tmp_path)
@@ -668,7 +666,7 @@ async def test_agents_menu_open_path_focuses_viewer(tmp_path) -> None:  # noqa: 
         )
 
 
-async def test_foreground_result_renders_completion_card(tmp_path) -> None:  # noqa: ANN001
+async def test_foreground_result_renders_completion_card(tmp_path) -> None:
     """End-to-end proof of the render_result seam: a REAL foreground agent run's
     result, streamed through the REAL app, renders the completion card on the
     tool row (invocation line + ✓ stats + ⎿ preview) instead of the bare
@@ -686,7 +684,7 @@ async def test_foreground_result_renders_completion_card(tmp_path) -> None:  # n
         agent_tool = _agent_tool(session.extension_runtime)
         result = await agent_tool.execute("call-1", {"prompt": "go", "description": "survey the repo"})
 
-        async def stream(event) -> None:  # noqa: ANN001
+        async def stream(event) -> None:
             app.adapter.apply(event)
             await app._apply_streaming_transcript_event(event)
 

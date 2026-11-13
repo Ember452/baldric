@@ -39,7 +39,7 @@ __all__ = [
 ]
 
 
-def _bpaths(home):  # noqa: ANN001, ANN202 - test helper
+def _bpaths(home):  # test helper
     """BaldricPaths for a directory that stands in for the user home."""
     return BaldricPaths(home=home / ".baldric", agents_home=home / "agents")
 
@@ -150,7 +150,7 @@ def _submodule(name: str) -> object:
     return sys.modules[f"{top.__name__}.{name}"]  # type: ignore[attr-defined]
 
 
-def _agent_tool(runtime: ExtensionRuntime):  # noqa: ANN202
+def _agent_tool(runtime: ExtensionRuntime):
     return next(tool for tool in runtime.extension_tools if tool.name == "agent")
 
 
@@ -169,12 +169,10 @@ class BlockingProvider:
         self._text = text
         self.calls: list[object] = []
 
-    def stream_response(  # noqa: ANN001, ANN202
-        self, *, model, system, messages, tools, signal=None, session_id=None
-    ):
+    def stream_response(self, *, model, system, messages, tools, signal=None, session_id=None):
         self.calls.append(list(messages))
 
-        async def iterator():  # noqa: ANN202
+        async def iterator():
             await self._release.wait()
             yield AssistantStartEvent(partial=AssistantMessage(model="fake"))
             yield AssistantDoneEvent(reason="stop", message=AssistantMessage(content=self._text))
@@ -206,7 +204,7 @@ def _patch_provider_sequence(module: object, providers: list[object]) -> None:
     )
 
 
-async def _wait_for(condition, *, tries: int = 500) -> None:  # noqa: ANN001
+async def _wait_for(condition, *, tries: int = 500) -> None:
     for _ in range(tries):
         if condition():
             return
@@ -216,7 +214,7 @@ async def _wait_for(condition, *, tries: int = 500) -> None:  # noqa: ANN001
 class ScriptedUi:
     """Scripted DialogUi fake for menu tests."""
 
-    def __init__(self, selects, confirms=(), inputs=()) -> None:  # noqa: ANN001
+    def __init__(self, selects, confirms=(), inputs=()) -> None:
         self.selects = list(selects)
         self.confirms = list(confirms)
         self.inputs = list(inputs)
@@ -230,13 +228,13 @@ class ScriptedUi:
     def notify(self, message: str, level: str = "info") -> None:
         self.notifications.append(message)
 
-    async def select(self, title, options, *, timeout=None):  # noqa: ANN001, ANN202
+    async def select(self, title, options, *, timeout=None):
         self.select_calls.append((title, tuple(options)))
         answer = self.selects.pop(0)
         return answer(options) if callable(answer) else answer
 
-    async def confirm(self, title, message, *, timeout=None):  # noqa: ANN001, ANN202
+    async def confirm(self, title, message, *, timeout=None):
         return self.confirms.pop(0)
 
-    async def input(self, title, placeholder="", *, timeout=None):  # noqa: ANN001, ANN202
+    async def input(self, title, placeholder="", *, timeout=None):
         return self.inputs.pop(0)

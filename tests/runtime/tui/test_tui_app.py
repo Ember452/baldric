@@ -170,13 +170,7 @@ from baldric.runtime.frontends.tui.widgets import (
     render_session_sidebar,
     transcript_item_selection_text,
 )
-from baldric.runtime.platform import (
-    DynamicProvider,
-    DynamicProviderRegistry,
-    NoAuth,
-    OpenAICompatibleTransport,
-    ProviderModel,
-)
+from baldric.runtime.platform import DynamicProviderRegistry
 from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric.runtime.providers.backends.contracts import (
     LocalBackend,
@@ -193,6 +187,12 @@ from baldric.runtime.providers.config import (
     ProviderSettings,
     ScopedModelConfig,
     save_provider_settings,
+)
+from baldric.runtime.providers.contracts import (
+    DynamicProvider,
+    NoAuth,
+    OpenAICompatibleTransport,
+    ProviderModel,
 )
 from baldric.runtime.providers.loader import user_catalog_path
 from baldric.runtime.rendering.activity import THINKING_LEVEL_COLORS

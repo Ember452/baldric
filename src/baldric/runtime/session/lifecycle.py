@@ -13,7 +13,7 @@ from baldric.ai.model_catalog import ModelCatalogProvider, RuntimeModelCatalog
 from baldric.protocol.messages import (
     BashExecutionMessage,
 )
-from baldric.runtime.app import stage_runtime_for_reload
+from baldric.runtime.app import eligible_built_in_extensions, stage_runtime_for_reload
 from baldric.runtime.commands.base import unhandled_result
 from baldric.runtime.commands.registry import CommandResult
 from baldric.runtime.config.paths import BaldricPaths
@@ -34,13 +34,13 @@ from baldric.runtime.events import (
     SessionInfoChangedEvent,
 )
 from baldric.runtime.platform.api import UserBashEvent
-from baldric.runtime.platform.providers import DynamicProvider
 from baldric.runtime.providers.config import (
     OpenAICodexProviderConfig,
     ProviderConfigError,
     resolve_provider_selection,
     validate_provider_model,
 )
+from baldric.runtime.providers.contracts import DynamicProvider
 from baldric.runtime.providers.runtime import ClosableModelProvider
 from baldric.runtime.providers.stores.codex_model_store import (
     save_codex_model_catalog,
@@ -62,7 +62,7 @@ from baldric.runtime.session.model_selection import (
 from baldric.runtime.session.model_selection import (
     ModelSelectionResult as ModelSelectionResult,
 )
-from baldric.runtime.session.provider_helpers import (  # noqa: F401
+from baldric.runtime.session.provider_helpers import (
     _coerced_thinking_level as _coerced_thinking_level,
 )
 from baldric.runtime.session.provider_helpers import (
@@ -119,7 +119,7 @@ from baldric.runtime.session.provider_helpers import (
 from baldric.runtime.session.provider_helpers import (
     _unavailable_thinking_message as _unavailable_thinking_message,
 )
-from baldric.runtime.session.resource_helpers import (  # noqa: F401
+from baldric.runtime.session.resource_helpers import (
     SessionResources as SessionResources,
 )
 from baldric.runtime.session.resource_helpers import (
@@ -191,7 +191,7 @@ from baldric.runtime.session.resource_helpers import (
 from baldric.runtime.session.resource_helpers import (
     parse_terminal_command as parse_terminal_command,
 )
-from baldric.runtime.session.tree_helpers import (  # noqa: F401
+from baldric.runtime.session.tree_helpers import (
     _active_branchable_entry_id as _active_branchable_entry_id,
 )
 from baldric.runtime.session.tree_helpers import (
@@ -317,6 +317,7 @@ async def reload(session: CodingSession) -> CodingReloadSummary:
         environment=session._extension_runtime.provider_environment,
         built_in_credentials=session._extension_runtime.built_in_credentials,
         built_in_http_client=session._extension_runtime.built_in_http_client,
+        built_in_extensions=eligible_built_in_extensions(session._config),
         runtime_paths=(
             session._resource_paths.paths
             or BaldricPaths(
@@ -512,7 +513,7 @@ async def refresh_model_catalogs(session: CodingSession, *, force: bool = False)
             force=force,
         )
         session.reload_provider_settings()
-    except Exception as error:  # noqa: BLE001 - authenticated refresh still runs
+    except Exception as error:  # authenticated refresh still runs
         public_error = error
     await session._refresh_codex_model_catalog()
     if public_error is not None:
@@ -553,7 +554,7 @@ async def _refresh_codex_model_catalog(session: CodingSession) -> None:
         catalog = await temporary_provider.discover_models()
         session._publish_runtime_model_catalog(provider_config.name, catalog)
         session._persist_codex_model_catalog(temporary_provider, catalog, provider_config)
-    except Exception as exc:  # noqa: BLE001 - static catalog remains the safe fallback
+    except Exception as exc:  # static catalog remains the safe fallback
         session._model_catalog_discovery_errors[provider_config.name] = f"{type(exc).__name__}: {exc}"
     finally:
         await temporary_provider.aclose()
@@ -744,6 +745,7 @@ async def resume(session: CodingSession, session_id: str) -> str:
             trust_prompt=session._config.trust_prompt,
             defer_authoritative_writes=dynamic_resume,
             owns_initial_provider=dynamic_resume,
+            disabled_built_in_extensions=session._config.disabled_built_in_extensions,
         )
     )
     try:
@@ -1170,6 +1172,7 @@ async def run_terminal_command(
                 command=normalized_command,
                 output=extension_result.output,
                 exit_code=extension_result.exit_code,
+                cancelled=extension_result.cancelled,
             )
             session._harness.append_message(context_message)
             session._invalidate_context_usage_cache()
@@ -1182,6 +1185,7 @@ async def run_terminal_command(
                 exit_code=extension_result.exit_code,
                 ok=extension_result.exit_code == 0 and not extension_result.cancelled,
                 added_to_context=added,
+                cancelled=extension_result.cancelled,
             ),
         )
 
@@ -1192,9 +1196,21 @@ async def run_terminal_command(
     )
     result = await bash_tool.execute("terminal-command", {"command": normalized_command})
     exit_code = None
+    cancelled = False
+    truncated = False
+    full_output_path: str | None = None
     if isinstance(result.details, dict):
         raw_exit_code = result.details.get("exit_code")
         exit_code = raw_exit_code if isinstance(raw_exit_code, int) else None
+        raw_cancelled = result.details.get("cancelled")
+        cancelled = raw_cancelled if isinstance(raw_cancelled, bool) else False
+        # The bash tool already shortened the text and appended a "Showing lines
+        # X-Y of N" note; dropping the metadata here is what made the RPC wire
+        # claim truncated=false for output that visibly was truncated.
+        raw_truncation = result.details.get("truncation")
+        truncated = raw_truncation.get("truncated") is True if isinstance(raw_truncation, dict) else False
+        raw_path = result.details.get("full_output_path")
+        full_output_path = raw_path if isinstance(raw_path, str) else None
 
     if add_to_context:
         await session._flush_pending_message_writes(context=session._diagnostic_context())
@@ -1202,6 +1218,9 @@ async def run_terminal_command(
             command=normalized_command,
             output=result.text,
             exit_code=exit_code,
+            cancelled=cancelled,
+            truncated=truncated,
+            full_output_path=full_output_path,
         )
         session._harness.append_message(context_message)
         session._invalidate_context_usage_cache()
@@ -1215,5 +1234,8 @@ async def run_terminal_command(
             exit_code=exit_code,
             ok=exit_code == 0,
             added_to_context=add_to_context,
+            cancelled=cancelled,
+            truncated=truncated,
+            full_output_path=full_output_path,
         ),
     )

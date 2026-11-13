@@ -269,7 +269,7 @@ class SubagentScheduler:
                 model=job.model,
                 thinking=job.thinking,
             )
-        except Exception:  # noqa: BLE001 - a bad spawn must not kill the scheduler
+        except Exception:  # a bad spawn must not kill the scheduler
             store.update(job_id, last_run=_now_iso(), last_status="error")
             return
         task = run.task
@@ -278,7 +278,7 @@ class SubagentScheduler:
                 await task
             except asyncio.CancelledError:
                 return  # session shutting down — leave state as-is
-            except Exception:  # noqa: BLE001 - failures are read from run.status
+            except Exception:  # failures are read from run.status
                 pass
         final = self._manager.runs.get(run.agent_id) or run
         failed = final.status in _TERMINAL_FAILURE

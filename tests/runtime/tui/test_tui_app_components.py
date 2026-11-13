@@ -25,7 +25,7 @@ from tests.helpers.tui_helpers import (
 
 
 class _CrashOnRender(Static):
-    def render(self):  # noqa: ANN201
+    def render(self):
         raise RuntimeError("boom-in-render")
 
 
@@ -319,7 +319,7 @@ async def test_component_key_interceptor_consumes_and_gates_on_prompt_text() -> 
         bridge = _component_bridge(app)
         seen: list[tuple[str, str]] = []
 
-        def interceptor(event, text: str) -> bool:  # noqa: ANN001
+        def interceptor(event, text: str) -> bool:
             seen.append((event.key, text))
             return event.key == "j" and text == ""
 
@@ -372,7 +372,7 @@ async def test_component_key_interceptor_failure_degrades_to_typing() -> None:
         await pilot.pause()
         bridge = _component_bridge(app)
 
-        def boom(event, text: str) -> bool:  # noqa: ANN001
+        def boom(event, text: str) -> bool:
             raise RuntimeError("interceptor exploded")
 
         bridge.register_key_interceptor(boom)
@@ -406,7 +406,7 @@ async def test_component_key_interceptor_preempts_priority_binding() -> None:
 
         seen: list[str] = []
 
-        def interceptor(event, text: str) -> bool:  # noqa: ANN001
+        def interceptor(event, text: str) -> bool:
             seen.append(event.key)
             return event.key == "down"
 
@@ -512,7 +512,7 @@ async def test_component_factory_crash_is_isolated() -> None:
         await pilot.pause()
         bridge = _component_bridge(app)
 
-        def exploding_factory(theme):  # noqa: ANN001, ANN202
+        def exploding_factory(theme):
             raise RuntimeError("factory exploded")
 
         bridge.set_slot_widget("bad", exploding_factory, placement="below_prompt")
