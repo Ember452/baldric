@@ -16,7 +16,9 @@ from uuid import uuid4
 
 from baldric.agent.harness import SimpleCancellationToken
 from baldric.protocol.provider import ProviderLayerToken as ProviderLayerToken
-from baldric.runtime.platform.providers import (
+from baldric.runtime.providers.catalog import BUILTIN_PROVIDER_CATALOG
+from baldric.runtime.providers.config import ProviderConfig
+from baldric.runtime.providers.contracts import (
     CredentialReader,
     DynamicProvider,
     DynamicProviderError,
@@ -24,8 +26,6 @@ from baldric.runtime.platform.providers import (
     ProviderRefreshContext,
     resolve_provider_auth,
 )
-from baldric.runtime.providers.catalog import BUILTIN_PROVIDER_CATALOG
-from baldric.runtime.providers.config import ProviderConfig
 
 DEFAULT_PROVIDER_REFRESH_TIMEOUT_SECONDS = 10.0
 PROVIDER_DISCOVERY_CANCELLATION_TIMEOUT_SECONDS = 0.25

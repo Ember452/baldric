@@ -33,12 +33,12 @@ from baldric.protocol.types import JSONValue
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.thinking import THINKING_LEVELS, ThinkingLevel
 from baldric.runtime.platform import ExtensionAPI
-from baldric.runtime.platform.providers import DynamicProvider
 from baldric.runtime.providers.config import (
     ProviderConfigError,
     load_provider_settings,
     resolve_provider_selection,
 )
+from baldric.runtime.providers.contracts import DynamicProvider
 from baldric.runtime.providers.runtime import create_dynamic_model_provider, create_model_provider
 from baldric.runtime.session.session import CodingSession, CodingSessionConfig
 from baldric.runtime.tools.registry import create_coding_tools

@@ -21,7 +21,6 @@ from baldric.runtime.context.system_prompt import PromptSection
 from baldric.runtime.platform import (
     EXTENSION_API_VERSION,
     CustomMessageView,
-    DynamicProvider,
     ExtensionAPI,
     ExtensionCapabilities,
     ExtensionError,
@@ -30,17 +29,20 @@ from baldric.runtime.platform import (
     InputHookResult,
     LoadedExtension,
     MessageRenderOptions,
-    NoAuth,
-    OpenAICompatibleTransport,
-    ProviderModelSnapshot,
-    ProviderRefreshContext,
-    RefreshModels,
     ToolCallHookResult,
     ToolResultHookResult,
     discover_extensions,
     load_extensions,
 )
 from baldric.runtime.platform.builtin_registry import BuiltInExtension
+from baldric.runtime.providers.contracts import (
+    DynamicProvider,
+    NoAuth,
+    OpenAICompatibleTransport,
+    ProviderModelSnapshot,
+    ProviderRefreshContext,
+    RefreshModels,
+)
 from baldric.runtime.session import JsonlSessionStorage
 from baldric.runtime.session.manager import SessionManager
 from baldric.runtime.session.session import CodingSession, CodingSessionConfig, ModelChoice
@@ -734,7 +736,7 @@ async def test_built_in_order_preserves_tool_command_and_provider_precedence(
         "shadow",
         """
 from baldric.protocol.tools import AgentTool, AgentToolResult
-from baldric.runtime.platform import DynamicProvider, NoAuth, OpenAICompatibleTransport
+from baldric.runtime.providers.contracts import DynamicProvider, NoAuth, OpenAICompatibleTransport
 
 
 async def execute(tool_call_id, arguments, signal=None, on_update=None):
@@ -993,7 +995,7 @@ async def test_failed_setup_cleans_every_registration_after_entry_symlink_retarg
 from pathlib import Path
 
 from baldric.protocol.tools import AgentTool, AgentToolResult
-from baldric.runtime.platform import DynamicProvider, NoAuth, OpenAICompatibleTransport
+from baldric.runtime.providers.contracts import DynamicProvider, NoAuth, OpenAICompatibleTransport
 
 
 async def _tool(tool_call_id, arguments, signal=None, on_update=None):

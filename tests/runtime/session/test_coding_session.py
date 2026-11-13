@@ -61,11 +61,6 @@ from baldric.runtime.events import (
     QueueUpdateEvent,
     SessionAgentEndEvent,
 )
-from baldric.runtime.platform import (
-    DynamicProvider,
-    OpenAICompatibleTransport,
-    ProviderModel,
-)
 from baldric.runtime.platform.runtime import InputHookOutcome
 from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric.runtime.providers.config import (
@@ -78,6 +73,11 @@ from baldric.runtime.providers.config import (
     load_provider_settings,
     provider_thinking_levels,
     save_provider_settings,
+)
+from baldric.runtime.providers.contracts import (
+    DynamicProvider,
+    OpenAICompatibleTransport,
+    ProviderModel,
 )
 from baldric.runtime.providers.stores.codex_model_store import (
     cached_codex_model_catalog,
@@ -7580,7 +7580,7 @@ def _dynamic_thinking_override_config(
     extension = tmp_path / "dynamic_provider.py"
     extension.write_text(
         """
-from baldric.runtime.platform import DynamicProvider, OpenAICompatibleTransport, ProviderModel
+from baldric.runtime.providers.contracts import DynamicProvider, OpenAICompatibleTransport, ProviderModel
 
 
 def setup(baldric):

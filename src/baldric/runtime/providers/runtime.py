@@ -27,19 +27,6 @@ from baldric.runtime.context.thinking import (
     normalize_thinking_level,
     reasoning_effort_for_level,
 )
-from baldric.runtime.platform.providers import (
-    CredentialReader,
-    DynamicProvider,
-    OpenAICompatibleTransport,
-    ProviderAuthError,
-    ProviderModel,
-    ProviderRuntimeContext,
-    RequiredApiKey,
-    ResolvedProviderAuth,
-    _MissingRequiredApiKeyError,
-    json_compatible_mapping,
-    resolve_provider_auth,
-)
 from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric.runtime.providers.auth.oauth import (
     account_id_from_access_token,
@@ -62,6 +49,19 @@ from baldric.runtime.providers.config import (
     provider_thinking_levels,
     validate_huggingface_inference_provider,
     validate_provider_model,
+)
+from baldric.runtime.providers.contracts import (
+    CredentialReader,
+    DynamicProvider,
+    OpenAICompatibleTransport,
+    ProviderAuthError,
+    ProviderModel,
+    ProviderRuntimeContext,
+    RequiredApiKey,
+    ResolvedProviderAuth,
+    _MissingRequiredApiKeyError,
+    json_compatible_mapping,
+    resolve_provider_auth,
 )
 from baldric.runtime.providers.stores.codex_version import CodexClientVersionResolver
 

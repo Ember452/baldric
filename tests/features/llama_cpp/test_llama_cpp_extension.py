@@ -38,9 +38,9 @@ from baldric.runtime.features.llama_cpp.state import (
     LlamaCppStoredModel,
 )
 from baldric.runtime.platform import ExtensionRuntime
-from baldric.runtime.platform.providers import ProviderRefreshContext, ResolvedProviderAuth
 from baldric.runtime.providers.auth.credentials import FileCredentialStore
 from baldric.runtime.providers.backends.contracts import LocalOperationContext, LocalProgress
+from baldric.runtime.providers.contracts import ProviderRefreshContext, ResolvedProviderAuth
 from baldric.runtime.providers.runtime import create_dynamic_model_provider
 from tests.helpers.conftest_utils import isolate_home
 

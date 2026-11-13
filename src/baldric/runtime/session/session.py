@@ -53,8 +53,8 @@ from baldric.runtime.observability.diagnostics import (
     AgentCallDiagnosticContext,
     AgentCallDiagnosticLogger,
 )
-from baldric.runtime.platform.providers import DynamicProvider, ProviderModel
 from baldric.runtime.providers.auth.credentials import FileCredentialStore, credentials_path
+from baldric.runtime.providers.contracts import DynamicProvider, ProviderModel
 
 if TYPE_CHECKING:
     from baldric.runtime.platform.runtime import ExtensionRuntime

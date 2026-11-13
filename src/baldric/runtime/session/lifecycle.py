@@ -34,13 +34,13 @@ from baldric.runtime.events import (
     SessionInfoChangedEvent,
 )
 from baldric.runtime.platform.api import UserBashEvent
-from baldric.runtime.platform.providers import DynamicProvider
 from baldric.runtime.providers.config import (
     OpenAICodexProviderConfig,
     ProviderConfigError,
     resolve_provider_selection,
     validate_provider_model,
 )
+from baldric.runtime.providers.contracts import DynamicProvider
 from baldric.runtime.providers.runtime import ClosableModelProvider
 from baldric.runtime.providers.stores.codex_model_store import (
     save_codex_model_catalog,

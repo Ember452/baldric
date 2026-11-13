@@ -13,7 +13,7 @@ from types import SimpleNamespace
 import pytest
 
 from baldric.runtime.platform.provider_registry import DynamicProviderRegistry
-from baldric.runtime.platform.providers import (
+from baldric.runtime.providers.contracts import (
     DynamicProvider,
     NoAuth,
     OpenAICompatibleTransport,

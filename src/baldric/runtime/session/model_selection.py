@@ -18,7 +18,6 @@ from baldric.runtime.context.thinking import (
 from baldric.runtime.events import (
     ThinkingLevelChangedEvent,
 )
-from baldric.runtime.platform.providers import DynamicProvider
 from baldric.runtime.providers.config import (
     OpenAICodexProviderConfig,
     ProviderConfig,
@@ -33,6 +32,7 @@ from baldric.runtime.providers.config import (
     validate_huggingface_inference_provider,
     validate_provider_model,
 )
+from baldric.runtime.providers.contracts import DynamicProvider
 from baldric.runtime.providers.runtime import (
     ClosableModelProvider,
     create_dynamic_model_provider,

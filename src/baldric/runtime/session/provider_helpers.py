@@ -19,7 +19,6 @@ from baldric.runtime.context.thinking import (
     normalize_thinking_level,
 )
 from baldric.runtime.platform.provider_registry import DynamicProviderRegistry
-from baldric.runtime.platform.providers import DynamicProvider
 from baldric.runtime.providers.auth.credentials import FileCredentialStore
 from baldric.runtime.providers.config import (
     OpenAICodexProviderConfig,
@@ -33,6 +32,7 @@ from baldric.runtime.providers.config import (
     resolve_startup_thinking_level,
     validate_provider_model,
 )
+from baldric.runtime.providers.contracts import DynamicProvider
 from baldric.runtime.providers.runtime import (
     ClosableModelProvider,
     create_dynamic_model_provider,

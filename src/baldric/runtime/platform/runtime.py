@@ -112,7 +112,6 @@ from baldric.runtime.platform.provider_registry import (
     DynamicProviderRegistry,
     ProviderRegistryCloseResult,
 )
-from baldric.runtime.platform.providers import CredentialReader, DynamicProvider
 from baldric.runtime.providers.auth.credentials import (
     CredentialStore,
     FileCredentialStore,
@@ -120,6 +119,7 @@ from baldric.runtime.providers.auth.credentials import (
 )
 from baldric.runtime.providers.backends.contracts import LocalBackend, LocalBackendRegistry
 from baldric.runtime.providers.config import ProviderConfig
+from baldric.runtime.providers.contracts import CredentialReader, DynamicProvider
 from baldric.runtime.trust.policy import (
     ExtensionTrustResult,
     ProjectTrustEvent,

@@ -4,13 +4,7 @@ import asyncio
 
 import pytest
 
-from baldric.runtime.platform import (
-    DynamicProvider,
-    DynamicProviderRegistry,
-    NoAuth,
-    OpenAICompatibleTransport,
-    ProviderModel,
-)
+from baldric.runtime.platform import DynamicProviderRegistry
 from baldric.runtime.providers.backends.contracts import (
     LocalBackend,
     LocalBackendError,
@@ -23,6 +17,12 @@ from baldric.runtime.providers.backends.contracts import (
     LocalModel,
     LocalOperationResult,
     LocalProgress,
+)
+from baldric.runtime.providers.contracts import (
+    DynamicProvider,
+    NoAuth,
+    OpenAICompatibleTransport,
+    ProviderModel,
 )
 
 pytestmark = pytest.mark.anyio

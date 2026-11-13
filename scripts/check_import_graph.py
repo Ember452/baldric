@@ -64,6 +64,13 @@ RULES: tuple[tuple[str, str], ...] = (
     # is a *durable settings value* owned by the config layer (shell_config
     # defines the Literal; trust/policy re-exports it).
     ("baldric.runtime.config", "baldric.runtime.trust"),
+    # The provider domain owns its own contracts. The dynamic-provider contract
+    # module used to live under platform/, which forced a package-level cycle:
+    # providers.runtime imported platform.providers (even its private error
+    # type) while platform.providers imported providers.catalog. The contract
+    # now lives in providers/contracts.py; platform consumes it in one
+    # direction only, and this rule keeps the reverse edge from coming back.
+    ("baldric.runtime.providers", "baldric.runtime.platform"),
 )
 
 # The provider layer depends on the protocol contract only. It may not import the

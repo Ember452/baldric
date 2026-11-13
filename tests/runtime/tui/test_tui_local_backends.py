@@ -17,13 +17,7 @@ from baldric.runtime.frontends.tui.backends import (
     LocalSearchResultsScreen,
 )
 from baldric.runtime.frontends.tui.config import BALDRIC_DARK_THEME
-from baldric.runtime.platform import (
-    DynamicProvider,
-    DynamicProviderRegistry,
-    NoAuth,
-    OpenAICompatibleTransport,
-    ProviderModel,
-)
+from baldric.runtime.platform import DynamicProviderRegistry
 from baldric.runtime.providers.backends.contracts import (
     LocalArtifactOption,
     LocalBackend,
@@ -38,6 +32,12 @@ from baldric.runtime.providers.backends.contracts import (
     LocalOperationResult,
     LocalProgress,
     LocalSearchResult,
+)
+from baldric.runtime.providers.contracts import (
+    DynamicProvider,
+    NoAuth,
+    OpenAICompatibleTransport,
+    ProviderModel,
 )
 
 pytestmark = pytest.mark.anyio
