@@ -213,8 +213,44 @@
       "max_function_stmts": 8
     },
     "src/baldric/runtime/cli.py": {
-      "lines": 1139,
+      "lines": 591,
       "max_function_stmts": 44
+    },
+    "src/baldric/runtime/cli_commands/__init__.py": {
+      "lines": 8,
+      "max_function_stmts": 0
+    },
+    "src/baldric/runtime/cli_commands/export.py": {
+      "lines": 132,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/cli_commands/extensions.py": {
+      "lines": 73,
+      "max_function_stmts": 10
+    },
+    "src/baldric/runtime/cli_commands/install.py": {
+      "lines": 39,
+      "max_function_stmts": 8
+    },
+    "src/baldric/runtime/cli_commands/providers.py": {
+      "lines": 60,
+      "max_function_stmts": 3
+    },
+    "src/baldric/runtime/cli_commands/sessions.py": {
+      "lines": 21,
+      "max_function_stmts": 3
+    },
+    "src/baldric/runtime/cli_commands/setup.py": {
+      "lines": 70,
+      "max_function_stmts": 7
+    },
+    "src/baldric/runtime/cli_commands/update.py": {
+      "lines": 49,
+      "max_function_stmts": 6
+    },
+    "src/baldric/runtime/cli_io.py": {
+      "lines": 30,
+      "max_function_stmts": 3
     },
     "src/baldric/runtime/commands/__init__.py": {
       "lines": 1,
@@ -457,8 +493,12 @@
       "max_function_stmts": 18
     },
     "src/baldric/runtime/frontends/rpc/__init__.py": {
-      "lines": 6,
+      "lines": 7,
       "max_function_stmts": 0
+    },
+    "src/baldric/runtime/frontends/rpc/mode.py": {
+      "lines": 141,
+      "max_function_stmts": 15
     },
     "src/baldric/runtime/frontends/rpc/server.py": {
       "lines": 455,
@@ -477,7 +517,7 @@
       "max_function_stmts": 5
     },
     "src/baldric/runtime/frontends/tui/__init__.py": {
-      "lines": 69,
+      "lines": 71,
       "max_function_stmts": 0
     },
     "src/baldric/runtime/frontends/tui/adapter.py": {
@@ -515,6 +555,10 @@
     "src/baldric/runtime/frontends/tui/login_providers.py": {
       "lines": 62,
       "max_function_stmts": 2
+    },
+    "src/baldric/runtime/frontends/tui/mode.py": {
+      "lines": 84,
+      "max_function_stmts": 5
     },
     "src/baldric/runtime/frontends/tui/pickers.py": {
       "lines": 125,
@@ -653,7 +697,7 @@
       "max_function_stmts": 8
     },
     "src/baldric/runtime/platform/__init__.py": {
-      "lines": 249,
+      "lines": 179,
       "max_function_stmts": 0
     },
     "src/baldric/runtime/platform/api.py": {

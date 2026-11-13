@@ -20,6 +20,11 @@ from baldric.runtime.frontends.tui.config import BALDRIC_DARK_THEME
 from baldric.runtime.platform import (
     DynamicProvider,
     DynamicProviderRegistry,
+    NoAuth,
+    OpenAICompatibleTransport,
+    ProviderModel,
+)
+from baldric.runtime.providers.backends.contracts import (
     LocalArtifactOption,
     LocalBackend,
     LocalBackendRegistry,
@@ -33,9 +38,6 @@ from baldric.runtime.platform import (
     LocalOperationResult,
     LocalProgress,
     LocalSearchResult,
-    NoAuth,
-    OpenAICompatibleTransport,
-    ProviderModel,
 )
 
 pytestmark = pytest.mark.anyio

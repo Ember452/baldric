@@ -610,3 +610,31 @@ def test_api_facade_exports_protocol_shapes_by_identity() -> None:
     assert shared, "the facade should re-export protocol shapes"
     mismatched = [name for name in shared if getattr(api, name) is not getattr(protocol_extension, name)]
     assert mismatched == [], f"facade shapes not identical to protocol: {mismatched}"
+
+
+# --- platform root is not a second aggregate facade ---------------------------
+
+
+def test_platform_root_reexports_only_platform_owned_names() -> None:
+    """``runtime.platform``'s package root may only re-export its own modules.
+
+    The root used to aggregate provider-domain contracts (34 ``LocalBackend*`` /
+    ``LocalConfirmation*`` names from ``providers.backends.contracts``), which made
+    it a second facade: consumers imported provider types from the extension
+    framework package. Platform now re-exports only ``baldric.runtime.platform.*``
+    modules; provider contracts are imported from their owning module. This pins
+    that split so aggregation cannot creep back.
+    """
+    import ast
+
+    init = REPO_ROOT / "src" / "baldric" / "runtime" / "platform" / "__init__.py"
+    tree = ast.parse(init.read_text(encoding="utf-8"))
+    foreign: list[tuple[str, list[str]]] = []
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.ImportFrom)
+            and node.module
+            and not node.module.startswith("baldric.runtime.platform")
+        ):
+            foreign.append((node.module, [alias.name for alias in node.names]))
+    assert foreign == [], f"platform root re-exports non-platform modules: {foreign}"

@@ -22,6 +22,7 @@ from baldric.runtime.frontends.tui.config import (
     save_tui_settings,
     tui_settings_path,
 )
+from baldric.runtime.frontends.tui.mode import run_openai_tui
 from baldric.runtime.frontends.tui.state import ChatItem, TuiState
 from baldric.runtime.frontends.tui.widgets import (
     CompactSessionInfo,
@@ -62,6 +63,7 @@ __all__ = [
     "render_chat_item",
     "render_compact_session_info",
     "render_session_sidebar",
+    "run_openai_tui",
     "run_tui_app",
     "save_tui_settings",
     "transcript_item_selection_text",

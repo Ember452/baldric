@@ -6,8 +6,9 @@
 > [D](../notes/2026-11-12-stage-d-providers-merge.md)、[E](../notes/2026-11-12-stage-e-platform.md)、
 > [F](../notes/2026-11-12-stage-f-app-composition.md)、[G](../notes/2026-11-13-stage-g-frontends.md)、
 > [外审修正](../notes/2026-11-13-post-review-fixes.md)、
-> [runtime 包根瘦身](../notes/2026-11-13-runtime-facade-slimming.md)。
-> 后续阶段 H 待推进（独立分支），原子完成并停下评审。
+> [runtime 包根瘦身](../notes/2026-11-13-runtime-facade-slimming.md)、
+> [platform 收窄 + cli 拆分](../notes/2026-11-13-platform-narrowing-and-cli-split.md)。
+> 后续阶段 H 待推进（独立分支，已记录于 GitHub issue #73），原子完成并停下评审。
 > v1 依据：2026-11-11 全量深扫 + 2026-11-12 逐目录实测裁定
 > v2 修订：吸收独立评审的 6 个 P0 + 11 个 P1，并补入本会话新发现的 2 项（`protocol/session/jsonl.py` 是行为、`ai/` 与 `providers/` 是两层配置）
 > 目标读者：维护者本人（个人开发者，时间充足，目标是长期产品，不发独立包）
@@ -71,17 +72,17 @@ v2 的原则：**先把墙砌好（protocol 契约 + port + scanner 白名单 + 
 
 > **规则**：计划里任何行数/符号数/文件数，一律由 `scripts/measure_structure.py` 生成再粘贴；验收时也用它，避免手写口径漂移。
 
-**基线快照（2026-11-13 runtime 包根瘦身后实测，由 `scripts/measure_structure.py` 生成）**：
+**基线快照（2026-11-13 cli 拆分与 platform 收窄后实测，由 `scripts/measure_structure.py` 生成）**：
 
 | 项 | 数值 |
 |---|---|
-| `src/` | 257 文件 / **77,880** 行 |
-| `tests/` | 220 文件 / **78,006** 行 |
-| `runtime/` | 206 文件 / 66,307 行 |
-| `runtime/frontends/tui/` | 40 文件 / 19,056 行（G1 前为 `runtime/tui/`） |
-| `runtime/session/session.py` | **2,060** 行 / **183** 个方法（阶段 F 抽出 runtime 装配后） |
+| `src/` | 268 文件 / **77,972** 行 |
+| `tests/` | 220 文件 / **78,058** 行 |
+| `runtime/` | 217 文件 / 66,399 行 |
+| `runtime/frontends/tui/` | 41 文件 / 19,142 行（G1 前为 `runtime/tui/`） |
+| `runtime/session/session.py` | **2,060** 行 / **183** 个方法（阶段 H，见 issue #73） |
 | `runtime/__init__.py` | **18** 行 / **1** 个 `__all__`（已瘦身；原 317 行 / 139 名） |
-| `runtime/platform/__init__.py` | **249** 行 / **116** 符号（E 前为 `runtime/extensions/`；收窄待 §6.1） |
+| `runtime/platform/__init__.py` | **179** 行 / **82** 符号（已收窄为平台自有模块；原 249/116） |
 | `scripts/check_import_graph.py` 规则数 | **31** 条（28 RULES + 3 AllowRule） |
 | fast suite（除 TUI） | 会变，验收看"不减少"而非绝对数 |
 
@@ -131,7 +132,7 @@ baldric/
 │
 └── runtime/
     ├── app.py                # 【新】组合根：构造 ExtensionRuntime，注入 CodingSession
-    ├── cli.py                # 瘦身：参数解析 + 模式分派（< 600 行）【现值 1,139（G3 后，splitlines 口径）——目标未达成，F/G3 仅抽走了 runtime 装配与 print 编排，CLI 参数/子命令面仍在此文件；进一步瘦身待独立任务】
+    ├── cli.py                # 瘦身：参数解析 + 模式分派（< 600 行）【已达成 2026-11-13：591 行；子命令在 cli_commands/，模式入口在 frontends/*/mode.py】
     ├── core/
     │   ├── session/          # 原 runtime/session（含 compaction/export + 移入的 jsonl.py）
     │   ├── tools/  commands/  context/
@@ -454,6 +455,9 @@ A0（api facade + protocol 契约 + port + scanner 白名单 + 示例路径固�
   317 行 / 139 名 → 18 行 / 1 名；`import baldric.runtime` 的 eager import
   由 156 模块降到 1（见 [runtime 瘦身记录](../notes/2026-11-13-runtime-facade-slimming.md)）。
   这是有意的公共契约变更：原 139 名聚合面删除，消费方改从归属子模块导入。
+- `runtime/platform/__init__.py` 收窄（原计划未明写，2026-11-13 落地）：116 → 82，
+  只 re-export 平台自有模块；provider 域契约回 `providers.backends.contracts`，
+  由 guard 测试钉住（见 [记录](../notes/2026-11-13-platform-narrowing-and-cli-split.md)）。
 - **feature 测试放 `tests/features/<name>/`（不放 src 内，避免打进 wheel 与 scanner 误扫）**。v1 的"放 features/<name>/tests/"撤回。
 - 老命令 `pytest tests/runtime/extensions/test_subagents_*` 已随阶段 B 失效（测试现位于 `tests/features/subagents/`），CI/文档已同步。
 

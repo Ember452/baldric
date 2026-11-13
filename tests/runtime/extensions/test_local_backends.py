@@ -7,6 +7,11 @@ import pytest
 from baldric.runtime.platform import (
     DynamicProvider,
     DynamicProviderRegistry,
+    NoAuth,
+    OpenAICompatibleTransport,
+    ProviderModel,
+)
+from baldric.runtime.providers.backends.contracts import (
     LocalBackend,
     LocalBackendError,
     LocalBackendRegistry,
@@ -18,9 +23,6 @@ from baldric.runtime.platform import (
     LocalModel,
     LocalOperationResult,
     LocalProgress,
-    NoAuth,
-    OpenAICompatibleTransport,
-    ProviderModel,
 )
 
 pytestmark = pytest.mark.anyio
@@ -426,7 +428,10 @@ async def test_optional_capabilities_return_structured_unavailable_results() -> 
 
 
 async def test_confirmation_request_round_trips_through_the_host() -> None:
-    from baldric.runtime.platform import LocalConfirmationChoice, LocalConfirmationRequest
+    from baldric.runtime.providers.backends.contracts import (
+        LocalConfirmationChoice,
+        LocalConfirmationRequest,
+    )
 
     providers = DynamicProviderRegistry(generation_id="generation")
     registry = LocalBackendRegistry(providers, generation_id="generation")
@@ -492,7 +497,10 @@ async def test_confirmation_request_round_trips_through_the_host() -> None:
 
 
 async def test_confirmation_request_is_validated() -> None:
-    from baldric.runtime.platform import LocalConfirmationChoice, LocalConfirmationRequest
+    from baldric.runtime.providers.backends.contracts import (
+        LocalConfirmationChoice,
+        LocalConfirmationRequest,
+    )
 
     with pytest.raises(LocalBackendError, match="committed operation"):
         LocalOperationResult(

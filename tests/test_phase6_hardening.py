@@ -25,13 +25,6 @@ from baldric.runtime.platform import (
     DynamicProvider,
     DynamicProviderRegistry,
     ExtensionRuntime,
-    LocalBackend,
-    LocalBackendRegistry,
-    LocalBackendStatus,
-    LocalConfigureResult,
-    LocalConfigureSpec,
-    LocalModel,
-    LocalOperationContext,
     NoAuth,
     OpenAICompatibleTransport,
     ProviderModel,
@@ -40,6 +33,13 @@ from baldric.runtime.platform import (
 from baldric.runtime.providers.auth.credentials import FileCredentialStore
 from baldric.runtime.providers.backends.contracts import (
     LOCAL_OPERATION_CANCELLATION_TIMEOUT_SECONDS,
+    LocalBackend,
+    LocalBackendRegistry,
+    LocalBackendStatus,
+    LocalConfigureResult,
+    LocalConfigureSpec,
+    LocalModel,
+    LocalOperationContext,
     LocalOperationResult,
 )
 

@@ -15,7 +15,7 @@
     "type-ignore:arg-type": 1,
     "type-ignore:assignment": 1
   },
-  "src/baldric/runtime/cli.py": {
+  "src/baldric/runtime/cli_io.py": {
     "type-ignore:union-attr": 1
   },
   "src/baldric/runtime/features/llama_cpp/service.py": {

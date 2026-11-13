@@ -13,6 +13,11 @@ from baldric.protocol.messages import BashExecutionMessage
 from baldric.protocol.session import MessageEntry, ModelChangeEntry
 from baldric.runtime import cli
 from baldric.runtime.cli import app
+from baldric.runtime.cli_commands import export as export_commands
+from baldric.runtime.cli_commands import extensions as extensions_commands
+from baldric.runtime.cli_commands import install as install_commands
+from baldric.runtime.cli_commands import providers as provider_commands
+from baldric.runtime.cli_commands import update as update_commands
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.resources import BaldricResourcePaths
 from baldric.runtime.context.skills.skills import load_skills
@@ -25,6 +30,7 @@ from baldric.runtime.context.system_prompt import (
 from baldric.runtime.frontends.print import mode as print_mode
 from baldric.runtime.frontends.print import run_print_mode
 from baldric.runtime.frontends.session_records import create_mode_session, resolve_mode_session_record
+from baldric.runtime.frontends.tui import mode as tui_mode
 from baldric.runtime.platform import ExtensionRuntime
 from baldric.runtime.platform.installer import ExtensionInstallRecord
 from baldric.runtime.providers.config import (
@@ -156,7 +162,7 @@ def test_install_command_installs_extension(monkeypatch: pytest.MonkeyPatch, tmp
         calls.append((source, force))
         return destination
 
-    monkeypatch.setattr(cli, "install_extension", fake_install)
+    monkeypatch.setattr(install_commands, "install_extension", fake_install)
 
     result = CliRunner().invoke(
         app,
@@ -172,9 +178,9 @@ def test_install_command_installs_extension(monkeypatch: pytest.MonkeyPatch, tmp
 def test_install_command_reports_install_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     def fail_install(source: str, *, force: bool = False) -> Path:
         del source, force
-        raise cli.ExtensionInstallError("clone failed")
+        raise install_commands.ExtensionInstallError("clone failed")
 
-    monkeypatch.setattr(cli, "install_extension", fail_install)
+    monkeypatch.setattr(install_commands, "install_extension", fail_install)
 
     result = CliRunner().invoke(app, ["install", "git:github.com/example/demo"])
 
@@ -206,8 +212,12 @@ def test_extensions_list_distinguishes_managed_and_unmanaged(
             commit="abc123def4567890abcd",
         )
     }
-    monkeypatch.setattr(cli, "BaldricPaths", lambda: SimpleNamespace(user_extensions_dir=extensions_dir))
-    monkeypatch.setattr(cli, "read_extension_registry", lambda _dir: registry)
+    monkeypatch.setattr(
+        extensions_commands,
+        "BaldricPaths",
+        lambda: SimpleNamespace(user_extensions_dir=extensions_dir),
+    )
+    monkeypatch.setattr(extensions_commands, "read_extension_registry", lambda _dir: registry)
 
     result = CliRunner().invoke(app, ["extensions", "list"])
 
@@ -224,7 +234,7 @@ def test_extensions_update_command(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
         calls.append((name, force))
         return destination
 
-    monkeypatch.setattr(cli, "update_extension", fake_update)
+    monkeypatch.setattr(extensions_commands, "update_extension", fake_update)
 
     result = CliRunner().invoke(app, ["extensions", "update", "demo", "--force"])
 
@@ -238,9 +248,9 @@ def test_extensions_remove_command_reports_unmanaged(
 ) -> None:
     def fail_remove(name: str) -> Path:
         del name
-        raise cli.ExtensionInstallError("not managed by Baldric")
+        raise install_commands.ExtensionInstallError("not managed by Baldric")
 
-    monkeypatch.setattr(cli, "remove_extension", fail_remove)
+    monkeypatch.setattr(extensions_commands, "remove_extension", fail_remove)
 
     result = CliRunner().invoke(app, ["extensions", "remove", "manual"])
 
@@ -448,7 +458,7 @@ def test_update_command_upgrades_without_startup_check(monkeypatch: pytest.Monke
         lambda: (_ for _ in ()).throw(AssertionError("no update check")),
     )
     monkeypatch.setattr(
-        cli,
+        update_commands,
         "update_baldric",
         lambda: UpdateResult(
             command=("uv", "tool", "install", "baldric@0.2.4"),
@@ -466,16 +476,16 @@ def test_update_command_upgrades_without_startup_check(monkeypatch: pytest.Monke
 def test_update_models_force_refreshes_catalog(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[bool] = []
 
-    async def refresh_models(*, force: bool) -> cli.ModelsDevRefreshResult:
+    async def refresh_models(*, force: bool) -> update_commands.ModelsDevRefreshResult:
         calls.append(force)
-        return cli.ModelsDevRefreshResult(
+        return update_commands.ModelsDevRefreshResult(
             refreshed=True,
             not_modified=False,
             model_count=42,
             cache_path=Path("/tmp/models-store.json"),
         )
 
-    monkeypatch.setattr(cli, "refresh_models_dev_catalog", refresh_models)
+    monkeypatch.setattr(update_commands, "refresh_models_dev_catalog", refresh_models)
 
     result = CliRunner().invoke(app, ["update", "--models"])
 
@@ -488,7 +498,7 @@ def test_update_command_reports_windows_handoff_without_claiming_completion(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        cli,
+        update_commands,
         "update_baldric",
         lambda: UpdateResult(
             command=("uv", "tool", "install", "baldric@0.2.4"),
@@ -507,7 +517,7 @@ def test_update_command_reports_windows_handoff_without_claiming_completion(
 
 def test_update_command_reports_installer_failures(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        cli,
+        update_commands,
         "update_baldric",
         lambda: UpdateResult(command=None, failures=("uv: not found", "pipx: not found")),
     )
@@ -658,14 +668,14 @@ async def test_run_openai_tui_defers_due_update_check_to_the_app(
     async def fake_run_tui_app(**kwargs: object) -> None:
         deferred_checks.append(kwargs["deferred_startup_update_notice"])
 
-    monkeypatch.setattr(cli, "run_tui_app", fake_run_tui_app)
-    monkeypatch.setattr(cli, "startup_release_notes_notice", lambda version: None)
-    monkeypatch.setattr(cli, "_current_version", lambda: "0.1.0")
-    monkeypatch.setattr(cli, "cached_update_notice", lambda version: (None, True))
+    monkeypatch.setattr(tui_mode, "run_tui_app", fake_run_tui_app)
+    monkeypatch.setattr(tui_mode, "startup_release_notes_notice", lambda version: None)
+    monkeypatch.setattr(tui_mode, "current_version", lambda: "0.1.0")
+    monkeypatch.setattr(tui_mode, "cached_update_notice", lambda version: (None, True))
     monkeypatch.setattr(
-        cli,
-        "_startup_update_notice",
-        lambda: UpdateNotice(current_version="0.1.0", latest_version="0.2.0"),
+        tui_mode,
+        "startup_update_notice",
+        lambda version: UpdateNotice(current_version="0.1.0", latest_version="0.2.0"),
     )
 
     await cli.run_openai_tui(model=None, cwd=tmp_path)
@@ -760,10 +770,10 @@ async def test_run_openai_tui_combines_release_notes_and_update_notice(
             )
         )
 
-    monkeypatch.setattr(cli, "run_tui_app", fake_run_tui_app)
-    monkeypatch.setattr(cli, "_current_version", lambda: "0.1.2")
+    monkeypatch.setattr(tui_mode, "run_tui_app", fake_run_tui_app)
+    monkeypatch.setattr(tui_mode, "current_version", lambda: "0.1.2")
     monkeypatch.setattr(
-        cli,
+        tui_mode,
         "startup_release_notes_notice",
         lambda version: ReleaseNotesNotice(
             current_version=version,
@@ -1739,7 +1749,7 @@ def test_export_flag_invokes_exporter(
         calls.append((session_ref, requested_output_path, requested_export_format))
         return output_path
 
-    monkeypatch.setattr(cli, "export_session_command", fake_export_session_command)
+    monkeypatch.setattr(export_commands, "export_session_command", fake_export_session_command)
 
     result = CliRunner().invoke(app, ["--export", "session-1", str(output_path)])
 
@@ -1814,7 +1824,6 @@ def test_tui_surfaces_bad_model_as_clean_error(monkeypatch: pytest.MonkeyPatch, 
 
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(cli, "_startup_update_notice", lambda: None)
-    monkeypatch.setattr(cli, "load_provider_settings", lambda *args, **kwargs: settings)
     monkeypatch.setattr(tui_app, "load_provider_settings", lambda *args, **kwargs: settings)
 
     result = CliRunner().invoke(app, ["--model", "llama", "--provider", "local"])
@@ -1905,7 +1914,7 @@ async def test_export_session_command_writes_html_for_indexed_session(tmp_path: 
         MessageEntry(id="root", message=UserMessage(content="Export this"))
     )
 
-    output_path = await cli.export_session_command(
+    output_path = await export_commands.export_session_command(
         "session-1",
         tmp_path / "session.html",
         session_manager=manager,
@@ -1931,7 +1940,7 @@ async def test_export_session_command_writes_html_for_jsonl_path(tmp_path: Path)
         import os
 
         os.chdir(tmp_path)
-        output_path = await cli.export_session_command(str(session_path))
+        output_path = await export_commands.export_session_command(str(session_path))
     finally:
         os.chdir(cwd)
 
@@ -1954,7 +1963,7 @@ async def test_export_session_command_writes_jsonl_format_to_cwd(tmp_path: Path)
         import os
 
         os.chdir(tmp_path)
-        output_path = await cli.export_session_command(str(session_path), export_format="jsonl")
+        output_path = await export_commands.export_session_command(str(session_path), export_format="jsonl")
     finally:
         os.chdir(cwd)
 
@@ -1971,7 +1980,7 @@ async def test_export_session_command_treats_suffixless_output_as_directory(
         MessageEntry(id="root", message=UserMessage(content="Directory export"))
     )
 
-    output_path = await cli.export_session_command(str(session_path), tmp_path / "exports")
+    output_path = await export_commands.export_session_command(str(session_path), tmp_path / "exports")
 
     assert output_path == tmp_path / "exports" / "session.html"
     assert "Directory export" in output_path.read_text(encoding="utf-8")
@@ -1992,7 +2001,7 @@ def test_export_command_invokes_exporter(
         calls.append((session_ref, requested_output_path, requested_export_format))
         return output_path
 
-    monkeypatch.setattr(cli, "export_session_command", fake_export_session_command)
+    monkeypatch.setattr(export_commands, "export_session_command", fake_export_session_command)
 
     result = CliRunner().invoke(app, ["export", "session-1", str(output_path)])
 
@@ -2016,7 +2025,7 @@ def test_export_command_accepts_format_option(
         calls.append((session_ref, requested_output_path, requested_export_format))
         return output_path
 
-    monkeypatch.setattr(cli, "export_session_command", fake_export_session_command)
+    monkeypatch.setattr(export_commands, "export_session_command", fake_export_session_command)
 
     result = CliRunner().invoke(app, ["export", "session-1", "--format", "jsonl"])
 
@@ -2072,7 +2081,7 @@ def test_render_provider_settings_shows_credential_source(
         def get(self, name: str) -> str | None:
             return "stored-key" if name == "stored" else None
 
-    cli.render_provider_settings(settings, credential_reader=FakeCredentials())
+    provider_commands.render_provider_settings(settings, credential_reader=FakeCredentials())
 
     output = capsys.readouterr().out
     assert "*\tstored\topenai-compatible\tgpt-5.4" in output

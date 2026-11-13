@@ -173,17 +173,19 @@ from baldric.runtime.frontends.tui.widgets import (
 from baldric.runtime.platform import (
     DynamicProvider,
     DynamicProviderRegistry,
+    NoAuth,
+    OpenAICompatibleTransport,
+    ProviderModel,
+)
+from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
+from baldric.runtime.providers.backends.contracts import (
     LocalBackend,
     LocalBackendRegistry,
     LocalBackendStatus,
     LocalConfigureResult,
     LocalConfigureSpec,
     LocalModel,
-    NoAuth,
-    OpenAICompatibleTransport,
-    ProviderModel,
 )
-from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric.runtime.providers.config import (
     OpenAICodexProviderConfig,
     OpenAICompatibleProviderConfig,
