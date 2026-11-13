@@ -127,7 +127,7 @@ def view_run_conversation(run: AgentRun, controller: SubagentUiController | None
         try:
             if controller.open_conversation(run):
                 return "exit"
-        except Exception:  # noqa: BLE001 - degrade to the action submenu
+        except Exception:  # degrade to the action submenu
             pass
     return "actions"
 

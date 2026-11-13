@@ -542,7 +542,7 @@ class ExtensionRuntime:
         self._extensions.append(registered)
         try:
             extension.setup(api)
-        except Exception as exc:  # noqa: BLE001 - extensions are an isolation boundary
+        except Exception as exc:  # extensions are an isolation boundary
             # A failed setup may already have started tasks, timers, or threads
             # and may have registered `session_shutdown` handlers before raising.
             # Keep the registration in a shutdown-only roster so the host's
@@ -953,7 +953,7 @@ class ExtensionRuntime:
         """
         try:
             return producer()
-        except Exception as exc:  # noqa: BLE001 - a renderer must never crash the frontend
+        except Exception as exc:  # a renderer must never crash the frontend
             if failure_key not in self._renderer_failures_reported:
                 self._renderer_failures_reported.add(failure_key)
                 self._record_runtime_failure(extension_label, event_name, exc)
@@ -1012,7 +1012,7 @@ class ExtensionRuntime:
             return None
         try:
             line = registered.tool.render_call(arguments)
-        except Exception as exc:  # noqa: BLE001 - a renderer must never crash the frontend
+        except Exception as exc:  # a renderer must never crash the frontend
             if name not in self._renderer_failures_reported:
                 self._renderer_failures_reported.add(name)
                 self._record_runtime_failure(registered.extension, f"render_call:{name}", exc)
@@ -1045,7 +1045,7 @@ class ExtensionRuntime:
         failure_key = f"render_result:{tool_name}"
         try:
             markup = registered.tool.render_result(result, expanded=expanded)
-        except Exception as exc:  # noqa: BLE001 - a renderer must never crash the frontend
+        except Exception as exc:  # a renderer must never crash the frontend
             if failure_key not in self._renderer_failures_reported:
                 self._renderer_failures_reported.add(failure_key)
                 self._record_runtime_failure(registered.extension, f"render_result:{tool_name}", exc)
@@ -1184,7 +1184,7 @@ class ExtensionRuntime:
         """
         try:
             return await _resolve(handler(event, self._fresh_context(owner.source_id)))
-        except Exception as exc:  # noqa: BLE001 - extensions are an isolation boundary
+        except Exception as exc:  # extensions are an isolation boundary
             self._record_runtime_failure(owner.name, event_name, exc)
             return _PROVIDER_HANDLER_FAILED
 
@@ -1635,7 +1635,7 @@ class ExtensionRuntime:
             event = ToolCallHookEvent(tool_name=tool_name, arguments=effective)
             try:
                 result = await _resolve(handler(event, self._fresh_context(owner.source_id)))
-            except Exception as exc:  # noqa: BLE001 - fail-safe: an error blocks the tool
+            except Exception as exc:  # fail-safe: an error blocks the tool
                 self._record_runtime_failure(owner.name, "tool_call", exc)
                 return ToolCallHookResult(
                     block=True,
@@ -1665,7 +1665,7 @@ class ExtensionRuntime:
             event = ToolResultHookEvent(tool_name=tool_name, arguments=arguments, result=current)
             try:
                 outcome = await _resolve(handler(event, self._fresh_context(owner.source_id)))
-            except Exception as exc:  # noqa: BLE001 - result hooks are observational-ish
+            except Exception as exc:  # result hooks are observational-ish
                 self._record_runtime_failure(owner.name, "tool_result", exc)
                 continue
             if outcome is None:
@@ -1717,7 +1717,7 @@ class ExtensionRuntime:
             )
             try:
                 message = command.handler(context.args, extension_context)
-            except Exception as exc:  # noqa: BLE001 - extensions are an isolation boundary
+            except Exception as exc:  # extensions are an isolation boundary
                 self._record_runtime_failure(command.extension, f"command:/{command.name}", exc)
                 return handled_result(message_outcome(f"Extension command /{command.name} failed: {exc}"))
             return handled_result(message_outcome(message or ""))
@@ -1735,7 +1735,7 @@ class ExtensionRuntime:
         for owner, handler in self._handlers_for("project_trust"):
             try:
                 result = await _resolve(handler(event, self._fresh_context(owner.source_id)))
-            except Exception as exc:  # noqa: BLE001 - trust handlers fail closed/defer
+            except Exception as exc:  # trust handlers fail closed/defer
                 self._record_runtime_failure(owner.name, "project_trust", exc)
                 continue
             if result is None:
@@ -1780,7 +1780,7 @@ class ExtensionRuntime:
                         self._fresh_context(owner.source_id),
                     )
                 )
-            except Exception as exc:  # noqa: BLE001 - extensions are an isolation boundary
+            except Exception as exc:  # extensions are an isolation boundary
                 self._record_runtime_failure(owner.name, "input", exc)
                 continue
             if result is None:
@@ -1804,7 +1804,7 @@ class ExtensionRuntime:
         for owner, handler in handlers:
             try:
                 await _resolve(handler(event, self._fresh_context(owner.source_id)))
-            except Exception as exc:  # noqa: BLE001 - extensions are an isolation boundary
+            except Exception as exc:  # extensions are an isolation boundary
                 self._record_runtime_failure(owner.name, event_type, exc)
 
     async def run_user_bash(self, event: UserBashEvent) -> UserBashResult | None:
@@ -1876,7 +1876,7 @@ class ExtensionRuntime:
         for owner, handler in handlers:
             try:
                 await _resolve(handler(payload, self._fresh_context(owner.source_id)))
-            except Exception as exc:  # noqa: BLE001 - extensions are an isolation boundary
+            except Exception as exc:  # extensions are an isolation boundary
                 self._record_runtime_failure(owner.name, event_name, exc)
         if failed:
             self._failed_extensions.clear()

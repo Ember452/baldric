@@ -63,7 +63,7 @@ class _Harness(App):
     # app means the hidden main transcript toggles instead of the viewer.
     BINDINGS = [("ctrl+o", "host_toggle_tool_results", "Tool results")]
 
-    def __init__(self, *widgets) -> None:  # noqa: ANN002
+    def __init__(self, *widgets) -> None:
         super().__init__()
         self._widgets = widgets
         self.leaked_tool_toggles = 0
@@ -633,20 +633,20 @@ class FakeComponentBridge:
     def request_render(self) -> None:
         self.render_requests += 1
 
-    def set_slot_widget(self, key, factory, *, placement="below_prompt"):  # noqa: ANN001
+    def set_slot_widget(self, key, factory, *, placement="below_prompt"):
         self.slot_calls.append((key, factory, placement))
         if factory is None:
             self.slots.pop(key, None)
         else:
             self.slots[key] = factory
 
-    def open_main_view(self, factory):  # noqa: ANN001
+    def open_main_view(self, factory):
         handle = _FakeHandle()
         widget = factory(handle, self.theme)
         self.main_views.append((handle, widget))
         return handle
 
-    def register_key_interceptor(self, handler):  # noqa: ANN001
+    def register_key_interceptor(self, handler):
         self.interceptors.append(handler)
 
         def unsub() -> None:
@@ -900,7 +900,7 @@ async def test_controller_on_change_refreshes_strip_after_spawn() -> None:
 # --- setup() wiring at the runtime level -----------------------------------
 
 
-async def test_setup_registers_components_on_component_host(tmp_path) -> None:  # noqa: ANN001
+async def test_setup_registers_components_on_component_host(tmp_path) -> None:
     runtime = _load_runtime(tmp_path)
     session = RecordingSession(tmp_path)
     runtime.bind(session)
@@ -913,7 +913,7 @@ async def test_setup_registers_components_on_component_host(tmp_path) -> None:  
     assert len(bridge.interceptors) == 1
 
 
-async def test_setup_skips_components_on_null_host(tmp_path) -> None:  # noqa: ANN001
+async def test_setup_skips_components_on_null_host(tmp_path) -> None:
     runtime = _load_runtime(tmp_path)
     session = RecordingSession(tmp_path)
     runtime.bind(session)
@@ -923,7 +923,7 @@ async def test_setup_skips_components_on_null_host(tmp_path) -> None:  # noqa: A
     await runtime.emit_session_start("startup")
 
 
-async def test_setup_survives_component_less_core(tmp_path, monkeypatch) -> None:  # noqa: ANN001
+async def test_setup_survives_component_less_core(tmp_path, monkeypatch) -> None:
     # Simulate an OLDER baldric whose ``context.ui`` predates the component seam:
     # the ``components`` attribute is absent entirely (not merely a no-op
     # bridge). The extension's getattr-guard must degrade to dialog-only rather

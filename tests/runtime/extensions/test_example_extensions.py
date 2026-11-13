@@ -48,7 +48,7 @@ def _runtime_with_examples(tmp_path: Path, *names: str) -> ExtensionRuntime:
 def _fake_tool(name: str) -> tuple[AgentTool, list[dict[str, object]]]:
     executed: list[dict[str, object]] = []
 
-    async def executor(tool_call_id, arguments, signal=None, on_update=None):  # noqa: ANN001, ANN202
+    async def executor(tool_call_id, arguments, signal=None, on_update=None):
         del tool_call_id, signal, on_update
         executed.append(dict(arguments))
         return AgentToolResult(content=[TextContent(text="ran")])

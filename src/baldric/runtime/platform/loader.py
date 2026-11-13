@@ -349,7 +349,7 @@ def _load_extension(
     sys.modules[module_name] = module
     try:
         spec.loader.exec_module(module)
-    except BaseException as exc:  # noqa: BLE001 - extensions are an isolation boundary
+    except BaseException as exc:  # extensions are an isolation boundary
         _discard_extension_module(module_name)
         return None, [_error_diagnostic(entry, f"failed to import extension: {exc!r}")]
 

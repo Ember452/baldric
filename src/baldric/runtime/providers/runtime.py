@@ -91,11 +91,11 @@ async def create_dynamic_model_provider(
         runtime = await candidate if isawaitable(candidate) else candidate
         try:
             stream_response = getattr(runtime, "stream_response", None)
-        except BaseException:  # noqa: BLE001 - extension object validation boundary
+        except BaseException:  # extension object validation boundary
             stream_response = None
         try:
             close = getattr(runtime, "aclose", None)
-        except BaseException:  # noqa: BLE001 - extension object validation boundary
+        except BaseException:  # extension object validation boundary
             close = None
         if not callable(stream_response) or not callable(close):
             error = ProviderConfigError(f"Runtime factory for {provider.id} returned an unsupported provider")
@@ -104,7 +104,7 @@ async def create_dynamic_model_provider(
                     close_result = close()
                     if isawaitable(close_result):
                         await close_result
-                except BaseException:  # noqa: BLE001 - preserve the validation error
+                except BaseException:  # preserve the validation error
                     pass
             raise error
         return runtime
@@ -176,7 +176,7 @@ async def _resolve_dynamic_runtime_auth(
         # Custom strategies can raise ProviderAuthError too, so their arbitrary
         # text crosses the same categorical boundary as any extension exception.
         raise ProviderAuthError("Dynamic provider authentication resolution failed") from None
-    except BaseException:  # noqa: BLE001 - extension authentication boundary
+    except BaseException:  # extension authentication boundary
         raise ProviderAuthError("Dynamic provider authentication resolution failed") from None
 
 

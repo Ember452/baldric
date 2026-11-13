@@ -25,7 +25,7 @@ from baldric.runtime.events import (
 from baldric.runtime.rendering import FinalTextRenderer, JsonEventRenderer, TranscriptRenderer
 
 
-def _assistant_update(event) -> MessageUpdateEvent:  # noqa: ANN001
+def _assistant_update(event) -> MessageUpdateEvent:
     return MessageUpdateEvent(message=event.partial, assistant_message_event=event)
 
 

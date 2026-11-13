@@ -119,7 +119,7 @@ async def test_file_tools_offload_blocking_io_to_threads(
     real = asyncio.to_thread
     seen: list[str] = []
 
-    async def spy(func, *args, **kwargs):  # noqa: ANN001, ANN202
+    async def spy(func, *args, **kwargs):
         seen.append(getattr(func, "__name__", str(func)))
         return await real(func, *args, **kwargs)
 

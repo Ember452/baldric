@@ -39,7 +39,7 @@ async def test_refresh_rebuilds_the_prompt_with_new_sections(tmp_path: Path) -> 
             cwd=tmp_path,
         )
     )
-    api = session._extension_runtime._extensions[-1].api  # noqa: SLF001 - test reaches the loaded API
+    api = session._extension_runtime._extensions[-1].api  # test reaches the loaded API
 
     await _run(session, "Hi")
 
@@ -66,4 +66,4 @@ async def test_refresh_is_a_no_op_for_explicit_system_prompts(tmp_path: Path) ->
 
     session.refresh_system_prompt()
 
-    assert session._harness.config.system == "EXPLICIT"  # noqa: SLF001 - asserting the untouched prompt
+    assert session._harness.config.system == "EXPLICIT"  # asserting the untouched prompt

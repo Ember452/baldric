@@ -10,7 +10,7 @@ from baldric.protocol.tools import AgentTool, AgentToolResult
 from baldric.runtime.platform import ExtensionAPI
 
 
-async def _run_hello(tool_call_id, arguments, signal=None, on_update=None):  # noqa: ANN001, ANN202
+async def _run_hello(tool_call_id, arguments, signal=None, on_update=None):
     del tool_call_id, signal, on_update
     who = str(arguments.get("who", "world"))
     return AgentToolResult(content=[TextContent(text=f"Hello, {who}!")])

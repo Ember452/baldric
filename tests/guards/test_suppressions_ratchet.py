@@ -40,7 +40,7 @@ def test_new_suppression_is_rejected() -> None:
     assert violations == ["src/example.py: noqa:BLE001 grew to 2 (baseline 1)"]
 
 
-def test_reduced_suppression_is_reported_as_improvement(capsys) -> None:  # noqa: ANN001
+def test_reduced_suppression_is_reported_as_improvement(capsys) -> None:
     report = {"src/example.py": {"noqa:BLE001": 1}}
     baseline = {"src/example.py": {"noqa:BLE001": 2}}
 

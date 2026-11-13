@@ -169,7 +169,7 @@ async def _prepare_provider_selection(
                             for item in settings.providers
                         ),
                     )
-        except Exception:  # noqa: BLE001 - retain ordinary static validation on failure
+        except Exception:  # retain ordinary static validation on failure
             pass
         finally:
             if discovery_provider is not None:

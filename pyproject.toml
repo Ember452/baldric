@@ -68,7 +68,10 @@ target-version = "py312"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM"]
+# RUF100 keeps the suppression ratchet honest: a `# noqa` for a rule that is not
+# enabled (or that does not fire on that line) suppresses nothing, so counting it
+# inflates the ratchet with directives that cannot ever be "used".
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF100"]
 
 [tool.ruff.format]
 quote-style = "double"

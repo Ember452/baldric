@@ -93,7 +93,7 @@ async def execute_tool_call(
             result, is_error = await after_tool_call(call, result, is_error)
         except asyncio.CancelledError:
             raise
-        except Exception as exc:  # noqa: BLE001 - hooks are an isolation boundary
+        except Exception as exc:  # hooks are an isolation boundary
             # Pi agent-loop.ts:1043-1046: a failing after-hook replaces the
             # whole result with an error result; the run continues. Python's
             # CancelledError still propagates: cancellation is not a hook
@@ -171,7 +171,7 @@ def checked_arguments(tool: AgentTool, call: ToolCall) -> tuple[Mapping[str, JSO
     if tool.prepare_arguments is not None:
         try:
             arguments = tool.prepare_arguments(call.arguments)
-        except Exception as exc:  # noqa: BLE001 - tools are an isolation boundary
+        except Exception as exc:  # tools are an isolation boundary
             return call.arguments, [str(exc)]
     return arguments, argument_problems(tool.parameters, arguments)
 
@@ -227,7 +227,7 @@ async def run_tool(
         outcome.append((task.result(), False))
     except asyncio.CancelledError:
         raise
-    except Exception as exc:  # noqa: BLE001 - tools are an isolation boundary
+    except Exception as exc:  # tools are an isolation boundary
         outcome.append((error_result(str(exc)), True))
 
 

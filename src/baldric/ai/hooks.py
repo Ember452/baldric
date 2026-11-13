@@ -157,7 +157,7 @@ async def _guarded(handler: Callable[..., object], *args: object) -> object:
     try:
         result = handler(*args)
         return await result if inspect.isawaitable(result) else result
-    except Exception as exc:  # noqa: BLE001 - extension hooks are an isolation boundary
+    except Exception as exc:  # extension hooks are an isolation boundary
         raise _HandlerFailure from exc
 
 

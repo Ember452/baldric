@@ -116,7 +116,7 @@ def resolve_skill_blocks(
             skill.name: skill
             for skill in load_skills(inherited_resource_paths(paths, cwd, project_trusted=project_trusted))
         }
-    except Exception:  # noqa: BLE001 - unreadable skill dirs degrade to placeholders
+    except Exception:  # unreadable skill dirs degrade to placeholders
         available = {}
     blocks: list[tuple[str, str]] = []
     for name in names:

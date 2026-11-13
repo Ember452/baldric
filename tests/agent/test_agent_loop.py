@@ -57,7 +57,7 @@ async def _collect(stream: AsyncIterator[AgentEvent]) -> list[AgentEvent]:
 def _tool(
     name: str,
     execute_fn,
-) -> AgentTool:  # noqa: ANN001
+) -> AgentTool:
     return AgentTool(
         name=name,
         label=name.title(),
@@ -243,7 +243,7 @@ async def test_agent_loop_executes_tool_and_emits_tool_result_message_lifecycle(
         tool_call_id: str,
         arguments: Mapping[str, JSONValue],
         signal: CancellationToken | None = None,
-        on_update=None,  # noqa: ANN001
+        on_update=None,
     ) -> AgentToolResult:
         del tool_call_id, signal, on_update
         return AgentToolResult(
@@ -296,7 +296,7 @@ async def test_length_truncated_tool_calls_are_not_executed() -> None:
         tool_call_id: str,
         arguments: Mapping[str, JSONValue],
         signal: CancellationToken | None = None,
-        on_update=None,  # noqa: ANN001
+        on_update=None,
     ) -> AgentToolResult:
         executed.append(tool_call_id)
         raise AssertionError("a truncated tool call must not run")
@@ -381,7 +381,7 @@ async def test_repeated_truncated_tool_turns_stop_the_run() -> None:
         tool_call_id: str,
         arguments: Mapping[str, JSONValue],
         signal: CancellationToken | None = None,
-        on_update=None,  # noqa: ANN001
+        on_update=None,
     ) -> AgentToolResult:
         executed.append(tool_call_id)
         raise AssertionError("a truncated tool call must not run")
@@ -423,7 +423,7 @@ async def test_a_normal_tool_turn_resets_the_truncation_budget() -> None:
         tool_call_id: str,
         arguments: Mapping[str, JSONValue],
         signal: CancellationToken | None = None,
-        on_update=None,  # noqa: ANN001
+        on_update=None,
     ) -> AgentToolResult:
         del tool_call_id, arguments, signal, on_update
         return AgentToolResult(content=[TextContent(text="contents")])
@@ -524,7 +524,7 @@ async def test_hook_that_stops_the_run_issues_no_further_request() -> None:
         tool_call_id: str,
         arguments: Mapping[str, JSONValue],
         signal: CancellationToken | None = None,
-        on_update=None,  # noqa: ANN001
+        on_update=None,
     ) -> AgentToolResult:
         raise AssertionError("a blocked call must not run")
 
@@ -578,7 +578,7 @@ async def test_cancel_while_a_tool_runs_issues_no_further_request() -> None:
         tool_call_id: str,
         arguments: Mapping[str, JSONValue],
         signal_arg: CancellationToken | None = None,
-        on_update=None,  # noqa: ANN001
+        on_update=None,
     ) -> AgentToolResult:
         # Like bash when the user cancels a running command.
         signal.cancel()
@@ -619,7 +619,7 @@ async def test_agent_loop_honors_tool_result_terminate_without_another_turn() ->
         tool_call_id: str,
         arguments: Mapping[str, JSONValue],
         signal: CancellationToken | None = None,
-        on_update=None,  # noqa: ANN001
+        on_update=None,
     ) -> AgentToolResult:
         # A tool that finalizes the run, e.g. a "complete"/handoff tool.
         del tool_call_id, arguments, signal, on_update
@@ -661,7 +661,7 @@ async def test_agent_loop_passes_call_id_signal_and_progress_to_tool() -> None:
         tool_call_id: str,
         arguments: Mapping[str, JSONValue],
         signal: CancellationToken | None = None,
-        on_update=None,  # noqa: ANN001
+        on_update=None,
     ) -> AgentToolResult:
         del arguments
         observed.append((tool_call_id, signal))
@@ -709,7 +709,7 @@ async def test_agent_loop_streams_tool_updates_while_the_tool_runs() -> None:
         tool_call_id: str,
         arguments: Mapping[str, JSONValue],
         signal: CancellationToken | None = None,
-        on_update=None,  # noqa: ANN001
+        on_update=None,
     ) -> AgentToolResult:
         del tool_call_id, arguments, signal
         assert on_update is not None
@@ -761,7 +761,7 @@ async def test_agent_loop_keeps_tool_updates_reported_before_a_failure() -> None
         tool_call_id: str,
         arguments: Mapping[str, JSONValue],
         signal: CancellationToken | None = None,
-        on_update=None,  # noqa: ANN001
+        on_update=None,
     ) -> AgentToolResult:
         del tool_call_id, arguments, signal
         assert on_update is not None
@@ -1070,8 +1070,8 @@ async def test_agent_loop_injects_steering_and_follow_up_messages() -> None:
     async def execute(
         tool_call_id: str,
         arguments: Mapping[str, JSONValue],
-        signal=None,  # noqa: ANN001
-        on_update=None,  # noqa: ANN001
+        signal=None,
+        on_update=None,
     ) -> AgentToolResult:
         del tool_call_id, arguments, signal, on_update
         return AgentToolResult(content="ok")
@@ -1156,7 +1156,7 @@ async def test_closing_tool_call_generator_mid_run_emits_clean_result_not_indexe
         tool_call_id: str,
         arguments: Mapping[str, JSONValue],
         signal: CancellationToken | None = None,
-        on_update=None,  # noqa: ANN001
+        on_update=None,
     ) -> AgentToolResult:
         del tool_call_id, arguments, signal
         assert on_update is not None

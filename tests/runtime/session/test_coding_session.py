@@ -3152,7 +3152,7 @@ async def test_auto_naming_does_not_rename_a_session_adopted_mid_request(
 
     replacement = await CodingSession.load(
         dataclass_replace(
-            session._config,  # noqa: SLF001 - direct adoption ownership seam
+            session._config,  # direct adoption ownership seam
             storage=JsonlSessionStorage(other.path),
             session_id=other.id,
             extension_runtime=session.extension_runtime,
@@ -3174,7 +3174,7 @@ async def test_auto_naming_does_not_rename_a_session_adopted_mid_request(
     while session.is_running:
         await asyncio.sleep(0)
     assert not session.is_running
-    await session._adopt_replacement(replacement, reason="branch")  # noqa: SLF001
+    await session._adopt_replacement(replacement, reason="branch")
 
     provider.naming_release.set()
     await asyncio.wait_for(collector, 2)
@@ -5972,8 +5972,8 @@ async def test_session_adoption_transfers_all_runtime_provider_ownership(
     else:
         replacement = await CodingSession.load(
             dataclass_replace(
-                session._config,  # noqa: SLF001 - direct adoption ownership seam
-                provider=session._harness.config.provider,  # noqa: SLF001
+                session._config,  # direct adoption ownership seam
+                provider=session._harness.config.provider,
                 storage=JsonlSessionStorage(resume_record.path),
                 session_id=resume_record.id,
                 extension_runtime=session.extension_runtime,
@@ -6072,8 +6072,8 @@ async def test_aborted_replacement_closes_only_candidate_provider_once(
         reason = "branch"
         replacement = await CodingSession.load(
             dataclass_replace(
-                session._config,  # noqa: SLF001 - direct adoption ownership seam
-                provider=session._harness.config.provider,  # noqa: SLF001
+                session._config,  # direct adoption ownership seam
+                provider=session._harness.config.provider,
                 storage=JsonlSessionStorage(resume_record.path),
                 session_id=resume_record.id,
                 extension_runtime=old_runtime,
@@ -6121,8 +6121,8 @@ async def test_aborted_replacement_closes_only_candidate_provider_once(
     assert lifecycle.done() is False
     assert active_provider.close_calls == 0
     assert candidate_provider.close_calls == 1
-    assert session._harness.config.provider is active_provider  # noqa: SLF001
-    assert tuple(session._owned_providers) == (active_provider,)  # noqa: SLF001
+    assert session._harness.config.provider is active_provider
+    assert tuple(session._owned_providers) == (active_provider,)
 
     release_candidate_close.set()
     expected_error = asyncio.CancelledError if failure == "cancel" else RuntimeError
@@ -7527,7 +7527,7 @@ def test_minimal_commands_are_handled(tmp_path: Path) -> None:
     assert session.handle_command("/unknown").handled is False
 
 
-def _thinking_override_provider_config(  # noqa: D103
+def _thinking_override_provider_config(
     thinking_defaults: dict[str, str] | None = None,
 ) -> OpenAICompatibleProviderConfig:
     return OpenAICompatibleProviderConfig(

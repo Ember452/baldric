@@ -62,7 +62,7 @@ from baldric.runtime.session.model_selection import (
 from baldric.runtime.session.model_selection import (
     ModelSelectionResult as ModelSelectionResult,
 )
-from baldric.runtime.session.provider_helpers import (  # noqa: F401
+from baldric.runtime.session.provider_helpers import (
     _coerced_thinking_level as _coerced_thinking_level,
 )
 from baldric.runtime.session.provider_helpers import (
@@ -119,7 +119,7 @@ from baldric.runtime.session.provider_helpers import (
 from baldric.runtime.session.provider_helpers import (
     _unavailable_thinking_message as _unavailable_thinking_message,
 )
-from baldric.runtime.session.resource_helpers import (  # noqa: F401
+from baldric.runtime.session.resource_helpers import (
     SessionResources as SessionResources,
 )
 from baldric.runtime.session.resource_helpers import (
@@ -191,7 +191,7 @@ from baldric.runtime.session.resource_helpers import (
 from baldric.runtime.session.resource_helpers import (
     parse_terminal_command as parse_terminal_command,
 )
-from baldric.runtime.session.tree_helpers import (  # noqa: F401
+from baldric.runtime.session.tree_helpers import (
     _active_branchable_entry_id as _active_branchable_entry_id,
 )
 from baldric.runtime.session.tree_helpers import (
@@ -513,7 +513,7 @@ async def refresh_model_catalogs(session: CodingSession, *, force: bool = False)
             force=force,
         )
         session.reload_provider_settings()
-    except Exception as error:  # noqa: BLE001 - authenticated refresh still runs
+    except Exception as error:  # authenticated refresh still runs
         public_error = error
     await session._refresh_codex_model_catalog()
     if public_error is not None:
@@ -554,7 +554,7 @@ async def _refresh_codex_model_catalog(session: CodingSession) -> None:
         catalog = await temporary_provider.discover_models()
         session._publish_runtime_model_catalog(provider_config.name, catalog)
         session._persist_codex_model_catalog(temporary_provider, catalog, provider_config)
-    except Exception as exc:  # noqa: BLE001 - static catalog remains the safe fallback
+    except Exception as exc:  # static catalog remains the safe fallback
         session._model_catalog_discovery_errors[provider_config.name] = f"{type(exc).__name__}: {exc}"
     finally:
         await temporary_provider.aclose()

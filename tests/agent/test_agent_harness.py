@@ -399,8 +399,8 @@ async def test_harness_passes_canonical_tools_to_loop() -> None:
     async def execute(
         tool_call_id: str,
         arguments: Mapping[str, JSONValue],
-        signal=None,  # noqa: ANN001
-        on_update=None,  # noqa: ANN001
+        signal=None,
+        on_update=None,
     ) -> AgentToolResult:
         del tool_call_id, signal, on_update
         return AgentToolResult(content=str(arguments["text"]))
@@ -454,8 +454,8 @@ def _blocking_tool(tool_started: "asyncio.Event", release: "asyncio.Event") -> A
     async def hang(
         tool_call_id: str,
         arguments: Mapping[str, JSONValue],
-        signal=None,  # noqa: ANN001
-        on_update=None,  # noqa: ANN001
+        signal=None,
+        on_update=None,
     ) -> AgentToolResult:
         del tool_call_id, arguments, signal, on_update
         tool_started.set()

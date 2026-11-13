@@ -77,7 +77,7 @@ def run_messages(run: AgentRun) -> tuple[AgentMessage, ...]:
             # too — the viewer is the fork's full context, and hiding the
             # inherited prefix made the fork look like it started fresh.
             return tuple(session.messages)
-        except Exception:  # noqa: BLE001 - a closing session must not break the view
+        except Exception:  # a closing session must not break the view
             return ()
     if run.status == "queued":
         return (UserMessage(content=run.prompt),)

@@ -49,7 +49,7 @@ def test_grown_chain_is_rejected() -> None:
     assert any("instruction chain grew to 20000" in violation for violation in violations)
 
 
-def test_shrunken_instruction_is_reported_as_improvement(capsys) -> None:  # noqa: ANN001
+def test_shrunken_instruction_is_reported_as_improvement(capsys) -> None:
     report = {"files": {"AGENTS.md": 500}, "shims": [], "chain_bytes": 0}
     baseline = {"files": {"AGENTS.md": 1000}, "shims": [], "chain_bytes": 0}
 

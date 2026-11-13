@@ -258,7 +258,7 @@ class TreePickerScreen(ModalScreen[TreePickerResult | None]):
             if self.on_label_change is None:
                 raise RuntimeError("Session labels are not available.")
             timestamp = await self.on_label_change(entry_id, normalized)
-        except Exception as exc:  # noqa: BLE001 - keep the tree open and surface persistence errors
+        except Exception as exc:  # keep the tree open and surface persistence errors
             self.app.notify(f"Error: {exc}", severity="error")
             return
         self.choices = tuple(

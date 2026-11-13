@@ -349,7 +349,7 @@ async def test_child_config_excludes_the_mcp_builtin(tmp_path: Path) -> None:
         )
     )
 
-    assert "mcp" not in [extension.name for extension in session._extension_runtime._extensions]  # noqa: SLF001
+    assert "mcp" not in [extension.name for extension in session._extension_runtime._extensions]
 
 
 async def test_first_input_waits_once_while_connecting(
@@ -386,7 +386,7 @@ async def test_prompt_section_registers_once_and_refreshes(
     monkeypatch.setattr(mcp_extension.extension, "_supervisor_factory", factory)
     _write_user_config(BaldricPaths(home=tmp_path / "home-baldric"), {"srv": USER_SERVER})
     runtime, _, _, _ = _runtime(tmp_path)
-    session = runtime._session  # noqa: SLF001 - the bound RecordingSession
+    session = runtime._session  # the bound RecordingSession
     assert isinstance(session, RecordingSession)
     await runtime.emit_session_start("startup")
     await _settle()
@@ -456,7 +456,7 @@ async def test_prompt_section_omits_detail_without_description_or_instructions(
 def _mcp_handler(runtime: ExtensionRuntime, api: Any) -> Callable[[str], str | None]:
     from baldric.runtime.platform.api import ExtensionCommandContext
 
-    handler = runtime._commands["mcp"].handler  # noqa: SLF001 - test reaches the command
+    handler = runtime._commands["mcp"].handler  # test reaches the command
     return lambda args: handler(args, ExtensionCommandContext(name="mcp", args=args, api=api))
 
 

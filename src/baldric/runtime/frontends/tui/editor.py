@@ -43,12 +43,12 @@ def maybe_suspended(app: Any) -> Iterator[None]:
     with ExitStack() as stack:
         try:
             suspend_cm = app.suspend()
-        except Exception:  # noqa: BLE001 - textual raises SuspendNotSupported
+        except Exception:  # textual raises SuspendNotSupported
             suspend_cm = None
         if suspend_cm is not None:
             try:
                 stack.enter_context(suspend_cm)
-            except Exception:  # noqa: BLE001 - raised on __enter__, not call
+            except Exception:  # raised on __enter__, not call
                 suspend_cm = None
         yield
 

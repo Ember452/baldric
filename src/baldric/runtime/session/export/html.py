@@ -1825,7 +1825,7 @@ def _render_json_block(value: JSONValue) -> str:
     source = _json_dump(value)
     try:
         highlighted = highlight(source, _JSON_LEXER, _HIGHLIGHT_FORMATTER)
-    except Exception:  # noqa: BLE001 - fall back to plain escaped text
+    except Exception:  # fall back to plain escaped text
         return f"<pre>{_escape(source)}</pre>"
     return f'<pre class="highlight">{highlighted}</pre>'
 

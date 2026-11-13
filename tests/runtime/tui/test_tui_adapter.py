@@ -38,7 +38,7 @@ from baldric.runtime.frontends.tui.state import (
 )
 
 
-def _update(event) -> MessageUpdateEvent:  # noqa: ANN001
+def _update(event) -> MessageUpdateEvent:
     return MessageUpdateEvent(message=event.partial, assistant_message_event=event)
 
 

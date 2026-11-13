@@ -1,6 +1,6 @@
 """Provider and Pi-compatible model streaming layer for Baldric."""
 
-# ruff: noqa: F401 - this module intentionally defines the public facade
+# this module intentionally defines the public facade
 
 from baldric.ai.anthropic import AnthropicProvider
 from baldric.ai.env import (

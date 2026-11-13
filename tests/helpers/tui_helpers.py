@@ -564,43 +564,43 @@ def _component_bridge(app: BaldricTuiApp) -> _TuiExtensionUiBridge:
 class _RenderCallRuntime:
     """Minimal extension-runtime stub for ``_connect_extension_runtime``."""
 
-    def set_ui_bridge(self, bridge) -> None:  # noqa: ANN001
+    def set_ui_bridge(self, bridge) -> None:
         del bridge
 
-    def set_turn_requested_callback(self, callback) -> None:  # noqa: ANN001
+    def set_turn_requested_callback(self, callback) -> None:
         del callback
 
-    def render_custom_message(self, custom_type, content, details, expanded):  # noqa: ANN001
+    def render_custom_message(self, custom_type, content, details, expanded):
         return None
 
-    def render_custom_entry(self, namespace, data, expanded):  # noqa: ANN001
+    def render_custom_entry(self, namespace, data, expanded):
         return None
 
-    def transform_markdown(self, markdown, *, message_type, is_streaming=False):  # noqa: ANN001
+    def transform_markdown(self, markdown, *, message_type, is_streaming=False):
         return markdown
 
-    def render_tool_call(self, name, arguments):  # noqa: ANN001
+    def render_tool_call(self, name, arguments):
         if name == "agent":
             return f"▸ agent · {arguments.get('description')}"
         return None
 
-    def render_tool_call_via_resolvers(self, name, arguments):  # noqa: ANN001
+    def render_tool_call_via_resolvers(self, name, arguments):
         return self.render_tool_call(name, arguments)
 
-    def render_tool_result(self, tool_name, result, expanded):  # noqa: ANN001
+    def render_tool_result(self, tool_name, result, expanded):
         if tool_name == "agent" and result.details:
             suffix = " · expanded" if expanded else ""
             return f"[green]✓[/green] {result.details.get('description')} completed{suffix}"
         return None
 
-    def render_tool_result_via_resolvers(self, tool_name, result, expanded):  # noqa: ANN001
+    def render_tool_result_via_resolvers(self, tool_name, result, expanded):
         return self.render_tool_result(tool_name, result, expanded)
 
 
 class _CustomMessageRuntime(_RenderCallRuntime):
     """Runtime stub whose custom renderer produces a card for notifications."""
 
-    def render_custom_message(self, custom_type, content, details, expanded):  # noqa: ANN001
+    def render_custom_message(self, custom_type, content, details, expanded):
         del content, expanded
         if custom_type != "subagent-notification" or not details:
             return None

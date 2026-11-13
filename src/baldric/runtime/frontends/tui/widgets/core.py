@@ -1316,7 +1316,7 @@ def _custom_markup_to_text(markup: str) -> Text:
     """Parse Rich markup safely; fall back to literal text on malformed markup."""
     try:
         return Text.from_markup(markup)
-    except Exception:  # noqa: BLE001 - a bad renderer string must never crash the TUI
+    except Exception:  # a bad renderer string must never crash the TUI
         return Text(markup)
 
 

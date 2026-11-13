@@ -190,6 +190,6 @@ def _serialize_message(message: object) -> object:
     if dump is not None:
         try:
             return dump(mode="json")
-        except Exception:  # noqa: BLE001 - transcripts degrade to repr
+        except Exception:  # transcripts degrade to repr
             pass
     return str(message)
