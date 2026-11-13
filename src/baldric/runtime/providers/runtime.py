@@ -8,7 +8,6 @@ from collections.abc import Callable, Mapping, MutableMapping
 from dataclasses import replace
 from inspect import isawaitable
 from os import environ
-from typing import Protocol
 from weakref import WeakKeyDictionary
 
 from baldric.ai.anthropic import AnthropicProvider
@@ -21,22 +20,14 @@ from baldric.ai.openai_codex import (
     OpenAICodexProvider,
 )
 from baldric.ai.openai_compatible import OpenAICompatibleProvider
-from baldric.protocol.provider import ModelProvider
-from baldric.runtime.auth.credentials import FileCredentialStore, OAuthCredential
-from baldric.runtime.auth.oauth import (
-    account_id_from_access_token,
-    oauth_credential_is_expired,
-    refresh_openai_codex_token,
-)
-from baldric.runtime.auth.registry import get_oauth_provider
-from baldric.runtime.auth.types import OAuthProvider
+from baldric.protocol.provider import ClosableModelProvider as ClosableModelProvider
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.thinking import (
     ThinkingLevel,
     normalize_thinking_level,
     reasoning_effort_for_level,
 )
-from baldric.runtime.extensions.providers import (
+from baldric.runtime.platform.providers import (
     CredentialReader,
     DynamicProvider,
     OpenAICompatibleTransport,
@@ -49,6 +40,14 @@ from baldric.runtime.extensions.providers import (
     json_compatible_mapping,
     resolve_provider_auth,
 )
+from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
+from baldric.runtime.providers.auth.oauth import (
+    account_id_from_access_token,
+    oauth_credential_is_expired,
+    refresh_openai_codex_token,
+)
+from baldric.runtime.providers.auth.registry import get_oauth_provider
+from baldric.runtime.providers.auth.types import OAuthProvider
 from baldric.runtime.providers.config import (
     AnthropicProviderConfig,
     OpenAICodexProviderConfig,
@@ -65,14 +64,6 @@ from baldric.runtime.providers.config import (
     validate_provider_model,
 )
 from baldric.runtime.providers.stores.codex_version import CodexClientVersionResolver
-
-
-class ClosableModelProvider(ModelProvider, Protocol):
-    """Runtime provider object Baldric owns and can close."""
-
-    async def aclose(self) -> None:
-        """Close any provider-owned resources."""
-        ...
 
 
 async def create_dynamic_model_provider(

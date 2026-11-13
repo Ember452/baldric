@@ -1,0 +1,160 @@
+"""Trusted extension declarations bundled with Baldric."""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+from inspect import iscoroutinefunction
+from typing import TYPE_CHECKING
+
+import httpx
+
+from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.platform.features import FEATURES
+from baldric.runtime.providers.auth.credentials import CredentialStore
+
+if TYPE_CHECKING:
+    from baldric.runtime.platform.api import ExtensionAPI
+
+
+@dataclass(frozen=True, slots=True)
+class BuiltInExtensionContext:
+    """Trusted runtime dependencies supplied only to bundled extensions.
+
+    Filesystem extensions receive the ordinary :class:`ExtensionAPI` only. The
+    context exists so a bundled integration uses the session's Baldric home,
+    credential store, environment snapshot, and deterministic HTTP client
+    rather than silently reaching process-global defaults.
+    """
+
+    paths: BaldricPaths
+    credential_store: CredentialStore
+    environment: Mapping[str, str]
+    http_client: httpx.AsyncClient | None = None
+
+
+BuiltInExtensionSetup = Callable[["ExtensionAPI"], None]
+BuiltInExtensionContextSetup = Callable[["ExtensionAPI", BuiltInExtensionContext], None]
+
+
+@dataclass(frozen=True, slots=True)
+class BuiltInExtension:
+    """One trusted extension setup function shipped as part of Baldric.
+
+    Built-ins use the normal extension API and runtime lifecycle. They differ
+    only in provenance: Baldric declares their callable directly, loads them before
+    filesystem extensions, and may hide them from ordinary extension listings.
+    """
+
+    name: str
+    setup: BuiltInExtensionSetup
+    hidden: bool = True
+    setup_with_context: BuiltInExtensionContextSetup | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name.strip():
+            raise ValueError("Built-in extension name must be a non-empty string")
+        if self.name != self.name.strip():
+            raise ValueError("Built-in extension name must not have surrounding whitespace")
+        if not callable(self.setup):
+            raise ValueError("Built-in extension setup must be callable")
+        setup_call = type(self.setup).__call__
+        if iscoroutinefunction(self.setup) or iscoroutinefunction(setup_call):
+            raise ValueError("Built-in extension setup must be a sync function")
+        if not isinstance(self.hidden, bool):
+            raise ValueError("Built-in extension hidden flag must be a boolean")
+        if self.setup_with_context is not None:
+            if not callable(self.setup_with_context):
+                raise ValueError("Built-in contextual setup must be callable")
+            context_setup_call = type(self.setup_with_context).__call__
+            if iscoroutinefunction(self.setup_with_context) or iscoroutinefunction(context_setup_call):
+                raise ValueError("Built-in contextual setup must be a sync function")
+
+    @property
+    def source_id(self) -> str:
+        """Return the stable host-owned source identity for this declaration."""
+        return f"built-in:{self.name}"
+
+
+def _load_feature_setup(module_path: str) -> Callable[..., None]:
+    """Resolve a feature's ``setup`` callable by string path via ``importlib``.
+
+    Product features (``baldric.runtime.features.<name>``) are loaded through a
+    string path, never a static import, so the platform/built-in registry here
+    never statically depends on a feature implementation (S1a, enforced by
+    ``scripts/check_import_graph.py``).
+    """
+    from importlib import import_module
+    from typing import cast
+
+    return cast("Callable[..., None]", import_module(module_path).setup)
+
+
+def _feature_setup_path(name: str) -> str:
+    """Return the ``setup`` module path declared for ``name`` in :data:`FEATURES`."""
+    for spec in FEATURES:
+        if spec.name == name:
+            return spec.setup.split(":", 1)[0]
+    raise KeyError(f"no FeatureSpec declared for feature {name!r}")
+
+
+def _llama_cpp_setup(api: ExtensionAPI) -> None:
+    """Load the llama.cpp feature with its normal process dependencies."""
+    _load_feature_setup(_feature_setup_path("llama_cpp"))(api)
+
+
+def _llama_cpp_setup_with_context(
+    api: ExtensionAPI,
+    context: BuiltInExtensionContext,
+) -> None:
+    """Load the llama.cpp feature lazily with trusted runtime dependencies."""
+    _load_feature_setup(_feature_setup_path("llama_cpp"))(api, context)
+
+
+def _subagents_setup(api: ExtensionAPI) -> None:
+    """Load the subagents feature by string path."""
+    _load_feature_setup(_feature_setup_path("subagents"))(api)
+
+
+def _mcp_setup(api: ExtensionAPI) -> None:
+    """Load the bundled MCP client feature with its normal process dependencies."""
+    _load_feature_setup(_feature_setup_path("mcp_tools"))(api)
+
+
+def _mcp_setup_with_context(
+    api: ExtensionAPI,
+    context: BuiltInExtensionContext,
+) -> None:
+    """Load the bundled MCP client feature lazily with trusted runtime dependencies."""
+    _load_feature_setup(_feature_setup_path("mcp_tools"))(api, context)
+
+
+# Product capabilities are declared explicitly so filesystem discovery or
+# project inputs cannot change what Baldric treats as trusted.
+BUILT_IN_EXTENSIONS: tuple[BuiltInExtension, ...] = (
+    BuiltInExtension(
+        name="llama.cpp",
+        setup=_llama_cpp_setup,
+        hidden=True,
+        setup_with_context=_llama_cpp_setup_with_context,
+    ),
+    BuiltInExtension(
+        name="subagents",
+        setup=_subagents_setup,
+        hidden=True,
+    ),
+    BuiltInExtension(
+        name="mcp",
+        setup=_mcp_setup,
+        hidden=True,
+        setup_with_context=_mcp_setup_with_context,
+    ),
+)
+
+__all__ = [
+    "BUILT_IN_EXTENSIONS",
+    "BuiltInExtension",
+    "BuiltInExtensionContext",
+    "BuiltInExtensionContextSetup",
+    "BuiltInExtensionSetup",
+]

@@ -18,7 +18,7 @@ from baldric.runtime.context.thinking import (
 from baldric.runtime.events import (
     ThinkingLevelChangedEvent,
 )
-from baldric.runtime.extensions.providers import DynamicProvider
+from baldric.runtime.platform.providers import DynamicProvider
 from baldric.runtime.providers.config import (
     OpenAICodexProviderConfig,
     ProviderConfig,

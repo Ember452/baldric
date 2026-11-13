@@ -45,11 +45,11 @@ from baldric.runtime.events import (
     SessionAgentEndEvent,
     SessionInfoChangedEvent,
 )
-from baldric.runtime.extensions.api import SessionBeforeCompactEvent
 from baldric.runtime.observability.diagnostics import (
     AgentCallDiagnosticContext,
     new_agent_call_run_id,
 )
+from baldric.runtime.platform.api import SessionBeforeCompactEvent
 from baldric.runtime.providers.config import (
     ProviderConfig,
     provider_has_usable_credentials,

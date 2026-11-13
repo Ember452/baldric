@@ -25,12 +25,14 @@ from baldric.protocol.session import (
     LeafEntry,
     MessageEntry,
     ModelChangeEntry,
-    SessionJsonlError,
     SessionTreeError,
+    path_to_entry,
+)
+from baldric.runtime.core.session.jsonl import (
+    SessionJsonlError,
     entries_from_json_lines,
     entry_from_json_line,
     entry_to_json_line,
-    path_to_entry,
 )
 from baldric.runtime.session import JsonlSessionStorage, SessionState
 
@@ -359,7 +361,7 @@ async def test_jsonl_storage_reads_existing_file_with_unicode_line_separator(
 async def test_jsonl_storage_reuses_parsed_entries_after_own_appends(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric.protocol.session import jsonl as jsonl_module
+    from baldric.runtime.core.session import jsonl as jsonl_module
 
     path = tmp_path / "session.jsonl"
     storage = JsonlSessionStorage(path)

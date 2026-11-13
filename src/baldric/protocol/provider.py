@@ -27,6 +27,22 @@ class CancellationToken(Protocol):
         ...
 
 
+@dataclass(frozen=True, slots=True)
+class ProviderLayerToken:
+    """Identity required to publish work into one exact provider source layer.
+
+    A pure shape shared by the provider registry (which mints tokens) and the
+    local-backend registry (which pairs a backend to the exact provider layer it
+    belongs to). Living in the contract layer lets both depend on it without the
+    backend registry importing the provider registry implementation.
+    """
+
+    provider_id: str
+    source_id: str
+    generation_id: str
+    layer_id: str
+
+
 class ModelProvider(Protocol):
     """Provider-neutral Pi-compatible model stream interface."""
 
@@ -51,6 +67,21 @@ class ModelProvider(Protocol):
         payload/headers/response points. ``None`` means "no hooks" and the adapter
         behaves exactly as before (byte-identical request).
         """
+        ...
+
+
+class ClosableModelProvider(ModelProvider, Protocol):
+    """Runtime provider object Baldric owns and can close.
+
+    A provider that holds resources (HTTP clients, streams) implements this so
+    the session can release them deterministically. It is a pure shape
+    (``ModelProvider`` + ``aclose``) and lives in the contract layer so both the
+    provider-config layer and the extension provider contracts can name it without
+    importing each other.
+    """
+
+    async def aclose(self) -> None:
+        """Close any provider-owned resources."""
         ...
 
 

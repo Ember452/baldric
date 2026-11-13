@@ -7,19 +7,14 @@ from textual.widgets import OptionList
 
 from baldric.ai import FakeProvider, RuntimeModel, RuntimeModelCatalog
 from baldric.protocol.session import ModelChangeEntry, SessionInfoEntry
-from baldric.runtime import (
-    CodingSession,
-    CodingSessionConfig,
-    FileCredentialStore,
-    OAuthCredential,
-    OpenAICodexProviderConfig,
-    ProviderSettings,
-)
 from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.frontends.tui import app as tui_app
+from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
+from baldric.runtime.providers.config import OpenAICodexProviderConfig, ProviderSettings
 from baldric.runtime.session import JsonlSessionStorage
 from baldric.runtime.session import session as session_module
 from baldric.runtime.session.manager import SessionManager
-from baldric.runtime.tui import app as tui_app
+from baldric.runtime.session.session import CodingSession, CodingSessionConfig
 
 
 class CatalogProvider(FakeProvider):

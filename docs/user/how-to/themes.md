@@ -5,8 +5,8 @@ description: 用 JSON 主题文件重塑 Baldric TUI——从单个颜色到完�
 
 Baldric 的 TUI 主题是 JSON 文件。内置主题（`baldric-dark`、`baldric-light`、
 `high-contrast`）以 JSON 形式随包发布，经与自定义主题相同的
-解析器加载，因此可以直接当参考样例：
-[`src/baldric/runtime/tui/themes/`](https://github.com/Ember452/baldric/tree/main/src/baldric/runtime/tui/themes)。
+解析器加载，因此可以直接当参考样例：仓库内
+`src/baldric/runtime/rendering/themes/`。
 
 ## 添加自定义主题
 
@@ -51,7 +51,7 @@ Textual 命令面板选择主题。选择持久化在 `~/.baldric/tui.json`—�
 - `vars`（可选）—— 具名颜色。`colors` 或 `roles` 值里任何匹配 var 名的空白分隔 token 都会被其值替换，因此 `"bold base on teal"` 这样的复合 Rich 样式可用。与 Rich 样式关键字（`on`、`bold`、`dim`……）冲突的 var 名被拒绝，var 值必须是单个颜色 token。
 - `colors`（必填）—— 主题调色板的每个字段，包括
   `success` / `error` 状态 token 与工具调用文本的 `tool_success_text` /
-  `tool_error_text` 颜色。完整列表见 `src/baldric/runtime/tui/themes/__init__.py` 的 `THEME_COLOR_FIELDS`；内置主题 JSON 文件在上下文里展示了全部字段。
+  `tool_error_text` 颜色。完整列表见 `src/baldric/runtime/rendering/themes/__init__.py` 的 `THEME_COLOR_FIELDS`；内置主题 JSON 文件在上下文里展示了全部字段。
   大多数颜色同时由 Rich 与 Textual 渲染，所以坚持两者都接受的格式——`#94e2d5` 这类六位 hex 总是安全。库专属语法，例如 Rich 的 `bright_red` / `grey50` 或 Textual 的 `ansi_red` /
   `#ff000080` 会被拒绝，仅 Rich 的 `tool_success_text` /
   `tool_error_text` 字段与 `completion_*` 样式字符串例外。

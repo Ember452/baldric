@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 import pytest
 
-from baldric.runtime.auth.oauth import (
+from baldric.runtime.providers.auth.oauth import (
     OPENAI_CODEX_ACCOUNT_CLAIM,
     OPENAI_CODEX_CLIENT_ID,
     OAuthError,

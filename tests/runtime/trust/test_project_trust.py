@@ -16,7 +16,6 @@ from typer.testing import CliRunner
 
 from baldric.protocol.provider import ModelProvider
 from baldric.protocol.session import SessionEntry
-from baldric.runtime import SessionManager, jsonl_session_storage
 from baldric.runtime.cli import app
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.resources import (
@@ -24,8 +23,10 @@ from baldric.runtime.context.resources import (
     resource_paths_with_cwd,
     resource_paths_with_project_trust,
 )
+from baldric.runtime.frontends.tui.trust import ProjectTrustScreen, _ProjectTrustApp
 from baldric.runtime.rendering.themes import BALDRIC_DARK_THEME, textual_theme_for_tui_theme
-from baldric.runtime.session.session import CodingSession, CodingSessionConfig
+from baldric.runtime.session.manager import SessionManager
+from baldric.runtime.session.session import CodingSession, CodingSessionConfig, jsonl_session_storage
 from baldric.runtime.trust import policy as project_trust_module
 from baldric.runtime.trust.policy import (
     ExtensionTrustResult,
@@ -37,7 +38,6 @@ from baldric.runtime.trust.policy import (
     canonicalize_project_path,
     format_trust_diagnostic,
 )
-from baldric.runtime.tui.trust import ProjectTrustScreen, _ProjectTrustApp
 
 
 def _paths(tmp_path: Path) -> BaldricPaths:
@@ -983,7 +983,7 @@ async def test_failed_project_extension_reload_re_resolves_trust(
         "def setup(baldric):\n    baldric.add_prompt_guideline('DESTINATION-EXTENSION')\n",
         encoding="utf-8",
     )
-    from baldric.runtime.extensions.runtime import ExtensionRuntime
+    from baldric.runtime.platform.runtime import ExtensionRuntime
 
     real_load = ExtensionRuntime.load
 
@@ -1161,7 +1161,7 @@ async def test_reload_cancellation_during_shutdown_preserves_snapshot_and_re_res
 async def test_reload_cancellation_during_staged_start_preserves_snapshot_and_re_resolves(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric.runtime.extensions.runtime import ExtensionRuntime
+    from baldric.runtime.platform.runtime import ExtensionRuntime
 
     project = tmp_path / "project"
     project.mkdir()
@@ -1217,7 +1217,7 @@ async def test_reload_cancellation_during_staged_start_preserves_snapshot_and_re
 async def test_destination_adoption_cancellation_keeps_source_and_retry_resolves_again(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from baldric.runtime.extensions.runtime import ExtensionRuntime
+    from baldric.runtime.platform.runtime import ExtensionRuntime
 
     source = tmp_path / "source"
     destination = tmp_path / "destination"

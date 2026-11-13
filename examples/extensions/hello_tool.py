@@ -7,7 +7,7 @@ Install by copying into `~/.baldric/extensions/`, or run:
 
 from baldric.protocol.messages import TextContent
 from baldric.protocol.tools import AgentTool, AgentToolResult
-from baldric.runtime.extensions import ExtensionAPI
+from baldric.runtime.platform import ExtensionAPI
 
 
 async def _run_hello(tool_call_id, arguments, signal=None, on_update=None):  # noqa: ANN001, ANN202

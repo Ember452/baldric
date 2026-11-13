@@ -15,18 +15,10 @@ from baldric.protocol.messages import AgentMessage, assistant_content, message_t
 from baldric.protocol.session import CustomEntry, CustomMessageEntry, LeafEntry, MessageEntry
 from baldric.protocol.tools import AgentTool, AgentToolResult
 from baldric.protocol.types import JSONValue
-from baldric.runtime import (
-    BaldricPaths,
-    BaldricResourcePaths,
-    BuiltInExtension,
-    CodingSession,
-    CodingSessionConfig,
-    ModelChoice,
-    ResourceError,
-    SessionManager,
-)
+from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.context.resources import BaldricResourcePaths, ResourceError
 from baldric.runtime.context.system_prompt import PromptSection
-from baldric.runtime.extensions import (
+from baldric.runtime.platform import (
     EXTENSION_API_VERSION,
     CustomMessageView,
     DynamicProvider,
@@ -48,7 +40,10 @@ from baldric.runtime.extensions import (
     discover_extensions,
     load_extensions,
 )
+from baldric.runtime.platform.builtin_registry import BuiltInExtension
 from baldric.runtime.session import JsonlSessionStorage
+from baldric.runtime.session.manager import SessionManager
+from baldric.runtime.session.session import CodingSession, CodingSessionConfig, ModelChoice
 from baldric.runtime.trust.policy import ProjectTrustRequest, ProjectTrustResolution, TrustChoice
 from tests.helpers.pi_event_helpers import assistant_done, assistant_start
 
@@ -515,7 +510,7 @@ def test_extension_declares_matching_api_version_and_capabilities(tmp_path: Path
     _write_extension(
         _user_extensions_dir(paths),
         "declared",
-        "from baldric.runtime.extensions import EXTENSION_API_VERSION, ExtensionCapabilities\n"
+        "from baldric.runtime.platform import EXTENSION_API_VERSION, ExtensionCapabilities\n"
         "API_VERSION = EXTENSION_API_VERSION\n"
         "CAPABILITIES = ExtensionCapabilities(ui=True, components=True, providers=True,"
         " tools=True, hooks=True)\n"
@@ -576,7 +571,7 @@ def test_runtime_metadata_exposes_declared_contract(tmp_path: Path) -> None:
     _write_extension(
         _user_extensions_dir(paths),
         "declared",
-        "from baldric.runtime.extensions import ExtensionCapabilities, EXTENSION_API_VERSION\n"
+        "from baldric.runtime.platform import ExtensionCapabilities, EXTENSION_API_VERSION\n"
         f"API_VERSION = {EXTENSION_API_VERSION}\n"
         "CAPABILITIES = ExtensionCapabilities(components=True)\n"
         "\n\n"
@@ -739,7 +734,7 @@ async def test_built_in_order_preserves_tool_command_and_provider_precedence(
         "shadow",
         """
 from baldric.protocol.tools import AgentTool, AgentToolResult
-from baldric.runtime.extensions import DynamicProvider, NoAuth, OpenAICompatibleTransport
+from baldric.runtime.platform import DynamicProvider, NoAuth, OpenAICompatibleTransport
 
 
 async def execute(tool_call_id, arguments, signal=None, on_update=None):
@@ -998,7 +993,7 @@ async def test_failed_setup_cleans_every_registration_after_entry_symlink_retarg
 from pathlib import Path
 
 from baldric.protocol.tools import AgentTool, AgentToolResult
-from baldric.runtime.extensions import DynamicProvider, NoAuth, OpenAICompatibleTransport
+from baldric.runtime.platform import DynamicProvider, NoAuth, OpenAICompatibleTransport
 
 
 async def _tool(tool_call_id, arguments, signal=None, on_update=None):
@@ -1434,7 +1429,7 @@ async def test_extension_turn_events_include_pi_session_metadata(tmp_path: Path)
     from baldric.agent.events import TurnEndEvent as AgentTurnEndEvent
     from baldric.agent.events import TurnStartEvent as AgentTurnStartEvent
     from baldric.protocol.messages import UserMessage
-    from baldric.runtime.extensions import TurnEndEvent, TurnStartEvent
+    from baldric.runtime.platform import TurnEndEvent, TurnStartEvent
 
     runtime = ExtensionRuntime()
     api = _register_inline_extension(runtime, "turn_observer")
@@ -1474,7 +1469,7 @@ async def test_extension_turn_index_resets_for_each_agent_run(tmp_path: Path) ->
     from baldric.agent.events import TurnEndEvent as AgentTurnEndEvent
     from baldric.agent.events import TurnStartEvent as AgentTurnStartEvent
     from baldric.protocol.messages import UserMessage
-    from baldric.runtime.extensions import TurnStartEvent
+    from baldric.runtime.platform import TurnStartEvent
 
     runtime = ExtensionRuntime()
     api = _register_inline_extension(runtime, "turn_observer")
@@ -1501,7 +1496,7 @@ async def test_message_end_event_surfaces_provider_usage(tmp_path: Path) -> None
 
     from baldric.agent import Usage
     from baldric.agent.events import MessageEndEvent
-    from baldric.runtime.extensions.api import ExtensionAPI
+    from baldric.runtime.platform.api import ExtensionAPI
 
     runtime = ExtensionRuntime()
     api = cast(ExtensionAPI, _register_inline_extension(runtime, "usage_observer"))
@@ -1759,7 +1754,7 @@ class RecordingUiBridge:
 
     @property
     def theme(self):  # noqa: ANN202 - TuiTheme, imported lazily by the default
-        from baldric.runtime.tui.config import BALDRIC_DARK_THEME
+        from baldric.runtime.frontends.tui.config import BALDRIC_DARK_THEME
 
         return BALDRIC_DARK_THEME
 
@@ -1774,7 +1769,7 @@ class RecordingUiBridge:
 
     def open_main_view(self, factory):  # noqa: ANN001
         self.calls.append(("open_main_view", (), {}))
-        from baldric.runtime.extensions.api import _DeadMainViewHandle
+        from baldric.runtime.platform.api import _DeadMainViewHandle
 
         return _DeadMainViewHandle()
 
@@ -1851,7 +1846,7 @@ class RecordingUiBridge:
 async def test_context_ui_round_trips_dialogs(tmp_path: Path) -> None:
     from typing import cast
 
-    from baldric.runtime.extensions.api import ExtensionAPI
+    from baldric.runtime.platform.api import ExtensionAPI
 
     ui = RecordingUiBridge(select_result="b", confirm_result=True, input_result="typed")
     runtime = ExtensionRuntime(ui=ui)
@@ -1875,7 +1870,7 @@ async def test_context_ui_round_trips_dialogs(tmp_path: Path) -> None:
 async def test_context_ui_cancel_returns_pi_defaults(tmp_path: Path) -> None:
     from typing import cast
 
-    from baldric.runtime.extensions.api import ExtensionAPI
+    from baldric.runtime.platform.api import ExtensionAPI
 
     ui = RecordingUiBridge()  # select None, confirm False, input None
     runtime = ExtensionRuntime(ui=ui)
@@ -1887,7 +1882,7 @@ async def test_context_ui_cancel_returns_pi_defaults(tmp_path: Path) -> None:
 
 
 async def test_headless_ui_bridges_return_pi_defaults(tmp_path: Path) -> None:
-    from baldric.runtime.extensions import NullUiBridge, StderrUiBridge
+    from baldric.runtime.platform import NullUiBridge, StderrUiBridge
 
     for bridge in (NullUiBridge(), StderrUiBridge()):
         assert bridge.has_ui is False
@@ -1897,7 +1892,7 @@ async def test_headless_ui_bridges_return_pi_defaults(tmp_path: Path) -> None:
 
 
 async def test_headless_ui_bridges_suspend_is_noop_context_manager() -> None:
-    from baldric.runtime.extensions import NullUiBridge, StderrUiBridge
+    from baldric.runtime.platform import NullUiBridge, StderrUiBridge
 
     for bridge in (NullUiBridge(), StderrUiBridge()):
         with bridge.suspend() as value:
@@ -1905,7 +1900,7 @@ async def test_headless_ui_bridges_suspend_is_noop_context_manager() -> None:
 
 
 async def test_headless_ui_bridges_component_seam_are_noops(tmp_path: Path) -> None:
-    from baldric.runtime.extensions import NullUiBridge, StderrUiBridge
+    from baldric.runtime.platform import NullUiBridge, StderrUiBridge
 
     for bridge in (NullUiBridge(), StderrUiBridge()):
         assert bridge.supports_components is False
@@ -1932,7 +1927,7 @@ async def test_headless_ui_bridges_component_seam_are_noops(tmp_path: Path) -> N
 async def test_context_ui_components_pass_through(tmp_path: Path) -> None:
     from typing import cast
 
-    from baldric.runtime.extensions.api import ExtensionAPI
+    from baldric.runtime.platform.api import ExtensionAPI
 
     ui = RecordingUiBridge()
     runtime = ExtensionRuntime(ui=ui)
@@ -1953,7 +1948,7 @@ async def test_context_ui_components_pass_through(tmp_path: Path) -> None:
 async def test_context_ui_sidebar_is_owned_and_passes_through(tmp_path: Path) -> None:
     from typing import cast
 
-    from baldric.runtime.extensions.api import ExtensionAPI
+    from baldric.runtime.platform.api import ExtensionAPI
 
     ui = RecordingUiBridge()
     runtime = ExtensionRuntime(ui=ui)
@@ -1977,8 +1972,8 @@ async def test_context_ui_sidebar_is_owned_and_passes_through(tmp_path: Path) ->
 async def test_context_ui_sidebar_validates_keys_and_titles(tmp_path: Path) -> None:
     from typing import cast
 
-    from baldric.runtime.extensions import ExtensionError
-    from baldric.runtime.extensions.api import ExtensionAPI
+    from baldric.runtime.platform import ExtensionError
+    from baldric.runtime.platform.api import ExtensionAPI
 
     runtime = ExtensionRuntime(ui=RecordingUiBridge())
     api = cast(ExtensionAPI, _register_inline_extension(runtime, "sidebar"))
@@ -1992,8 +1987,8 @@ async def test_context_ui_sidebar_validates_keys_and_titles(tmp_path: Path) -> N
 async def test_context_ui_sidebar_degrades_on_older_host_bridge(tmp_path: Path) -> None:
     from typing import cast
 
-    from baldric.runtime.extensions import UiBridge
-    from baldric.runtime.extensions.api import ExtensionAPI
+    from baldric.runtime.platform import UiBridge
+    from baldric.runtime.platform.api import ExtensionAPI
 
     runtime = ExtensionRuntime(ui=cast(UiBridge, object()))
     api = cast(ExtensionAPI, _register_inline_extension(runtime, "legacy-host"))
@@ -2007,7 +2002,7 @@ async def test_context_ui_sidebar_degrades_on_older_host_bridge(tmp_path: Path) 
 async def test_context_ui_components_headless_reports_unsupported(tmp_path: Path) -> None:
     from typing import cast
 
-    from baldric.runtime.extensions.api import ExtensionAPI
+    from baldric.runtime.platform.api import ExtensionAPI
 
     runtime = ExtensionRuntime()  # defaults to NullUiBridge
     api = cast(ExtensionAPI, _register_inline_extension(runtime, "headless-components"))
@@ -2019,7 +2014,7 @@ async def test_context_ui_components_headless_reports_unsupported(tmp_path: Path
 async def test_default_runtime_ui_is_headless(tmp_path: Path) -> None:
     from typing import cast
 
-    from baldric.runtime.extensions.api import ExtensionAPI
+    from baldric.runtime.platform.api import ExtensionAPI
 
     runtime = ExtensionRuntime()  # defaults to NullUiBridge
     api = cast(ExtensionAPI, _register_inline_extension(runtime, "headless"))
@@ -2081,7 +2076,7 @@ async def test_sync_command_spawns_task_that_awaits_dialog(tmp_path: Path) -> No
 
 
 def _register_inline_extension(runtime: ExtensionRuntime, name: str) -> object:
-    from baldric.runtime.extensions.loader import LoadedExtension
+    from baldric.runtime.platform.loader import LoadedExtension
 
     captured: dict[str, object] = {}
 
@@ -2169,7 +2164,7 @@ async def test_session_loads_built_in_without_extension_discovery_or_project_tru
 ) -> None:
     from dataclasses import replace as dataclass_replace
 
-    import baldric.runtime.extensions.builtin_registry as declarations
+    import baldric.runtime.platform.builtin_registry as declarations
 
     setup_apis: list[ExtensionAPI] = []
     monkeypatch.setattr(
@@ -2218,8 +2213,9 @@ async def test_session_lifecycle_recreates_built_in_in_a_fresh_generation(
 ) -> None:
     from dataclasses import replace as dataclass_replace
 
-    import baldric.runtime.extensions.builtin_registry as declarations
-    from baldric.runtime import BaldricPaths, SessionManager
+    import baldric.runtime.platform.builtin_registry as declarations
+    from baldric.runtime.config.paths import BaldricPaths
+    from baldric.runtime.session.manager import SessionManager
 
     setup_apis: list[ExtensionAPI] = []
     monkeypatch.setattr(
@@ -2481,7 +2477,7 @@ async def test_session_start_handler_can_notify_through_attached_bridge(
 
 async def test_input_handled_prevents_agent_run(tmp_path: Path) -> None:
     body = (
-        "from baldric.runtime.extensions import InputHookResult\n\n\n"
+        "from baldric.runtime.platform import InputHookResult\n\n\n"
         "def _hook(event, context):\n"
         "    if event.text.startswith('intercept'):\n"
         "        return InputHookResult(action='handled', message='caught')\n"
@@ -2503,7 +2499,7 @@ async def test_prompt_input_hook_defaults_to_interactive(tmp_path: Path) -> None
     # The plain session.prompt path (TUI idle submit, print mode) tags the
     # input hook with source="interactive" and no streaming behavior.
     body = (
-        "from baldric.runtime.extensions import InputHookResult\n\n\n"
+        "from baldric.runtime.platform import InputHookResult\n\n\n"
         "def _hook(event, context):\n"
         "    tag = f'{event.text}|src={event.source}|sb={event.streaming_behavior}'\n"
         "    return InputHookResult(action='transform', text=tag)\n\n\n"
@@ -2530,7 +2526,7 @@ async def test_prompt_input_hook_source_extension(tmp_path: Path) -> None:
     # source="extension" flows through prompt() to the input hook, mirroring the
     # TUI extension-initiated idle turn (send_user_message -> turn_requested).
     body = (
-        "from baldric.runtime.extensions import InputHookResult\n\n\n"
+        "from baldric.runtime.platform import InputHookResult\n\n\n"
         "def _hook(event, context):\n"
         "    return InputHookResult(action='transform', text=f'{event.text}|{event.source}')\n\n\n"
         "def setup(baldric):\n"
@@ -2595,7 +2591,7 @@ async def test_agent_events_reach_extension_after_interrupted_tool_repair(
 
 async def test_extension_tool_call_block_reaches_model(tmp_path: Path) -> None:
     body = (
-        "from baldric.runtime.extensions import ToolCallHookResult\n\n\n"
+        "from baldric.runtime.platform import ToolCallHookResult\n\n\n"
         "def _hook(event, context):\n"
         "    if event.tool_name == 'bash':\n"
         "        return ToolCallHookResult(block=True, reason='no shell today')\n"
@@ -2784,7 +2780,8 @@ async def test_session_lifecycle_awaits_outgoing_provider_cleanup(
 ) -> None:
     from dataclasses import replace as dataclass_replace
 
-    from baldric.runtime import BaldricPaths, SessionManager
+    from baldric.runtime.config.paths import BaldricPaths
+    from baldric.runtime.session.manager import SessionManager
 
     manager = SessionManager(
         BaldricPaths(home=tmp_path / "home-baldric", agents_home=tmp_path / "home-agents")
@@ -2857,7 +2854,8 @@ async def test_published_lifecycle_adoption_contains_cancellation_during_outgoin
 ) -> None:
     from dataclasses import replace as dataclass_replace
 
-    from baldric.runtime import BaldricPaths, SessionManager
+    from baldric.runtime.config.paths import BaldricPaths
+    from baldric.runtime.session.manager import SessionManager
 
     manager = SessionManager(
         BaldricPaths(home=tmp_path / "home-baldric", agents_home=tmp_path / "home-agents")
@@ -3006,7 +3004,7 @@ async def test_final_close_finishes_registry_and_each_provider_before_propagatin
 
 
 async def test_runtime_survives_new_session_swap(tmp_path: Path) -> None:
-    from baldric.runtime import SessionManager
+    from baldric.runtime.session.manager import SessionManager
 
     body = (
         "EVENTS = []\n\n\n"
@@ -3018,7 +3016,7 @@ async def test_runtime_survives_new_session_swap(tmp_path: Path) -> None:
     )
     from dataclasses import replace as dataclass_replace
 
-    from baldric.runtime import BaldricPaths
+    from baldric.runtime.config.paths import BaldricPaths
 
     provider = FakeProvider([])
     manager = SessionManager(
@@ -3045,7 +3043,8 @@ async def test_session_swap_clears_host_extension_components(tmp_path: Path) -> 
     # otherwise survive the switch (session_start handlers can re-mount).
     from dataclasses import replace as dataclass_replace
 
-    from baldric.runtime import BaldricPaths, SessionManager
+    from baldric.runtime.config.paths import BaldricPaths
+    from baldric.runtime.session.manager import SessionManager
 
     provider = FakeProvider([])
     manager = SessionManager(
@@ -3280,16 +3279,16 @@ async def test_reload_unloads_previous_extension_modules_only(tmp_path: Path) ->
         _session_config(tmp_path, FakeProvider([]), extension_body=API_CAPTURING_EXTENSION)
     )
     old_module = _loaded_extension_module("integration")
-    host_modules = ("baldric.runtime.extensions.runtime", "baldric.runtime.extensions.api")
+    host_modules = ("baldric.runtime.platform.runtime", "baldric.runtime.platform.api")
     assert all(name in sys.modules for name in host_modules)
 
     await session.reload()
 
     assert old_module.__name__ not in sys.modules
     # The per-load unload never sweeps host modules, even if one is passed in.
-    from baldric.runtime.extensions.loader import unload_extension_modules
+    from baldric.runtime.platform.loader import unload_extension_modules
 
-    assert unload_extension_modules(("baldric.runtime.extensions.runtime",)) == 0
+    assert unload_extension_modules(("baldric.runtime.platform.runtime",)) == 0
     assert all(name in sys.modules for name in host_modules)
     new_module = _loaded_extension_module("integration")
     assert new_module is not old_module
@@ -3364,7 +3363,8 @@ async def test_session_replacement_rebuilds_and_invalidates_source_extensions(
 ) -> None:
     from dataclasses import replace as dataclass_replace
 
-    from baldric.runtime import BaldricPaths, SessionManager
+    from baldric.runtime.config.paths import BaldricPaths
+    from baldric.runtime.session.manager import SessionManager
 
     provider = FakeProvider([])
     manager = SessionManager(
@@ -3779,3 +3779,25 @@ def test_extension_info_is_cleared_on_runtime_retire(tmp_path: Path) -> None:
     runtime.retire()
 
     assert runtime.extension_info == ()
+
+
+def test_staged_runtimes_do_not_share_feature_state() -> None:
+    """S9: two staged runtimes keep isolated feature state.
+
+    Each generation owns its registries and registrations; anything registered
+    on one concurrently-staged runtime must be invisible to the other. This is
+    the acceptance the structural plan §7 S9 row promises (the multi-session
+    isolation guarantee that keeps a feature's state from leaking across
+    sessions).
+    """
+    first = ExtensionRuntime(built_in_extensions=())
+    second = ExtensionRuntime(built_in_extensions=())
+
+    assert first is not second
+    assert first.provider_registry is not second.provider_registry
+    assert first.local_backend_registry is not second.local_backend_registry
+    assert first.provider_registry.generation_id != second.provider_registry.generation_id
+
+    first.register_prompt_guideline("test-source", "test-ext", "only in first")
+    assert first.prompt_guidelines == ("only in first",)
+    assert second.prompt_guidelines == ()

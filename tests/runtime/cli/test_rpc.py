@@ -16,19 +16,17 @@ from baldric.protocol.session import (
     MessageEntry,
     ModelChangeEntry,
 )
-from baldric.runtime import (
-    BaldricPaths,
-    CodingSession,
-    CodingSessionConfig,
-    ModelChoice,
-    OpenAICompatibleProviderConfig,
-    ProviderSettings,
-    SessionManager,
-)
 from baldric.runtime import cli as cli_module
-from baldric.runtime.modes.rpc import RpcServer
-from baldric.runtime.providers.config import ProviderModelMetadata
+from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.frontends.rpc import RpcServer
+from baldric.runtime.providers.config import (
+    OpenAICompatibleProviderConfig,
+    ProviderModelMetadata,
+    ProviderSettings,
+)
 from baldric.runtime.session import JsonlSessionStorage
+from baldric.runtime.session.manager import SessionManager
+from baldric.runtime.session.session import CodingSession, CodingSessionConfig, ModelChoice
 from tests.helpers.pi_event_helpers import assistant_done, assistant_start, text_delta
 
 

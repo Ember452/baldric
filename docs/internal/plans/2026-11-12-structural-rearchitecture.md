@@ -1,9 +1,62 @@
 # baldric 结构重构计划 v2：先砌墙，再搬家
 
-> 状态：待批准执行
+> 状态：**执行中 —— 阶段 A0、A、B、C、D、E、F、G 已完成；外审修正已落地**（2026-11-12/13）。执行记录：
+> [A0](../notes/2026-11-12-stage-a0-wall.md)、[A](../notes/2026-11-12-stage-a-rules-and-dedup.md)、
+> [B](../notes/2026-11-12-stage-b-subagents.md)、[C](../notes/2026-11-12-stage-c-mcp-llamacpp.md)、
+> [D](../notes/2026-11-12-stage-d-providers-merge.md)、[E](../notes/2026-11-12-stage-e-platform.md)、
+> [F](../notes/2026-11-12-stage-f-app-composition.md)、[G](../notes/2026-11-13-stage-g-frontends.md)、
+> [外审修正](../notes/2026-11-13-post-review-fixes.md)、
+> [runtime 包根瘦身](../notes/2026-11-13-runtime-facade-slimming.md)、
+> [platform 收窄 + cli 拆分](../notes/2026-11-13-platform-narrowing-and-cli-split.md)。
+> 后续阶段 H 待推进（独立分支，已记录于 GitHub issue #73），原子完成并停下评审。
 > v1 依据：2026-11-11 全量深扫 + 2026-11-12 逐目录实测裁定
 > v2 修订：吸收独立评审的 6 个 P0 + 11 个 P1，并补入本会话新发现的 2 项（`protocol/session/jsonl.py` 是行为、`ai/` 与 `providers/` 是两层配置）
 > 目标读者：维护者本人（个人开发者，时间充足，目标是长期产品，不发独立包）
+
+## 0.1 阶段 A0 执行后的现实修正（2026-11-12）
+
+A0 动手前逐字段重扫代码，发现计划正文有三处与代码现实不符，按「现实为准 + 回写计划」处理，
+详见执行记录。要点：
+
+- **`ExtensionAPI` 等是带行为的实现类，不是 Protocol**，不搬入 `protocol/`（否则违反
+  「protocol 只放形状」与运行时无上层依赖门）。A0 只把**纯形状**（事件 dataclass、
+  类型别名、能力元数据、事件常量）迁入 `protocol/extension.py`；实现类留 runtime，
+  随阶段 E/F 搬。
+- **`PluginManifest` 全仓不存在**（它是 P9 产物）。A0 不凭空创建，等 P9 再定义为 protocol 形状。
+- **`ports.py` 只落无歧义的 `HookDispatcher` + `FeatureSetup`**；计划原列的
+  `ProviderCatalog`（返回不存在的 `ProviderRecord`）/`SessionLifecycle` 推迟到 D/E
+  真实类型出现后再定型。
+
+## 0.2 外审修正（2026-11-13，A0–G 收尾后）
+
+维护者对分支 `f2d564a..HEAD` 做了逐文件外审（12 提交、241 文件），判定
+「搬家干净、记账不干净」。以下修正全部为守卫/文档/计划对账级，**不动生产行为**：
+
+- **验收表对账（原 S8/S9 虚标 ✅）**：三个 feature 的 `setup` 全部 `-> None`，
+  全仓无 disposer 调用点、无双会话隔离测试。修正：S8 改述为现实（teardown 由
+  `session_shutdown` 事件 + `retire()` 承担）；S9 补真实测试
+  （`test_staged_runtimes_do_not_share_feature_state`）。
+- **`FeatureSetup`/`HookDispatcher` 删除**：两者自 A0 建立起**零消费**
+  （F 改走组合根使 HookDispatcher 失配、teardown 实际走 session_shutdown 事件），
+  按「不为零消费建抽象」删除；`ports.py` 仅保留有真实消费方的
+  `ProviderCatalog`/`EffectiveProviderView`（backends 反转在用）。ADR-0007 已加修订注。
+- **守卫对齐真实树（原 S1a 指向未建成的骨架）**：`S1A_FORBIDDEN_IMPORTERS`
+  三前缀允许列表漏掉仍直挂在 `runtime` 下的 session/tools/commands/context/
+  rendering（合成实验证实盲区）。改为**反向规则**：`runtime.*` 下除 `features`
+  外全部禁止静态 import features——新增子包自动被覆盖，不再依赖有人回填列表。
+  `runtime/core/` 桩包保留（H 阶段 session 迁入的落点）。
+- **矩阵接线**：删除无人消费的 `LAYER_MATRIX` 死数据；落地两条真实边——
+  `config ✗→ trust`（`TrustDefault` 移至 `config/shell_config.py` 定义、trust 层
+  re-export，修掉 `shell_config.py` 的矩阵外 import）与
+  `features ✗→ frontends`（AllowRule 禁令 + `subagents.ui → frontends.tui.
+  {config,state,widgets}` 窄例外；allow-rule 匹配改为**最具体优先**，
+  scanner 语义升级）。原「subagents 导入 TUI toolkit」措辞修正为
+  「导入 baldric 自有 frontends.tui 三模块」。
+- **四处冻结文档修正**：`app.py` docstring（改为准确陈述反转范围——session 仍有
+  6 处平台契约 import）、`ports.py` docstring（删"built in a later stage"）、
+  scanner 冻结注释（包已存在）、`features.py`「TUI toolkit」措辞。
+- **G 笔记口径统一**：cli.py 1539→1139（splitlines 口径；原 1031 为非空行口径，
+  两种口径混用造成 −508 的错觉，实际 −400）。§3 的 cli "<600" 目标标注现状。
 
 ## 0. v2 相对 v1 的根本变化
 
@@ -19,19 +72,23 @@ v2 的原则：**先把墙砌好（protocol 契约 + port + scanner 白名单 + 
 
 > **规则**：计划里任何行数/符号数/文件数，一律由 `scripts/measure_structure.py` 生成再粘贴；验收时也用它，避免手写口径漂移。
 
-**基线快照（2026-11-12 实测）**：
+**基线快照（2026-11-13 cli 拆分与 platform 收窄后实测，由 `scripts/measure_structure.py` 生成）**：
 
 | 项 | 数值 |
 |---|---|
-| `src/` | 250 文件 / **67,987** 行 |
-| `tests/` | 216 文件 / **63,347** 行 |
-| `runtime/` | 202 文件 / 58,453 行 |
-| `runtime/tui/` | 40 文件 / 16,842 行 |
-| `runtime/session/session.py` | 1,864 行 / **183** 个方法（v1 写 184，差 1） |
-| `runtime/__init__.py` | **313** 行 / **139** 个 `__all__`（v1 写 317/140+） |
-| `runtime/extensions/__init__.py` | **247** 行 / **116** 符号（v1 写 249） |
-| `scripts/check_import_graph.py` 规则数 | **28** 条（v1 写 29） |
-| fast suite（除 TUI） | 2265 passed（会变，验收看"不减少"而非绝对数） |
+| `src/` | 268 文件 / **77,972** 行 |
+| `tests/` | 220 文件 / **78,058** 行 |
+| `runtime/` | 217 文件 / 66,399 行 |
+| `runtime/frontends/tui/` | 41 文件 / 19,142 行（G1 前为 `runtime/tui/`） |
+| `runtime/session/session.py` | **2,060** 行 / **183** 个方法（阶段 H，见 issue #73） |
+| `runtime/__init__.py` | **18** 行 / **1** 个 `__all__`（已瘦身；原 317 行 / 139 名） |
+| `runtime/platform/__init__.py` | **179** 行 / **82** 符号（已收窄为平台自有模块；原 249/116） |
+| `scripts/check_import_graph.py` 规则数 | **31** 条（28 RULES + 3 AllowRule） |
+| fast suite（除 TUI） | 会变，验收看"不减少"而非绝对数 |
+
+> 口径纪律：任何行数/符号数以此脚本 `uv run python scripts/measure_structure.py` 输出为准，
+> 不手写。首次引入脚本时发现计划旧数字已漂移（session.py 实际 2,097 行而非 1,864），
+> 正说明该纪律必要；每阶段结束重跑一次并回写本表。
 
 ---
 
@@ -75,7 +132,7 @@ baldric/
 │
 └── runtime/
     ├── app.py                # 【新】组合根：构造 ExtensionRuntime，注入 CodingSession
-    ├── cli.py                # 瘦身：参数解析 + 模式分派（< 600 行）
+    ├── cli.py                # 瘦身：参数解析 + 模式分派（< 600 行）【已达成 2026-11-13：591 行；子命令在 cli_commands/，模式入口在 frontends/*/mode.py】
     ├── core/
     │   ├── session/          # 原 runtime/session（含 compaction/export + 移入的 jsonl.py）
     │   ├── tools/  commands/  context/
@@ -107,6 +164,7 @@ baldric/
 **定死方案**：
 - `CustomMessageMarkup`（插件渲染契约类型）**上移至 `protocol/extension.py`**（它是形状，属契约层）。
 - 上移后 `rendering/` 只依赖 `protocol`，**整体留 `core/rendering`**。
+  【现实：A–G 未执行 core/ 合并，rendering 仍在 `runtime/rendering`（同 §0.2 守卫对齐条）；S1a 已将 rendering 纳入禁止 import features 的范围】
 - `frontends/print/` 只消费 `core/rendering` 的 print 渲染器（`base/plain/json/transcript`），**不拥有任何渲染实现文件**。
 - **不拆 rendering 文件到 frontends/print。** rendering 是共享原语库，print 和 tui 都是它的消费者。
 
@@ -210,6 +268,7 @@ frontends → core.session 的公共 API  (RPC 现在直接 import session，见
 ```
 
 **lazy import 规则（实测：scanner 用 ast.walk，函数体 import 也会抓）**：`builtin_registry.py:80-114` 5 处函数内 `from ...builtins.xxx import setup`。阶段 E 加 `(platform, features)` 会全部违规。**规定**：只有 `platform/loader.py` 可用 `importlib` 动态加载 features；`platform/features.py` 与 `builtin_registry.py` 只存**字符串路径**（如 `"baldric.runtime.features.mcp_tools:setup"`），不得静态 import feature 模块。
+【现实修正（§0.2）：实际唯一动态加载点是 `platform/builtin_registry.py::_load_feature_setup`（功能等价）；S1a 现以反向规则覆盖全部 runtime 模块——除 `features` 外任何模块静态 import features 即违规】
 
 ### 4.3 横切设施的依赖矩阵（v1 漏写 5 个顶层设施）
 
@@ -267,56 +326,122 @@ A0（api facade + protocol 契约 + port + scanner 白名单 + 示例路径固�
 
 **铁律**：每个阶段必须**原子完成**（旧路径在同一个 PR 删除），时间盒只限制"是否开始下一阶段"，**绝不停在阶段中间**（半迁移 = 两套结构并存，比不开始还贵）。
 
-### 阶段 A0：墙（1–2 天，零行为变化）
+### 阶段 A0：墙（1–2 天，零行为变化）｜**已完成 2026-11-12**
 
-1. 建顶层 `baldric/api/__init__.py`，先 re-export 旧 `extensions.api`（兼容 facade）。
-2. `protocol/extension.py`：把 `ExtensionAPI` 契约、事件类型、`PluginManifest` 从 `extensions/api.py` 抽出（先并存，A0 只加不删）。
-3. `protocol/ports.py`：定义 `HookDispatcher`/`ProviderCatalog`/`SessionLifecycle`/`FeatureSetup`。
-4. `CustomMessageMarkup` 上移 `protocol/extension.py`；`rendering` 改 import（此时仍可并存）。
-5. scanner 加 `AllowRule` + 依赖矩阵（§4.3）；示例路径改 `baldric.api`。
-6. `scripts/measure_structure.py`（生成基线，禁手写数字）。
-7. **验收**：fast suite 全绿；`check_import_graph` 0 违规；`baldric.api` 可 import。
+实际落地（与下述「原计划」的差异见 §0.1；执行记录见
+[../notes/2026-11-12-stage-a0-wall.md](../notes/2026-11-12-stage-a0-wall.md)）：
 
-### 阶段 A：规则 + 删重复契约（1 天）
+1. ✅ 建顶层 `baldric/api/__init__.py`，re-export 旧 `extensions.api` 全部符号（兼容 facade，按消费方分组，63 个名字）。
+2. ✅ `protocol/extension.py`：只迁**纯形状**——18 个事件/结果 dataclass + 类型别名 + `ExtensionCapabilities` + 事件常量 + Literal；`ExtensionAPI`/`ExtensionContext`/`ExtensionUi`/UI 桥等实现类**留在** `extensions/api.py`（原计划说搬 `ExtensionAPI` 契约，与"纯形状"冲突，已改）。事件 payload 用 `X as X` 形式从 protocol 显式 re-export 回 `extensions/api.py`，46 处消费点零改动。
+3. ✅ `protocol/ports.py`：定义 `HookDispatcher` + `FeatureSetup`（原计划的 `ProviderCatalog`/`SessionLifecycle` 因返回类型尚不存在，推迟到 D/E）。
+4. ✅ `CustomMessageMarkup`（及 `ToolCallMarkup`/`ToolResultMarkup`/`MessageRenderer` 等别名）定义于 `protocol/extension.py`，`extensions/api.py` 以 `as` re-export；3 个 rendering/tui 消费点零改动。
+5. ✅ scanner 加 `AllowRule` + `LAYER_MATRIX` + `scan_allow_violations`（真实目录尚不存在故 0 违规，合成样例 guard 测试证明能报违规）；`baldric.api` 已可作稳定入口（示例改路径留待后续阶段统一）。
+6. ✅ `scripts/measure_structure.py`（生成基线，禁手写数字；已据其修正 §1 漂移）。
+7. ✅ 新增 guard 测试：`test_protocol_extension_and_ports_pull_no_upper_layer`、`test_protocol_extension_and_ports_contain_only_shapes`（AST 形状闸门 + 自证有牙）、AllowRule 4 个合成样例测试。
+8. ✅ **验收**：fast suite 2276 passed / 52 skipped（零行为变化）；`check_import_graph` 0 违规；`baldric.api` 可 import；ruff/mypy 无新增。
 
-1. 删重复：`CredentialReader`（留 `providers/config/models.py`）、`ClosableModelProvider`（留 `providers/runtime.py`）。
-2. **`protocol/session/jsonl.py` 移到 `runtime/core/session/jsonl.py`**（它是行为）。
-3. 落地 `protocol/` 只放形状规则 + 每模块 400 行预算。
-4. **验收**：fast suite 全绿；protocol 无行为文件；scanner 新规则能报违规。
+> 原计划条目（保留作历史对照）：
+> 1. 建顶层 `baldric/api/__init__.py`，先 re-export 旧 `extensions.api`（兼容 facade）。
+> 2. `protocol/extension.py`：把 `ExtensionAPI` 契约、事件类型、`PluginManifest` 从 `extensions/api.py` 抽出（先并存，A0 只加不删）。
+> 3. `protocol/ports.py`：定义 `HookDispatcher`/`ProviderCatalog`/`SessionLifecycle`/`FeatureSetup`。
+> 4. `CustomMessageMarkup` 上移 `protocol/extension.py`；`rendering` 改 import（此时仍可并存）。
+> 5. scanner 加 `AllowRule` + 依赖矩阵（§4.3）；示例路径改 `baldric.api`。
+> 6. `scripts/measure_structure.py`（生成基线，禁手写数字）。
+> 7. **验收**：fast suite 全绿；`check_import_graph` 0 违规；`baldric.api` 可 import。
 
-### 阶段 B：subagents 试点（最散，验证方案）
+### 阶段 A：规则 + 删重复契约（1 天）｜**已完成 2026-11-12**
 
-1. `git mv extensions/builtins/subagents/ features/subagents/`。
-2. `platform/features.py` 静态声明 `FEATURES`（`setup="...:setup"` 字符串 + `kind`）；`builtin_registry` 改字符串路径。
-3. `CustomMessageMarkup`/事件走 protocol；`ExtensionRuntime` 由 app 注入（A0 已备好 port）。
-4. tests → `tests/features/subagents/`（**不放 src 内**，见 §6）。
-5. **验收（S1a）**：`core/platform/frontends` 静态 import `features.*` = 0（AST 检查，非 grep）；10 个 subagents 测试全过；fast suite 全绿。
+实际落地（执行记录见 [../notes/2026-11-12-stage-a-rules-and-dedup.md](../notes/2026-11-12-stage-a-rules-and-dedup.md)）：
 
-### 阶段 C：mcp_tools / llama_cpp
+1. ✅ 删重复：`CredentialReader` 唯一真源留 `providers/config/models.py`，`ClosableModelProvider` **改留 `protocol/provider.py`**（原计划"留 `providers/runtime.py`"会造成 extensions↔runtime 循环导入，已修正）。
+2. ✅ `protocol/session/jsonl.py` → `runtime/core/session/jsonl.py`；`protocol/session/__init__` 停导出 jsonl；4 处 importer 同步。
+3. ✅ 落地 `protocol/` 形状规则 + 每模块 400 行预算：`protocol/extension.py` 拆分出 `extension_events.py`；guard 加「模块分类 ratchet + 400 行预算」。既有协议辅助函数（messages/provider/tools/entries/tree）登记为遗留行为债务白名单（只减不增），迁出列为后续独立任务。
+4. ✅ **验收**：fast suite 2277 passed / 52 skipped；protocol 中 **新模块**均为纯形状（既有债务已登记）；scanner/guard 新规则对合成样例能报违规；mypy 无新增。
 
-同 B。llama_cpp 验证只依赖 `providers/backends` 契约。`bgrep` 核心层无功能名（smoke）。
+> 原计划条目（保留作历史对照）：
+> 1. 删重复：`CredentialReader`（留 `providers/config/models.py`）、`ClosableModelProvider`（留 `providers/runtime.py`）。
+> 2. **`protocol/session/jsonl.py` 移到 `runtime/core/session/jsonl.py`**（它是行为）。
+> 3. 落地 `protocol/` 只放形状规则 + 每模块 400 行预算。
+> 4. **验收**：fast suite 全绿；protocol 无行为文件；scanner 新规则能报违规。
 
-### 阶段 D：providers 域合并
+### 阶段 B：subagents 试点（最散，验证方案）｜**已完成 2026-11-12**
 
-`git mv auth/ → providers/auth/`、`backends/ → providers/backends/`。更新 import。
+实际落地（执行记录见 [../notes/2026-11-12-stage-b-subagents.md](../notes/2026-11-12-stage-b-subagents.md)）：
 
-### 阶段 E：platform 抽离
+1. ✅ `git mv extensions/builtins/subagents/ → features/subagents/`（20 文件）；新增 `runtime/features/__init__.py`。
+2. ⚠️ `platform/features.py` 静态 `FEATURES` **推到阶段 E**（`runtime/platform/` 那时才建，提前建是半迁移）。B 用 `builtin_registry` 内 `importlib.import_module("…features.subagents.extension")` 实现解耦。
+3. ⚠️ `ExtensionRuntime` 由 app 注入 **推到阶段 F**（组合根 `runtime/app.py` 是 F 产物）。B 只做物理搬迁 + 字符串化，不断开 core→platform（无半迁移）。
+4. ✅ tests → `tests/features/subagents/`（14 文件）；helper 路径同步。
+5. ✅ **验收（S1a）**：`runtime.core/platform/frontends/extensions` 静态 import `runtime.features.*` = 0（AST 扫描器新增 + 4 个 guard 测试）；subagents 测试 232 passed；fast suite 2282 passed。
 
-`extensions/{api,runtime,loader,installer,provider_registry,providers,builtin_registry} → platform/`。`extensions/__init__.py` 247 行按消费方拆。
+> 原计划条目（保留作历史对照）：
+> 1. `git mv extensions/builtins/subagents/ features/subagents/`。
+> 2. `platform/features.py` 静态声明 `FEATURES`（`setup="...:setup"` 字符串 + `kind`）；`builtin_registry` 改字符串路径。
+> 3. `CustomMessageMarkup`/事件走 protocol；`ExtensionRuntime` 由 app 注入（A0 已备好 port）。
+> 4. tests → `tests/features/subagents/`（**不放 src 内**，见 §6）。
+> 5. **验收（S1a）**：`core/platform/frontends` 静态 import `features.*` = 0（AST 检查，非 grep）；10 个 subagents 测试全过；fast suite 全绿。
 
-### 阶段 F：app 组合根
+### 阶段 C：mcp_tools / llama_cpp｜**已完成 2026-11-12**
 
-从 `cli.py` 抽装配到 `runtime/app.py::build_app(config)`。`cli.py` 1,411 → < 600 行。
+实际落地（执行记录见 [../notes/2026-11-12-stage-c-mcp-llamacpp.md](../notes/2026-11-12-stage-c-mcp-llamacpp.md)）：
 
-### 阶段 G：frontends 收口（拆三步，G1/G2/G3）
+1. ✅ `builtins/mcp → features/mcp_tools`、`builtins/llama_cpp → features/llama_cpp`；删除空 `extensions/builtins/` 包。
+2. ✅ `builtin_registry` 统一 `_load_feature_setup`（importlib 字符串路径）；5 个 setup 包装全改；name 不变、行为不变。
+3. ✅ 测试搬 `tests/features/{llama_cpp,mcp_tools}/`；`test_phase6_hardening.py` 保留 `tests/` 根（通用硬化套件）仅改导入；conftest 的 Windows-skip nodeid 同步。
+4. ✅ **验收**：fast suite 2282 passed；TUI 767 passed；S1a 静态 import features = 0；mypy 无新增；两基线纯路径重命名（supp 138 不变）。
 
-- **G1**：`tui/ → frontends/tui/`（40 文件 16.8k 行，单独提交，Linux CI 绿）
-- **G2**：`modes/rpc/ → frontends/rpc/`
-- **G3**：cli print 路径 → `frontends/print/`（import core/rendering，不搬渲染实现）
+> 原计划：阶段 C：mcp_tools / llama_cpp —— 「同 B。llama_cpp 验证只依赖 `providers/backends` 契约。`bgrep` 核心层无功能名（smoke）。」
+
+### 阶段 D：providers 域合并｜**已完成 2026-11-12（含依赖反转）**
+
+实际落地（执行记录见 [../notes/2026-11-12-stage-d-providers-merge.md](../notes/2026-11-12-stage-d-providers-merge.md)）：
+
+1. ✅ `git mv auth/ → providers/auth/`、`backends/ → providers/backends/`；全仓 import 前缀改写。
+2. ✅ **额外做依赖反转**（计划未写、但长期最优）：`ProviderLayerToken` 上移 `protocol/provider.py`；`protocol/ports.py` 新增 `ProviderCatalog` + `EffectiveProviderView`；`backends/contracts.py` 构造参数改 `ProviderCatalog`，**彻底删除 `backends → extensions.provider_registry` 静态 import**。这样 §4.3 的 `providers ✗→ platform` 不再被这条边违反。
+3. ✅ **验收**：fast suite 2281 passed；TUI 767 passed；D 直接域 349 passed；mypy 无新增；基线纯路径重命名（supp 138 不变）。
+
+> 原计划：阶段 D：providers 域合并 —— 「`git mv auth/ → providers/auth/`、`backends/ → providers/backends/`。更新 import。」
+
+### 阶段 E：platform 抽离｜**已完成 2026-11-12**
+
+实际落地（执行记录见 [../notes/2026-11-12-stage-e-platform.md](../notes/2026-11-12-stage-e-platform.md)）：
+
+1. ✅ `git mv runtime/extensions → runtime/platform`（7 模块 + `__init__`）；全仓 `baldric.runtime.extensions → baldric.runtime.platform`（70 文件，含 src/tests/repo-examples/self-docs）。
+2. ✅ 新建 `platform/features.py` 静态 `FEATURES`（`FeatureSpec`：name/kind/setup 字符串路径，无 order）；`builtin_registry` 从 FEATURES 解析 setup 路径（唯一真源）；guard 加 2 个完备性测试（S7）。B 阶段推迟的 FEATURES 在此归位。
+3. ⚠️ `__init__.py` **未"按消费方拆"**：核实 `platform → providers.backends` re-export 符合 §4.3 矩阵，且拆分会波及 60+ 根导入点；本阶段保持公共面等价（仅改前缀），收窄导出留作后续 api 稳定面治理。
+4. ✅ **验收**：fast suite 2284 passed；TUI 766 passed；S1a platform→features 静态 import=0；FEATURES 完备；mypy 无新增；基线纯路径重命名（supp 138 不变）。
+
+> ⚠️ 过程事故（已修复，记录教训）：首轮用 PowerShell `Set-Content` 做 token 替换破坏了 UTF-8 em-dash（24 文件），已 `git reset --hard` 回到阶段 D 并改用 `UTF8Encoding($false)` 读写 + 完整性校验后重做。详见执行记录。
+
+> 原计划：阶段 E：platform 抽离 —— 「`extensions/{api,runtime,loader,installer,provider_registry,providers,builtin_registry} → platform/`。`extensions/__init__.py` 247 行按消费方拆。」
+
+
+### 阶段 F：app 组合根｜**已完成 2026-11-12（按高层反转，非 75 成员 port）**
+
+实际落地（执行记录见 [../notes/2026-11-12-stage-f-app-composition.md](../notes/2026-11-12-stage-f-app-composition.md)）：
+
+1. ✅ 新建 `runtime/app.py`（组合根）：`build_runtime()` / `prepare_runtime_for_load(config, previous_runtime)` / `stage_runtime_for_reload(...)` / `eligible_built_in_extensions(config)`。**所有 `ExtensionRuntime(...)` 构造收敛到 app.py**。
+2. ✅ `session.py`（`load` + `__init__` fallback）、`lifecycle.py`（reload staging）改为调用组合根工厂；`session` 包运行时不再 import `platform.runtime`（仅 `TYPE_CHECKING` 注解）。
+3. ⚠️ **未造计划的 75 成员 `Platform` Protocol**：实测 `ExtensionRuntime` 公开面 ~75 成员，造巨型 port 只是把 concrete 改名成 god interface（更差抽象）。改选高层反转：构造与首阶段 load 归组合根，与 trust 交织的第二阶段 load 留 session（生命周期归属正确）。
+4. ⚠️ `cli.py` 的 1411→<600 装配瘦身**未在 F 完成**（本轮 F 聚焦 core→platform 反转），留作后续（G/H 后或独立任务）。
+5. ✅ **验收**：fast suite 2284 passed；TUI 767 passed；session 域 355 passed；mypy 无新增；guards 70 passed。
+
+> 原计划：阶段 F：app 组合根 —— 「从 `cli.py` 抽装配到 `runtime/app.py::build_app(config)`。`cli.py` 1,411 → < 600 行。」
+
+### 阶段 G：frontends 收口（拆三步，G1/G2/G3）｜**已完成 2026-11-13**
+
+实际落地（执行记录见 [../notes/2026-11-13-stage-g-frontends.md](../notes/2026-11-13-stage-g-frontends.md)）：
+
+- ✅ **G1**：`tui → frontends/tui`（40 文件，单独提交 88a2305）；`runtime/frontends/__init__.py`；75 文件 / 420 处引用改写；scanner「core 不得 import TUI」规则改新路径。
+- ✅ **G2**：`modes/rpc → frontends/rpc`（提交 06285e6）；删除空 `runtime/modes/`。
+- ✅ **G3**：cli print 编排 → `frontends/print/mode.py`；print 与 rpc 共用的 session-record 解析抽到 `frontends/session_records.py`；`cli.py` 1539 → 1139 行；渲染实现仍留在 `rendering/`（只消费，不搬）。
+- 验收：fast suite 2284 passed；TUI 767 passed；cli 域 120 passed；guards 70；mypy 无新增；基线纯路径重命名 + 3 个新文件，supp 138 不变。
+
+> 原计划：G1 `tui/ → frontends/tui/`（40 文件 16.8k 行，单独提交，Linux CI 绿）；G2 `modes/rpc/ → frontends/rpc/`；G3 cli print 路径 → `frontends/print/`（import core/rendering，不搬渲染实现）。
 
 ### 阶段 H（独立分支）：session 消肿
 
-照 OpenHands `conversation/{base,impl,goal,state,cancellation}` 形态：门面 + 单职责文件 + 子功能目录。`session.py` 1,864 行 / 183 方法 → < 500 行。**验收**：公共方法签名零变化；fast suite 全绿；**S1 到此时才完全成立**。
+照 OpenHands `conversation/{base,impl,goal,state,cancellation}` 形态：门面 + 单职责文件 + 子功能目录。`session.py` 2,097 行 / 183 方法 → < 500 行（阶段 F 后现 2,060 行）。**验收**：公共方法签名零变化；fast suite 全绿；**S1 到此时才完全成立**。
 
 ---
 
@@ -324,10 +449,17 @@ A0（api facade + protocol 契约 + port + scanner 白名单 + 示例路径固�
 
 ### 6.1 `runtime/__init__.py` 313 行 `__all__` + feature tests 打包
 
-- `baldric/api/` = 稳定公共面（re-export protocol）。
-- `runtime/__init__.py` 瘦身（只 `__version__` + 必要符号）。
+- `baldric/api/` = 稳定公共面（形状 re-export protocol；行为类来自 platform）。
+  **已落地 2026-11-13**：`baldric.api` 63 名被 `tests/test_public_surface.py` 冻结。
+- `runtime/__init__.py` 瘦身（只 `__version__` + 必要符号）。**已落地 2026-11-13**：
+  317 行 / 139 名 → 18 行 / 1 名；`import baldric.runtime` 的 eager import
+  由 156 模块降到 1（见 [runtime 瘦身记录](../notes/2026-11-13-runtime-facade-slimming.md)）。
+  这是有意的公共契约变更：原 139 名聚合面删除，消费方改从归属子模块导入。
+- `runtime/platform/__init__.py` 收窄（原计划未明写，2026-11-13 落地）：116 → 82，
+  只 re-export 平台自有模块；provider 域契约回 `providers.backends.contracts`，
+  由 guard 测试钉住（见 [记录](../notes/2026-11-13-platform-narrowing-and-cli-split.md)）。
 - **feature 测试放 `tests/features/<name>/`（不放 src 内，避免打进 wheel 与 scanner 误扫）**。v1 的"放 features/<name>/tests/"撤回。
-- 老命令 `pytest tests/runtime/extensions/test_subagents_*` 失效 → CI/文档同步更新。
+- 老命令 `pytest tests/runtime/extensions/test_subagents_*` 已随阶段 B 失效（测试现位于 `tests/features/subagents/`），CI/文档已同步。
 
 ### 6.2 兼容 shim 的纪律（shim 最易变永久债）
 
@@ -365,12 +497,12 @@ A–G 只验收 **S1a**（core 不 import features 实现）；**S1（含 sessio
 | S1 | 含 session 的完整内聚 | 阶段 H 后 | ⏳ 延后 |
 | S2 | 分层 import 纪律 | `check_import_graph` 0 违规 + AllowRule + 依赖矩阵 | ✅ |
 | S3 | 行为不变 | fast suite **测试数不减少**（非固定 2265）+ 无断言降级 | ✅ |
-| S4 | 公共面=protocol re-export | `baldric/api` 只 import protocol（CI） | ✅ |
+| S4 | 公共面 provenance | **形状**从 `baldric.protocol` re-export（身份校验，CI）；**行为类**从 `runtime.platform.api`（有意的例外：实现类不属形状） | ✅ 部分（guard 测试 `test_api_facade_exports_protocol_shapes_by_identity`） |
 | S5 | 新功能可定位 | **人工评审**（非机器） | ❌ 人工 |
 | S6 | 无回归禁止项 | 不改断言/不加 skip/不降级 | ✅ |
 | S7 | Feature 注册完备 | 每个 features/* 有 FEATURES 条目（校验测试 + `kind`） | ✅ |
-| S8 | feature 级 teardown | 每个 setup 返回 disposer 或被调用（校验测试） | ✅ |
-| S9 | 多会话隔离 | 同时起 2 会话，断言 feature 状态对象不同 | ✅ |
+| S8 | feature 级 teardown | 现实：统一 teardown 由 `session_shutdown` 生命周期事件 + `ExtensionRuntime.retire()` 承担（三 feature 现状即如此）；disposer 契约（原 `FeatureSetup` port）为零消费抽象，已删除（§0.2），待真实需要时按消费方重新设计 | ⏳ 以事件机制承担，无 disposer 契约 |
+| S9 | 多会话隔离 | 同时起 2 runtime，断言状态对象/注册互不泄漏 | ✅（`test_staged_runtimes_do_not_share_feature_state`） |
 | S10 | protocol 只放形状 | 无行为文件 + 每模块 ≤400 行（CI） | ✅ |
 
 ---

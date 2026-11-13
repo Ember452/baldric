@@ -9,10 +9,10 @@ leave a duplicate definition; these assertions keep the split real and singular.
 
 from __future__ import annotations
 
-from baldric.runtime.tui.app import BaldricTuiApp
-from baldric.runtime.tui.extension_components import ExtensionComponentsMixin
-from baldric.runtime.tui.pickers import PickerMixin
-from baldric.runtime.tui.session_pickers import SessionPickerMixin
+from baldric.runtime.frontends.tui.app import BaldricTuiApp
+from baldric.runtime.frontends.tui.extension_components import ExtensionComponentsMixin
+from baldric.runtime.frontends.tui.pickers import PickerMixin
+from baldric.runtime.frontends.tui.session_pickers import SessionPickerMixin
 
 _PICKER_METHODS = (
     # model / scoped-model / theme (PickerMixin)

@@ -68,8 +68,8 @@ def _write_hook_extension(tmp_path: Path, seen_path: Path) -> Path:
     directory.mkdir()
     body = f"""
 from baldric.protocol.messages import UserMessage
-from baldric.runtime.extensions import ExtensionAPI
-from baldric.runtime.extensions.api import ProviderContextEvent
+from baldric.runtime.platform import ExtensionAPI
+from baldric.runtime.platform.api import ProviderContextEvent
 
 SEEN = {str(seen_path)!r}
 

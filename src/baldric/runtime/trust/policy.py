@@ -17,10 +17,12 @@ from pathlib import Path
 from typing import IO, Literal
 
 from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.config.shell_config import TrustDefault as TrustDefault
 from baldric.runtime.context.prompts import is_prompt_template_candidate
 from baldric.runtime.context.skills.skills import is_skill_candidate
 
-TrustDefault = Literal["ask", "always", "never"]
+# TrustDefault is defined (and persisted) by the config layer's shell settings;
+# it is re-exported here because the coordinator's public API speaks in it.
 TrustDecision = Literal["trusted", "untrusted"]
 TrustOverride = Literal["approve", "decline"]
 TrustScope = Literal["exact", "parent", "run"]

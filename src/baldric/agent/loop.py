@@ -123,6 +123,7 @@ async def run_agent_loop(
 
     yield AgentStartEvent()
     yield TurnStartEvent()
+    # 将一开始写好的消息，一次发Start和end。因为这些不是流式的。可以直接消费
     for message in prelude_messages:
         yield MessageStartEvent(message=message)
         yield MessageEndEvent(message=message)

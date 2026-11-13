@@ -14,13 +14,13 @@ from __future__ import annotations
 
 from baldric.protocol.messages import TextContent
 from baldric.protocol.tools import AgentToolResult
-from baldric.runtime.rendering.tool_preview import BASH_PREVIEW_LINES, TERMINAL_COMMAND_PREVIEW_LINES
-from baldric.runtime.tui.state import (
+from baldric.runtime.frontends.tui.state import (
     ChatItem,
     TuiState,
     format_terminal_command_result_block,
     format_tool_result_block,
 )
+from baldric.runtime.rendering.tool_preview import BASH_PREVIEW_LINES, TERMINAL_COMMAND_PREVIEW_LINES
 
 
 def _long_output(lines: int) -> str:

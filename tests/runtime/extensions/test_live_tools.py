@@ -8,9 +8,9 @@ from typing import Any
 import pytest
 
 from baldric.protocol.tools import AgentTool, AgentToolResult
-from baldric.runtime import BaldricResourcePaths
-from baldric.runtime.extensions import ExtensionAPI, ExtensionRuntime
-from baldric.runtime.extensions.builtin_registry import BuiltInExtension
+from baldric.runtime.context.resources import BaldricResourcePaths
+from baldric.runtime.platform import ExtensionAPI, ExtensionRuntime
+from baldric.runtime.platform.builtin_registry import BuiltInExtension
 from tests.runtime.extensions.test_extensions import RecordingSession
 
 pytestmark = pytest.mark.anyio
@@ -74,7 +74,7 @@ async def test_register_appends_a_hook_wrapped_tool_to_the_bound_list(tmp_path: 
 
 
 async def test_live_registration_runs_the_tool_call_hooks(tmp_path: Path) -> None:
-    from baldric.runtime.extensions.api import ToolCallHookResult
+    from baldric.runtime.platform.api import ToolCallHookResult
 
     apis: list[ExtensionAPI] = []
     runtime = _runtime(tmp_path, apis)

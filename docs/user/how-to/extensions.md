@@ -410,7 +410,7 @@ def setup(baldric):
 Extension 轮次事件与 Pi 一样经 session 增强。`turn_start` 与匹配的 `turn_end` 携带相同的零基 `turn_index`；`turn_start` 还携带 Unix 毫秒 `timestamp`。runtime 在 `turn_end` 后递增索引，在下一个 `agent_start` 重置：
 
 ```python
-from baldric.runtime import TurnEndEvent, TurnStartEvent
+from baldric.api import TurnEndEvent, TurnStartEvent
 
 
 def setup(baldric):
@@ -425,7 +425,7 @@ def setup(baldric):
         assert event.turn_index >= 0
 ```
 
-这些增强载荷定义在 `baldric.runtime.extensions`。可移植的 `baldric.agent.events.TurnStartEvent` 与 `TurnEndEvent` 有意省略 session 元数据，可复用的 agent 代码保持独立于 session 政策。
+这些增强载荷定义在 `baldric.runtime.platform`。可移植的 `baldric.agent.events.TurnStartEvent` 与 `TurnEndEvent` 有意省略 session 元数据，可复用的 agent 代码保持独立于 session 政策。
 
 生命周期与拦截 hook：
 
@@ -453,7 +453,7 @@ def setup(baldric):
 要把注入的消息格式化而不是显示原始文本，在 `setup` 注册渲染器并用 `send_custom_message` 发送：
 
 ```python
-from baldric.runtime.extensions import CustomMessageView, MessageRenderOptions
+from baldric.runtime.platform import CustomMessageView, MessageRenderOptions
 
 def render_status(view: CustomMessageView, options: MessageRenderOptions) -> str:
     icon = "[green]✓[/green]" if view.details and view.details.get("ok") else "[red]✗[/red]"
@@ -484,7 +484,7 @@ baldric.send_custom_message(
 API 版本 2 增加了镜像 Pi 的 provider 与渲染器 hook 的界面。它们以 `provider_hooks` / `renderers` 能力声明，并遵守与其他渲染器相同的规则：Rich 标记文本，绝不是 Textual 组件。
 
 ```python
-from baldric.runtime.extensions import CompactionSummaryResult, UserBashResult
+from baldric.runtime.platform import CompactionSummaryResult, UserBashResult
 
 def setup(baldric):
     # Provider request seams (observe or rewrite the outgoing request).
@@ -529,8 +529,8 @@ Extension 有三种自然尺寸；每步都可选，全都不需要打包：
 **测试一个 extension。** 通过真实 runtime 加载而不是直接导入你的模块——那样会像 session 一样锻炼发现、合成包导入与 `setup` 注册：
 
 ```python
-from baldric.runtime import BaldricResourcePaths
-from baldric.runtime.extensions import ExtensionRuntime
+from baldric.runtime.context.resources import BaldricResourcePaths
+from baldric.runtime.platform import ExtensionRuntime
 
 def test_loads(tmp_path):
     paths = BaldricResourcePaths(

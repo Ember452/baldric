@@ -2,8 +2,8 @@
 
 import pytest
 
-from baldric.runtime.tui.app import BaldricTuiApp
-from baldric.runtime.tui.widgets import StreamingTranscriptMessageWidget, TranscriptView
+from baldric.runtime.frontends.tui.app import BaldricTuiApp
+from baldric.runtime.frontends.tui.widgets import StreamingTranscriptMessageWidget, TranscriptView
 from tests.helpers.tui_helpers import FakeSession
 
 

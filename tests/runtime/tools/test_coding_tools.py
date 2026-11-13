@@ -9,9 +9,11 @@ import pytest
 from PIL import Image
 
 from baldric.agent import ImageContent
-from baldric.runtime import (
+from baldric.runtime.tools.image_processing import DEFAULT_MAX_SOURCE_IMAGE_BYTES
+from baldric.runtime.tools.registry import (
     ImageSupportState,
     ReadOperations,
+    ToolInputError,
     create_bash_tool,
     create_bash_tool_definition,
     create_coding_tools,
@@ -21,8 +23,6 @@ from baldric.runtime import (
     create_read_tool_definition,
     create_write_tool,
 )
-from baldric.runtime.tools.image_processing import DEFAULT_MAX_SOURCE_IMAGE_BYTES
-from baldric.runtime.tools.registry import ToolInputError
 
 
 def image_bytes(format_name: str = "PNG", *, size: tuple[int, int] = (8, 6)) -> bytes:

@@ -2,16 +2,16 @@ from pathlib import Path
 
 import pytest
 
-from baldric.runtime import (
-    BaldricResourcePaths,
+from baldric.runtime.commands.registry import create_default_command_registry
+from baldric.runtime.context.prompts import (
+    PromptTemplate,
+    builtin_prompt_template_reservations,
     expand_prompt_template_command,
     load_prompt_templates,
     load_prompt_templates_with_diagnostics,
     render_prompt_template,
 )
-from baldric.runtime.commands.registry import create_default_command_registry
-from baldric.runtime.context.prompts import PromptTemplate, builtin_prompt_template_reservations
-from baldric.runtime.context.resources import ResourceError
+from baldric.runtime.context.resources import BaldricResourcePaths, ResourceError
 
 
 def test_load_prompt_templates_missing_directory_returns_empty(tmp_path: Path) -> None:

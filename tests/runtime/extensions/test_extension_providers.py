@@ -12,8 +12,9 @@ import pytest
 
 from baldric.agent import UserMessage
 from baldric.ai import OpenAICompatibleProvider
-from baldric.runtime import BaldricResourcePaths
-from baldric.runtime.extensions import (
+from baldric.runtime.context.resources import BaldricResourcePaths
+from baldric.runtime.observability.diagnostics import AgentCallDiagnosticContext, AgentCallDiagnosticLogger
+from baldric.runtime.platform import (
     DynamicProvider,
     DynamicProviderError,
     DynamicProviderRegistry,
@@ -30,12 +31,11 @@ from baldric.runtime.extensions import (
     ScopedCredentialReader,
     resolve_provider_auth,
 )
-from baldric.runtime.extensions.provider_registry import (
+from baldric.runtime.platform.provider_registry import (
     _SUPERVISED_DISCOVERY_TASKS,
     MAX_PROVIDER_REFRESH_DIAGNOSTICS,
     PROVIDER_DISCOVERY_CANCELLATION_TIMEOUT_SECONDS,
 )
-from baldric.runtime.observability.diagnostics import AgentCallDiagnosticContext, AgentCallDiagnosticLogger
 from baldric.runtime.providers.config import (
     OpenAICompatibleProviderConfig,
     ProviderConfigError,
@@ -127,7 +127,7 @@ def provider(
 def _provider_extension_body(model_id: str, *, fail_setup: bool = False) -> str:
     failure = "\n    raise RuntimeError('setup exploded')" if fail_setup else ""
     return f"""
-from baldric.runtime.extensions import (
+from baldric.runtime.platform import (
     DynamicProvider,
     NoAuth,
     OpenAICompatibleTransport,
@@ -1328,7 +1328,7 @@ async def test_setup_failure_removes_provider_layers(tmp_path: Path) -> None:
     extension = tmp_path / "broken_provider.py"
     extension.write_text(
         """
-from baldric.runtime.extensions import DynamicProvider, OpenAICompatibleTransport
+from baldric.runtime.platform import DynamicProvider, OpenAICompatibleTransport
 
 
 def setup(baldric):
@@ -1458,7 +1458,7 @@ async def test_extension_api_registers_provider_and_reload_retires_generation(
     extension = tmp_path / "dynamic_provider.py"
     extension.write_text(
         """
-from baldric.runtime.extensions import DynamicProvider, OpenAICompatibleTransport
+from baldric.runtime.platform import DynamicProvider, OpenAICompatibleTransport
 
 
 def setup(baldric):

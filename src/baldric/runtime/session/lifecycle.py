@@ -13,6 +13,7 @@ from baldric.ai.model_catalog import ModelCatalogProvider, RuntimeModelCatalog
 from baldric.protocol.messages import (
     BashExecutionMessage,
 )
+from baldric.runtime.app import stage_runtime_for_reload
 from baldric.runtime.commands.base import unhandled_result
 from baldric.runtime.commands.registry import CommandResult
 from baldric.runtime.config.paths import BaldricPaths
@@ -32,9 +33,8 @@ from baldric.runtime.context.system_prompt import (
 from baldric.runtime.events import (
     SessionInfoChangedEvent,
 )
-from baldric.runtime.extensions.api import UserBashEvent
-from baldric.runtime.extensions.providers import DynamicProvider
-from baldric.runtime.extensions.runtime import ExtensionRuntime
+from baldric.runtime.platform.api import UserBashEvent
+from baldric.runtime.platform.providers import DynamicProvider
 from baldric.runtime.providers.config import (
     OpenAICodexProviderConfig,
     ProviderConfigError,
@@ -311,25 +311,22 @@ async def reload(session: CodingSession) -> CodingReloadSummary:
     # first so project code cannot import before the destination decision.
     unfiltered_paths = resource_paths_with_cwd(session._config.resource_paths, session.cwd)
     previous_ui = session._extension_runtime.ui
-    staged_runtime = ExtensionRuntime(
+    staged_runtime = stage_runtime_for_reload(
         durable_providers=(session._provider_settings.providers if session._provider_settings else ()),
         credentials=session._extension_runtime.provider_credentials or session._credential_store,
         environment=session._extension_runtime.provider_environment,
         built_in_credentials=session._extension_runtime.built_in_credentials,
         built_in_http_client=session._extension_runtime.built_in_http_client,
-        paths=(
+        runtime_paths=(
             session._resource_paths.paths
             or BaldricPaths(
                 home=session._resource_paths.root,
                 agents_home=session._resource_paths.agents_root or Path.home() / ".agents",
             )
         ),
-    )
-    staged_runtime.load(
-        unfiltered_paths,
+        unfiltered_resource_paths=unfiltered_paths,
         extra_paths=session._config.extension_paths,
-        include_resource_dirs=session._config.extensions_enabled,
-        include_project_dir=False,
+        extensions_enabled=session._config.extensions_enabled,
     )
 
     staged_resolution = session._project_trust_resolution

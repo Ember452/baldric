@@ -13,8 +13,14 @@ from dataclasses import dataclass
 import httpx
 
 from baldric.agent.harness import SimpleCancellationToken
-from baldric.runtime.extensions import (
+from baldric.runtime.platform import (
     DynamicProvider,
+    NoAuth,
+    OpenAICompatibleTransport,
+    ProviderModel,
+    ProviderModelSnapshot,
+)
+from baldric.runtime.providers.backends.contracts import (
     LocalBackend,
     LocalBackendStatus,
     LocalConfigureResult,
@@ -23,10 +29,6 @@ from baldric.runtime.extensions import (
     LocalModel,
     LocalOperationContext,
     LocalOperationResult,
-    NoAuth,
-    OpenAICompatibleTransport,
-    ProviderModel,
-    ProviderModelSnapshot,
 )
 
 

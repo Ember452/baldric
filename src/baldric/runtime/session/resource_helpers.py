@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from os import environ
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from baldric.agent.tool_history import ToolHistoryRepair, repair_tool_history
 from baldric.ai.model_catalog import RuntimeModel, RuntimeModelCatalog
@@ -13,8 +14,6 @@ from baldric.protocol.messages import (
     AgentMessage,
 )
 from baldric.protocol.session.entries import SessionEntry
-from baldric.runtime.auth.credentials import FileCredentialStore
-from baldric.runtime.auth.oauth import account_id_from_access_token
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.project import discover_project_context_with_diagnostics
 from baldric.runtime.context.prompts import (
@@ -35,7 +34,8 @@ from baldric.runtime.context.thinking import (
     THINKING_LEVELS,
     ThinkingLevel,
 )
-from baldric.runtime.extensions.runtime import ExtensionRuntime
+from baldric.runtime.providers.auth.credentials import FileCredentialStore
+from baldric.runtime.providers.auth.oauth import account_id_from_access_token
 from baldric.runtime.providers.config import (
     OpenAICodexProviderConfig,
     ProviderConfig,
@@ -45,6 +45,9 @@ from baldric.runtime.providers.config import (
 )
 from baldric.runtime.session import JsonlSessionStorage, SessionStorage
 from baldric.runtime.update.reload import ReloadCategorySummary
+
+if TYPE_CHECKING:
+    from baldric.runtime.platform.runtime import ExtensionRuntime
 
 
 @dataclass(frozen=True, slots=True)

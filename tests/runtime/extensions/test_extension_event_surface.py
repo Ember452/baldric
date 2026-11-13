@@ -12,7 +12,7 @@ import inspect
 
 import baldric.agent.events as agent_events
 import baldric.runtime.events as coding_events
-from baldric.runtime.extensions.api import AGENT_EVENT_TYPES
+from baldric.runtime.platform.api import AGENT_EVENT_TYPES
 
 
 def _event_types() -> set[str]:

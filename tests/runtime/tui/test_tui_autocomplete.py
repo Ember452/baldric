@@ -6,9 +6,9 @@ from rich.console import Console
 from baldric.runtime.commands.registry import create_default_command_registry
 from baldric.runtime.context.prompts import PromptTemplate
 from baldric.runtime.context.skills.skills import Skill
-from baldric.runtime.tui import autocomplete as autocomplete_module
-from baldric.runtime.tui.autocomplete import CompletionOption, build_completion_state
-from baldric.runtime.tui.widgets import render_completion_suggestions
+from baldric.runtime.frontends.tui import autocomplete as autocomplete_module
+from baldric.runtime.frontends.tui.autocomplete import CompletionOption, build_completion_state
+from baldric.runtime.frontends.tui.widgets import render_completion_suggestions
 
 
 def test_command_completion_for_slash_lists_every_registered_command() -> None:

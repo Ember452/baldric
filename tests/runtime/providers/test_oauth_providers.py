@@ -4,29 +4,29 @@ from typing import cast
 import httpx
 import pytest
 
-from baldric.runtime.auth.credentials import FileCredentialStore, OAuthCredential
-from baldric.runtime.auth.flows.anthropic import (
+from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
+from baldric.runtime.providers.auth.flows.anthropic import (
     ANTHROPIC_CLIENT_ID,
     ANTHROPIC_TOKEN_URL,
     refresh_anthropic_token,
 )
-from baldric.runtime.auth.flows.device import DevicePollResult, poll_oauth_device_code
-from baldric.runtime.auth.flows.github_copilot import (
+from baldric.runtime.providers.auth.flows.device import DevicePollResult, poll_oauth_device_code
+from baldric.runtime.providers.auth.flows.github_copilot import (
     GITHUB_COPILOT_CLIENT_ID,
     github_copilot_base_url,
     login_github_copilot,
     normalize_github_domain,
     refresh_github_copilot_token,
 )
-from baldric.runtime.auth.oauth import OAuthError, oauth_credential_is_expired
-from baldric.runtime.auth.registry import (
+from baldric.runtime.providers.auth.oauth import OAuthError, oauth_credential_is_expired
+from baldric.runtime.providers.auth.registry import (
     get_oauth_provider,
     oauth_provider_ids,
     register_oauth_provider,
     reset_oauth_providers,
     unregister_oauth_provider,
 )
-from baldric.runtime.auth.types import (
+from baldric.runtime.providers.auth.types import (
     OAuthDeviceCodeInfo,
     OAuthLoginCallbacks,
     OAuthPrompt,

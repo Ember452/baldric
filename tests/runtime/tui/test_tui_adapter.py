@@ -30,8 +30,8 @@ from baldric.runtime.events import (
     QueueUpdateEvent,
     SessionAgentEndEvent,
 )
-from baldric.runtime.tui import TuiEventAdapter, TuiState
-from baldric.runtime.tui.state import (
+from baldric.runtime.frontends.tui import TuiEventAdapter, TuiState
+from baldric.runtime.frontends.tui.state import (
     format_tool_call_block,
     format_tool_call_invocation,
     format_tool_result_block,
@@ -701,7 +701,7 @@ def test_tui_state_groups_reads_from_tool_only_messages() -> None:
 def test_nested_file_groups_count_toward_tool_run_limit(
     monkeypatch: pytest.MonkeyPatch, tool_name: str, streaming: bool
 ) -> None:
-    monkeypatch.setattr("baldric.runtime.tui.state.TOOL_RUN_ROW_LIMIT", 5)
+    monkeypatch.setattr("baldric.runtime.frontends.tui.state.TOOL_RUN_ROW_LIMIT", 5)
     prefix_tool = "edit" if tool_name == "write" else "write"
     rounds = [
         AssistantMessage(
@@ -814,7 +814,7 @@ def test_tui_adapter_renders_skill_file_reads_with_skill_style() -> None:
 def test_restoring_many_reads_resolves_each_skill_path_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from baldric.runtime.tui import state as state_module
+    from baldric.runtime.frontends.tui import state as state_module
 
     skills = tuple(
         Skill(

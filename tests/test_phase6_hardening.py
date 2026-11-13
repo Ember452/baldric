@@ -10,16 +10,29 @@ import httpx
 import pytest
 
 from baldric.agent.harness import SimpleCancellationToken
-from baldric.runtime.auth.credentials import FileCredentialStore
-from baldric.runtime.backends.contracts import (
-    LOCAL_OPERATION_CANCELLATION_TIMEOUT_SECONDS,
-    LocalOperationResult,
-)
 from baldric.runtime.config.paths import BaldricPaths
-from baldric.runtime.extensions import (
+from baldric.runtime.features.llama_cpp.service import (
+    LlamaCppService,
+)
+from baldric.runtime.features.llama_cpp.state import (
+    LLAMA_CPP_CREDENTIAL_PREFIX,
+    LlamaCppIntegrationState,
+    LlamaCppStateError,
+    LlamaCppStateStore,
+    LlamaCppStoredModel,
+)
+from baldric.runtime.platform import (
     DynamicProvider,
     DynamicProviderRegistry,
     ExtensionRuntime,
+    NoAuth,
+    OpenAICompatibleTransport,
+    ProviderModel,
+    ProviderModelSnapshot,
+)
+from baldric.runtime.providers.auth.credentials import FileCredentialStore
+from baldric.runtime.providers.backends.contracts import (
+    LOCAL_OPERATION_CANCELLATION_TIMEOUT_SECONDS,
     LocalBackend,
     LocalBackendRegistry,
     LocalBackendStatus,
@@ -27,20 +40,7 @@ from baldric.runtime.extensions import (
     LocalConfigureSpec,
     LocalModel,
     LocalOperationContext,
-    NoAuth,
-    OpenAICompatibleTransport,
-    ProviderModel,
-    ProviderModelSnapshot,
-)
-from baldric.runtime.extensions.builtins.llama_cpp.service import (
-    LlamaCppService,
-)
-from baldric.runtime.extensions.builtins.llama_cpp.state import (
-    LLAMA_CPP_CREDENTIAL_PREFIX,
-    LlamaCppIntegrationState,
-    LlamaCppStateError,
-    LlamaCppStateStore,
-    LlamaCppStoredModel,
+    LocalOperationResult,
 )
 
 pytestmark = pytest.mark.anyio

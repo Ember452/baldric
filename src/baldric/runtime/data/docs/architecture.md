@@ -16,7 +16,7 @@ Packages:
 
 Keep `baldric.agent` independent of Typer, Rich, Textual, application resource locations, and provider-specific assumptions. Prefer typed data models, explicit async boundaries, deterministic fakes, and small abstractions.
 
-Dynamic provider contracts and composition belong to `baldric.runtime.extensions`.
+Dynamic provider contracts and composition belong to `baldric.runtime.platform`.
 Every staged `ExtensionRuntime` owns a fresh source/generation/layer-aware
 `DynamicProviderRegistry`; durable `ProviderConfig` objects are immutable baseline
 inputs. Dynamic source identity is host-owned and canonical-entry-path-based, not an

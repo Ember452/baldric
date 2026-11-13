@@ -57,7 +57,7 @@ def test_pyte_screen_shows_the_truncated_cjk_line_inside_the_budget() -> None:
 
 def test_pyte_screen_shows_cjk_tool_preview_without_mojibake() -> None:
     """Golden: a CJK-heavy tool preview prints unscathed through the shared path."""
-    from baldric.runtime.tui.state import format_tool_result_block
+    from baldric.runtime.frontends.tui.state import format_tool_result_block
 
     # "宽0" is 3 columns; 26 repetitions fit one 80-column screen line.
     content = "\n".join(f"宽{index}" * 26 for index in range(TOOL_ROWS))

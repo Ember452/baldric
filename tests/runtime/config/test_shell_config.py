@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from baldric.runtime import (
-    BaldricPaths,
+from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.config.shell_config import (
     ShellConfigError,
     ShellSettings,
     load_shell_settings,

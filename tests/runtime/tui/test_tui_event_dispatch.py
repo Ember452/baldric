@@ -16,11 +16,11 @@ from baldric.runtime.events import (
     ThinkingLevelChangedEvent,
 )
 from baldric.runtime.events_dispatch import EventDispatcher
-from baldric.runtime.tui.adapter import INTENTIONAL_NOOP, TuiEventAdapter
-from baldric.runtime.tui.app import BaldricTuiApp
-from baldric.runtime.tui.state import TuiState
-from baldric.runtime.tui.terminal_title import TerminalTitleController
-from baldric.runtime.tui.widgets import TranscriptMessageWidget
+from baldric.runtime.frontends.tui.adapter import INTENTIONAL_NOOP, TuiEventAdapter
+from baldric.runtime.frontends.tui.app import BaldricTuiApp
+from baldric.runtime.frontends.tui.state import TuiState
+from baldric.runtime.frontends.tui.terminal_title import TerminalTitleController
+from baldric.runtime.frontends.tui.widgets import TranscriptMessageWidget
 from tests.guards.event_union import coding_session_event_types
 from tests.helpers.tui_helpers import FakeSession
 

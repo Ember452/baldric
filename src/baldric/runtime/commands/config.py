@@ -111,7 +111,7 @@ def _theme_command(context: CommandContext) -> CommandResult:
     if not context.args:
         return handled_result(CommandOutcome(kind=CommandKind.OPEN_PICKER, picker=PickerKind.THEME))
 
-    # Imported lazily so importing this module never pulls in `baldric.runtime.tui`
+    # Imported lazily so importing this module never pulls in `baldric.runtime.frontends.tui`
     # (whose package __init__ imports Textual) until /theme actually executes.
     from baldric.runtime.rendering.themes import available_tui_theme_names
 

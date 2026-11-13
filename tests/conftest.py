@@ -20,7 +20,7 @@ def prevent_browser_open(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture(autouse=True)
 def skip_idle_garbage_collection(monkeypatch: pytest.MonkeyPatch) -> None:
     """Stub out the TUI's idle-time GC; it acts on the whole pytest process."""
-    monkeypatch.setattr("baldric.runtime.tui.app._collect_garbage_while_idle", lambda: None)
+    monkeypatch.setattr("baldric.runtime.frontends.tui.app._collect_garbage_while_idle", lambda: None)
 
 
 @pytest.fixture(autouse=True)
@@ -62,7 +62,7 @@ _WIN32_SKIPS = {
     "tests/runtime/tui/test_tui_file_drop.py::",
     # POSIX file permissions (0o600)
     "tests/runtime/config/test_credentials.py::test_file_credential_store_round_trips_and_sets_private_permissions",
-    "tests/runtime/extensions/test_llama_cpp_extension.py::test_state_is_atomic_locked_private_and_recovers_interrupted_writes",
+    "tests/features/llama_cpp/test_llama_cpp_extension.py::test_state_is_atomic_locked_private_and_recovers_interrupted_writes",
     # symlink privileges not granted on Windows
     "tests/runtime/extensions/test_extensions.py::test_failed_setup_cleans_every_registration_after_entry_symlink_retarget",
     "tests/runtime/tui/test_tui_app.py::test_sidebar_file_atomic_save_preserves_symlink_and_permissions",

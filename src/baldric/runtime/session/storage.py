@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import BinaryIO, Protocol
 
 from baldric.protocol.session.entries import SessionEntry
-from baldric.protocol.session.jsonl import (
+from baldric.runtime.core.session.jsonl import (
     SessionJsonlError,
     entries_from_transcript,
     entry_from_json_line,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from baldric.runtime.extensions.api import CustomMessageMarkup
+from baldric.runtime.platform.api import CustomMessageMarkup
 from baldric.runtime.rendering.base import EventRenderer, PrintOutputMode
 from baldric.runtime.rendering.json import JsonEventRenderer
 from baldric.runtime.rendering.plain import FinalTextRenderer

@@ -5,10 +5,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from json import JSONDecodeError, loads
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from baldric.runtime.config.paths import BaldricPaths
-from baldric.runtime.trust.policy import TrustDefault
+
+# The default project-trust decision is a *durable settings value* (it is stored
+# in shell settings and read by the trust coordinator), so the config layer owns
+# the shape and the trust layer re-exports it. This keeps the config -> trust
+# import edge nonexistent (the layer matrix forbids it; enforced by
+# ``scripts/check_import_graph.py``).
+TrustDefault = Literal["ask", "always", "never"]
 
 
 class ShellConfigError(ValueError):
