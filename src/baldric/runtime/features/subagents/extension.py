@@ -30,18 +30,17 @@ from baldric.protocol.messages import AssistantMessage, TextContent
 from baldric.protocol.session import SessionEntry
 from baldric.protocol.tools import AgentTool, AgentToolResult, ToolCancellationToken, ToolUpdateCallback
 from baldric.protocol.types import JSONValue
-from baldric.runtime import (
-    CodingSession,
-    CodingSessionConfig,
-    ProviderConfigError,
-    load_provider_settings,
-    resolve_provider_selection,
-)
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.thinking import THINKING_LEVELS, ThinkingLevel
 from baldric.runtime.platform import ExtensionAPI
 from baldric.runtime.platform.providers import DynamicProvider
+from baldric.runtime.providers.config import (
+    ProviderConfigError,
+    load_provider_settings,
+    resolve_provider_selection,
+)
 from baldric.runtime.providers.runtime import create_dynamic_model_provider, create_model_provider
+from baldric.runtime.session.session import CodingSession, CodingSessionConfig
 from baldric.runtime.tools.registry import create_coding_tools
 
 from .agents import AgentDefinition, format_agent_type_list, load_agent_definitions

@@ -15,16 +15,8 @@ from baldric.protocol.messages import AgentMessage, assistant_content, message_t
 from baldric.protocol.session import CustomEntry, CustomMessageEntry, LeafEntry, MessageEntry
 from baldric.protocol.tools import AgentTool, AgentToolResult
 from baldric.protocol.types import JSONValue
-from baldric.runtime import (
-    BaldricPaths,
-    BaldricResourcePaths,
-    BuiltInExtension,
-    CodingSession,
-    CodingSessionConfig,
-    ModelChoice,
-    ResourceError,
-    SessionManager,
-)
+from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.context.resources import BaldricResourcePaths, ResourceError
 from baldric.runtime.context.system_prompt import PromptSection
 from baldric.runtime.platform import (
     EXTENSION_API_VERSION,
@@ -48,7 +40,10 @@ from baldric.runtime.platform import (
     discover_extensions,
     load_extensions,
 )
+from baldric.runtime.platform.builtin_registry import BuiltInExtension
 from baldric.runtime.session import JsonlSessionStorage
+from baldric.runtime.session.manager import SessionManager
+from baldric.runtime.session.session import CodingSession, CodingSessionConfig, ModelChoice
 from baldric.runtime.trust.policy import ProjectTrustRequest, ProjectTrustResolution, TrustChoice
 from tests.helpers.pi_event_helpers import assistant_done, assistant_start
 
@@ -2219,7 +2214,8 @@ async def test_session_lifecycle_recreates_built_in_in_a_fresh_generation(
     from dataclasses import replace as dataclass_replace
 
     import baldric.runtime.platform.builtin_registry as declarations
-    from baldric.runtime import BaldricPaths, SessionManager
+    from baldric.runtime.config.paths import BaldricPaths
+    from baldric.runtime.session.manager import SessionManager
 
     setup_apis: list[ExtensionAPI] = []
     monkeypatch.setattr(
@@ -2784,7 +2780,8 @@ async def test_session_lifecycle_awaits_outgoing_provider_cleanup(
 ) -> None:
     from dataclasses import replace as dataclass_replace
 
-    from baldric.runtime import BaldricPaths, SessionManager
+    from baldric.runtime.config.paths import BaldricPaths
+    from baldric.runtime.session.manager import SessionManager
 
     manager = SessionManager(
         BaldricPaths(home=tmp_path / "home-baldric", agents_home=tmp_path / "home-agents")
@@ -2857,7 +2854,8 @@ async def test_published_lifecycle_adoption_contains_cancellation_during_outgoin
 ) -> None:
     from dataclasses import replace as dataclass_replace
 
-    from baldric.runtime import BaldricPaths, SessionManager
+    from baldric.runtime.config.paths import BaldricPaths
+    from baldric.runtime.session.manager import SessionManager
 
     manager = SessionManager(
         BaldricPaths(home=tmp_path / "home-baldric", agents_home=tmp_path / "home-agents")
@@ -3006,7 +3004,7 @@ async def test_final_close_finishes_registry_and_each_provider_before_propagatin
 
 
 async def test_runtime_survives_new_session_swap(tmp_path: Path) -> None:
-    from baldric.runtime import SessionManager
+    from baldric.runtime.session.manager import SessionManager
 
     body = (
         "EVENTS = []\n\n\n"
@@ -3018,7 +3016,7 @@ async def test_runtime_survives_new_session_swap(tmp_path: Path) -> None:
     )
     from dataclasses import replace as dataclass_replace
 
-    from baldric.runtime import BaldricPaths
+    from baldric.runtime.config.paths import BaldricPaths
 
     provider = FakeProvider([])
     manager = SessionManager(
@@ -3045,7 +3043,8 @@ async def test_session_swap_clears_host_extension_components(tmp_path: Path) -> 
     # otherwise survive the switch (session_start handlers can re-mount).
     from dataclasses import replace as dataclass_replace
 
-    from baldric.runtime import BaldricPaths, SessionManager
+    from baldric.runtime.config.paths import BaldricPaths
+    from baldric.runtime.session.manager import SessionManager
 
     provider = FakeProvider([])
     manager = SessionManager(
@@ -3364,7 +3363,8 @@ async def test_session_replacement_rebuilds_and_invalidates_source_extensions(
 ) -> None:
     from dataclasses import replace as dataclass_replace
 
-    from baldric.runtime import BaldricPaths, SessionManager
+    from baldric.runtime.config.paths import BaldricPaths
+    from baldric.runtime.session.manager import SessionManager
 
     provider = FakeProvider([])
     manager = SessionManager(

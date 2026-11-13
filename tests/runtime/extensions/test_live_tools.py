@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 
 from baldric.protocol.tools import AgentTool, AgentToolResult
-from baldric.runtime import BaldricResourcePaths
+from baldric.runtime.context.resources import BaldricResourcePaths
 from baldric.runtime.platform import ExtensionAPI, ExtensionRuntime
 from baldric.runtime.platform.builtin_registry import BuiltInExtension
 from tests.runtime.extensions.test_extensions import RecordingSession

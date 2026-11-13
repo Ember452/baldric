@@ -14,7 +14,7 @@ import pytest
 
 from baldric.protocol.messages import TextContent
 from baldric.protocol.tools import AgentTool, AgentToolResult
-from baldric.runtime import BaldricResourcePaths
+from baldric.runtime.context.resources import BaldricResourcePaths
 from baldric.runtime.platform import ExtensionRuntime, NullUiBridge
 
 pytestmark = pytest.mark.anyio

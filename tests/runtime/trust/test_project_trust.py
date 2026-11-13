@@ -16,7 +16,6 @@ from typer.testing import CliRunner
 
 from baldric.protocol.provider import ModelProvider
 from baldric.protocol.session import SessionEntry
-from baldric.runtime import SessionManager, jsonl_session_storage
 from baldric.runtime.cli import app
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.resources import (
@@ -26,7 +25,8 @@ from baldric.runtime.context.resources import (
 )
 from baldric.runtime.frontends.tui.trust import ProjectTrustScreen, _ProjectTrustApp
 from baldric.runtime.rendering.themes import BALDRIC_DARK_THEME, textual_theme_for_tui_theme
-from baldric.runtime.session.session import CodingSession, CodingSessionConfig
+from baldric.runtime.session.manager import SessionManager
+from baldric.runtime.session.session import CodingSession, CodingSessionConfig, jsonl_session_storage
 from baldric.runtime.trust import policy as project_trust_module
 from baldric.runtime.trust.policy import (
     ExtensionTrustResult,

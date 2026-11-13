@@ -410,7 +410,7 @@ def setup(baldric):
 Extension 轮次事件与 Pi 一样经 session 增强。`turn_start` 与匹配的 `turn_end` 携带相同的零基 `turn_index`；`turn_start` 还携带 Unix 毫秒 `timestamp`。runtime 在 `turn_end` 后递增索引，在下一个 `agent_start` 重置：
 
 ```python
-from baldric.runtime import TurnEndEvent, TurnStartEvent
+from baldric.api import TurnEndEvent, TurnStartEvent
 
 
 def setup(baldric):
@@ -529,7 +529,7 @@ Extension 有三种自然尺寸；每步都可选，全都不需要打包：
 **测试一个 extension。** 通过真实 runtime 加载而不是直接导入你的模块——那样会像 session 一样锻炼发现、合成包导入与 `setup` 注册：
 
 ```python
-from baldric.runtime import BaldricResourcePaths
+from baldric.runtime.context.resources import BaldricResourcePaths
 from baldric.runtime.platform import ExtensionRuntime
 
 def test_loads(tmp_path):

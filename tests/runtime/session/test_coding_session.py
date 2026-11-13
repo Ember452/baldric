@@ -50,27 +50,10 @@ from baldric.protocol.session import (
     SessionInfoEntry,
     ThinkingLevelChangeEntry,
 )
-from baldric.runtime import (
-    BaldricPaths,
-    BaldricResourcePaths,
-    CodingSession,
-    CodingSessionConfig,
-    FileCredentialStore,
-    ModelChoice,
-    OAuthCredential,
-    OpenAICodexProviderConfig,
-    OpenAICompatibleProviderConfig,
-    ProviderConfigError,
-    ProviderSettings,
-    ResourceError,
-    ScopedModelConfig,
-    SessionManager,
-    SessionTreeBranchResult,
-    load_provider_settings,
-    save_provider_settings,
-)
 from baldric.runtime.commands.base import CommandKind, CommandOutcome, PickerKind
+from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.prompts import PromptTemplate
+from baldric.runtime.context.resources import BaldricResourcePaths, ResourceError
 from baldric.runtime.events import (
     AgentSettledEvent,
     CompactionEndEvent,
@@ -84,9 +67,17 @@ from baldric.runtime.platform import (
     ProviderModel,
 )
 from baldric.runtime.platform.runtime import InputHookOutcome
+from baldric.runtime.providers.auth.credentials import FileCredentialStore, OAuthCredential
 from baldric.runtime.providers.config import (
+    OpenAICodexProviderConfig,
+    OpenAICompatibleProviderConfig,
+    ProviderConfigError,
     ProviderModelMetadata,
+    ProviderSettings,
+    ScopedModelConfig,
+    load_provider_settings,
     provider_thinking_levels,
+    save_provider_settings,
 )
 from baldric.runtime.providers.stores.codex_model_store import (
     cached_codex_model_catalog,
@@ -95,8 +86,13 @@ from baldric.runtime.providers.stores.codex_model_store import (
 from baldric.runtime.session import JsonlSessionStorage
 from baldric.runtime.session import session as coding_session_module
 from baldric.runtime.session.compaction.context_window import estimate_message_tokens
+from baldric.runtime.session.manager import SessionManager
 from baldric.runtime.session.session import (
     SESSION_NAME_SYSTEM_PROMPT,
+    CodingSession,
+    CodingSessionConfig,
+    ModelChoice,
+    SessionTreeBranchResult,
     _first_recent_context_index,
     _ordered_tree_entries,
     _tree_branch_indents,

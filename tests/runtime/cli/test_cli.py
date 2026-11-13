@@ -11,7 +11,7 @@ from baldric.ai import (
 )
 from baldric.protocol.messages import BashExecutionMessage
 from baldric.protocol.session import MessageEntry, ModelChangeEntry
-from baldric.runtime import CodingSessionRecord, SessionManager, cli
+from baldric.runtime import cli
 from baldric.runtime.cli import app
 from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.resources import BaldricResourcePaths
@@ -34,6 +34,7 @@ from baldric.runtime.providers.config import (
 )
 from baldric.runtime.rendering import PrintOutputMode
 from baldric.runtime.session import JsonlSessionStorage
+from baldric.runtime.session.manager import CodingSessionRecord, SessionManager
 from baldric.runtime.tools.registry import create_coding_tools
 from baldric.runtime.update.check import (
     ReleaseNoteSection,

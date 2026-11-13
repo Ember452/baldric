@@ -5,7 +5,8 @@
 > [B](../notes/2026-11-12-stage-b-subagents.md)、[C](../notes/2026-11-12-stage-c-mcp-llamacpp.md)、
 > [D](../notes/2026-11-12-stage-d-providers-merge.md)、[E](../notes/2026-11-12-stage-e-platform.md)、
 > [F](../notes/2026-11-12-stage-f-app-composition.md)、[G](../notes/2026-11-13-stage-g-frontends.md)、
-> [外审修正](../notes/2026-11-13-post-review-fixes.md)。
+> [外审修正](../notes/2026-11-13-post-review-fixes.md)、
+> [runtime 包根瘦身](../notes/2026-11-13-runtime-facade-slimming.md)。
 > 后续阶段 H 待推进（独立分支），原子完成并停下评审。
 > v1 依据：2026-11-11 全量深扫 + 2026-11-12 逐目录实测裁定
 > v2 修订：吸收独立评审的 6 个 P0 + 11 个 P1，并补入本会话新发现的 2 项（`protocol/session/jsonl.py` 是行为、`ai/` 与 `providers/` 是两层配置）
@@ -70,18 +71,18 @@ v2 的原则：**先把墙砌好（protocol 契约 + port + scanner 白名单 + 
 
 > **规则**：计划里任何行数/符号数/文件数，一律由 `scripts/measure_structure.py` 生成再粘贴；验收时也用它，避免手写口径漂移。
 
-**基线快照（2026-11-13 外审修正后实测，由 `scripts/measure_structure.py` 生成）**：
+**基线快照（2026-11-13 runtime 包根瘦身后实测，由 `scripts/measure_structure.py` 生成）**：
 
 | 项 | 数值 |
 |---|---|
-| `src/` | 257 文件 / **78,180** 行 |
-| `tests/` | 220 文件 / **78,049** 行 |
-| `runtime/` | 206 文件 / 66,607 行 |
+| `src/` | 257 文件 / **77,880** 行 |
+| `tests/` | 220 文件 / **78,006** 行 |
+| `runtime/` | 206 文件 / 66,307 行 |
 | `runtime/frontends/tui/` | 40 文件 / 19,056 行（G1 前为 `runtime/tui/`） |
 | `runtime/session/session.py` | **2,060** 行 / **183** 个方法（阶段 F 抽出 runtime 装配后） |
-| `runtime/__init__.py` | **317** 行 / **139** 个 `__all__`（待 §6.1 瘦身） |
-| `runtime/platform/__init__.py` | **249** 行 / **116** 符号（E 前为 `runtime/extensions/`） |
-| `scripts/check_import_graph.py` 规则数 | **31** 条（28 RULES + 3 AllowRule；§0.2 加 config✗→trust 与 features✗→frontends 对） |
+| `runtime/__init__.py` | **18** 行 / **1** 个 `__all__`（已瘦身；原 317 行 / 139 名） |
+| `runtime/platform/__init__.py` | **249** 行 / **116** 符号（E 前为 `runtime/extensions/`；收窄待 §6.1） |
+| `scripts/check_import_graph.py` 规则数 | **31** 条（28 RULES + 3 AllowRule） |
 | fast suite（除 TUI） | 会变，验收看"不减少"而非绝对数 |
 
 > 口径纪律：任何行数/符号数以此脚本 `uv run python scripts/measure_structure.py` 输出为准，
@@ -447,8 +448,12 @@ A0（api facade + protocol 契约 + port + scanner 白名单 + 示例路径固�
 
 ### 6.1 `runtime/__init__.py` 313 行 `__all__` + feature tests 打包
 
-- `baldric/api/` = 稳定公共面（re-export protocol）。
-- `runtime/__init__.py` 瘦身（只 `__version__` + 必要符号）。
+- `baldric/api/` = 稳定公共面（形状 re-export protocol；行为类来自 platform）。
+  **已落地 2026-11-13**：`baldric.api` 63 名被 `tests/test_public_surface.py` 冻结。
+- `runtime/__init__.py` 瘦身（只 `__version__` + 必要符号）。**已落地 2026-11-13**：
+  317 行 / 139 名 → 18 行 / 1 名；`import baldric.runtime` 的 eager import
+  由 156 模块降到 1（见 [runtime 瘦身记录](../notes/2026-11-13-runtime-facade-slimming.md)）。
+  这是有意的公共契约变更：原 139 名聚合面删除，消费方改从归属子模块导入。
 - **feature 测试放 `tests/features/<name>/`（不放 src 内，避免打进 wheel 与 scanner 误扫）**。v1 的"放 features/<name>/tests/"撤回。
 - 老命令 `pytest tests/runtime/extensions/test_subagents_*` 已随阶段 B 失效（测试现位于 `tests/features/subagents/`），CI/文档已同步。
 

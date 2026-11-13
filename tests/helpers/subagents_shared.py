@@ -13,8 +13,8 @@ from types import SimpleNamespace
 
 from baldric.ai import AssistantDoneEvent, AssistantStartEvent
 from baldric.protocol.messages import AssistantMessage
-from baldric.runtime import BaldricResourcePaths
 from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.context.resources import BaldricResourcePaths
 from baldric.runtime.platform import ExtensionRuntime
 
 EXTENSION_DIR = Path(__file__).resolve().parents[2] / "src" / "baldric" / "runtime" / "features" / "subagents"

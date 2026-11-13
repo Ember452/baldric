@@ -8,8 +8,8 @@ import pytest
 
 from baldric.agent import AssistantMessage
 from baldric.ai import FakeProvider
-from baldric.runtime import CodingSession, CodingSessionConfig
 from baldric.runtime.session import JsonlSessionStorage
+from baldric.runtime.session.session import CodingSession, CodingSessionConfig
 from tests.helpers.pi_event_helpers import assistant_done, assistant_start
 
 pytestmark = pytest.mark.anyio

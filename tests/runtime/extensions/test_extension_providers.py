@@ -12,7 +12,7 @@ import pytest
 
 from baldric.agent import UserMessage
 from baldric.ai import OpenAICompatibleProvider
-from baldric.runtime import BaldricResourcePaths
+from baldric.runtime.context.resources import BaldricResourcePaths
 from baldric.runtime.observability.diagnostics import AgentCallDiagnosticContext, AgentCallDiagnosticLogger
 from baldric.runtime.platform import (
     DynamicProvider,

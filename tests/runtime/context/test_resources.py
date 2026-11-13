@@ -2,8 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from baldric.runtime import BaldricPaths, BaldricResourcePaths
+from baldric.runtime.config.paths import BaldricPaths
 from baldric.runtime.context.resources import (
+    BaldricResourcePaths,
     ResourceError,
     derive_description,
     discover_system_prompt_resources,

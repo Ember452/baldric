@@ -14,10 +14,12 @@ from baldric.ai import FakeProvider
 from baldric.mcp.client import McpContentBlock, McpToolInfo, McpToolResultData
 from baldric.mcp.config import McpServerConfig
 from baldric.mcp.supervisor import McpServerStatus
-from baldric.runtime import BaldricPaths, BaldricResourcePaths, CodingSession, CodingSessionConfig
+from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.context.resources import BaldricResourcePaths
 from baldric.runtime.platform import ExtensionRuntime
 from baldric.runtime.platform.builtin_registry import BuiltInExtension
 from baldric.runtime.session import JsonlSessionStorage
+from baldric.runtime.session.session import CodingSession, CodingSessionConfig
 from tests.runtime.extensions.test_extensions import RecordingSession, RecordingUiBridge
 
 pytestmark = pytest.mark.anyio

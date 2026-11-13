@@ -205,7 +205,7 @@
       "max_function_stmts": 0
     },
     "src/baldric/runtime/__init__.py": {
-      "lines": 317,
+      "lines": 18,
       "max_function_stmts": 0
     },
     "src/baldric/runtime/app.py": {
@@ -381,7 +381,7 @@
       "max_function_stmts": 8
     },
     "src/baldric/runtime/features/subagents/extension.py": {
-      "lines": 1673,
+      "lines": 1672,
       "max_function_stmts": 32
     },
     "src/baldric/runtime/features/subagents/fork.py": {

@@ -2,7 +2,7 @@ from datetime import date
 from pathlib import Path
 
 from baldric.agent import AgentTool, AgentToolResult
-from baldric.runtime import Skill
+from baldric.runtime.context.skills.skills import Skill
 from baldric.runtime.context.system_prompt import (
     BuildSystemPromptOptions,
     ProjectContextFile,

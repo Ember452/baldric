@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from baldric.runtime import (
-    BaldricResourcePaths,
+from baldric.runtime.context.resources import BaldricResourcePaths, ResourceError
+from baldric.runtime.context.skills.skills import (
     Skill,
     build_skill_index,
     expand_skill_command,
@@ -12,7 +12,6 @@ from baldric.runtime import (
     load_skills_with_diagnostics,
     parse_skill_invocation,
 )
-from baldric.runtime.context.resources import ResourceError
 
 
 def test_load_skills_does_not_include_baldric_self_knowledge(tmp_path: Path) -> None:

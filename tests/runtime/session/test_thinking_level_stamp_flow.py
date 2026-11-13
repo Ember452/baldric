@@ -21,15 +21,11 @@ import baldric.ai.openai_compatible as openai_compatible_module
 from baldric.agent import AssistantMessage, MessageEndEvent, UserMessage
 from baldric.ai import FakeProvider
 from baldric.protocol.session import MessageEntry
-from baldric.runtime import (
-    BaldricPaths,
-    BaldricResourcePaths,
-    CodingSession,
-    CodingSessionConfig,
-    OpenAICompatibleProviderConfig,
-    ProviderSettings,
-)
+from baldric.runtime.config.paths import BaldricPaths
+from baldric.runtime.context.resources import BaldricResourcePaths
+from baldric.runtime.providers.config import OpenAICompatibleProviderConfig, ProviderSettings
 from baldric.runtime.session import JsonlSessionStorage
+from baldric.runtime.session.session import CodingSession, CodingSessionConfig
 
 _MODEL = "test-reasoner"
 
